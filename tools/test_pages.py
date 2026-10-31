@@ -7,7 +7,7 @@
 
 Serve the folder and open a page:   python3 -m http.server 8766 -d tools/out   then http://localhost:8766/test.html
 """
-import os
+import os, shutil
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'tools', 'out')
@@ -99,6 +99,7 @@ if __name__ == '__main__':
     }
     local = pages['test.html']
     pages['shot.html'] = local[:local.rindex('</body>')] + SHOT + '</body></html>'
+    shutil.copytree(os.path.join(ROOT, 'src', 'voices'), os.path.join(OUT, 'voices'), dirs_exist_ok=True)
     for name, html in pages.items():
         open(os.path.join(OUT, name), 'w').write(html)
     print('tools/out:', ', '.join(pages))

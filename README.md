@@ -1,6 +1,6 @@
 # MoonFall
 
-A pixel-art phone game by PermaFrost Productions. Fall through the moon, dodge the walls, collect parts and repair your ship.
+A pixel-art phone game by PermaFrost Productions. Fall through a moon, dodge the walls, collect parts and repair your ship.
 
 Play it at **https://peter-routamaa.github.io/moonfall/**. The `docs` folder is what GitHub Pages publishes as the website.
 
@@ -9,7 +9,8 @@ Play it at **https://peter-routamaa.github.io/moonfall/**. The `docs` folder is 
 | Path | What it is |
 |---|---|
 | `src/moonfall.html` | **The game's source**: the whole game in one file (HTML, CSS and JavaScript), exactly as published on claude.ai. Edit this one. A guide at the top of its script explains how the code fits together. |
-| `docs/index.html` | The website copy, built from `src/moonfall.html` by `tools/build_site.py`. Don't edit it by hand. |
+| `src/voices/` | The 15 recorded voice clips (CC0, by qubodup on OpenGameArt), loaded by the game when sound starts. |
+| `docs/index.html`, `docs/voices/` | The website copy, built from `src/` by `tools/build_site.py`. Don't edit these by hand. |
 | `tools/` | Build, test and screenshot scripts (see *Working on the game*). |
 | `supabase/migrations/20261031000000_scores.sql` | Creates the online high score table. |
 | `supabase/migrations/20261031130000_plays.sql` | Creates the private play counter: the `plays` table and the `play_stats` view. |

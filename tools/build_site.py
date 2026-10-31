@@ -4,9 +4,10 @@
     python3 tools/build_site.py --offline    # without it: scores stay on the device, no stats are sent
 
 src/moonfall.html is the game exactly as published on claude.ai, where SCORES_URL is empty. This wraps it in a normal
-web page (doctype, head, the same base styles the claude.ai page adds) and fills in SCORES_URL.
+web page (doctype, head, the same base styles the claude.ai page adds), fills in SCORES_URL, and copies the voice clips
+(src/voices/*.wav) to docs/voices/.
 """
-import os, re, sys
+import os, re, shutil, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCORES_URL = 'https://ukjajizsnowmdjziqkof.supabase.co/functions/v1/scores'   # public; it's in the built page anyway
@@ -26,7 +27,7 @@ icon = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0
 page = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'
         '<meta name="theme-color" content="#1A1E2C">\n'
-        '<meta name="description" content="MoonFall: fall through the moon, dodge the walls, repair your ship.">\n'
+        '<meta name="description" content="MoonFall: fall through a moon, dodge the walls, repair your ship.">\n'
         f'<link rel="icon" href="{icon}">\n'
         # Same base styles the claude.ai artifact page gets, so the game looks identical.
         '<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}'
@@ -34,4 +35,5 @@ page = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         + head + '\n</head>\n<body>\n' + body.rstrip() + '\n</body>\n</html>\n')
 os.makedirs(os.path.join(ROOT, 'docs'), exist_ok=True)
 open(os.path.join(ROOT, 'docs', 'index.html'), 'w').write(page)
+shutil.copytree(os.path.join(ROOT, 'src', 'voices'), os.path.join(ROOT, 'docs', 'voices'), dirs_exist_ok=True)
 print(f'docs/index.html {len(page) // 1024} KB, scores URL: {url or "(none: offline)"}')

@@ -14,6 +14,9 @@ CHROME = os.environ.get('CHROME', '/Applications/Google Chrome.app/Contents/MacO
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
 SEEDED = """<script>window.requestAnimationFrame = () => 0;  // the script steps frames itself
+// No sound: the synthesised voice uses random numbers and the recorded clips load in the background, so with sound on
+// the random sequence (and with it every particle) would depend on whether a clip had arrived yet.
+window.AudioContext = window.webkitAudioContext = undefined;
 Math.random = (s => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s);
 t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; })(12345);</script>"""
 
