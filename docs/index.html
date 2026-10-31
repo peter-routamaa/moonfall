@@ -500,7 +500,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 'use strict';
 
 // Shown on the title card as v0.50. Add one with every published version (100 reads v1.00).
-const VERSION = 53;
+const VERSION = 54;
 
 // ---------- canvas and palette ----------
 const W = 320, TH = 128;
@@ -1035,10 +1035,17 @@ function cafeInfo(k) {
   return { k, Dc, Dl, side, wall, tip, padX: tip + side * 30, counterX: wall - side * 58, shopX: side < 0 ? wall + 4 : wall - 70 };
 }
 const SIGN_FONT = { C: ['111', '100', '100', '100', '111'], A: ['010', '101', '111', '101', '101'], F: ['111', '100', '110', '100', '100'], E: ['111', '100', '110', '100', '111'],
-  L: ['100', '100', '100', '100', '111'], N: ['101', '111', '111', '101', '101'], D: ['110', '101', '101', '101', '110'] };
+  L: ['100', '100', '100', '100', '111'], N: ['101', '111', '111', '101', '101'], D: ['110', '101', '101', '101', '110'],
+  M: ['10001', '11011', '10101', '10001', '10001'], 0: ['111', '101', '101', '101', '111'], 1: ['010', '110', '010', '010', '111'] };
 function signText(text, x, y, z, g = c) {
-  for (const ch of text) { SIGN_FONT[ch].forEach((row, ry) => { for (let rx = 0; rx < 3; rx++) if (row[rx] === '1') g.fillRect(x + rx * z, y + ry * z, z, z); }); x += 4 * z; }
+  for (const ch of text) {
+    const gl = SIGN_FONT[ch];
+    if (!gl) { x += 2 * z; continue; }
+    gl.forEach((row, ry) => { for (let rx = 0; rx < row.length; rx++) if (row[rx] === '1') g.fillRect(x + rx * z, y + ry * z, z, z); });
+    x += (gl[0].length + 1) * z;
+  }
 }
+const signWidth = (text, z) => [...text].reduce((w, ch) => w + ((SIGN_FONT[ch] ? SIGN_FONT[ch][0].length : 1) + 1) * z, 0) - z;
 // The cafe's still parts are drawn once per cafe into two images: everything behind the chimney smoke,
 // and the big sign in front of it. Pad lights, the arrow, the barista, smoke and the sign's bulbs stay live.
 const CAFE_Y = 92, cafeArt = new Map();
@@ -2238,7 +2245,7 @@ function resetRun() {
   leviSeen.clear();
   $('partsRun').textContent = '0'; repair = repairFrac(); repairStart = repair;
   Object.assign(pl, { x: 84, y: -30, v: 0, vx: 0, hp: 5, max: 5, inv: 0, blockT: 0, shield: 0, shieldMax: 10, orbs: 0, spare: 0, streak: 0, bestStreak: 0, perks: {}, bought: [], slowUntil: 0, flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false, fallRamp: 1 });
-  cafeVisited.clear(); cafeArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
+  cafeVisited.clear(); cafeArt.clear(); signArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
   buildHP(); $('spareRun').textContent = '0'; spareHud.hidden = true; renderStreak(); buildFlags(); refreshBoard();
   Music.reset();
   shake = 0; dieT = 0; camY = camY0; shownDepth = -1;
@@ -2307,14 +2314,28 @@ confirmDlg.addEventListener('close', () => $('resetBtn').focus({ preventScroll: 
 $('settingsBtn').addEventListener('click', () => setCard('settings'));
 $('howDone').addEventListener('click', () => setCard(null));
 $('settingsDone').addEventListener('click', () => setCard(null));
-// Play counter for the owner's Supabase dashboard: a random ID made once per device (no name, nothing personal) and one ping per run.
-function countPlay() {
+// Private stats for the owner's Supabase dashboard: a random ID made once per device (no name, nothing personal),
+// one ping when a run starts and one when it ends with how long it lasted, how deep it got and how it ended.
+// Only sent when the online board is on (SCORES_URL), so the claude.ai copy never counts.
+const hex16 = () => { const b = new Uint8Array(8); crypto.getRandomValues(b); return [...b].map(x => x.toString(16).padStart(2, '0')).join(''); };
+let runId = '', runSecs = 0, cafesRun = 0, lastHit = '';
+function statPing(body) {
   if (!SCORES_URL) return;
-  if (!/^[0-9a-f]{16}$/.test(save.playerId || '')) {
-    const b = new Uint8Array(8); crypto.getRandomValues(b);
-    save.playerId = [...b].map(x => x.toString(16).padStart(2, '0')).join(''); persist();
-  }
-  fetch(SCORES_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: 'play', player: save.playerId }), keepalive: true }).catch(() => {});
+  fetch(SCORES_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
+}
+function countPlay() {
+  if (!/^[0-9a-f]{16}$/.test(save.playerId || '')) { save.playerId = hex16(); persist(); }
+  runId = hex16(); runSecs = 0; cafesRun = 0; lastHit = '';
+  statPing({ event: 'play', player: save.playerId, run: runId });
+}
+// how: wall, rock, mine or lava (what took the last health), quit (Main menu from pause) or left (the game was hidden
+// mid-run; sent again with the real ending if they come back).
+function endRun(how) {
+  if (!runId) return;
+  const total = Object.values(runParts).reduce((n, v) => n + v, 0);
+  statPing({ event: 'end', player: save.playerId, run: runId, depth: depthM(), secs: Math.round(runSecs), how, orbs: pl.orbs, parts: total, cafes: cafesRun,
+    initials: /^[A-Z]{3}$/.test(save.initials || '') ? save.initials : null });
+  if (how !== 'left') runId = '';
 }
 function startRun(quick) {
   Sfx.init(); Music.stop(0.4); setCard(null, true);
@@ -2340,14 +2361,14 @@ function resume() {
   else if (state === 'play' || introT >= 1.3) Music.start();
 }
 function toTitle() {
-  resetRun(); state = 'title'; hud.classList.add('off'); syncToggles(); renderRepair(); showScreen('title'); placeHorizon(); Sfx.wind(0); Sfx.thrust(0); Music.title();
+  endRun('quit'); resetRun(); state = 'title'; hud.classList.add('off'); syncToggles(); renderRepair(); showScreen('title'); placeHorizon(); Sfx.wind(0); Sfx.thrust(0); Music.title();
 }
 function die() {
   state = 'dying'; dieT = 0; Buzz.death(); Sfx.death(); Sfx.wind(0); Sfx.thrust(0); Music.stop(0.7);
   for (let i = 0; i < 18; i++) burst(pl.x, pl.y + 14, i % 3 ? P.g : P.a, 1);
 }
 function gameOver() {
-  state = 'over';
+  state = 'over'; endRun(lastHit || 'wall');
   const m = depthM(), isBest = m > save.best;
   if (isBest) { save.best = m; persist(); }
   $('oDepth').innerHTML = m + '<small>m</small>'; $('oBest').innerHTML = save.best + '<small>m</small>'; $('oOrbs').textContent = pl.orbs;
@@ -2523,7 +2544,7 @@ function checkCafe() {
   const C = cafeInfo(k);
   if (feet < C.Dl - 170 || feet > C.Dl - 4) return;
   if (C.side < 0 ? pl.x - HB > C.tip + 8 : pl.x + HB < C.tip - 8) return;
-  cafeVisited.add(k); cafeK = k; state = 'landing'; cafeT = 0; landFrom = { x: pl.x, y: pl.y };
+  cafeVisited.add(k); cafesRun++; cafeK = k; state = 'landing'; cafeT = 0; landFrom = { x: pl.x, y: pl.y };
   steerAcc = 0; tapBurst.l = tapBurst.r = 0; presses.clear(); pl.vx = 0; pl.thr = 0; Sfx.thrust(0.9);
 }
 function leaveCafe() {
@@ -2678,46 +2699,45 @@ function flagArt(f) {
   if (!document.fonts || document.fonts.check('8px Silkscreen')) f[key] = v;
   return v;
 }
-// ---------- cafe signs: 100 m above each cafe, on the cafe's side of the shaft, a sign points the way down ----------
-const CAFE_SIGN_UP = 800, CAFE_SIGN_H = 24, signArt = new Map();
-// The board and its brackets are drawn once per cafe into a full-width image; the arrow is drawn live so it can bob.
+// ---------- cafe signs: 100 m above each cafe, on the rock beside the shaft at the cafe's edge of the screen ----------
+// Block letters like the cafe's own sign: 3x where the rock is wide enough, else 2x. The arrow is drawn live so it can bob.
+const CAFE_SIGN_UP = 800, signArt = new Map();
+const ARROW = ['00100', '00100', '11111', '01110', '00100'];
 function cafeSignArt(C) {
   let a = signArt.get(C.k);
   if (a) return a;
   for (const key of signArt.keys()) if (Math.abs(key - C.k) > 1) signArt.delete(key);
-  const v = document.createElement('canvas'); v.width = W; v.height = CAFE_SIGN_H + 4;
-  const g = v.getContext('2d'), s = C.side, top = C.Dl - CAFE_SIGN_UP - CAFE_SIGN_H / 2, label = 'CAFE 100 m';
-  g.font = '8px Silkscreen'; g.textBaseline = 'top';
-  const w = Math.max(30, Math.ceil(g.measureText(label).width) + 8);
-  // Stand the board off the wall's innermost point along its height, so the jagged rock never pokes through it.
-  const edge = j => { const e = edgeAt(top + j); return s < 0 ? e.L : e.R; };
-  let wall = edge(0);
-  for (let j = 1; j <= CAFE_SIGN_H; j++) wall = s < 0 ? Math.max(wall, edge(j)) : Math.min(wall, edge(j));
-  const bx = s < 0 ? Math.round(wall + 6) : Math.round(wall - 6 - w);
-  for (const j of [5, CAFE_SIGN_H - 6]) {
-    const ex = Math.round(edge(j)), x0 = s < 0 ? ex - 2 : bx + w, x1 = s < 0 ? bx : ex + 2;
-    g.fillStyle = P.s; g.fillRect(x0, j, x1 - x0, 2); g.fillStyle = P.shade; g.fillRect(s < 0 ? x0 : x1 - 2, j, 2, 2);
-  }
-  g.fillStyle = P.a; g.fillRect(bx + 2, 2, w, CAFE_SIGN_H);
-  g.fillStyle = P.s; g.fillRect(bx - 1, 0, w + 2, CAFE_SIGN_H);
-  g.fillStyle = '#F2C14E'; g.fillRect(bx, 1, w, CAFE_SIGN_H - 2);
-  g.fillStyle = P.s; g.fillText(label, bx + 4, 3);
-  a = { img: v, top, cx: bx + Math.floor(w / 2) };
-  // Only keep it once the pixel font has loaded, so an early fallback-font version gets redrawn.
-  if (!document.fonts || document.fonts.check('8px Silkscreen')) signArt.set(C.k, a);
+  const s = C.side, mid = C.Dl - CAFE_SIGN_UP;
+  const size = z => { const pad = z + 2, w = Math.max(signWidth('CAFE', z), signWidth('100M', z)) + pad * 2; return { z, pad, w, h: pad * 2 + 5 * z * 3 + 2 * (z + 1) }; };
+  // Room on the rock: from the screen edge to the shaft wall's innermost point along the board's height, less a small gap.
+  const room = h => { let m = W; for (let j = -h / 2; j <= h / 2; j += 2) { const e = edgeAt(mid + j); m = Math.min(m, s < 0 ? e.L : W - e.R); } return m - 6; };
+  let L = size(3);
+  if (L.w > room(L.h)) L = size(2);
+  const { z, pad, w, h } = L, x0 = s < 0 ? 3 : W - 3 - w;
+  const v = document.createElement('canvas'); v.width = w + 3; v.height = h + 3;
+  const g = v.getContext('2d');
+  g.fillStyle = P.a; g.fillRect(2, 2, w + 1, h + 1);
+  g.fillStyle = P.s; g.fillRect(0, 0, w + 1, h + 1);
+  g.fillStyle = '#F2C14E'; g.fillRect(1, 1, w - 1, h - 1);
+  g.fillStyle = P.shade; for (const [bx, by] of [[3, 3], [w - 4, 3], [3, h - 4], [w - 4, h - 4]]) g.fillRect(bx, by, 1, 1);
+  g.fillStyle = P.s;
+  signText('CAFE', 1 + Math.round((w - 1 - signWidth('CAFE', z)) / 2), pad, z, g);
+  signText('100M', 1 + Math.round((w - 1 - signWidth('100M', z)) / 2), pad + 5 * z + z + 1, z, g);
+  a = { img: v, x0, h, z, ax: x0 + 1 + Math.round((w - 1 - 5 * z) / 2), ay: pad + 2 * (5 * z + z + 1) };
+  signArt.set(C.k, a);
   return a;
 }
 function drawCafeSigns(cam) {
   const k0 = Math.max(1, cafeIdx(cam + H / 2 + CAFE_SIGN_UP));
   for (let k = k0 - 1; k <= k0 + 1; k++) {
     if (k < 1) continue;
-    const C = cafeInfo(k), y = Math.round(C.Dl - CAFE_SIGN_UP - CAFE_SIGN_H / 2 - cam);
-    if (y < -CAFE_SIGN_H - 8 || y > H + 8) continue;
-    const a = cafeSignArt(C), ay = y + 12 + Math.floor(ft * 3) % 2;
-    c.drawImage(a.img, 0, y);
-    // Down arrow: a short shaft and a head that narrows to a point.
-    c.fillStyle = P.a; c.fillRect(a.cx - 1, ay, 3, 4);
-    for (let i = 0; i < 5; i++) c.fillRect(a.cx - 4 + i, ay + 4 + i, 9 - 2 * i, 1);
+    const C = cafeInfo(k), mid = Math.round(C.Dl - CAFE_SIGN_UP - cam);
+    if (mid < -40 || mid > H + 40) continue;
+    const a = cafeSignArt(C), y = mid - Math.round(a.h / 2);
+    c.drawImage(a.img, a.x0, y);
+    const ay = y + a.ay - 1 + Math.floor(ft * 3) % 2;
+    c.fillStyle = P.a;
+    ARROW.forEach((row, ry) => { for (let rx = 0; rx < 5; rx++) if (row[rx] === '1') c.fillRect(a.ax + rx * a.z, ay + ry * a.z, a.z, a.z); });
   }
 }
 function drawFlags(cam) {
@@ -3127,7 +3147,7 @@ $('pauseBtn').addEventListener('click', pause);
 $('resumeBtn').addEventListener('click', resume);
 $('quitBtn').addEventListener('click', toTitle);
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { pause(); if (state === 'title') Music.stop(0.1); }
+  if (document.hidden) { pause(); if (state === 'title') Music.stop(0.1); if (runId && state !== 'over') endRun('left'); }
   else if (state === 'title') Music.title();
 });
 
@@ -3277,7 +3297,7 @@ function hurt(kind, x, d) {
   Buzz[kind](); Sfx[kind]();
   setHP('hit', dmg);
   pop('-' + dmg, pl.x, pl.y - 6, 'bad');
-  if (pl.hp <= 0) die(); else Sfx.hurtVoice(kind);
+  if (pl.hp <= 0) { lastHit = kind; die(); } else Sfx.hurtVoice(kind);
 }
 const SHIELD_S = 10, CLOSE_PX = 10;
 let orbChain = 0, lastOrbT = -9;
@@ -3567,6 +3587,7 @@ function frame(now) {
     // Hit-stop: the world holds still for a beat. Nothing updates during it, so nothing can collide and start another one
     // (a shielded pilot resting on a lava drip used to restart it every frame and freeze the game).
     if (hitStop > 0) hitStop = Math.max(0, hitStop - dt); else update(dt);
+    if (runId) runSecs += dt;
     prepaint(camY); render(); meter.cpu += performance.now() - t0;
   }
   if (save.fps) {

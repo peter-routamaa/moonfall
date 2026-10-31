@@ -1,7 +1,8 @@
 // MoonFall online high scores and play counter.
 //   GET  -> { top }                 the 10 deepest runs
 //   POST -> { top, rank, id }       body { initials: "ABC", depth: 812 }; saves the run
-//   POST -> { ok }                  body { event: "play", player: "<16 hex>" }; counts one run for the owner's stats
+//   POST -> { ok }                  body { event: "play", player: "<16 hex>", run: "<16 hex>" }; a run started (owner's stats)
+//   POST -> { ok }                  body { event: "end", player, run, depth, secs, how, orbs, parts, cafes, initials }; how it went
 // The game only knows this function's URL. The secret key comes from the function's own
 // environment (Supabase provides SUPABASE_URL plus SUPABASE_SECRET_KEYS on newer projects and
 // SUPABASE_SERVICE_ROLE_KEY on all), so no key is ever in the game file.
@@ -18,6 +19,7 @@ const BASE = Deno.env.get('SUPABASE_URL') ?? '';
 const KEY = secretKey();
 const REST = `${BASE}/rest/v1`;
 const TOP = 10, MAX_DEPTH = 100000, PER_MINUTE = 6, PLAY_GAP_MS = 5000;
+const HEX16 = /^[0-9a-f]{16}$/, HOW = new Set(['wall', 'rock', 'mine', 'lava', 'quit', 'left']);
 
 // Initials that aren't allowed, since kids play: refused when sent, and shown as ??? if any are already stored.
 // Keep in step with BAD_INITIALS in docs/index.html.
@@ -58,6 +60,19 @@ async function insert(table: string, row: unknown, want: boolean) {
   return want ? (await r.json())[0] : null;
 }
 
+// Updates matching rows and returns how many changed.
+async function update(table: string, filter: string, row: unknown) {
+  const r = await fetch(`${REST}/${table}?${filter}`, {
+    method: 'PATCH',
+    headers: { ...auth, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+    body: JSON.stringify(row),
+  });
+  if (!r.ok) throw new Error(`update ${table}: ${r.status} ${await r.text()}`);
+  return (await r.json()).length;
+}
+
+const whole = (v: unknown, max: number) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= max;
+
 async function hash(text: string) {
   const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
@@ -74,9 +89,24 @@ Deno.serve(async req => {
     // Repeats from the same ID within 5 s are ignored, which keeps double taps and spam out of the counts.
     if (body?.event === 'play') {
       const player = typeof body.player === 'string' ? body.player : '';
-      if (!/^[0-9a-f]{16}$/.test(player)) return reply({ error: 'bad player id' }, 400);
+      if (!HEX16.test(player)) return reply({ error: 'bad player id' }, 400);
+      const run = typeof body.run === 'string' && HEX16.test(body.run) ? body.run : null;
       const since = new Date(Date.now() - PLAY_GAP_MS).toISOString();
-      if (await count('plays', `player=eq.${player}&created_at=gt.${encodeURIComponent(since)}`) === 0) await insert('plays', { player }, false);
+      if (await count('plays', `player=eq.${player}&created_at=gt.${encodeURIComponent(since)}`) === 0) await insert('plays', { player, run }, false);
+      return reply({ ok: true });
+    }
+
+    // A run ended (or the game was hidden mid-run, sent again with the real ending later): fill in that run's row.
+    // If its start ping never arrived, the row is made now.
+    if (body?.event === 'end') {
+      const { player, run, depth, secs, how, orbs, parts, cafes } = body;
+      if (typeof player !== 'string' || !HEX16.test(player) || typeof run !== 'string' || !HEX16.test(run)) return reply({ error: 'bad player or run id' }, 400);
+      if (!whole(depth, MAX_DEPTH) || !whole(secs, 86400) || !HOW.has(how) || !whole(orbs, 10000) || !whole(parts, 10000) || !whole(cafes, 1000)) {
+        return reply({ error: 'bad run stats' }, 400);
+      }
+      const initials = typeof body.initials === 'string' && /^[A-Z]{3}$/.test(body.initials) && !BAD.has(body.initials) ? body.initials : null;
+      const row = { depth, secs, how, orbs, parts, cafes, initials, ended_at: new Date().toISOString() };
+      if (await update('plays', `player=eq.${player}&run=eq.${run}`, row) === 0) await insert('plays', { player, run, ...row }, false);
       return reply({ ok: true });
     }
 
