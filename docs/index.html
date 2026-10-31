@@ -36,7 +36,8 @@
 html, body { height: 100%; }
 body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(--body); overflow: hidden; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
 #game { position: relative; height: 100%; width: 100%; max-width: 480px; margin: 0 auto; overflow: hidden; background: var(--dust); touch-action: none; }
-#cv { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: crisp-edges; image-rendering: pixelated; }
+#cv, #ov { position: absolute; left: 0; top: 0; width: 100%; height: 100%; image-rendering: crisp-edges; image-rendering: pixelated; }
+#ov { pointer-events: none; }
 
 .hud { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 10px 12px; pointer-events: none; transition: transform .4s steps(6), opacity .4s steps(6); }
 .hud.off { transform: translateY(-130%); opacity: 0; }
@@ -276,6 +277,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 <body>
 <div id="game">
   <canvas id="cv" width="320" height="600" aria-label="MoonFall play area"></canvas>
+  <canvas id="ov" width="320" height="600" aria-hidden="true"></canvas>
 
   <div class="hud off" id="hud">
     <div class="left">
@@ -500,12 +502,15 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 'use strict';
 
 // Shown on the title card as v0.50. Add one with every published version (100 reads v1.00).
-const VERSION = 54;
+const VERSION = 55;
 
 // ---------- canvas and palette ----------
 const W = 320, TH = 128;
-const game = document.getElementById('game'), cv = document.getElementById('cv'), c = cv.getContext('2d', { alpha: false });
-let H = 600, MY = 180, camY0 = -360, sc = 1;
+const game = document.getElementById('game'), cv = document.getElementById('cv'), ov = document.getElementById('ov');
+// Two canvases: the world, and on top of it the pilot (see render). `c` is whichever one is being drawn on.
+const wc = cv.getContext('2d', { alpha: false }), oc = ov.getContext('2d');
+let c = wc;
+let H = 600, MY = 180, camY0 = -360, sc = 1, pxY = 1, shownShift = null;
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function mix(a, b, p) {
@@ -2319,13 +2324,22 @@ $('settingsDone').addEventListener('click', () => setCard(null));
 // Only sent when the online board is on (SCORES_URL), so the claude.ai copy never counts.
 const hex16 = () => { const b = new Uint8Array(8); crypto.getRandomValues(b); return [...b].map(x => x.toString(16).padStart(2, '0')).join(''); };
 let runId = '', runSecs = 0, cafesRun = 0, lastHit = '';
+// Frame rate over the run (frames and real time while it's on and not paused) and the slowest frame, to spot phones that struggle.
+let runFrames = 0, runRaw = 0, runWorst = 0;
+// The opening on this page load: watched to the end or skipped. Sent with the first run only, so each launch counts once.
+let introHow = '', introRun = '', introDone = false;
+const UA = navigator.userAgent, TOUCH_MAC = /Macintosh/.test(UA) && navigator.maxTouchPoints > 1;
+const DEVICE = /iPad|Tablet/.test(UA) || TOUCH_MAC || (/Android/.test(UA) && !/Mobile/.test(UA)) ? 'tablet' : /Mobi|iPhone|Android/.test(UA) ? 'phone' : 'desktop';
+const OS = /Android/.test(UA) ? 'android' : /iPhone|iPad|iPod/.test(UA) || TOUCH_MAC ? 'ios' : /Windows/.test(UA) ? 'windows' : /CrOS/.test(UA) ? 'chromeos'
+  : /Mac OS X|Macintosh/.test(UA) ? 'mac' : /Linux/.test(UA) ? 'linux' : 'other';
 function statPing(body) {
   if (!SCORES_URL) return;
   fetch(SCORES_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
 }
 function countPlay() {
   if (!/^[0-9a-f]{16}$/.test(save.playerId || '')) { save.playerId = hex16(); persist(); }
-  runId = hex16(); runSecs = 0; cafesRun = 0; lastHit = '';
+  runId = hex16(); runSecs = 0; cafesRun = 0; lastHit = ''; runFrames = 0; runRaw = 0; runWorst = 0;
+  if (!introDone) { introDone = true; introRun = runId; }
   statPing({ event: 'play', player: save.playerId, run: runId });
 }
 // how: wall, rock, mine or lava (what took the last health), quit (Main menu from pause) or left (the game was hidden
@@ -2334,7 +2348,11 @@ function endRun(how) {
   if (!runId) return;
   const total = Object.values(runParts).reduce((n, v) => n + v, 0);
   statPing({ event: 'end', player: save.playerId, run: runId, depth: depthM(), secs: Math.round(runSecs), how, orbs: pl.orbs, parts: total, cafes: cafesRun,
-    initials: /^[A-Z]{3}$/.test(save.initials || '') ? save.initials : null });
+    initials: /^[A-Z]{3}$/.test(save.initials || '') ? save.initials : null,
+    fps: runRaw > 0 ? Math.round(runFrames / runRaw * 10) / 10 : null, worst: Math.round(runWorst * 1000),
+    device: DEVICE, os: OS, screen: screen.width + 'x' + screen.height + '@' + Math.round(devicePixelRatio * 100) / 100,
+    treats: pl.bought.slice(0, 20), streak: pl.bestStreak || 0, sound: !!save.snd, music: !!save.mus, repair: Math.round(repairFrac() * 100),
+    intro: runId === introRun && introHow ? introHow : null });
   if (how !== 'left') runId = '';
 }
 function startRun(quick) {
@@ -2778,7 +2796,8 @@ function startOpening() {
   showScreen(null); hud.classList.add('off'); Music.stop(0.1); Sfx.wind(0); Music.intro();
   showCoach('TAP TO SKIP', 1800);
 }
-function endOpening() {
+function endOpening(how) {
+  if (how) introHow = how;
   Sfx.stopIntro(); Music.cut(); shake = 0; introCrashed = true; introShip = null; introPilot = null;
   save.introSeen = true; persist();
   resetRun(); state = 'title'; renderRepair(); syncToggles(); Sfx.thrust(0); Music.title();
@@ -2847,7 +2866,7 @@ function updateOpening(dt) {
   const shipCam = introShip ? Math.min(camY0, introShip.y - Math.round(H * 0.4)) : camY0;
   const pilotCam = ip && t < O.land ? Math.min(camY0, ip.y - Math.round(H * 0.35)) : camY0;
   if (t >= O.dive) camY = t < O.eject ? shipCam : t < O.eject + 0.5 ? lerp(shipCam, pilotCam, eio((t - O.eject) / 0.5)) : pilotCam;
-  if (t >= O.end) endOpening();
+  if (t >= O.end) endOpening('watched');
 }
 function pxLine(x1, y1, x2, y2, col) {
   const n = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1), 1);
@@ -3136,7 +3155,7 @@ $('overLaunchBtn').addEventListener('click', () => { toTitle(); startLaunch(); }
 $('startBtn').addEventListener('click', () => startRun(false));
 $('splashBtn').addEventListener('click', startOpening);
 $('splashSkip').addEventListener('click', () => {
-  Sfx.init(); state = 'title'; renderRepair(); Music.title();
+  introHow = 'skipped'; Sfx.init(); state = 'title'; renderRepair(); Music.title();
   screens.title.classList.remove('fade-in'); void screens.title.offsetWidth; screens.title.classList.add('fade-in');
   showScreen('title'); placeHorizon();
 });
@@ -3157,7 +3176,7 @@ const presses = new Map(), tapBurst = { l: 0, r: 0 };
 const SENS = 1.15, DRAG_START = 12;
 game.addEventListener('pointerdown', e => {
   if (state === 'launch') { if (launchT > 0.6) skipLaunch(); return; }
-  if (state === 'opening') { if (openT > 0.6) endOpening(); return; }
+  if (state === 'opening') { if (openT > 0.6) endOpening('skipped'); return; }
   if (e.target.closest('button, .screen, .cafe-ui')) return;
   if (state === 'cafe') return;
   const r = game.getBoundingClientRect();
@@ -3191,7 +3210,7 @@ addEventListener('keydown', e => {
   if (k === 'ArrowLeft' || k === 'a' || k === 'A') keys.l = true;
   else if (k === 'ArrowRight' || k === 'd' || k === 'D') keys.r = true;
   else if (state === 'launch' && (k === 'Escape' || k === ' ' || k === 'Enter')) { e.preventDefault(); if (launchT > 0.6) skipLaunch(); }
-  else if (state === 'opening' && (k === 'Escape' || k === ' ' || k === 'Enter')) { e.preventDefault(); if (openT > 0.6) endOpening(); }
+  else if (state === 'opening' && (k === 'Escape' || k === ' ' || k === 'Enter')) { e.preventDefault(); if (openT > 0.6) endOpening('skipped'); }
   else if (state === 'cafe' && (k === '1' || k === '2' || k === '3')) buyPerk(+k - 1);
   else if (state === 'cafe' && k === 'Escape' && cafeSide) cafeCard(null);
   else if (state === 'cafe' && (k === ' ' || k === 'Enter')) { if (cafeSide || (document.activeElement && document.activeElement.closest('.cafe-ui'))) return; e.preventDefault(); if (cafeT > 1.6) leaveCafe(); }
@@ -3486,10 +3505,21 @@ function update(dt) {
 }
 
 // ---------- render ----------
+// Smooth scrolling: the world is drawn from the camera's whole pixel, and the world canvas then slides up by the
+// leftover fraction, to the nearest screen pixel. Drawing alone could only move the shaft in whole game pixels, an uneven
+// 2-5 of them per frame at full speed, which read as a judder. The pilot sits on a second canvas that doesn't slide.
+function shiftWorld(frac) {
+  const dy = -Math.round(frac * pxY * devicePixelRatio) / devicePixelRatio;
+  if (dy !== shownShift) { cv.style.transform = dy ? `translateY(${dy}px)` : ''; shownShift = dy; }
+}
 function render() {
   const sx = shake > 0 && !reduceMotion ? Math.round((Math.random() * 2 - 1) * 3 * shake) : 0;
   const sy = shake > 0 && !reduceMotion ? Math.round((Math.random() * 2 - 1) * 2 * shake) : 0;
-  const cam = camY + sy;
+  const camI = Math.floor(camY), cam = camI + sy;
+  oc.setTransform(1, 0, 0, 1, 0, 0); oc.clearRect(0, 0, W, H);
+  c = wc;
+  const world = !(state === 'opening' && openT - OPEN.pre < OPEN.dive) && state !== 'splash' && !((state === 'launch' && launchT >= LAUNCH.space) || state === 'ended');
+  shiftWorld(world ? camY - camI : 0);
   if (state === 'opening' && openT < OPEN.coffee) { drawOpeningBridge(); return; }
   if (state === 'splash' || (state === 'opening' && openT - OPEN.pre < OPEN.dive)) { drawIntroSpace(state === 'splash' ? 0 : openT - OPEN.pre, sx, sy); return; }
   if ((state === 'launch' && launchT >= LAUNCH.space) || state === 'ended') {
@@ -3538,8 +3568,12 @@ function render() {
     }
     c.fillStyle = p.col; c.fillRect(Math.round(p.x), y, p.z, p.z);
   }
-  const my = pl.y - cam;
   if (state === 'opening') drawIntroPilot(cam);
+  wc.setTransform(1, 0, 0, 1, 0, 0);
+  // The pilot and what's attached to him go on the overlay canvas, placed from the exact camera, so he stays steady
+  // while the world slides past.
+  c = oc; c.setTransform(1, 0, 0, 1, sx, 0);
+  const my = pl.y - camY - sy;
   if ((state !== 'dying' || dieT < 1.4) && !pl.hidden) {
     const blink = state === 'play' && pl.inv > 0 && Math.floor(pl.inv * 6.6) % 2 === 1;
     if (blink) c.globalAlpha = 0.4;
@@ -3561,6 +3595,7 @@ function render() {
   }
   c.setTransform(1, 0, 0, 1, 0, 0);
   if (flyers.length) drawFlyers();
+  c = wc;
 }
 
 // ---------- sizing and loop ----------
@@ -3568,8 +3603,13 @@ function resize() {
   const r = game.getBoundingClientRect();
   if (!r.width || !r.height) return;
   sc = r.width / W;
-  H = Math.max(420, Math.min(860, Math.round(r.height / sc)));
-  cv.width = W; cv.height = H; c.imageSmoothingEnabled = false;
+  // One spare row below the screen: the world canvas slides up by a fraction of a pixel (see render), and the row fills the gap.
+  H = Math.max(420, Math.min(860, Math.round(r.height / sc))) + 1;
+  cv.width = ov.width = W; cv.height = ov.height = H; wc.imageSmoothingEnabled = oc.imageSmoothingEnabled = false;
+  // Both canvases cover the play area (like object-fit: cover), with the spare row hanging below it.
+  pxY = Math.max(r.width / W, r.height / (H - 1));
+  cv.style.cssText = ov.style.cssText = `width:${W * pxY}px;height:${H * pxY}px;left:${(r.width - W * pxY) / 2}px;top:${(r.height - (H - 1) * pxY) / 2}px`;
+  shownShift = null;
   MY = Math.round(H * 0.3);
   sizeHP();
   const was = camY0; camY0 = -Math.round(H * 0.56);
@@ -3588,6 +3628,7 @@ function frame(now) {
     // (a shielded pilot resting on a lava drip used to restart it every frame and freeze the game).
     if (hitStop > 0) hitStop = Math.max(0, hitStop - dt); else update(dt);
     if (runId) runSecs += dt;
+    if (runId && raw < 1) { runFrames++; runRaw += raw; if (runFrames > 5) runWorst = Math.max(runWorst, raw); }
     prepaint(camY); render(); meter.cpu += performance.now() - t0;
   }
   if (save.fps) {

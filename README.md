@@ -12,6 +12,7 @@ Play it at **https://peter-routamaa.github.io/moonfall/**. The `docs` folder is 
 | `supabase/migrations/20261031000000_scores.sql` | Creates the online high score table. |
 | `supabase/migrations/20261031130000_plays.sql` | Creates the private play counter: the `plays` table and the `play_stats` view. |
 | `supabase/migrations/20261031180000_run_stats.sql` | Adds run stats (length, depth, how it ended) and the monthly, yearly and per-player views. |
+| `supabase/migrations/20261031200000_more_stats.sql` | Adds frame rate, device, treats, streak, sound, repair and intro stats, and the device, treat, depth band and returning-player views. |
 | `supabase/functions/scores/index.ts` | The small server function: saves runs, returns the top 10, and counts plays. |
 
 The game works on its own: each device keeps its own top 10. When `SCORES_URL` in `docs/index.html` is set, the high score table also shows an online board shared by everyone who plays.
@@ -35,7 +36,7 @@ Anyone can read this repository, but only people you add can change it. To let a
 
 To set it up from scratch:
 
-1. In the project's **SQL Editor**, run `supabase/migrations/20261031000000_scores.sql`, then `supabase/migrations/20261031130000_plays.sql`, then `supabase/migrations/20261031180000_run_stats.sql`. They create the `scores` and `plays` tables, which only the function can read or write, and the stats views.
+1. In the project's **SQL Editor**, run `supabase/migrations/20261031000000_scores.sql`, then `supabase/migrations/20261031130000_plays.sql`, then `supabase/migrations/20261031180000_run_stats.sql`, then `supabase/migrations/20261031200000_more_stats.sql`. They create the `scores` and `plays` tables, which only the function can read or write, and the stats views.
 2. In **Edge Functions**, create a function named exactly `scores` with the code from `supabase/functions/scores/index.ts`, deploy it, and turn **off** JWT verification in its settings.
 3. Open the function URL in a browser. You should see `{"top":[...]}`. An error about a missing authorization header means JWT verification is still on.
 4. Put the function URL in `docs/index.html`:
@@ -47,14 +48,18 @@ From the command line instead: `supabase functions deploy scores --no-verify-jwt
 
 ## Play stats (private)
 
-Each device gets an anonymous random ID the first time it plays (16 hex characters, stored in the browser; no name or anything personal). Every run sends a ping when it starts and another when it ends, with how long it lasted (paused time doesn't count), how deep it got, how it ended (`wall`, `rock`, `mine`, `lava`, `quit` from the pause menu, or `left` if the game was closed or hidden mid-run), the crystals, ship parts and café stops of that run, and the player's last high score initials if they have entered any. Only the owner can see the numbers, in Supabase (**Table Editor**, or `select * from <view>;` in the SQL Editor):
+Each device gets an anonymous random ID the first time it plays (16 hex characters, stored in the browser; no name or anything personal). Every run sends a ping when it starts and another when it ends, with how long it lasted (paused time doesn't count), how deep it got, how it ended (`wall`, `rock`, `mine`, `lava`, `quit` from the pause menu, or `left` if the game was closed or hidden mid-run), the crystals, ship parts and café stops of that run, the treats bought, the best near-miss streak, the frame rate and slowest frame, the kind of device, its system and screen size, whether sound and music were on, the ship repair %, whether the opening was watched or skipped (first run of each launch only), and the player's last high score initials if they have entered any. Only the owner can see the numbers, in Supabase (**Table Editor**, or `select * from <view>;` in the SQL Editor):
 
 | View | What it shows |
 |---|---|
-| `play_stats` | Totals since the start: players, plays, the last 7 days, hours played, average run, deepest and average depth, and how runs ended. |
+| `play_stats` | Totals since the start: players, plays, the last 7 days, hours played, average run, deepest and average depth, how runs ended, streaks, sound and music on, intro watched or skipped, frame rate. |
 | `play_stats_by_month` | One row per month (UK time), newest first: players, new players, plays, hours, average run, depth, how runs ended. |
 | `play_stats_by_year` | The same per year. |
-| `player_stats` | One row per player (device), most recent first: initials, first and last played, plays, minutes played, deepest and average depth, crystals, parts, café stops. |
+| `player_stats` | One row per player (device), most recent first: initials, first and last played, plays, minutes played, deepest and average depth, crystals, parts, café stops, best streak, repair %, device, system, frame rate. |
+| `play_by_device` | Per kind of device and system: players, plays, average frame rate, slowest frames, the most common screen size. |
+| `play_treats` | How often each café treat is bought. |
+| `play_depth_bands` | Where runs end, in 250 m bands, and what ended them. |
+| `play_returning` | By the month players first played (plus an `all` row): how many came back on a later day, and how many within 7 days. |
 
 - Players are devices: one person on a phone and a laptop counts twice, and clearing the browser's data counts again.
 - Repeat start pings from the same device within 5 seconds are ignored. Runs from before version 54 have no length or depth.

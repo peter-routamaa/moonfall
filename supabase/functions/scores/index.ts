@@ -2,7 +2,8 @@
 //   GET  -> { top }                 the 10 deepest runs
 //   POST -> { top, rank, id }       body { initials: "ABC", depth: 812 }; saves the run
 //   POST -> { ok }                  body { event: "play", player: "<16 hex>", run: "<16 hex>" }; a run started (owner's stats)
-//   POST -> { ok }                  body { event: "end", player, run, depth, secs, how, orbs, parts, cafes, initials }; how it went
+//   POST -> { ok }                  body { event: "end", player, run, depth, secs, how, orbs, parts, cafes, initials,
+//                                         fps, worst, device, os, screen, treats, streak, sound, music, repair, intro }; how it went
 // The game only knows this function's URL. The secret key comes from the function's own
 // environment (Supabase provides SUPABASE_URL plus SUPABASE_SECRET_KEYS on newer projects and
 // SUPABASE_SERVICE_ROLE_KEY on all), so no key is ever in the game file.
@@ -20,6 +21,7 @@ const KEY = secretKey();
 const REST = `${BASE}/rest/v1`;
 const TOP = 10, MAX_DEPTH = 100000, PER_MINUTE = 6, PLAY_GAP_MS = 5000;
 const HEX16 = /^[0-9a-f]{16}$/, HOW = new Set(['wall', 'rock', 'mine', 'lava', 'quit', 'left']);
+const DEVICE = new Set(['phone', 'tablet', 'desktop']), OS = new Set(['android', 'ios', 'windows', 'mac', 'chromeos', 'linux', 'other']);
 
 // Initials that aren't allowed, since kids play: refused when sent, and shown as ??? if any are already stored.
 // Keep in step with BAD_INITIALS in docs/index.html.
@@ -73,6 +75,20 @@ async function update(table: string, filter: string, row: unknown) {
 
 const whole = (v: unknown, max: number) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= max;
 
+// The extra run stats are optional (older copies of the game don't send them); anything missing or malformed is stored as empty.
+function extras(b: Record<string, unknown>) {
+  const fps = typeof b.fps === 'number' && b.fps >= 0 && b.fps <= 500 ? Math.round(b.fps * 10) / 10 : null;
+  const treats = Array.isArray(b.treats) && b.treats.length <= 20 && b.treats.every(t => typeof t === 'string' && /^[A-Za-z][A-Za-z ]{0,23}$/.test(t)) ? b.treats : null;
+  return {
+    fps, worst_ms: whole(b.worst, 10000) ? b.worst : null,
+    device: DEVICE.has(b.device as string) ? b.device : null, os: OS.has(b.os as string) ? b.os : null,
+    screen: typeof b.screen === 'string' && /^[0-9]{2,5}x[0-9]{2,5}@[0-9.]{1,5}$/.test(b.screen) ? b.screen : null,
+    treats, streak: whole(b.streak, 100000) ? b.streak : null,
+    sound: typeof b.sound === 'boolean' ? b.sound : null, music: typeof b.music === 'boolean' ? b.music : null,
+    repair: whole(b.repair, 100) ? b.repair : null, intro: b.intro === 'watched' || b.intro === 'skipped' ? b.intro : null,
+  };
+}
+
 async function hash(text: string) {
   const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
@@ -105,7 +121,7 @@ Deno.serve(async req => {
         return reply({ error: 'bad run stats' }, 400);
       }
       const initials = typeof body.initials === 'string' && /^[A-Z]{3}$/.test(body.initials) && !BAD.has(body.initials) ? body.initials : null;
-      const row = { depth, secs, how, orbs, parts, cafes, initials, ended_at: new Date().toISOString() };
+      const row = { depth, secs, how, orbs, parts, cafes, initials, ...extras(body), ended_at: new Date().toISOString() };
       if (await update('plays', `player=eq.${player}&run=eq.${run}`, row) === 0) await insert('plays', { player, run, ...row }, false);
       return reply({ ok: true });
     }
