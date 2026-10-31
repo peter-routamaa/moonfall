@@ -8,20 +8,34 @@ Play it at **https://peter-routamaa.github.io/moonfall/**. The `docs` folder is 
 
 | Path | What it is |
 |---|---|
-| `docs/index.html` | The whole game in one file. This is the website people open. |
+| `src/moonfall.html` | **The game's source**: the whole game in one file (HTML, CSS and JavaScript), exactly as published on claude.ai. Edit this one. A guide at the top of its script explains how the code fits together. |
+| `docs/index.html` | The website copy, built from `src/moonfall.html` by `tools/build_site.py`. Don't edit it by hand. |
+| `tools/` | Build, test and screenshot scripts (see *Working on the game*). |
 | `supabase/migrations/20261031000000_scores.sql` | Creates the online high score table. |
 | `supabase/migrations/20261031130000_plays.sql` | Creates the private play counter: the `plays` table and the `play_stats` view. |
 | `supabase/migrations/20261031180000_run_stats.sql` | Adds run stats (length, depth, how it ended) and the monthly, yearly and per-player views. |
 | `supabase/migrations/20261031200000_more_stats.sql` | Adds frame rate, device, treats, streak, sound, repair and intro stats, and the device, treat, depth band and returning-player views. |
 | `supabase/functions/scores/index.ts` | The small server function: saves runs, returns the top 10, and counts plays. |
 
-The game works on its own: each device keeps its own top 10. When `SCORES_URL` in `docs/index.html` is set, the high score table also shows an online board shared by everyone who plays.
+The game works on its own: each device keeps its own top 10. When `SCORES_URL` is set (the build fills it in for the website), the high score table also shows an online board shared by everyone who plays.
 
 Nothing in this repository is secret: the game file holds no keys or passwords, and the scoreboard function reads its key from Supabase. The scoreboard's database stays private in Supabase.
 
 ## Hosting: GitHub Pages
 
 **Settings → Pages:** source **Deploy from a branch**, branch **main**, folder **/docs**. Every push to `main` republishes the site within a minute or two.
+
+## Working on the game
+
+You need Python 3, Node 22.13 or newer (for the function test), and Google Chrome for screenshots (the screenshot script is written for a Mac).
+
+1. Edit `src/moonfall.html`. Search for `// ---------- ` to jump between sections; the guide at the top of the script explains the states, units and canvases. When publishing a new version, add one to `VERSION` near the top (the title card shows it as v0.NN).
+2. Try it: `python3 tools/test_pages.py`, then `python3 -m http.server 8766 -d tools/out` and open http://localhost:8766/test-board.html (the game with a pretend online board, so nothing real is sent). In the browser console, `__mf` gives you the game's internals, for example `__mf.pl` (the pilot) or `__mf.state`.
+3. Screenshots at a phone size, with that server running: `tools/shoot.sh 375 667 tools/out/title.png "scene=title"`. Scenes: `splash`, `title` (add `&card=how` or `&card=settings`), `pause`, `cafe` (add `&face=shop` or `&face=tips`), `sign` (add `&side=1` for the right).
+4. If you changed the scoreboard function: `node tools/test_function.mjs` (runs it against a pretend database; it should say all checks passed). Deploy it in Supabase as described below.
+5. Build the website copy: `python3 tools/build_site.py`, then commit and push. GitHub Pages updates a minute or two later.
+
+The claude.ai artifact is published from `src/moonfall.html` by the owner, with Claude.
 
 ## Working on it together
 

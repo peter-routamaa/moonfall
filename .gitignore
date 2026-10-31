@@ -1,1 +1,6 @@
 .DS_Store
+# Local test pages, screenshots and the headless Chrome profile (made by the tools)
+tools/out/
+tools/.chrome/
+*.png
+!docs/**/*.png

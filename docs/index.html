@@ -501,11 +501,44 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 (() => {
 'use strict';
 
-// Shown on the title card as v0.50. Add one with every published version (100 reads v1.00).
-const VERSION = 55;
+// ======================================================================================================================
+// MoonFall: a pixel-art falling game in one file. A map for anyone reading the code.
+//
+// THE SCREEN. The world is drawn in game pixels on a canvas W (320) wide and H tall, scaled up to fill the phone.
+//   Depth runs down from the moon's surface: a thing's depth `d`, the pilot's `pl.y` and the camera `camY` are all game
+//   pixels, and PX_PER_M (8) of them make a metre. The pilot's middle is PILOT_CY pixels below pl.y.
+//   Two canvases: #cv for the world, and #ov on top of it for the pilot, so the world can scroll by fractions of a pixel
+//   while he stays still (see render). `c` is whichever one is being drawn on.
+//   The palette is P: P.g dust (cream), P.m blue, P.s ink (near black), P.a lava (red), and mixes of those.
+//
+// WHAT'S HAPPENING is the string `state`:
+//   splash (start screen) -> opening (the intro film, can be skipped) -> title (main menu)
+//   -> intro (run-up and leap) -> play (falling) -> dying -> over (game over and high scores) -> title ...
+//   During a run: play -> landing -> cafe -> cafeJump -> play (a coffee stop), and paused from most states.
+//   From the title once the ship is repaired: launch -> ended.
+//   frame() runs once per screen refresh and calls update(dt), which moves things on for the current state, then render().
+//
+// A RUN: startRun -> resetRun -> intro -> beginPlay -> play ... collide -> hurt -> die -> gameOver -> showScores.
+//   The shaft is made in segments just below the screen as you fall (genSeg); walls come from edgeAt(d).
+//   Mines are rocks with `hot: true`. `parts` holds particles (sparks, smoke); ship parts are PARTS and runParts.
+//
+// SAVED on the phone in `save` (localStorage 'moonfall.v1'): best depth, settings, ship parts, high scores.
+// ONLINE: SCORES_URL is the Supabase function for the shared high score board and the owner's private play stats.
+//   It's empty here; tools/build_site.py fills it in for the website (see the repo's README).
+//
+// SECTIONS, in order (search for "// ---------- " to jump between them): canvas and palette, helpers, sprites, ship parts,
+//   the shaft, alien life, the moon surface, game state, saved settings, sound and his voice, music, haptics, DOM, flow,
+//   high scores, the opening film's timeline, cafe shop, board flags, cafe signs, coffee stop, the opening film,
+//   the launch, input, level generation, damage and pickups, update, render, sizing and loop.
+// ======================================================================================================================
+
+// Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
+const VERSION = 56;
 
 // ---------- canvas and palette ----------
 const W = 320, TH = 128;
+const PX_PER_M = 8;   // game pixels per metre of depth
+const PILOT_CY = 14;  // the pilot's middle, in pixels below pl.y (the top of his sprite)
 const game = document.getElementById('game'), cv = document.getElementById('cv'), ov = document.getElementById('ov');
 // Two canvases: the world, and on top of it the pilot (see render). `c` is whichever one is being drawn on.
 const wc = cv.getContext('2d', { alpha: false }), oc = ov.getContext('2d');
@@ -633,8 +666,8 @@ const WAVE = [
   ['.....kkkkk..kk.', '....kwwwwwkkwwk', '....kvvvvvk.kwk', '....kvhvvvkkwk.', '....kvvvvvkkwk.', '....kwwwwwkwk..', '...kswwwwwswk..'].concat(WAVE_LOW)
 ].map(epx);
 const BLOB = [['..kkk..', '.kmmmk.', 'kmgmgmk', 'kmmmmmk', 'kmmmmmk', '.kkkkk.'], ['.......', '..kkk..', '.kmmmk.', 'kmgmgmk', 'kmmmmmk', 'kkkkkkk']].map(epx);
-function pmap(hot) { return { m: P.moss, k: P.s, w: P.g, v: P.m, h: hot ? P.hot : P.g, l: P.lite, a: P.a, g: P.g, r: hot ? P.crust : P.rock, s: hot ? P.a : P.shade }; }
-const MAP = pmap(false), MAPHOT = pmap(true), MAPGRN = Object.assign(pmap(false), { l: P.grn, v: P.grnD, g: P.g });
+function pmap() { return { m: P.moss, k: P.s, w: P.g, v: P.m, h: P.g, l: P.lite, a: P.a, g: P.g, r: P.rock, s: P.shade }; }
+const MAP = pmap(), MAPGRN = Object.assign(pmap(), { l: P.grn, v: P.grnD, g: P.g });
 // Every colour as ink, drawn faint: scenery creatures read as shadows behind the action.
 const MAPSIL = Object.fromEntries(Object.keys(MAP).map(k => [k, P.s]));
 
@@ -707,7 +740,7 @@ function drawMine(x, y, rr, seed) {
   c.fillStyle = on ? P.a : P.crust; c.fillRect(x - 1, y - R - 2, 3, 2);
   if (on) { c.fillStyle = P.hot; c.fillRect(x, y - R - 2, 1, 1); }
 }
-function drawRock(x, y, size, hot) { const R = ROCKS[size]; sprite(c, R, x - R[0].length / 2, y - R.length / 2, hot ? MAPHOT : MAP); }
+function drawRock(x, y, size) { const R = ROCKS[size]; sprite(c, R, x - R[0].length / 2, y - R.length / 2, MAP); }
 function drawOrb(x, y, t, g) {
   g = g || c;
   sprite(g, ORB, x - 7, y - 7, MAPGRN);
@@ -757,7 +790,7 @@ function newSeed() {
 }
 // Every 1000 m the shaft opens into a cavern with a cafe ledge; tunnel splits, wall bumps, lava and hazards keep clear of it.
 // The caverns sit 50 m (400 px) below each 1000 m mark, so that mark's deep creature swims past above the ledge.
-const CAFE_EVERY = 8000, CAFE_OFF = 400;
+const CAFE_EVERY = 1000 * PX_PER_M, CAFE_OFF = 50 * PX_PER_M;
 const cafeIdx = d => Math.round((d - CAFE_OFF) / CAFE_EVERY);
 function cavernAt(d) { const k = cafeIdx(d); if (k < 1) return 0; const x = d - k * CAFE_EVERY - CAFE_OFF; return sm((x + 320) / 170) * (1 - sm((x - 150) / 170)); }
 function splitAt(d) {
@@ -799,7 +832,7 @@ const MKEYS = ['b0', 'b1', 'b2', 'shade', 'ink', 'hi', 'cryL', 'cryD', 'sO', 'sI
 const matI = k => k < MATS.length ? k : 1 + (k - 1) % (MATS.length - 1);
 const palCache = new Map();
 function palAt(d, smooth) {
-  const m = Math.max(0, d) / 8, k = Math.floor(m / ZONE_M), into = m - k * ZONE_M;
+  const m = Math.max(0, d) / PX_PER_M, k = Math.floor(m / ZONE_M), into = m - k * ZONE_M;
   let a = k, b = k, u = 0;
   if (k > 0 && into < BLEND_M) { a = k - 1; u = 0.5 + into / (2 * BLEND_M); } else if (into > ZONE_M - BLEND_M) { b = k + 1; u = (into - ZONE_M + BLEND_M) / (2 * BLEND_M); }
   const st = a === b ? 0 : Math.max(0, Math.min(16, Math.round((u + (smooth ? 0 : (hash(d * 1.37) - 0.5) * 0.16)) * 16)));
@@ -932,7 +965,7 @@ function laneX(d, u) {
 function spans(d) { const e = edgeAt(d); return e.iR ? [[e.L, e.iL], [e.iR, e.R]] : [[e.L, e.R]]; }
 
 // Far beyond the shaft walls, leviathans drift past: one every 500 m, seen only through the open hole.
-const LEVI_EVERY = 4000, LEVI_PARALLAX = 0.5;
+const LEVI_EVERY = 500 * PX_PER_M, LEVI_PARALLAX = 0.5;
 // A copy of a tile's wall pixels with the open shaft cut out. Laid over the deep creatures, it hides
 // whatever is outside the hole (this replaced a clip path that was rebuilt every frame).
 function wallTile(t) {
@@ -1256,7 +1289,7 @@ function life(cam) {
     } else if (type === 2) {
       const ox = ex - side * 18;
       for (let j = -4; j <= 4; j++) { const w = Math.round(9 * Math.sqrt(1 - (j / 5) ** 2)); c.fillStyle = P.s; c.fillRect(ox - w, y + j, w * 2, 1); }
-      const shut = ((ft * 0.5 + hash(q)) % 1) < 0.07, look = pl.x > ox ? 1 : -1, up = pl.y + 14 < da - 20 ? -1 : 0;
+      const shut = ((ft * 0.5 + hash(q)) % 1) < 0.07, look = pl.x > ox ? 1 : -1, up = pl.y + PILOT_CY < da - 20 ? -1 : 0;
       for (const k of [-4, 3]) {
         if (shut) { c.fillStyle = P.shade; c.fillRect(ox + k - 1, y, 4, 1); }
         else { c.fillStyle = P.g; c.fillRect(ox + k - 1, y - 1, 3, 3); c.fillStyle = P.s; c.fillRect(ox + k + look, y + up, 1, 1); }
@@ -1573,7 +1606,7 @@ function drawProps(cam) {
     for (const e of [-1, 1]) { disc(x0 + e * w, Y(0), 4, P.s); disc(x0 + e * w, Y(1), 3, P.rock); }
   }
   for (const [x, y0, w, h] of [[64, -3, 6, 3], [112, -4, 8, 4]]) { c.fillStyle = P.s; c.fillRect(x - 1, Y(y0) - 1, w + 2, h + 2); c.fillStyle = P.g; c.fillRect(x, Y(y0), w, h); c.fillStyle = P.m; c.fillRect(x, Y(y0) + h - 1, w, 1); }
-  for (const [x, s] of [[192, 0], [268, 1], [316, 2], [6, 1]]) drawRock(x, Y(-[5, 8, 12][s] - 1), s, false);
+  for (const [x, s] of [[192, 0], [268, 1], [316, 2], [6, 1]]) drawRock(x, Y(-[5, 8, 12][s] - 1), s);
   for (const [x, h] of [[214, 18], [221, 10], [230, 14], [284, 9]]) for (let j = 0; j < h; j++) {
     const w = Math.round(3 * (1 - j / h)) + 1, yy = Y(-1 - j);
     c.fillStyle = P.s; c.fillRect(x - w - 1, yy, w * 2 + 3, 1);
@@ -1609,15 +1642,17 @@ function drawProps(cam) {
 // ---------- game state ----------
 let state = 'title', prevState = 'play', ft = 0, introT = 0, dieT = 0, camY = -360, shake = 0, repair = 0, repairStart = 0;
 const runParts = { plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 };
-const pl = { x: 84, y: -30, v: 0, vx: 0, hp: 5, max: 5, inv: 0, blockT: 0, shield: 0, shieldMax: 10, orbs: 0, spare: 0, streak: 0, bestStreak: 0, perks: {}, bought: [], slowUntil: 0, flash: 0, pose: 'stand', touch: false, thr: 0, puff: 0, aim: 84, zone: 0 };
-let rocks = [], items = [], parts = [], nextSeg = 0, lastRockD = -999, lastShieldD = -9999, steerAcc = 0, keyDir = 0;
+// A fresh pilot for every run (resetRun). `touch` (a finger is on the screen) carries over between runs.
+const playerStart = () => ({ x: 84, y: -30, v: 0, vx: 0, hp: 5, max: 5, inv: 0, blockT: 0, shield: 0, shieldMax: 10, orbs: 0, spare: 0, streak: 0, bestStreak: 0, perks: {}, bought: [], slowUntil: 0, flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false, fallRamp: 1 });
+const pl = { touch: false, ...playerStart() };
+let rocks = [], items = [], parts = [], nextSeg = 0, lastRockD = -999, lastShieldD = -9999, steerAcc = 0;
 const SL = 110, HB = 8;
 const KP = 55, KD = 11, DRAG = 1.5, TMAX = 1400, VMAX = 420, THR_SHOW = 120, THR_FULL = 900, TAP_T = 1100, TAP_MIN = 0.14;
-const depthM = () => Math.max(0, Math.floor(pl.y / 8));
+const depthM = () => Math.max(0, Math.floor(pl.y / PX_PER_M));
 function speedAt(d) { return 250 + 170 * sm(d / 26000); }
 
 // ---------- saved settings ----------
-const save = { best: 0, snd: true, mus: true, vib: true, coachedTap: false, parts: {}, introSeen: false, fps: false };
+const save = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false };
 try { Object.assign(save, JSON.parse(localStorage.getItem('moonfall.v1') || '{}')); } catch (e) {}
 save.parts = Object.assign({ plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 }, save.parts);
 const repairFrac = () => PARTS.reduce((sum, pt) => sum + Math.min(1, save.parts[pt.id] / pt.need), 0) / PARTS.length;
@@ -2174,7 +2209,7 @@ function fly(kind, x, d, el, done, part) {
 function drawFlyers() {
   for (const f of flyers) {
     const u = eio(Math.min(1, f.t / f.life)), x = lerp(f.x0, f.x1, u), y = lerp(f.y0, f.y1, u) - Math.sin(Math.PI * u) * 28;
-    c.fillStyle = f.kind === 'part' ? P.gold || '#F2C14E' : P.grnL; c.fillRect(Math.round(lerp(f.x0, f.x1, u * 0.8)), Math.round(lerp(f.y0, f.y1, u * 0.8) - Math.sin(Math.PI * u * 0.8) * 28), 2, 2);
+    c.fillStyle = f.kind === 'part' ? '#F2C14E' : P.grnL; c.fillRect(Math.round(lerp(f.x0, f.x1, u * 0.8)), Math.round(lerp(f.y0, f.y1, u * 0.8) - Math.sin(Math.PI * u * 0.8) * 28), 2, 2);
     if (f.kind === 'part') drawPart(f.part, x, y, ft);
     else sprite(c, ORB, Math.round(x) - 7, Math.round(y) - 7, MAPGRN);
   }
@@ -2249,7 +2284,7 @@ function resetRun() {
   for (const k in runParts) runParts[k] = 0;
   leviSeen.clear();
   $('partsRun').textContent = '0'; repair = repairFrac(); repairStart = repair;
-  Object.assign(pl, { x: 84, y: -30, v: 0, vx: 0, hp: 5, max: 5, inv: 0, blockT: 0, shield: 0, shieldMax: 10, orbs: 0, spare: 0, streak: 0, bestStreak: 0, perks: {}, bought: [], slowUntil: 0, flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false, fallRamp: 1 });
+  Object.assign(pl, playerStart());
   cafeVisited.clear(); cafeArt.clear(); signArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
   buildHP(); $('spareRun').textContent = '0'; spareHud.hidden = true; renderStreak(); buildFlags(); refreshBoard();
   Music.reset();
@@ -2383,7 +2418,7 @@ function toTitle() {
 }
 function die() {
   state = 'dying'; dieT = 0; Buzz.death(); Sfx.death(); Sfx.wind(0); Sfx.thrust(0); Music.stop(0.7);
-  for (let i = 0; i < 18; i++) burst(pl.x, pl.y + 14, i % 3 ? P.g : P.a, 1);
+  for (let i = 0; i < 18; i++) burst(pl.x, pl.y + PILOT_CY, i % 3 ? P.g : P.a, 1);
 }
 function gameOver() {
   state = 'over'; endRun(lastHit || 'wall');
@@ -2550,7 +2585,7 @@ function scoreKey(e) {
   else return;
   e.preventDefault();
 }
-// ---------- the launch: run to the ship, climb in, rumble, tip upright, blast off ----------
+// ---------- the opening film's timeline, and the coffee stop's state ----------
 const OPEN = { pre: 5.6, coffee: 4.0, pull: 3.6, warn: 2.6, hit: 5.0, dive: 10.0, eject: 11.8, chute: 12.2, crash: 12.6, land: 16.2, end: 17.0 };
 let openT = 0, introShip = null, introAst = null, introFx = [], introCrashed = false, astCanvas = null, introPilot = null;
 // Coffee stop: auto-landing on the pad, a cup at the counter, then a run and jump back into the shaft.
@@ -2658,7 +2693,7 @@ function buyPerk(i) {
   if (p.id === 'tough') { pl.max++; buildHP(); pl.hp++; setHP('gain'); }
   else if (p.id === 'patch') { pl.hp = pl.max; setHP('gain'); }
   else if (p.id === 'bubble') giveShield(SHIELD_S + (pl.perks.longshield ? 5 : 0));
-  else if (p.id === 'slow') pl.slowUntil = pl.y + 250 * 8;
+  else if (p.id === 'slow') pl.slowUntil = pl.y + 250 * PX_PER_M;
   const b = $('shopItems').children[i];
   b.classList.add('bought'); b.querySelector('.perk-cost').textContent = 'BOUGHT';
   renderShop(); Sfx.buy(); Buzz.part();
@@ -2676,7 +2711,7 @@ function boardRows() {
   return rows.filter(r => Number.isFinite(r.m) && r.m >= 30);
 }
 function buildFlags() {
-  flags = boardRows().sort((a, b) => a.m - b.m).map((r, k) => ({ i: r.i, m: r.m, d: r.m * 8, side: k % 2 ? 1 : -1, passed: r.m * 8 <= pl.y + 14 }));
+  flags = boardRows().sort((a, b) => a.m - b.m).map((r, k) => ({ i: r.i, m: r.m, d: r.m * PX_PER_M, side: k % 2 ? 1 : -1, passed: r.m * PX_PER_M <= pl.y + PILOT_CY }));
   nextFlag = flags.findIndex(f => !f.passed); if (nextFlag < 0) nextFlag = flags.length;
   renderTarget();
 }
@@ -2687,7 +2722,7 @@ function refreshBoard() {
   scoresFetch().then(r => { if (r && Array.isArray(r.top)) { save.boardCache = { top: r.top, at: Date.now() }; persist(); buildFlags(); } }, () => {});
 }
 function passFlags() {
-  while (nextFlag < flags.length && flags[nextFlag].d <= pl.y + 14) {
+  while (nextFlag < flags.length && flags[nextFlag].d <= pl.y + PILOT_CY) {
     const f = flags[nextFlag++]; f.passed = true;
     pop('PASSED ' + f.i + '!', pl.x, pl.y - 14, 'pass'); Sfx.pass();
     renderTarget();
@@ -2719,7 +2754,7 @@ function flagArt(f) {
 }
 // ---------- cafe signs: 100 m above each cafe, on the rock beside the shaft at the cafe's edge of the screen ----------
 // Block letters like the cafe's own sign: 3x where the rock is wide enough, else 2x. The arrow is drawn live so it can bob.
-const CAFE_SIGN_UP = 800, signArt = new Map();
+const CAFE_SIGN_UP = 100 * PX_PER_M, signArt = new Map();
 const ARROW = ['00100', '00100', '11111', '01110', '00100'];
 function cafeSignArt(C) {
   let a = signArt.get(C.k);
@@ -2765,6 +2800,7 @@ function drawFlags(cam) {
     c.drawImage(flagArt(f), 0, y - 13);
   }
 }
+// ---------- coffee stop: land on the pad, a cup at the counter, run and jump back in ----------
 function updateCafe(dt) {
   cafeT += dt;
   const C = cafeInfo(cafeK), t = cafeT, crossed = at => t >= at && t - dt < at, standY = C.Dl - 28;
@@ -2789,6 +2825,7 @@ function updateCafe(dt) {
   }
   camY = pl.y - MY;
 }
+// ---------- the opening film: coffee on the bridge, the asteroid, the crash, the landing ----------
 function startOpening() {
   setCard(null, true);
   Sfx.init(); resetRun();
@@ -2799,7 +2836,6 @@ function startOpening() {
 function endOpening(how) {
   if (how) introHow = how;
   Sfx.stopIntro(); Music.cut(); shake = 0; introCrashed = true; introShip = null; introPilot = null;
-  save.introSeen = true; persist();
   resetRun(); state = 'title'; renderRepair(); syncToggles(); Sfx.thrust(0); Music.title();
   screens.title.classList.remove('fade-in'); void screens.title.offsetWidth; screens.title.classList.add('fade-in');
   showScreen('title'); placeHorizon();
@@ -3089,6 +3125,7 @@ function drawIntroSpace(t, sx, sy) {
   }
   c.setTransform(1, 0, 0, 1, 0, 0);
 }
+// ---------- the launch: run to the ship, climb in, rumble, tip upright, blast off ----------
 const LAUNCH = { wave: 1.0, board: 3.0, aboard: 3.5, rumble: 4.0, lift: 6.5, climb: 8.0, groove: 9.9, space: 15.0, end: 20.0 };
 function startLaunch() {
   Sfx.init(); resetRun();
@@ -3286,7 +3323,10 @@ function sparks(x, d, cols, n, spread) { for (let i = 0; i < n; i++) burst(x + (
 const FIRE = [P.g, '#F6D46A', P.hot, P.a, P.crust, P.shade];
 function explode(x, d, r) {
   shake = Math.max(shake, 2.6);
-  if (pl.shield > 0) Sfx.mine();
+  // hurt() plays the boom and buzz when the mine costs health. When it can't (shield up, or still blinking from a hit),
+  // play them here, so a mine never goes off silently.
+  if (pl.shield > 0 || pl.inv > 0) Sfx.mine();
+  if (pl.shield <= 0 && pl.inv > 0) Buzz.mine();
   const base = pl.v * 0.85;
   for (let i = 0; i < 6; i++) parts.push({ fire: 1, smoke: 1, x: x + (Math.random() - 0.5) * r * 1.4, d: d + (Math.random() - 0.5) * r, vx: (Math.random() - 0.5) * 40, vy: base - 30, base: base - 24, drag: 3, r1: 8 + Math.random() * 6, t: -0.15 - Math.random() * 0.15, life: 1.0 + Math.random() * 0.4 });
   for (let i = 0; i < 13; i++) {
@@ -3299,6 +3339,8 @@ function explode(x, d, r) {
 }
 
 // ---------- damage and pickups ----------
+// Health a hit costs, and how long he blinks afterwards (he can't be hurt while blinking).
+const MINE_DAMAGE = 2, HIT_INVULN_S = 1.0;
 function hurt(kind, x, d) {
   if (state !== 'play') return;
   if (pl.shield > 0) {
@@ -3308,8 +3350,8 @@ function hurt(kind, x, d) {
   }
   if (pl.inv > 0) return;
   // Mines cost two health, everything else one.
-  const dmg = kind === 'mine' ? 2 : 1;
-  pl.hp = Math.max(0, pl.hp - dmg); pl.inv = 1.0; shake = Math.max(shake, 1);
+  const dmg = kind === 'mine' ? MINE_DAMAGE : 1;
+  pl.hp = Math.max(0, pl.hp - dmg); pl.inv = HIT_INVULN_S; shake = Math.max(shake, 1);
   // Hit-stop: the world freezes for a beat so the hit lands, with a white flash on the pilot.
   hitStop = kind === 'mine' ? 0.12 : 0.07; pl.flash = 0.14;
   if (pl.streak) { pl.streak = 0; renderStreak(); }
@@ -3356,13 +3398,13 @@ function nearMiss(k) {
   Sfx.close(pl.streak);
   pop(pl.streak > 1 ? 'CLOSE x' + pl.streak : 'CLOSE!', k.x, k.d - k.rr - 8, 'close');
   if (pl.streak % 24 === 0) { giveShield(5); Sfx.streak(); Buzz.shield(); pop('STREAK SHIELD', pl.x, pl.y - 18, 'shield'); }
-  else if (pl.streak % 8 === 0) { Sfx.streak(); Buzz.orb(); gainCrystal(pl.x, pl.y + 14, 'STREAK ' + pl.streak + '!'); }
+  else if (pl.streak % 8 === 0) { Sfx.streak(); Buzz.orb(); gainCrystal(pl.x, pl.y + PILOT_CY, 'STREAK ' + pl.streak + '!'); }
   renderStreak(true);
 }
 
 // ---------- update ----------
 function collide(prevX) {
-  const cd = pl.y + 14, fresh = !pl.touch;
+  const cd = pl.y + PILOT_CY, fresh = !pl.touch;
   pl.touch = false;
   let maxL = -1e9, minR = 1e9, iL = 1e9, iR = -1e9;
   for (let dd = cd - 10; dd <= cd + 12; dd += 2) {
@@ -3396,13 +3438,12 @@ function collide(prevX) {
     if (Math.abs(k.d - cd) > 30) continue;
     const dx = (pl.x - k.x) / (k.rr + HB), dy = (cd - k.d) / (k.rr + 12), n2 = dx * dx + dy * dy;
     if (n2 >= 1) { k.minN = Math.min(k.minN === undefined ? 9 : k.minN, Math.sqrt(n2)); continue; }
-    {
-      k.dead = true;
-      pl.vx = (pl.x >= k.x ? 1 : -1) * 150;
-      if (k.hot) explode(k.x, k.d, k.rr);
-      else sparks(k.x, k.d, [P.rock, P.shade, P.s], 8 + k.size * 4, k.rr);
-      hurt(k.hot ? 'mine' : 'rock');
-    }
+    // A hit: knock him sideways, blow up the mine or shatter the rock, and take the damage.
+    k.dead = true;
+    pl.vx = (pl.x >= k.x ? 1 : -1) * 150;
+    if (k.hot) explode(k.x, k.d, k.rr);
+    else sparks(k.x, k.d, [P.rock, P.shade, P.s], 8 + k.size * 4, k.rr);
+    hurt(k.hot ? 'mine' : 'rock');
   }
   for (const p of DROPS) {
     if (p.src) continue;
@@ -3484,7 +3525,7 @@ function update(dt) {
     dropList(camY);
     // Magnet perk: crystals, parts and bubbles within reach drift toward him.
     if (pl.perks.magnet) for (const it of items) {
-      const dx = pl.x - it.x, dy = pl.y + 14 - it.d;
+      const dx = pl.x - it.x, dy = pl.y + PILOT_CY - it.d;
       if (!it.dead && dx * dx + dy * dy < 80 * 80) { const k = Math.min(1, dt * 7); it.x += dx * k; it.d += dy * k; }
     }
     collide(prevX);
@@ -3552,7 +3593,7 @@ function render() {
     const y = Math.round(k.d - cam + Math.sin(ft * 3 + k.d) * 2);
     if (y < -24 || y > H + 24) continue;
     if (k.hot) drawMine(k.x, y, k.rr, Math.floor(k.d) % 2);
-    else drawRock(k.x, y, k.size, false);
+    else drawRock(k.x, y, k.size);
   }
   drawDrops(cam);
   for (const p of parts) {
@@ -3577,7 +3618,7 @@ function render() {
   if ((state !== 'dying' || dieT < 1.4) && !pl.hidden) {
     const blink = state === 'play' && pl.inv > 0 && Math.floor(pl.inv * 6.6) % 2 === 1;
     if (blink) c.globalAlpha = 0.4;
-    if (pl.flash > 0 && state !== 'dying') { const a = pl.flash / 0.14; disc(pl.x, my + 14, Math.round(10 + 8 * (1 - a)), P.g); ring(pl.x, my + 14, Math.round(14 + 14 * (1 - a)), P.g); }
+    if (pl.flash > 0 && state !== 'dying') { const a = pl.flash / 0.14; disc(pl.x, my + PILOT_CY, Math.round(10 + 8 * (1 - a)), P.g); ring(pl.x, my + PILOT_CY, Math.round(14 + 14 * (1 - a)), P.g); }
     drawMan(pl.x + (state === 'dying' ? Math.round(Math.sin(ft * 40) * 2) : 0), my, pl.pose, ft, pl.thr);
     c.globalAlpha = 1;
     if (state === 'landing') { const x0 = Math.round(pl.x - 13), y0 = Math.round(my), fl = Math.floor(ft * 24) % 2, L = 8 + fl * 3; for (const nx of [x0 - 1, x0 + 25]) { c.fillStyle = P.a; c.fillRect(nx - 1, y0 + 23, 5, L); c.fillStyle = P.hot; c.fillRect(nx, y0 + 23, 3, L - 3); c.fillStyle = P.g; c.fillRect(nx + 1, y0 + 23, 1, 2); } }
@@ -3590,8 +3631,8 @@ function render() {
   }
   if (pl.shield > 0 && state === 'play' && !(pl.shield < 1.2 && Math.floor(pl.shield * 5) % 2)) {
     const r = 20 + Math.round(Math.sin(ft * 4));
-    ring(pl.x, my + 14, r, P.purL); ring(pl.x, my + 14, r + 2, P.pur, 1);
-    c.fillStyle = P.g; const an = ft * 3; c.fillRect(Math.round(pl.x + Math.cos(an) * r) - 1, Math.round(my + 14 + Math.sin(an) * r) - 1, 4, 4);
+    ring(pl.x, my + PILOT_CY, r, P.purL); ring(pl.x, my + PILOT_CY, r + 2, P.pur, 1);
+    c.fillStyle = P.g; const an = ft * 3; c.fillRect(Math.round(pl.x + Math.cos(an) * r) - 1, Math.round(my + PILOT_CY + Math.sin(an) * r) - 1, 4, 4);
   }
   c.setTransform(1, 0, 0, 1, 0, 0);
   if (flyers.length) drawFlyers();
