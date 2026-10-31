@@ -247,6 +247,9 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .shop-count { display: flex; align-items: center; gap: 6px; font-size: 18px; }
 .shop-count .ico-orb { width: 28px; height: 28px; }
 .cafe-ui .btn.settings { font-size: 16px; padding: 13px 13px 12px; }
+/* All three cafe buttons read from the left, lined up with the Shop label. */
+#tipsBtn { justify-content: flex-start; padding-left: 18px; }
+#shopGo { text-align: left; }
 .shop-items { display: grid; gap: 8px; }
 .perk { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 10px; row-gap: 5px; padding: 10px 12px 9px; border: 0; text-align: left; color: var(--dust); background: color-mix(in srgb, var(--dust) 7%, var(--ink)); box-shadow: inset 0 0 0 2px var(--ink-soft); cursor: pointer; touch-action: manipulation; }
 .perk-name { font: 700 13px/1.1 var(--display); letter-spacing: .04em; }
@@ -497,7 +500,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 'use strict';
 
 // Shown on the title card as v0.50. Add one with every published version (100 reads v1.00).
-const VERSION = 52;
+const VERSION = 53;
 
 // ---------- canvas and palette ----------
 const W = 320, TH = 128;
@@ -1826,7 +1829,7 @@ const Sfx = (() => {
     rock() { noise(0.1, 'bandpass', 1500, 0.8); tone('square', 170, 60, 0.13, 0.2); boing(0.02); },
     part() { noise(0.05, 'highpass', 6000, 0.3); tone('triangle', 660, 660, 0.06, 0.25); tone('triangle', 990, 990, 0.06, 0.25, 0.06); tone('triangle', 1320, 1320, 0.16, 0.25, 0.12); },
     lava() { noise(0.34, 'highpass', 2600, 0.45); tone('sawtooth', 240, 80, 0.22, 0.14); },
-    mine() { noise(0.55, 'lowpass', 700, 1); tone('sine', 140, 32, 0.5, 0.8); noise(0.25, 'highpass', 2500, 0.35, 0.03); tone('square', 90, 45, 0.3, 0.12, 0.02); },
+    mine() { noise(0.55, 'lowpass', 700, 1); tone('sine', 140, 32, 0.5, 0.8); noise(0.25, 'highpass', 2500, 0.35, 0.03); tone('square', 90, 45, 0.3, 0.12, 0.02); noise(1.0, 'lowpass', 240, 0.8, 0.05); },
     orb(k = 1) { tone('triangle', 880 * k, 880 * k, 0.08, 0.32); tone('triangle', 1320 * k, 1320 * k, 0.14, 0.28, 0.07); },
     // Near miss: a quick whoosh and a tick that climbs a semitone per step of the streak.
     close(n) { const f = 660 * Math.pow(2, Math.min(n - 1, 12) / 12); noise(0.09, 'bandpass', 2400, 0.16); tone('square', f, f, 0.05, 0.09, 0.02); },
@@ -2064,7 +2067,7 @@ const Buzz = (() => {
     wall: () => fire([45], 1),
     rock: () => fire([25, 30, 55], 2),
     lava: () => fire([15, 25, 15, 25, 30], 3),
-    mine: () => fire([70, 30, 110], 2),
+    mine: () => fire([90, 40, 170], 2),
     orb: () => fire([12], 1),
     part: () => fire([10, 30, 10], 2),
     shield: () => fire([10, 50, 25], 2),
@@ -2184,10 +2187,11 @@ function showCoach(text, ms) {
   coach.textContent = text; coach.classList.remove('gone');
   clearTimeout(coachTimer); coachTimer = setTimeout(() => coach.classList.add('gone'), ms);
 }
-function setHP(kind) {
+function setHP(kind, n = 1) {
   hpEls.forEach((el, i) => { el.classList.toggle('empty', i >= pl.hp); el.classList.remove('hit', 'gain'); });
   const el = kind === 'hit' ? hpEls[pl.hp] : kind === 'gain' ? hpEls[pl.hp - 1] : null;
   if (el) { void el.offsetWidth; el.classList.add(kind); }
+  for (let i = 1; kind === 'hit' && i < n; i++) if (hpEls[pl.hp + i]) hpEls[pl.hp + i].classList.add('hit');
   hpBox.classList.toggle('low', pl.hp === 1);
   hpBox.setAttribute('aria-valuenow', String(pl.hp));
 }
@@ -2673,6 +2677,48 @@ function flagArt(f) {
   // Only keep it once the pixel font has loaded, so an early fallback-font version gets redrawn.
   if (!document.fonts || document.fonts.check('8px Silkscreen')) f[key] = v;
   return v;
+}
+// ---------- cafe signs: 100 m above each cafe, on the cafe's side of the shaft, a sign points the way down ----------
+const CAFE_SIGN_UP = 800, CAFE_SIGN_H = 24, signArt = new Map();
+// The board and its brackets are drawn once per cafe into a full-width image; the arrow is drawn live so it can bob.
+function cafeSignArt(C) {
+  let a = signArt.get(C.k);
+  if (a) return a;
+  for (const key of signArt.keys()) if (Math.abs(key - C.k) > 1) signArt.delete(key);
+  const v = document.createElement('canvas'); v.width = W; v.height = CAFE_SIGN_H + 4;
+  const g = v.getContext('2d'), s = C.side, top = C.Dl - CAFE_SIGN_UP - CAFE_SIGN_H / 2, label = 'CAFE 100 m';
+  g.font = '8px Silkscreen'; g.textBaseline = 'top';
+  const w = Math.max(30, Math.ceil(g.measureText(label).width) + 8);
+  // Stand the board off the wall's innermost point along its height, so the jagged rock never pokes through it.
+  const edge = j => { const e = edgeAt(top + j); return s < 0 ? e.L : e.R; };
+  let wall = edge(0);
+  for (let j = 1; j <= CAFE_SIGN_H; j++) wall = s < 0 ? Math.max(wall, edge(j)) : Math.min(wall, edge(j));
+  const bx = s < 0 ? Math.round(wall + 6) : Math.round(wall - 6 - w);
+  for (const j of [5, CAFE_SIGN_H - 6]) {
+    const ex = Math.round(edge(j)), x0 = s < 0 ? ex - 2 : bx + w, x1 = s < 0 ? bx : ex + 2;
+    g.fillStyle = P.s; g.fillRect(x0, j, x1 - x0, 2); g.fillStyle = P.shade; g.fillRect(s < 0 ? x0 : x1 - 2, j, 2, 2);
+  }
+  g.fillStyle = P.a; g.fillRect(bx + 2, 2, w, CAFE_SIGN_H);
+  g.fillStyle = P.s; g.fillRect(bx - 1, 0, w + 2, CAFE_SIGN_H);
+  g.fillStyle = '#F2C14E'; g.fillRect(bx, 1, w, CAFE_SIGN_H - 2);
+  g.fillStyle = P.s; g.fillText(label, bx + 4, 3);
+  a = { img: v, top, cx: bx + Math.floor(w / 2) };
+  // Only keep it once the pixel font has loaded, so an early fallback-font version gets redrawn.
+  if (!document.fonts || document.fonts.check('8px Silkscreen')) signArt.set(C.k, a);
+  return a;
+}
+function drawCafeSigns(cam) {
+  const k0 = Math.max(1, cafeIdx(cam + H / 2 + CAFE_SIGN_UP));
+  for (let k = k0 - 1; k <= k0 + 1; k++) {
+    if (k < 1) continue;
+    const C = cafeInfo(k), y = Math.round(C.Dl - CAFE_SIGN_UP - CAFE_SIGN_H / 2 - cam);
+    if (y < -CAFE_SIGN_H - 8 || y > H + 8) continue;
+    const a = cafeSignArt(C), ay = y + 12 + Math.floor(ft * 3) % 2;
+    c.drawImage(a.img, 0, y);
+    // Down arrow: a short shaft and a head that narrows to a point.
+    c.fillStyle = P.a; c.fillRect(a.cx - 1, ay, 3, 4);
+    for (let i = 0; i < 5; i++) c.fillRect(a.cx - 4 + i, ay + 4 + i, 9 - 2 * i, 1);
+  }
 }
 function drawFlags(cam) {
   for (const f of flags) {
@@ -3196,6 +3242,22 @@ function burst(x, d, col, big) {
   parts.push({ x, d, vx: Math.cos(an) * s, vy: Math.sin(an) * s + pl.v * 0.85, t: 0, life: 0.35 + Math.random() * 0.4, col, z: Math.random() < 0.4 ? 3 : 2 });
 }
 function sparks(x, d, cols, n, spread) { for (let i = 0; i < n; i++) burst(x + (Math.random() - 0.5) * (spread || 0), d, cols[i % cols.length]); }
+// A mine going off: a ball of fire puffs that cool from white to red and then to smoke, sparks, shell fragments,
+// a white flash with shock rings on top, and a big shake. The puffs drift down with him a little, so it stays on screen.
+const FIRE = [P.g, '#F6D46A', P.hot, P.a, P.crust, P.shade];
+function explode(x, d, r) {
+  shake = Math.max(shake, 2.6);
+  if (pl.shield > 0) Sfx.mine();
+  const base = pl.v * 0.85;
+  for (let i = 0; i < 6; i++) parts.push({ fire: 1, smoke: 1, x: x + (Math.random() - 0.5) * r * 1.4, d: d + (Math.random() - 0.5) * r, vx: (Math.random() - 0.5) * 40, vy: base - 30, base: base - 24, drag: 3, r1: 8 + Math.random() * 6, t: -0.15 - Math.random() * 0.15, life: 1.0 + Math.random() * 0.4 });
+  for (let i = 0; i < 13; i++) {
+    const an = Math.random() * Math.PI * 2, s = 30 + Math.random() * 70, o = Math.random() * r * 0.6;
+    parts.push({ fire: 1, x: x + Math.cos(an) * o, d: d + Math.sin(an) * o, vx: Math.cos(an) * s, vy: base + Math.sin(an) * s, base, drag: 4, r1: 7 + Math.random() * 8, t: -Math.random() * 0.08, life: 0.55 + Math.random() * 0.35 });
+  }
+  sparks(x, d, [P.a, P.hot, P.g, MINE.mid, MINE.tip], 28, r);
+  for (let i = 0; i < 8; i++) { const an = Math.random() * Math.PI * 2, s = 90 + Math.random() * 110; parts.push({ x, d, vx: Math.cos(an) * s, vy: Math.sin(an) * s + pl.v * 0.85, t: 0, life: 0.5 + Math.random() * 0.4, col: i % 2 ? MINE.body : MINE.mid, z: 3 }); }
+  parts.push({ boom: 1, x, d, vx: 0, vy: 0, t: 0, life: 0.5 });
+}
 
 // ---------- damage and pickups ----------
 function hurt(kind, x, d) {
@@ -3206,13 +3268,15 @@ function hurt(kind, x, d) {
     return;
   }
   if (pl.inv > 0) return;
-  pl.hp--; pl.inv = 1.0; shake = 1;
+  // Mines cost two health, everything else one.
+  const dmg = kind === 'mine' ? 2 : 1;
+  pl.hp = Math.max(0, pl.hp - dmg); pl.inv = 1.0; shake = Math.max(shake, 1);
   // Hit-stop: the world freezes for a beat so the hit lands, with a white flash on the pilot.
-  hitStop = kind === 'mine' ? 0.09 : 0.07; pl.flash = 0.14;
+  hitStop = kind === 'mine' ? 0.12 : 0.07; pl.flash = 0.14;
   if (pl.streak) { pl.streak = 0; renderStreak(); }
   Buzz[kind](); Sfx[kind]();
-  setHP('hit');
-  pop('-1', pl.x, pl.y - 6, 'bad');
+  setHP('hit', dmg);
+  pop('-' + dmg, pl.x, pl.y - 6, 'bad');
   if (pl.hp <= 0) die(); else Sfx.hurtVoice(kind);
 }
 const SHIELD_S = 10, CLOSE_PX = 10;
@@ -3296,7 +3360,7 @@ function collide(prevX) {
     {
       k.dead = true;
       pl.vx = (pl.x >= k.x ? 1 : -1) * 150;
-      if (k.hot) { sparks(k.x, k.d, [P.a, P.hot, P.g, MINE.mid, MINE.tip], 24, k.rr); parts.push({ boom: 1, x: k.x, d: k.d, vx: 0, vy: 0, t: 0, life: 0.45 }); }
+      if (k.hot) explode(k.x, k.d, k.rr);
       else sparks(k.x, k.d, [P.rock, P.shade, P.s], 8 + k.size * 4, k.rr);
       hurt(k.hot ? 'mine' : 'rock');
     }
@@ -3318,7 +3382,7 @@ function update(dt) {
   if (pl.flash > 0) pl.flash -= dt;
   ft += dt;
   if (shake > 0) shake = Math.max(0, shake - dt * 4);
-  for (const p of parts) { p.t += dt; if (!p.ring) { p.x += p.vx * dt; p.d += p.vy * dt; p.vx *= Math.exp(-3 * dt); } }
+  for (const p of parts) { p.t += dt; if (!p.ring) { p.x += p.vx * dt; p.d += p.vy * dt; p.vx *= Math.exp(-3 * dt); if (p.drag) p.vy = p.base + (p.vy - p.base) * Math.exp(-p.drag * dt); } }
   prune(parts, partLive);
   if (state === 'launch') { updateLaunch(dt); return; }
   if (state === 'opening') { updateOpening(dt); return; }
@@ -3424,6 +3488,7 @@ function render() {
   if (falling) streaks(cam);
   critters(cam);
   drawFlags(cam);
+  drawCafeSigns(cam);
   drawCafe(cam);
   for (const it of items) {
     if (it.dead) continue;
@@ -3443,7 +3508,14 @@ function render() {
   for (const p of parts) {
     const y = Math.round(p.d - cam);
     if (p.ring) { const a = p.t / p.life; ring(p.x, y, 6 + a * 26, P.grnL); ring(p.x, y, 3 + a * 16, P.g); continue; }
-    if (p.boom) { const a = p.t / p.life; disc(p.x, y, Math.max(1, Math.round(12 * (1 - a))), P.hot); ring(p.x, y, 6 + a * 34, P.a); ring(p.x, y, 3 + a * 22, P.hot); continue; }
+    if (p.boom) { const a = p.t / p.life; if (a < 0.4) disc(p.x, y, Math.round(22 * (1 - a / 0.4)), P.g); ring(p.x, y, 8 + a * 52, P.a); ring(p.x, y, 4 + a * 34, P.hot); continue; }
+    if (p.fire) {
+      if (p.t < 0) continue;
+      const a = p.t / p.life, r = p.r1 * (a < 0.25 ? 0.45 + a * 2.2 : 1 - (a - 0.25) * 0.8);
+      if (p.smoke && a > 0.6) c.globalAlpha = (1 - a) / 0.4;
+      disc(p.x, y, r, p.smoke ? (a < 0.25 ? P.crust : P.shade) : FIRE[Math.min(5, Math.floor(a * 6))]);
+      c.globalAlpha = 1; continue;
+    }
     c.fillStyle = p.col; c.fillRect(Math.round(p.x), y, p.z, p.z);
   }
   const my = pl.y - cam;
