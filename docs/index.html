@@ -497,7 +497,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 'use strict';
 
 // Shown on the title card as v0.50. Add one with every published version (100 reads v1.00).
-const VERSION = 50;
+const VERSION = 51;
 
 // ---------- canvas and palette ----------
 const W = 320, TH = 128;
@@ -2398,7 +2398,7 @@ function openBoard() {
 function saveScore() {
   if (BAD_INITIALS.has(hsInit.join(''))) {
     const hint = $('hsHint'), box = $('initials');
-    hint.textContent = 'Those initials aren\u2019t allowed. Try others.'; hint.classList.add('bad');
+    hint.textContent = 'Keep it clean, sir.'; hint.classList.add('bad');
     box.classList.remove('no'); void box.offsetWidth; box.classList.add('no'); Sfx.block();
     return;
   }
