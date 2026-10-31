@@ -13,7 +13,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'tools', 'out')
 
 # The debug handle: the game's internals that the tests and screenshots reach for.
-HOOK = """window.__mf = { gameOver, depthM, startLaunch, save, pl, Sfx, get state() { return state; }, set state(v) { state = v; }, update, render, get openT() { return openT; }, cafeInfo, get flags() { return flags; }, get rocks() { return rocks; }, get items() { return items; }, nearMiss, collect, buyPerk, openShop, get shopOffer() { return shopOffer; }, get hitStop() { return hitStop; }, get flyers() { return flyers; }, hurt, buildFlags, get cafeT() { return cafeT; }, set cafeT(v) { cafeT = v; }, get camY() { return camY; }, edgeAt, checkCafe, prepaint, frame, DROPS, dropList, set ft(v) { ft = v; }, get shopDone() { return shopDone; } };"""
+HOOK = """window.__mf = { gameOver, depthM, startLaunch, save, player, Sfx, get state() { return state; }, set state(v) { state = v; }, update, render, get openT() { return openT; }, cafeInfo, get flags() { return flags; }, get rocks() { return rocks; }, get items() { return items; }, nearMiss, collect, buyPerk, openShop, get shopOffer() { return shopOffer; }, get hitStop() { return hitStop; }, get flyers() { return flyers; }, hurt, buildFlags, get cafeT() { return cafeT; }, set cafeT(v) { cafeT = v; }, get camY() { return camY; }, edgeAt, checkCafe, prepaint, frame, DROPS, dropList, set clock(v) { clock = v; }, get shopDone() { return shopDone; } };"""
 
 # A pretend scoreboard: answers the game's requests to fake-scores.test from memory. B.mode = 'down' fails them.
 FAKE_BOARD = """window.__board = { rows: [], next: 1, mode: 'ok', calls: [] };
@@ -37,12 +37,12 @@ window.fetch = async (url, init = {}) => {
 # Scenes for screenshots: ?scene=splash|title|pause|cafe|sign, plus options (see each branch).
 SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;animation-delay:0s!important}</style><script>
 (async () => {
-  const q = new URLSearchParams(location.search), M = window.__mf, pl = M.pl, wait = ms => new Promise(f => setTimeout(f, ms));
+  const q = new URLSearchParams(location.search), M = window.__mf, pl = M.player, wait = ms => new Promise(f => setTimeout(f, ms));
   document.addEventListener('visibilitychange', e => e.stopImmediatePropagation(), true);
   M.save.introSeen = true; M.save.cafeTips = !q.get('first');
   if (document.fonts) await document.fonts.ready;
   await wait(300);
-  if (q.get('scene') === 'splash') { M.ft = +(q.get('ft') || 0); M.render(); M.state = 'paused'; document.title = 'ready'; return; }
+  if (q.get('scene') === 'splash') { M.clock = +(q.get('ft') || 0); M.render(); M.state = 'paused'; document.title = 'ready'; return; }
   document.getElementById('splashSkip').click(); await wait(300);
   if (q.get('scene') === 'title') {
     for (let i = 0; i < 60; i++) M.update(1 / 60);
@@ -85,19 +85,20 @@ HEAD = ('<!doctype html><html><head><meta charset=utf8><meta name=viewport conte
         '<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}'
         'body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style></head><body>')
 
-game = open(os.path.join(ROOT, 'src', 'moonfall.html')).read()
-anchor = 'requestAnimationFrame(t => { last = t; frame(t); });'
-assert game.count(anchor) == 1, 'start-up line not found'
-game = game.replace(anchor, HOOK + '\n' + anchor)
-board = game.replace("const SCORES_URL = '';", "const SCORES_URL = 'https://fake-scores.test/functions/v1/scores';", 1)
-os.makedirs(OUT, exist_ok=True)
-pages = {
-    'test.html': HEAD + '<script>' + FAKE_BOARD + '</script>' + game + '</body></html>',
-    'test-board.html': HEAD + '<script>' + FAKE_BOARD + '</script>' + board + '</body></html>',
-    'frame.html': FRAME,
-}
-local = pages['test.html']
-pages['shot.html'] = local[:local.rindex('</body>')] + SHOT + '</body></html>'
-for name, html in pages.items():
-    open(os.path.join(OUT, name), 'w').write(html)
-print('tools/out:', ', '.join(pages))
+if __name__ == '__main__':
+    game = open(os.path.join(ROOT, 'src', 'moonfall.html')).read()
+    anchor = 'requestAnimationFrame(t => { last = t; frame(t); });'
+    assert game.count(anchor) == 1, 'start-up line not found'
+    game = game.replace(anchor, HOOK + '\n' + anchor)
+    board = game.replace("const SCORES_URL = '';", "const SCORES_URL = 'https://fake-scores.test/functions/v1/scores';", 1)
+    os.makedirs(OUT, exist_ok=True)
+    pages = {
+        'test.html': HEAD + '<script>' + FAKE_BOARD + '</script>' + game + '</body></html>',
+        'test-board.html': HEAD + '<script>' + FAKE_BOARD + '</script>' + board + '</body></html>',
+        'frame.html': FRAME,
+    }
+    local = pages['test.html']
+    pages['shot.html'] = local[:local.rindex('</body>')] + SHOT + '</body></html>'
+    for name, html in pages.items():
+        open(os.path.join(OUT, name), 'w').write(html)
+    print('tools/out:', ', '.join(pages))

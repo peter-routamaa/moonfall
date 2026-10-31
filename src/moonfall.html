@@ -495,11 +495,12 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // MoonFall: a pixel-art falling game in one file. A map for anyone reading the code.
 //
 // THE SCREEN. The world is drawn in game pixels on a canvas W (320) wide and H tall, scaled up to fill the phone.
-//   Depth runs down from the moon's surface: a thing's depth `d`, the pilot's `pl.y` and the camera `camY` are all game
-//   pixels, and PX_PER_M (8) of them make a metre. The pilot's middle is PILOT_CY pixels below pl.y.
+//   Depth runs down from the moon's surface: a thing's depth `d`, the pilot's `player.y` and the camera `camY` are all
+//   game pixels, and PX_PER_M (8) of them make a metre. The pilot's middle is PILOT_CY pixels below player.y.
+//   `clock` is the game's time in seconds, used for animation; it keeps running on menus.
 //   Two canvases: #cv for the world, and #ov on top of it for the pilot, so the world can scroll by fractions of a pixel
 //   while he stays still (see render). `c` is whichever one is being drawn on.
-//   The palette is P: P.g dust (cream), P.m blue, P.s ink (near black), P.a lava (red), and mixes of those.
+//   The palette is P: P.dust (cream), P.blue, P.ink (near black), P.lava (red), and named mixes of those (P.shade, P.lite...).
 //
 // WHAT'S HAPPENING is the string `state`:
 //   splash (start screen) -> opening (the intro film, can be skipped) -> title (main menu)
@@ -510,7 +511,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 //
 // A RUN: startRun -> resetRun -> intro -> beginPlay -> play ... collide -> hurt -> die -> gameOver -> showScores.
 //   The shaft is made in segments just below the screen as you fall (genSeg); walls come from edgeAt(d).
-//   Mines are rocks with `hot: true`. `parts` holds particles (sparks, smoke); ship parts are PARTS and runParts.
+//   Mines are rocks with `isMine: true`. `particles` holds sparks, smoke and fire; ship parts are PARTS and runParts.
 //
 // SAVED on the phone in `save` (localStorage 'moonfall.v1'): best depth, settings, ship parts, high scores.
 // ONLINE: SCORES_URL is the Supabase function for the shared high score board and the owner's private play stats.
@@ -518,22 +519,22 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 //
 // SECTIONS, in order (search for "// ---------- " to jump between them): canvas and palette, helpers, sprites, ship parts,
 //   the shaft, alien life, the moon surface, game state, saved settings, sound and his voice, music, haptics, DOM, flow,
-//   high scores, the opening film's timeline, cafe shop, board flags, cafe signs, coffee stop, the opening film,
-//   the launch, input, level generation, damage and pickups, update, render, sizing and loop.
+//   high scores, coffee stop (cafes: drawing, landing, the shop, the signs), board flags, the opening film, the launch,
+//   input, level generation, damage and pickups, update, render, sizing and loop.
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 56;
+const VERSION = 57;
 
 // ---------- canvas and palette ----------
-const W = 320, TH = 128;
+const W = 320, TILE_H = 128;
 const PX_PER_M = 8;   // game pixels per metre of depth
-const PILOT_CY = 14;  // the pilot's middle, in pixels below pl.y (the top of his sprite)
+const PILOT_CY = 14;  // the pilot's middle, in pixels below player.y (the top of his sprite)
 const game = document.getElementById('game'), cv = document.getElementById('cv'), ov = document.getElementById('ov');
 // Two canvases: the world, and on top of it the pilot (see render). `c` is whichever one is being drawn on.
 const wc = cv.getContext('2d', { alpha: false }), oc = ov.getContext('2d');
 let c = wc;
-let H = 600, MY = 180, camY0 = -360, sc = 1, pxY = 1, shownShift = null;
+let H = 600, pilotScreenY = 180, camY0 = -360, sc = 1, pxY = 1, shownShift = null;
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function mix(a, b, p) {
@@ -542,17 +543,17 @@ function mix(a, b, p) {
 }
 const P = (() => {
   const g = '#EEE8D8', m = '#2F7BD8', s = '#1A1E2C', a = '#E0483A', deep = mix(m, s, 0.5);
-  return { g, m, s, a, deep, deeper: mix(m, s, 0.7), rock: mix(g, s, 0.08), rock2: mix(g, s, 0.14), strata: mix(g, m, 0.2), shade: mix(g, s, 0.3), lite: mix(m, g, 0.5), hill: mix(g, m, 0.28),
+  return { dust: g, blue: m, ink: s, lava: a, deep, deeper: mix(m, s, 0.7), rock: mix(g, s, 0.08), rock2: mix(g, s, 0.14), strata: mix(g, m, 0.2), shade: mix(g, s, 0.3), lite: mix(m, g, 0.5), hill: mix(g, m, 0.28),
     hot: mix(a, g, 0.55), crust: mix(a, s, 0.55), glow: mix(a, deep, 0.7), moss: mix(m, g, 0.3), mossDk: mix(m, s, 0.2), bio: mix(mix(m, g, 0.5), deep, 0.45),
     grn: '#3CB86A', grnD: '#1F7F45', grnL: '#A6EBB9', grnXL: mix('#A6EBB9', g, 0.5),
     pur: '#9B6BE8', purD: '#5B3AA8', purL: '#CDB6F5', purXL: mix('#CDB6F5', g, 0.5) };
 })();
 
 // ---------- helpers ----------
-const sm = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+const smoothstep = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
 const lerp = (a, b, t) => a + (b - a) * t;
 const seg = (t, a, b) => Math.max(0, Math.min(1, (t - a) / (b - a)));
-const eio = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const easeInOut = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 function hash(n) { n = Math.sin(n * 127.1 + 311.7) * 43758.5453; return n - Math.floor(n); }
 function rng32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 // Discs, rings and sprites are drawn once into small images and then stamped, which is far cheaper than many tiny rectangles.
@@ -605,7 +606,7 @@ function spriteRows(g, rows, x, y, map) {
     }
   }
 }
-function epx(rows) {
+function upscale2x(rows) {
   const h = rows.length, w = rows[0].length, at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? '.' : rows[y][x];
   const out = []; for (let y = 0; y < h * 2; y++) out.push([]);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -622,72 +623,72 @@ const BODY = ['kswwwwwwwwwsk', '.kswwwwwwwsk.', '..kwwwswwwk..', '..kwwwkwwwk..'
 const FALL = [
   ['kk..kkkkk..kk', 'wk.kwwwwwk.kw', 'wk.kvvvvvk.kw', 'wk.kvhvvvk.kw', 'wk.kvvvvvk.kw', 'wkkkwwwwwkkkw'].concat(BODY, ['.kwwk...kwwk.', '.kwk.....kwk.', 'kwwk.....kwwk', 'kkk.......kkk']),
   ['....kkkkk....', 'kk.kwwwwwk.kk', 'wk.kvvvvvk.kw', 'wk.kvhvvvk.kw', 'wk.kvvvvvk.kw', 'wkkkwwwwwkkkw'].concat(BODY, ['..kwk...kwk..', '..kwk...kwk..', '.kwwk...kwwk.', '.kkk.....kkk.'])
-].map(epx);
+].map(upscale2x);
 const RUNTOP = ['...kkkkk...', '..kwwwwwk..', '..kwwkvvvk.', '..kwwkvhvk.', '..kwwwkkkk.', '...kwwwwk..', '..kswwwwk..', '.kswwwwwsk.', '.k.kwwwk.kk', '...kwwwk...'];
 const RUN = [
   RUNTOP.concat(['..kwk.kwk..', '.kwk...kwk.', 'kwk.....kwk', 'kk.......kk']),
   RUNTOP.concat(['...kwwk....', '...kwwk....', '...kwwwk...', '...kkkkk...'])
-].map(epx);
+].map(upscale2x);
 const ROCKS = [
   ['.kkk.', 'krrsk', 'khrsk', 'krssk', '.kkk.'],
   ['..kkkkk..', '.krrrrssk', 'krhrrrrsk', 'krrrrrrsk', 'krrrrrssk', 'krrrrsssk', '.kssssskk', '..kkkkk..'],
   ['....kkkkk....', '..kkrrrrsskk.', '.krrhhrrrrrsk', '.krhrrrrrrssk', 'krrrrrrrrsssk', 'krrrrrrrssssk', 'krrrrsrrrrssk', 'krrrrrsrsssk.', '.krrrrrssssk.', '.kssrrsssskk.', '..kkssssskk..', '....kkkkk....']
-].map((r, n) => epx(r).map((row, y, all) => row.split('').map((ch, x) => ch === 'r' && hash(x * 13 + y * 7 + n) < 0.1 ? 's' : ch === 'r' && y < all.length * 0.4 && x < row.length * 0.5 && hash(x * 3 + y * 11 + n) > 0.8 ? 'h' : ch).join('')));
+].map((r, n) => upscale2x(r).map((row, y, all) => row.split('').map((ch, x) => ch === 'r' && hash(x * 13 + y * 7 + n) < 0.1 ? 's' : ch === 'r' && y < all.length * 0.4 && x < row.length * 0.5 && hash(x * 3 + y * 11 + n) > 0.8 ? 'h' : ch).join('')));
 const ROCK_R = [5, 9, 13];
-const ORB = epx(['..kkk..', '.klllk.', 'klgglvk', 'klgllvk', 'kllllvk', '.kvvvk.', '..kkk..']);
+const ORB = upscale2x(['..kkk..', '.klllk.', 'klgglvk', 'klgllvk', 'kllllvk', '.kvvvk.', '..kkk..']);
 const JELLY = [
   ['..kkk..', '.kgllk.', 'kglllvk', 'kllllvk', 'kkkkkkk', '.l.l.l.', 'l.l.l..'],
   ['..kkk..', '.kgllk.', 'kglllvk', 'kllllvk', 'kkkkkkk', '.l.l.l.', '..l.l.l']
-].map(epx);
+].map(upscale2x);
 const BAT = [
   ['k.......k', 'kv.....vk', '.kvvgvvk.', '..kvvvk..', '...k.k...'],
   ['.........', '...kgk...', 'kkvvvvvkk', 'kvvkvkvvk', 'k..k.k..k']
-].map(epx);
+].map(upscale2x);
 const BUG = [
   ['..kk..', '.kggk.', 'kkmmk.', '.kmmmk', 'kkmmk.', '.kmmmk', 'kkmmk.', '.kmmk.', '..kk..'],
   ['..kk..', '.kggk.', '.kmmk.', 'kkmmmk', '.kmmk.', 'kkmmmk', '.kmmk.', '.kmmk.', '..kk..']
-].map(epx);
+].map(upscale2x);
 const BUGR = BUG.map(flip);
 const RUNL = RUN.map(flip);
-const SIT = epx(RUNTOP.concat(['...kwwwwwwk', '...kkkkkwwk', '........kwk', '........kwk', '.......kwwk', '.......kkkk']));
+const SIT = upscale2x(RUNTOP.concat(['...kwwwwwwk', '...kkkkkwwk', '........kwk', '........kwk', '.......kwwk', '.......kkkk']));
 const WAVE_LOW = ['..kswwwwwwwk...', '..kwkwwswwk....', '..kwkwwwwwk....', '..kk.kwwwk.....', '.....kwkwk.....', '.....kwkwk.....', '....kkk.kkk....'];
 const WAVE = [
   ['.....kkkkk.kk..', '....kwwwwwkwwk.', '....kvvvvvkkwk.', '....kvhvvvkkwk.', '....kvvvvvkkwk.', '....kwwwwwkkwk.', '...kswwwwwswk..'].concat(WAVE_LOW),
   ['.....kkkkk..kk.', '....kwwwwwkkwwk', '....kvvvvvk.kwk', '....kvhvvvkkwk.', '....kvvvvvkkwk.', '....kwwwwwkwk..', '...kswwwwwswk..'].concat(WAVE_LOW)
-].map(epx);
-const BLOB = [['..kkk..', '.kmmmk.', 'kmgmgmk', 'kmmmmmk', 'kmmmmmk', '.kkkkk.'], ['.......', '..kkk..', '.kmmmk.', 'kmgmgmk', 'kmmmmmk', 'kkkkkkk']].map(epx);
-function pmap() { return { m: P.moss, k: P.s, w: P.g, v: P.m, h: P.g, l: P.lite, a: P.a, g: P.g, r: P.rock, s: P.shade }; }
-const MAP = pmap(), MAPGRN = Object.assign(pmap(), { l: P.grn, v: P.grnD, g: P.g });
+].map(upscale2x);
+const BLOB = [['..kkk..', '.kmmmk.', 'kmgmgmk', 'kmmmmmk', 'kmmmmmk', '.kkkkk.'], ['.......', '..kkk..', '.kmmmk.', 'kmgmgmk', 'kmmmmmk', 'kkkkkkk']].map(upscale2x);
+function pmap() { return { m: P.moss, k: P.ink, w: P.dust, v: P.blue, h: P.dust, l: P.lite, a: P.lava, g: P.dust, r: P.rock, s: P.shade }; }
+const MAP = pmap(), MAPGRN = Object.assign(pmap(), { l: P.grn, v: P.grnD, g: P.dust });
 // Every colour as ink, drawn faint: scenery creatures read as shadows behind the action.
-const MAPSIL = Object.fromEntries(Object.keys(MAP).map(k => [k, P.s]));
+const MAPSIL = Object.fromEntries(Object.keys(MAP).map(k => [k, P.ink]));
 
 // Jetpack: twin canisters behind his hips with side nozzles (front view), or one pack on his back (side view).
 function drawPack(x0, y0, pose) {
   if (pose === 'fall') {
     for (const xl of [x0 - 3, x0 + 23]) {
-      c.fillStyle = P.s; c.fillRect(xl, y0 + 12, 6, 11);
+      c.fillStyle = P.ink; c.fillRect(xl, y0 + 12, 6, 11);
       c.fillStyle = P.shade; c.fillRect(xl + 1, y0 + 13, 4, 9);
       c.fillStyle = P.lite; c.fillRect(xl + 1, y0 + 14, 1, 6);
-      c.fillStyle = P.m; c.fillRect(xl + 1, y0 + 19, 4, 1);
+      c.fillStyle = P.blue; c.fillRect(xl + 1, y0 + 19, 4, 1);
     }
-    c.fillStyle = P.s; c.fillRect(x0 - 5, y0 + 15, 3, 4); c.fillRect(x0 + 28, y0 + 15, 3, 4);
+    c.fillStyle = P.ink; c.fillRect(x0 - 5, y0 + 15, 3, 4); c.fillRect(x0 + 28, y0 + 15, 3, 4);
     c.fillStyle = P.deep; c.fillRect(x0 - 5, y0 + 16, 1, 2); c.fillRect(x0 + 30, y0 + 16, 1, 2);
   } else {
     const X = (x, w) => pose === 'runL' || pose === 'standL' ? 2 * x0 + 22 - x - w : x;
-    c.fillStyle = P.s; c.fillRect(X(x0 - 3, 7), y0 + 11, 7, 12);
+    c.fillStyle = P.ink; c.fillRect(X(x0 - 3, 7), y0 + 11, 7, 12);
     c.fillStyle = P.shade; c.fillRect(X(x0 - 2, 5), y0 + 12, 5, 10);
     c.fillStyle = P.lite; c.fillRect(X(x0 - 2, 1), y0 + 13, 1, 7);
-    c.fillStyle = P.m; c.fillRect(X(x0 - 2, 5), y0 + 18, 5, 1);
-    c.fillStyle = P.s; c.fillRect(X(x0 - 2, 4), y0 + 23, 4, 2);
+    c.fillStyle = P.blue; c.fillRect(X(x0 - 2, 5), y0 + 18, 5, 1);
+    c.fillStyle = P.ink; c.fillRect(X(x0 - 2, 4), y0 + 23, 4, 2);
   }
 }
 function drawFlame(nx, ny, dir, k) {
-  const L = Math.round(6 + 12 * k) + (Math.floor(ft * 24) % 2 ? 2 : 0);
+  const L = Math.round(6 + 12 * k) + (Math.floor(clock * 24) % 2 ? 2 : 0);
   for (let i = 0; i < L; i++) {
     const u = i / L, h = Math.max(1, Math.round(5 * (1 - u * 0.8))), x = dir < 0 ? nx - 1 - i : nx + i, top = ny - (h >> 1);
-    c.fillStyle = P.a; c.fillRect(x, top, 1, h);
+    c.fillStyle = P.lava; c.fillRect(x, top, 1, h);
     if (u < 0.7 && h > 2) { c.fillStyle = P.hot; c.fillRect(x, top + 1, 1, h - 2); }
-    if (u < 0.35) { c.fillStyle = P.g; c.fillRect(x, ny, 1, 1); }
+    if (u < 0.35) { c.fillStyle = P.dust; c.fillRect(x, ny, 1, 1); }
   }
 }
 function drawMan(x, y, pose, t, thr) {
@@ -701,33 +702,33 @@ function drawMan(x, y, pose, t, thr) {
   }
   if (pose === 'fall') {
     c.fillStyle = P.shade; c.fillRect(x0 + 10, y0 + 13, 6, 4); c.fillRect(x0 + 7, y0 + 18, 12, 1);
-    c.fillStyle = P.m; c.fillRect(x0 + 11, y0 + 14, 4, 2);
-    c.fillStyle = P.g; c.fillRect(x0 + 11, y0 + 14, 1, 1); c.fillRect(x0 + 14, y0 + 5, 2, 1);
-  } else if (pose !== 'wave') { c.fillStyle = P.m; c.fillRect(pose === 'runL' || pose === 'standL' ? x0 + 14 : x0 + 6, y0 + 15, 2, 2); }
+    c.fillStyle = P.blue; c.fillRect(x0 + 11, y0 + 14, 4, 2);
+    c.fillStyle = P.dust; c.fillRect(x0 + 11, y0 + 14, 1, 1); c.fillRect(x0 + 14, y0 + 5, 2, 1);
+  } else if (pose !== 'wave') { c.fillStyle = P.blue; c.fillRect(pose === 'runL' || pose === 'standL' ? x0 + 14 : x0 + 6, y0 + 15, 2, 2); }
 }
 // Sea mine: dark riveted sphere with horned spikes and a slow-blinking warning light.
 const MINE = { body: '#2E3446', mid: '#454D66', hi: '#7D879F', tip: '#B9C0CF' };
 function drawMine(x, y, rr, seed) {
   const jit = reduceMotion ? 0 : 1;
-  x = Math.round(x + Math.sin(ft * 57 + seed * 3) * jit); y = Math.round(y + Math.cos(ft * 49 + seed * 5) * jit);
-  const R = Math.max(4, rr - 1), n = R < 6 ? 4 : 8, armed = Math.floor(ft * 4 + seed) % 2 === 0;
+  x = Math.round(x + Math.sin(clock * 57 + seed * 3) * jit); y = Math.round(y + Math.cos(clock * 49 + seed * 5) * jit);
+  const R = Math.max(4, rr - 1), n = R < 6 ? 4 : 8, armed = Math.floor(clock * 4 + seed) % 2 === 0;
   for (let i = 0; i < n; i++) {
     const an = i / n * Math.PI * 2 + (n === 4 ? Math.PI / 4 : 0), ca = Math.cos(an), sa = Math.sin(an);
-    c.fillStyle = P.s; for (let r = R - 1; r <= R + 2; r++) c.fillRect(Math.round(x + ca * r) - 1, Math.round(y + sa * r) - 1, 3, 3);
+    c.fillStyle = P.ink; for (let r = R - 1; r <= R + 2; r++) c.fillRect(Math.round(x + ca * r) - 1, Math.round(y + sa * r) - 1, 3, 3);
     c.fillStyle = armed ? P.crust : MINE.mid; for (let r = R; r <= R + 2; r++) c.fillRect(Math.round(x + ca * r), Math.round(y + sa * r), 1, 1);
     const tx = Math.round(x + ca * (R + 3)), ty = Math.round(y + sa * (R + 3));
-    c.fillStyle = P.s; c.fillRect(tx - 2, ty - 2, 5, 5);
-    c.fillStyle = armed ? P.a : MINE.tip; c.fillRect(tx - 1, ty - 1, 3, 3);
+    c.fillStyle = P.ink; c.fillRect(tx - 2, ty - 2, 5, 5);
+    c.fillStyle = armed ? P.lava : MINE.tip; c.fillRect(tx - 1, ty - 1, 3, 3);
     if (armed) { c.fillStyle = P.hot; c.fillRect(tx, ty, 1, 1); }
   }
-  disc(x, y, R + 1, P.s); disc(x, y, R, MINE.body);
+  disc(x, y, R + 1, P.ink); disc(x, y, R, MINE.body);
   disc(x - Math.round(R * 0.25), y - Math.round(R * 0.25), Math.max(1, Math.round(R * 0.6)), MINE.mid);
   disc(x - Math.round(R * 0.4), y - Math.round(R * 0.4), Math.max(1, Math.round(R * 0.22)), MINE.hi);
-  c.fillStyle = P.s; c.fillRect(x - R, y, 2 * R + 1, 1);
+  c.fillStyle = P.ink; c.fillRect(x - R, y, 2 * R + 1, 1);
   c.fillStyle = MINE.hi; for (const k of [-0.6, 0, 0.6]) c.fillRect(Math.round(x + k * R), y - 1, 1, 1);
   const on = armed;
-  c.fillStyle = P.s; c.fillRect(x - 2, y - R - 3, 5, 4);
-  c.fillStyle = on ? P.a : P.crust; c.fillRect(x - 1, y - R - 2, 3, 2);
+  c.fillStyle = P.ink; c.fillRect(x - 2, y - R - 3, 5, 4);
+  c.fillStyle = on ? P.lava : P.crust; c.fillRect(x - 1, y - R - 2, 3, 2);
   if (on) { c.fillStyle = P.hot; c.fillRect(x, y - R - 2, 1, 1); }
 }
 function drawRock(x, y, size) { const R = ROCKS[size]; sprite(c, R, x - R[0].length / 2, y - R.length / 2, MAP); }
@@ -735,23 +736,23 @@ function drawOrb(x, y, t, g) {
   g = g || c;
   sprite(g, ORB, x - 7, y - 7, MAPGRN);
   const s = Math.round(2 + Math.sin(t * 6 + x) * 2);
-  g.fillStyle = P.g; g.fillRect(Math.round(x) + 6, Math.round(y) - 9 - s, 1, s * 2 + 1); g.fillRect(Math.round(x) + 6 - s, Math.round(y) - 9, s * 2 + 1, 1);
+  g.fillStyle = P.dust; g.fillRect(Math.round(x) + 6, Math.round(y) - 9 - s, 1, s * 2 + 1); g.fillRect(Math.round(x) + 6 - s, Math.round(y) - 9, s * 2 + 1, 1);
 }
 function drawBubble(x, y, t, g) {
   const r = 9 + Math.round(Math.sin(t * 4 + x));
   ring(x, y, r + 3, P.purD, 1, g); ring(x, y, r, P.pur, 2, g);
   disc(x, y, r - 3, P.purL, g); disc(x + 1, y + 1, r - 5, P.purXL, g);
-  g = g || c; g.fillStyle = P.g; g.fillRect(Math.round(x) - 4, Math.round(y) - 5, 3, 2); g.fillRect(Math.round(x) - 5, Math.round(y) - 3, 2, 2);
+  g = g || c; g.fillStyle = P.dust; g.fillRect(Math.round(x) - 4, Math.round(y) - 5, 3, 2); g.fillRect(Math.round(x) - 5, Math.round(y) - 3, 2, 2);
 }
 
 // ---------- ship parts: five materials, kept between runs, that repair the crashed ship ----------
 const PMAP = { k: '#1A1E2C', p: '#C9CED6', q: '#8E96A3', y: '#F2C14E', c: '#E08A45', d: '#8F4A1E', n: '#2E3240', w: '#FFFFFF', f: '#FF5E7A', F: '#FFB3C1', e: '#8EEBF5', E: '#2BA6C9' };
 const PARTS = [
-  { id: 'plate', name: 'Plating', full: 'Hull plating', need: 30, from: 80, w: 5, spr: epx(['kkkkkkk', 'kypppyk', 'kpppppk', 'kppqppk', 'kpqqqpk', 'kyqqqyk', 'kkkkkkk']) },
-  { id: 'wire', name: 'Wiring', full: 'Copper wiring', need: 20, from: 200, w: 4, spr: epx(['.k.k.k.', 'kckckck', 'kdkdkdk', 'kckckck', 'kdkdkdk', 'kckckck', '.k.k.k.']) },
-  { id: 'chip', name: 'Chips', full: 'Circuit chips', need: 12, from: 500, w: 3, spr: epx(['.y.y.y.', 'kkkkkkk', 'knnnnnk', 'knyyynk', 'knnnnnk', 'kkkkkkk', '.y.y.y.']) },
-  { id: 'fuel', name: 'Fuel', full: 'Fuel cells', need: 8, from: 900, w: 2.5, spr: epx(['..kkk..', '.kqqqk.', '.kfFfk.', '.kFffk.', '.kfffk.', '.kffFk.', '.kqqqk.', '..kkk..']) },
-  { id: 'core', name: 'Core', full: 'Core crystal', need: 4, from: 1500, w: 1.5, spr: epx(['...k...', '..kwk..', '.kweek.', 'kweeEEk', '.keEEk.', '..kEk..', '...k...']) },
+  { id: 'plate', name: 'Plating', full: 'Hull plating', need: 30, from: 80, w: 5, spr: upscale2x(['kkkkkkk', 'kypppyk', 'kpppppk', 'kppqppk', 'kpqqqpk', 'kyqqqyk', 'kkkkkkk']) },
+  { id: 'wire', name: 'Wiring', full: 'Copper wiring', need: 20, from: 200, w: 4, spr: upscale2x(['.k.k.k.', 'kckckck', 'kdkdkdk', 'kckckck', 'kdkdkdk', 'kckckck', '.k.k.k.']) },
+  { id: 'chip', name: 'Chips', full: 'Circuit chips', need: 12, from: 500, w: 3, spr: upscale2x(['.y.y.y.', 'kkkkkkk', 'knnnnnk', 'knyyynk', 'knnnnnk', 'kkkkkkk', '.y.y.y.']) },
+  { id: 'fuel', name: 'Fuel', full: 'Fuel cells', need: 8, from: 900, w: 2.5, spr: upscale2x(['..kkk..', '.kqqqk.', '.kfFfk.', '.kFffk.', '.kfffk.', '.kffFk.', '.kqqqk.', '..kkk..']) },
+  { id: 'core', name: 'Core', full: 'Core crystal', need: 4, from: 1500, w: 1.5, spr: upscale2x(['...k...', '..kwk..', '.kweek.', 'kweeEEk', '.keEEk.', '..kEk..', '...k...']) },
 ];
 function drawPart(pt, x, y, t, g) {
   g = g || c;
@@ -782,7 +783,7 @@ function newSeed() {
 // The caverns sit 50 m (400 px) below each 1000 m mark, so that mark's deep creature swims past above the ledge.
 const CAFE_EVERY = 1000 * PX_PER_M, CAFE_OFF = 50 * PX_PER_M;
 const cafeIdx = d => Math.round((d - CAFE_OFF) / CAFE_EVERY);
-function cavernAt(d) { const k = cafeIdx(d); if (k < 1) return 0; const x = d - k * CAFE_EVERY - CAFE_OFF; return sm((x + 320) / 170) * (1 - sm((x - 150) / 170)); }
+function cavernAt(d) { const k = cafeIdx(d); if (k < 1) return 0; const x = d - k * CAFE_EVERY - CAFE_OFF; return smoothstep((x + 320) / 170) * (1 - smoothstep((x - 150) / 170)); }
 function splitAt(d) {
   const k = Math.floor((d - 1500) / 1800);
   if (k < 0) return null;
@@ -792,27 +793,27 @@ function splitAt(d) {
   return sp;
 }
 function splitU(d) { const sp = splitAt(d); if (!sp || d < sp.s0 || d > sp.s0 + sp.len) return 0; return Math.pow(Math.sin(Math.PI * (d - sp.s0) / sp.len), 0.6); }
-function splitNear(d) { const sp = splitAt(d); if (!sp) return 0; return sm((d - sp.s0 + 220) / 200) * (1 - sm((d - sp.s0 - sp.len - 20) / 200)); }
-function hw(d) {
-  let b = 100 - 32 * sm(d / 26000) + 12 * Math.sin(d * 0.0105 + P3) + 6 * Math.sin(d * 0.031 + P1);
+function splitNear(d) { const sp = splitAt(d); if (!sp) return 0; return smoothstep((d - sp.s0 + 220) / 200) * (1 - smoothstep((d - sp.s0 - sp.len - 20) / 200)); }
+function shaftHalfW(d) {
+  let b = 100 - 32 * smoothstep(d / 26000) + 12 * Math.sin(d * 0.0105 + P3) + 6 * Math.sin(d * 0.031 + P1);
   b += Math.max(0, 62 - b) * splitNear(d);
   b = lerp(b, W / 2 - 12, cavernAt(d));
-  return 30 + (b - 30) * sm(d / 260);
+  return 30 + (b - 30) * smoothstep(d / 260);
 }
-function isl(d) { const u = splitU(d); return u ? u * Math.max(20, Math.min(70, W / 2 - 16 - hw(d))) : 0; }
-function cx(d) {
-  const A = Math.max(0, W / 2 - 14 - hw(d)) * sm((d - 160) / 500) * (1 - splitNear(d)) * (1 - cavernAt(d));
+function islandOffset(d) { const u = splitU(d); return u ? u * Math.max(20, Math.min(70, W / 2 - 16 - shaftHalfW(d))) : 0; }
+function shaftCentreX(d) {
+  const A = Math.max(0, W / 2 - 14 - shaftHalfW(d)) * smoothstep((d - 160) / 500) * (1 - splitNear(d)) * (1 - cavernAt(d));
   return W / 2 + A * (0.62 * Math.sin(d * 0.0068 + P1) + 0.38 * Math.sin(d * 0.0151 + P2));
 }
 function ledge(d, side) {
   const q = Math.floor(d / 72), h = hash(q * 2.7 + side * 50 + SEED);
   if (h > 0.3 || d < 320) return 0;
-  return Math.round(Math.min(10 + h * 44, hw(d) * 0.4) * (1 - splitNear(d)) * (1 - cavernAt(d)) * (1 - Math.abs(2 * (d - q * 72) / 72 - 1)));
+  return Math.round(Math.min(10 + h * 44, shaftHalfW(d) * 0.4) * (1 - splitNear(d)) * (1 - cavernAt(d)) * (1 - Math.abs(2 * (d - q * 72) / 72 - 1)));
 }
 // Wall materials change every 500 m and blend over 120 m around each boundary (dithered so there is no hard line).
 const ZONE_M = 500, BLEND_M = 60;
 const MATS = [
-  { label: 'Ice', b0: P.strata, b1: P.rock, b2: P.rock2, shade: P.shade, ink: P.s, hi: P.g, cryL: P.lite, cryD: P.m, sO: P.deeper, sI: P.deep },
+  { label: 'Ice', b0: P.strata, b1: P.rock, b2: P.rock2, shade: P.shade, ink: P.ink, hi: P.dust, cryL: P.lite, cryD: P.blue, sO: P.deeper, sI: P.deep },
   { label: 'Sandstone', b0: '#E4C893', b1: '#D7B67E', b2: '#CAA56D', shade: '#A9844F', ink: '#4B331F', hi: '#F7EACB', cryL: '#F4CB72', cryD: '#C98A2E', sO: '#3E2A1D', sI: '#5C412B' },
   { label: 'Basalt', b0: '#A6A7AD', b1: '#96979E', b2: '#878890', shade: '#67686F', ink: '#2A2B31', hi: '#D9DADF', cryL: '#9FD3E6', cryD: '#4A8FB0', sO: '#1E1F25', sI: '#2E3039' },
   { label: 'Magma', b0: '#4E2B29', b1: '#3E2321', b2: '#5A302D', shade: '#2A1715', ink: '#120A09', hi: '#FF9A5C', cryL: '#FFB86B', cryD: '#E0483A', sO: '#1A0D0E', sI: '#2A1416' },
@@ -831,7 +832,7 @@ function palAt(d, smooth) {
   if (!Q) {
     const A = MATS[st === 16 ? ib : ia], B = MATS[ib];
     Q = {}; for (const n of MKEYS) Q[n] = st === 0 || st === 16 ? A[n] : mix(A[n], B[n], st / 16);
-    Q.glow = mix(P.a, Q.sI, 0.7);
+    Q.glow = mix(P.lava, Q.sI, 0.7);
     palCache.set(key, Q);
   }
   return Q;
@@ -843,7 +844,7 @@ function lavaSide(q) {
 }
 function mossSide(q) { const h = hash(q * 3.3 + 9 + SEED); return h < 0.3 ? -1 : h < 0.6 ? 1 : 0; }
 function edgesRaw(d) {
-  const q = Math.floor(d / 10), f = Math.floor(d / 3), i = isl(d), C = cx(d), h = hw(d) + i;
+  const q = Math.floor(d / 10), f = Math.floor(d / 3), i = islandOffset(d), C = shaftCentreX(d), h = shaftHalfW(d) + i;
   const e = { C, q, iL: 0, iR: 0,
     L: Math.round(C - h + (hash(q + SEED) - 0.5) * 10 + (hash(f + 500) - 0.5) * 3 + ledge(d, 0)),
     R: Math.round(C + h + (hash(q + 91 + SEED) - 0.5) * 10 + (hash(f + 900) - 0.5) * 3 - ledge(d, 1)) };
@@ -870,7 +871,7 @@ function drawRow(g, d, y, e) {
     g.fillStyle = Q.cryL; g.fillRect(xc - w, y, w + 1, 1);
     g.fillStyle = Q.cryD; g.fillRect(xc + 1, y, w, 1);
   }
-  if (d < 4) { g.fillStyle = d < 2 ? P.g : P.shade; g.fillRect(0, y, W, 1); }
+  if (d < 4) { g.fillStyle = d < 2 ? P.dust : P.shade; g.fillRect(0, y, W, 1); }
   g.fillStyle = Q.shade; g.fillRect(L - 6, y, R - L + 12, 1);
   const q2 = Math.floor(d / 180), ls = lavaSide(q2), ld = d - q2 * 180;
   if (ls && ld >= 40 && ld <= 88) {
@@ -878,7 +879,7 @@ function drawRow(g, d, y, e) {
     if (th > 0) {
       const x0 = ls < 0 ? L - th - 6 : R;
       g.fillStyle = P.crust; g.fillRect(x0, y, th + 6, 1);
-      g.fillStyle = P.a; g.fillRect(x0 + 2, y, th + 2, 1);
+      g.fillStyle = P.lava; g.fillRect(x0 + 2, y, th + 2, 1);
       if (th > 8) { g.fillStyle = P.hot; g.fillRect(x0 + 5, y, th - 6, 1); }
     }
   }
@@ -914,36 +915,36 @@ function tile(i) {
   t = tilePool.pop();
   if (t) { t.i = i; t.done = 0; }
   else {
-    const cnv = document.createElement('canvas'); cnv.width = W; cnv.height = TH;
-    t = { cnv, g: cnv.getContext('2d'), i, done: 0, L: new Int16Array(TH), R: new Int16Array(TH), iL: new Int16Array(TH), iR: new Int16Array(TH), sO: new Array(TH), wall: null, wallReady: false };
+    const cnv = document.createElement('canvas'); cnv.width = W; cnv.height = TILE_H;
+    t = { cnv, g: cnv.getContext('2d'), i, done: 0, L: new Int16Array(TILE_H), R: new Int16Array(TILE_H), iL: new Int16Array(TILE_H), iR: new Int16Array(TILE_H), sO: new Array(TILE_H), wall: null, wallReady: false };
   }
-  for (let y = 0; y < TH; y++) {
-    const e = edgesRaw(i * TH + y);
-    t.L[y] = e.L; t.R[y] = e.R; t.iL[y] = e.iL; t.iR[y] = e.iR; t.sO[y] = palAt(i * TH + y).sO;
+  for (let y = 0; y < TILE_H; y++) {
+    const e = edgesRaw(i * TILE_H + y);
+    t.L[y] = e.L; t.R[y] = e.R; t.iL[y] = e.iL; t.iR[y] = e.iR; t.sO[y] = palAt(i * TILE_H + y).sO;
   }
   tiles.set(i, t);
   return t;
 }
 const ROWE = { L: 0, R: 0, iL: 0, iR: 0 };
 function paintTile(t, rows) {
-  const end = Math.min(TH, t.done + rows);
-  for (let y = t.done; y < end; y++) { ROWE.L = t.L[y]; ROWE.R = t.R[y]; ROWE.iL = t.iL[y]; ROWE.iR = t.iR[y]; drawRow(t.g, t.i * TH + y, y, ROWE); }
+  const end = Math.min(TILE_H, t.done + rows);
+  for (let y = t.done; y < end; y++) { ROWE.L = t.L[y]; ROWE.R = t.R[y]; ROWE.iL = t.iL[y]; ROWE.iR = t.iR[y]; drawRow(t.g, t.i * TILE_H + y, y, ROWE); }
   t.done = end;
 }
-function readyTile(i) { const t = tile(i); if (t.done < TH) paintTile(t, TH); return t; }
+function readyTile(i) { const t = tile(i); if (t.done < TILE_H) paintTile(t, TILE_H); return t; }
 function prepaint(cam) {
   let budget = 24;
-  for (let i = Math.max(0, Math.floor(cam / TH)); i <= Math.floor((cam + H) / TH) + 3 && budget > 0; i++) {
+  for (let i = Math.max(0, Math.floor(cam / TILE_H)); i <= Math.floor((cam + H) / TILE_H) + 3 && budget > 0; i++) {
     const t = tile(i);
-    if (t.done >= TH) continue;
-    const n = Math.min(budget, TH - t.done); paintTile(t, n); budget -= n;
+    if (t.done >= TILE_H) continue;
+    const n = Math.min(budget, TILE_H - t.done); paintTile(t, n); budget -= n;
   }
 }
 const EDGE = { L: 0, R: W, iL: 0, iR: 0 };
 function edgeAt(d) {
   d = Math.floor(d);
   if (d < 0) { EDGE.L = -50; EDGE.R = W + 50; EDGE.iL = EDGE.iR = 0; return EDGE; }
-  const i = Math.floor(d / TH), t = tile(i), r = d - i * TH;
+  const i = Math.floor(d / TILE_H), t = tile(i), r = d - i * TILE_H;
   EDGE.L = t.L[r]; EDGE.R = t.R[r]; EDGE.iL = t.iL[r]; EDGE.iR = t.iR[r];
   return EDGE;
 }
@@ -960,11 +961,11 @@ const LEVI_EVERY = 500 * PX_PER_M, LEVI_PARALLAX = 0.5;
 // whatever is outside the hole (this replaced a clip path that was rebuilt every frame).
 function wallTile(t) {
   if (t.wallReady) return t.wall;
-  if (t.done < TH) paintTile(t, TH);
-  if (!t.wall) { t.wall = document.createElement('canvas'); t.wall.width = W; t.wall.height = TH; }
+  if (t.done < TILE_H) paintTile(t, TILE_H);
+  if (!t.wall) { t.wall = document.createElement('canvas'); t.wall.width = W; t.wall.height = TILE_H; }
   const w = t.wall, g = w.getContext('2d');
-  g.clearRect(0, 0, W, TH); g.drawImage(t.cnv, 0, 0);
-  for (let y = 0; y < TH; y++) {
+  g.clearRect(0, 0, W, TILE_H); g.drawImage(t.cnv, 0, 0);
+  for (let y = 0; y < TILE_H; y++) {
     const L = t.L[y] + 2, R = t.R[y] - 2, iL = t.iL[y], iR = t.iR[y];
     if (iR) { g.clearRect(L, y, Math.max(0, iL - 2 - L), 1); g.clearRect(iR + 2, y, Math.max(0, R - iR - 2), 1); }
     else g.clearRect(L, y, Math.max(0, R - L), 1);
@@ -973,7 +974,7 @@ function wallTile(t) {
   return w;
 }
 function drawLeviathan(x, y, dir, k, col) {
-  const N = 46, len = 190, ph = ft * 1.3 + k;
+  const N = 46, len = 190, ph = clock * 1.3 + k;
   let tx = x, ty = y;
   for (let i = 0; i <= N; i++) {
     const t = i / N, bx = x + dir * (len / 2 - t * len), by = y + Math.sin(ph - t * 4.2) * 7 * t;
@@ -987,9 +988,9 @@ function drawLeviathan(x, y, dir, k, col) {
   const fx = x + dir * (len / 2 - 0.32 * len), fy = y + 12 + Math.sin(ph - 1.3) * 2;
   for (let j = 0; j < 12; j++) c.fillRect(Math.round(fx - dir * j * 1.3) - (dir < 0 ? 12 - j : 0), Math.round(fy + j * 0.8), 12 - j, 1);
   const hx = x + dir * (len / 2 - 8), hy = y - 3;
-  c.fillStyle = P.crust; c.fillRect(Math.round(hx) - 2, Math.round(hy) - 1, 4, 4); c.fillStyle = P.a; c.fillRect(Math.round(hx) - 1, Math.round(hy), 2, 2);
+  c.fillStyle = P.crust; c.fillRect(Math.round(hx) - 2, Math.round(hy) - 1, 4, 4); c.fillStyle = P.lava; c.fillRect(Math.round(hx) - 1, Math.round(hy), 2, 2);
   c.fillStyle = P.bio;
-  for (let i = 0; i < 7; i++) { const t = 0.2 + i * 0.08, bx = x + dir * (len / 2 - t * len), by = y + Math.sin(ph - t * 4.2) * 7 * t + 6; if (Math.floor(ft * 1.2 + i * 0.7) % 3) c.fillRect(Math.round(bx), Math.round(by), 2, 1); }
+  for (let i = 0; i < 7; i++) { const t = 0.2 + i * 0.08, bx = x + dir * (len / 2 - t * len), by = y + Math.sin(ph - t * 4.2) * 7 * t + 6; if (Math.floor(clock * 1.2 + i * 0.7) % 3) c.fillRect(Math.round(bx), Math.round(by), 2, 1); }
 }
 function fillPoly(g, pts, col) {
   let minY = Infinity, maxY = -Infinity;
@@ -1037,120 +1038,26 @@ function elderFrame(col, flap) {
   return (byCol[flap + 6] = img);
 }
 function drawElder(x, y, dir, k, col) {
-  y += Math.sin(ft * 0.6 + k) * 4;
-  c.drawImage(elderFrame(col, 2 * Math.round(Math.sin(ft * 0.8 + k) * 3)), Math.round(x) - ELDER_OX, Math.round(y) - ELDER_OY);
+  y += Math.sin(clock * 0.6 + k) * 4;
+  c.drawImage(elderFrame(col, 2 * Math.round(Math.sin(clock * 0.8 + k) * 3)), Math.round(x) - ELDER_OX, Math.round(y) - ELDER_OY);
   for (let i = 0; i < 7; i++) {
     const bx = x - 18 + i * 6, by = y + 8;
     for (let j = 0; j < 17; j++) {
-      const sw = Math.sin(ft * 1.3 + i * 0.9 + j * 0.35) * j * 0.6, curl = j > 13 ? Math.sin(ft * 2 + i) * (j - 13) * 2 : 0;
+      const sw = Math.sin(clock * 1.3 + i * 0.9 + j * 0.35) * j * 0.6, curl = j > 13 ? Math.sin(clock * 2 + i) * (j - 13) * 2 : 0;
       disc(bx + sw + (i - 3) * j * 0.55 + curl, by + j * 4.2, Math.max(1, Math.round(4 - j * 0.22)), col);
     }
   }
-  if (((ft * 0.25 + k * 0.37) % 1) > 0.04) {
-    const look = pl.x > x ? 1 : -1;
+  if (((clock * 0.25 + k * 0.37) % 1) > 0.04) {
+    const look = player.x > x ? 1 : -1;
     for (const s of [-1, 1]) {
       const ex = Math.round(x + s * 13), ey = Math.round(y - 15);
       c.fillStyle = P.crust; c.fillRect(ex - 7, ey - 2, 14, 7);
-      c.fillStyle = P.a; c.fillRect(ex - 6, ey + (s < 0 ? 0 : 1), 6, 3); c.fillRect(ex, ey + (s < 0 ? 1 : 0), 6, 3);
+      c.fillStyle = P.lava; c.fillRect(ex - 6, ey + (s < 0 ? 0 : 1), 6, 3); c.fillRect(ex, ey + (s < 0 ? 1 : 0), 6, 3);
       c.fillStyle = P.hot; c.fillRect(ex - 1 + look * 2, ey + 1, 3, 2);
     }
   }
 }
 const leviSeen = new Set();
-function cafeInfo(k) {
-  const Dc = k * CAFE_EVERY + CAFE_OFF, side = hash(k * 7.7 + SEED) < 0.5 ? -1 : 1, Dl = Dc + 40, e = edgeAt(Dl), wall = side < 0 ? e.L : e.R, len = 140;
-  const tip = wall - side * len;
-  return { k, Dc, Dl, side, wall, tip, padX: tip + side * 30, counterX: wall - side * 58, shopX: side < 0 ? wall + 4 : wall - 70 };
-}
-const SIGN_FONT = { C: ['111', '100', '100', '100', '111'], A: ['010', '101', '111', '101', '101'], F: ['111', '100', '110', '100', '100'], E: ['111', '100', '110', '100', '111'],
-  L: ['100', '100', '100', '100', '111'], N: ['101', '111', '111', '101', '101'], D: ['110', '101', '101', '101', '110'],
-  M: ['10001', '11011', '10101', '10001', '10001'], 0: ['111', '101', '101', '101', '111'], 1: ['010', '110', '010', '010', '111'] };
-function signText(text, x, y, z, g = c) {
-  for (const ch of text) {
-    const gl = SIGN_FONT[ch];
-    if (!gl) { x += 2 * z; continue; }
-    gl.forEach((row, ry) => { for (let rx = 0; rx < row.length; rx++) if (row[rx] === '1') g.fillRect(x + rx * z, y + ry * z, z, z); });
-    x += (gl[0].length + 1) * z;
-  }
-}
-const signWidth = (text, z) => [...text].reduce((w, ch) => w + ((SIGN_FONT[ch] ? SIGN_FONT[ch][0].length : 1) + 1) * z, 0) - z;
-// The cafe's still parts are drawn once per cafe into two images: everything behind the chimney smoke,
-// and the big sign in front of it. Pad lights, the arrow, the barista, smoke and the sign's bulbs stay live.
-const CAFE_Y = 92, cafeArt = new Map();
-function cafeLayers(C) {
-  let a = cafeArt.get(C.k);
-  if (a) return a;
-  for (const key of cafeArt.keys()) if (Math.abs(key - C.k) > 1) cafeArt.delete(key);
-  const mk = () => { const v = document.createElement('canvas'); v.width = W; v.height = CAFE_Y + 50; return v; };
-  const base = mk(), sign = mk(), g = base.getContext('2d'), h = sign.getContext('2d');
-  const Q = palAt(C.Dl), s = C.side, k = C.k, y = CAFE_Y;
-  // rock shelf: flat top, jagged underside narrowing back into the wall
-  for (let j = 0; j < 46; j++) {
-    const t = j / 46, reach = Math.round(Math.abs(C.tip - C.wall) * (1 - t * t) + (hash(j * 3.1 + k) - 0.5) * 6) + 6;
-    const a0 = s < 0 ? 0 : C.wall - reach, b0 = s < 0 ? C.wall + reach : W;
-    g.fillStyle = Q.ink; g.fillRect(a0, y + j, b0 - a0, 1);
-    g.fillStyle = j < 4 ? Q.b0 : j % 9 < 2 ? Q.shade : Q.b1; g.fillRect(s < 0 ? a0 : a0 + 2, y + j, b0 - a0 - 2, 1);
-    if (hash(j * 7.7 + k) < 0.35) { g.fillStyle = Q.shade; g.fillRect(Math.round(lerp(a0, b0, hash(j * 5.3 + k))), y + j, 3, 1); }
-  }
-  g.fillStyle = Q.hi; g.fillRect(s < 0 ? 0 : C.tip - 4, y, Math.abs(C.tip - C.wall) + C.wall * (s < 0 ? 1 : 0) + (s < 0 ? 4 : W - C.wall + 4), 1);
-  // landing pad with hazard edges; the light housings (the lights blink live)
-  const p0 = Math.round(C.padX - 24);
-  g.fillStyle = P.s; g.fillRect(p0 - 1, y - 4, 50, 5); g.fillStyle = P.shade; g.fillRect(p0, y - 3, 48, 3);
-  for (let i = 0; i < 48; i += 6) { g.fillStyle = '#F2C14E'; g.fillRect(p0 + i, y - 3, 3, 1); }
-  for (const lx of [p0 - 2, p0 + 47]) { g.fillStyle = P.s; g.fillRect(lx - 1, y - 8, 4, 5); }
-  // "LAND" sign on a pole at the pad's outer end, leaning over the pad
-  const poleX = s < 0 ? p0 + 50 : p0 - 4, bw = 37, bh = 15, bx = s < 0 ? poleX - bw + 3 : poleX - 1, by = y - 62;
-  g.fillStyle = P.s; g.fillRect(poleX, by + bh, 2, y - 4 - by - bh); g.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
-  g.fillStyle = '#3CB86A'; g.fillRect(bx, by, bw, bh); g.fillStyle = '#A6EBB9'; g.fillRect(bx, by, bw, 1);
-  g.fillStyle = P.s; signText('LAND', bx + 4, by + 3, 2, g);
-  // the cafe: walls, window, door, awning, chimney
-  const x0 = Math.round(C.shopX), top = y - 46;
-  g.fillStyle = P.s; g.fillRect(x0 - 1, top + 9, 68, 38); g.fillStyle = P.rock2; g.fillRect(x0, top + 10, 66, 36);
-  g.fillStyle = P.shade; for (let yy = top + 16; yy < y; yy += 6) g.fillRect(x0, yy, 66, 1);
-  const wx = s < 0 ? x0 + 30 : x0 + 8;
-  g.fillStyle = P.s; g.fillRect(wx - 1, top + 19, 28, 18); g.fillStyle = '#F2C14E'; g.fillRect(wx, top + 20, 26, 16);
-  const dx = s < 0 ? x0 + 6 : x0 + 46;
-  g.fillStyle = P.s; g.fillRect(dx - 1, top + 25, 14, 21); g.fillStyle = P.deeper; g.fillRect(dx, top + 26, 12, 20); g.fillStyle = '#F2C14E'; g.fillRect(s < 0 ? dx + 9 : dx + 1, top + 36, 2, 2);
-  for (let i = 0; i < 72; i++) { g.fillStyle = Math.floor(i / 6) % 2 ? P.g : P.a; g.fillRect(x0 - 3 + i, top + 10, 1, 5 + (i % 6 < 3 ? 1 : 0)); }
-  g.fillStyle = P.s; g.fillRect(x0 - 3, top + 9, 72, 1);
-  const chx = s < 0 ? x0 + 56 : x0 + 4;
-  g.fillStyle = P.s; g.fillRect(chx - 1, top + 1, 8, 9); g.fillStyle = P.shade; g.fillRect(chx, top + 2, 6, 8);
-  // big gold sign on tall posts (its bulbs chase live)
-  const sgW = 72, sgH = 23, sgx = x0 - 3, sgy = top - 34;
-  h.fillStyle = P.s; h.fillRect(sgx + 10, sgy + sgH, 3, top + 9 - sgy - sgH); h.fillRect(sgx + sgW - 13, sgy + sgH, 3, top + 9 - sgy - sgH);
-  h.fillRect(sgx - 1, sgy - 1, sgW + 2, sgH + 2); h.fillStyle = '#F2C14E'; h.fillRect(sgx, sgy, sgW, sgH);
-  h.fillStyle = P.s; signText('CAFE', sgx + 5, sgy + 4, 3, h);
-  const mgx = sgx + 54, mgy = sgy + 6;
-  h.fillStyle = P.g; h.fillRect(mgx, mgy, 11, 11); h.fillStyle = P.m; h.fillRect(mgx, mgy + 4, 11, 2);
-  h.fillStyle = P.s; h.fillRect(mgx + 11, mgy + 2, 3, 6); h.fillStyle = '#F2C14E'; h.fillRect(mgx + 11, mgy + 4, 1, 2);
-  a = { base, sign }; cafeArt.set(C.k, a);
-  return a;
-}
-function drawCafe(cam) {
-  const k0 = Math.max(1, cafeIdx(cam + H / 2));
-  for (let k = k0 - 1; k <= k0 + 1; k++) {
-    if (k < 1) continue;
-    const C = cafeInfo(k), y = Math.round(C.Dl - cam);
-    if (y < -140 || y > H + 70) continue;
-    const art = cafeLayers(C), s = C.side;
-    c.drawImage(art.base, 0, y - CAFE_Y);
-    const p0 = Math.round(C.padX - 24), lit = Math.floor(ft * 3) % 2 === 0;
-    for (const lx of [p0 - 2, p0 + 47]) { c.fillStyle = lit ? '#3CB86A' : P.deep; c.fillRect(lx, y - 7, 2, 2); }
-    if (state === 'play') {
-      const ax = Math.round(C.padX), ay = y - 42 + Math.round(Math.sin(ft * 4) * 2);
-      c.fillStyle = P.s; c.fillRect(ax - 3, ay - 1, 6, 7); for (let r = 0; r < 6; r++) c.fillRect(ax - 7 + r, ay + 5 + r, 14 - 2 * r, 1);
-      c.fillStyle = Math.floor(ft * 2) % 2 ? '#3CB86A' : '#A6EBB9'; c.fillRect(ax - 2, ay, 4, 6); for (let r = 0; r < 5; r++) c.fillRect(ax - 5 + r, ay + 6 + r, 10 - 2 * r, 1);
-    }
-    const x0 = Math.round(C.shopX), top = y - 46, wx = s < 0 ? x0 + 30 : x0 + 8;
-    sprite(c, BLOB[Math.floor(ft * 2) % 2], wx + 6, top + 24 + Math.round(Math.sin(ft * 2) * 1), MAP);
-    c.fillStyle = '#C98A2E'; c.fillRect(wx, top + 33, 26, 3);
-    const chx = s < 0 ? x0 + 56 : x0 + 4;
-    for (let i = 0; i < 4; i++) { const ph = (ft * 0.4 + i / 4) % 1; disc(chx + 3 + Math.sin(ph * 6 + i) * 3, top - ph * 40, Math.round(2 + ph * 4), i % 2 ? P.strata : P.hill); }
-    c.drawImage(art.sign, 0, y - CAFE_Y);
-    const sgW = 72, sgH = 23, sgx = x0 - 3, sgy = top - 34, chase = Math.floor(ft * 2) % 2;
-    for (let i = 0; i < 12; i++) { c.fillStyle = (i + chase) % 2 ? P.g : '#C98A2E'; c.fillRect(sgx + 2 + i * 6, sgy + 1, 2, 1); c.fillRect(sgx + 2 + i * 6, sgy + sgH - 2, 2, 1); }
-  }
-}
 function leviathans(cam) {
   const mid = cam + H / 2, reach = (H / 2 + 130) / LEVI_PARALLAX;
   for (let k = Math.max(1, Math.ceil((mid - reach) / LEVI_EVERY)); k * LEVI_EVERY <= mid + reach; k++) {
@@ -1158,8 +1065,8 @@ function leviathans(cam) {
     const elder = k % 2 === 0;
     if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(elder ? 'elder' : 'whale'); }
     if (cam < -H || sy < -150 || sy > H + 150) continue;
-    if (elder) drawElder(sx, sy, dir, k, mix(palAt(D).sO, P.s, 0.42));
-    else drawLeviathan(sx, sy, dir, k, mix(palAt(D).sO, P.s, 0.35));
+    if (elder) drawElder(sx, sy, dir, k, mix(palAt(D).sO, P.ink, 0.42));
+    else drawLeviathan(sx, sy, dir, k, mix(palAt(D).sO, P.ink, 0.35));
   }
 }
 // The half-speed texture inside the shaft (bands every 52 rows and specks) is pre-drawn into 128-row tiles as a white
@@ -1209,10 +1116,10 @@ function wedgeImg(col, side, s) {
   return (byCol[key] = img);
 }
 function drawShaft(cam) {
-  const top = Math.round(cam), bk = Math.floor(cam * 0.5), f8 = Math.floor(ft * 8), fl = Math.floor(ft * 100), y0 = Math.max(0, -top);
+  const top = Math.round(cam), bk = Math.floor(cam * 0.5), f8 = Math.floor(clock * 8), fl = Math.floor(clock * 100), y0 = Math.max(0, -top);
   if (y0 >= H) return;
-  const i0 = Math.max(0, Math.floor(top / TH)), i1 = Math.floor((top + H) / TH);
-  for (let i = i0; i <= i1; i++) c.drawImage(readyTile(i).cnv, 0, i * TH - top);
+  const i0 = Math.max(0, Math.floor(top / TILE_H)), i1 = Math.floor((top + H) / TILE_H);
+  for (let i = i0; i <= i1; i++) c.drawImage(readyTile(i).cnv, 0, i * TILE_H - top);
   leviathans(cam);
   // Texture tiles, each coloured by the layer at its middle; above the ground (the title screen and the leap) it is clipped off.
   if (y0 > 0) { c.save(); c.beginPath(); c.rect(0, y0, W, H - y0); c.clip(); }
@@ -1232,7 +1139,7 @@ function drawShaft(cam) {
     c.drawImage(img, side < 0 ? e.L + 8 - WEDGE_M : e.R - 8 + WEDGE_M - img.width, yTop);
   }
   // The walls go back on top, so creatures, texture and wedges only show inside the shaft.
-  for (let i = i0; i <= i1; i++) c.drawImage(wallTile(tile(i)), 0, i * TH - top);
+  for (let i = i0; i <= i1; i++) c.drawImage(wallTile(tile(i)), 0, i * TILE_H - top);
   // Lava flickers stay live, but only rows that have lava are visited.
   for (let q2 = Math.floor((top + y0) / 180); q2 * 180 <= top + H; q2++) {
     const ls = lavaSide(q2);
@@ -1243,9 +1150,9 @@ function drawShaft(cam) {
       const e = edgeAt(d), L = e.L, R = e.R;
       if (ld <= 88 && hash(d * 7 + f8) < 0.12) {
         const th = Math.round(26 * Math.sin(Math.PI * (ld - 40) / 48));
-        if (th > 0) { c.fillStyle = P.g; c.fillRect((ls < 0 ? L - th - 6 : R) + 4 + Math.floor(hash(d + f8) * th), y, 2, 1); }
+        if (th > 0) { c.fillStyle = P.dust; c.fillRect((ls < 0 ? L - th - 6 : R) + 4 + Math.floor(hash(d + f8) * th), y, 2, 1); }
       }
-      if (ld > 80) { c.fillStyle = (((d - fl) % 14) + 14) % 14 < 4 ? P.hot : P.a; c.fillRect((ls < 0 ? L : R - 5) + 1, y, 3, 1); }
+      if (ld > 80) { c.fillStyle = (((d - fl) % 14) + 14) % 14 < 4 ? P.hot : P.lava; c.fillRect((ls < 0 ? L : R - 5) + 1, y, 3, 1); }
     }
   }
 }
@@ -1263,38 +1170,38 @@ function life(cam) {
         const dd = da - 14 + i * 12, ed = edgeAt(dd), e2 = side < 0 ? ed.L : ed.R, yy = Math.round(dd - cam);
         const len = 4 + Math.floor(hash(q * 3 + i) * 10), r = 3 + Math.floor(hash(q * 5 + i) * 3), sx = e2 + side * len;
         c.fillStyle = P.rock2; c.fillRect(Math.min(e2, sx), yy, len, 2);
-        ring(sx, yy, r + 3 + Math.round(Math.sin(ft * 2 + i + q)), P.bio, 1);
-        disc(sx, yy, r + 1, P.s); disc(sx, yy, r, i % 2 ? P.moss : P.lite);
-        c.fillStyle = P.g; c.fillRect(sx - 1, yy - r + 1, 2, 1); c.fillRect(sx + side, yy + 1, 1, 1);
+        ring(sx, yy, r + 3 + Math.round(Math.sin(clock * 2 + i + q)), P.bio, 1);
+        disc(sx, yy, r + 1, P.ink); disc(sx, yy, r, i % 2 ? P.moss : P.lite);
+        c.fillStyle = P.dust; c.fillRect(sx - 1, yy - r + 1, 2, 1); c.fillRect(sx + side, yy + 1, 1, 1);
       }
     } else if (type === 1) {
       for (let j = -30; j <= 30; j++) {
-        const vx = ex + side * Math.round(3 + 2 * Math.sin(j / 6 + ft * 1.5));
+        const vx = ex + side * Math.round(3 + 2 * Math.sin(j / 6 + clock * 1.5));
         c.fillStyle = P.mossDk; c.fillRect(vx, y + j, 2, 1);
         if ((j + 30) % 10 === 5) {
-          const r = 2 + Math.round((Math.sin(ft * 2.5 + j) + 1) * 0.6);
-          ring(vx + side * 2, y + j, r + 3, P.bio, 1); disc(vx + side * 2, y + j, r, P.lite); c.fillStyle = P.g; c.fillRect(vx + side * 2, y + j, 1, 1);
+          const r = 2 + Math.round((Math.sin(clock * 2.5 + j) + 1) * 0.6);
+          ring(vx + side * 2, y + j, r + 3, P.bio, 1); disc(vx + side * 2, y + j, r, P.lite); c.fillStyle = P.dust; c.fillRect(vx + side * 2, y + j, 1, 1);
         }
       }
     } else if (type === 2) {
       const ox = ex - side * 18;
-      for (let j = -4; j <= 4; j++) { const w = Math.round(9 * Math.sqrt(1 - (j / 5) ** 2)); c.fillStyle = P.s; c.fillRect(ox - w, y + j, w * 2, 1); }
-      const shut = ((ft * 0.5 + hash(q)) % 1) < 0.07, look = pl.x > ox ? 1 : -1, up = pl.y + PILOT_CY < da - 20 ? -1 : 0;
+      for (let j = -4; j <= 4; j++) { const w = Math.round(9 * Math.sqrt(1 - (j / 5) ** 2)); c.fillStyle = P.ink; c.fillRect(ox - w, y + j, w * 2, 1); }
+      const shut = ((clock * 0.5 + hash(q)) % 1) < 0.07, look = player.x > ox ? 1 : -1, up = player.y + PILOT_CY < da - 20 ? -1 : 0;
       for (const k of [-4, 3]) {
         if (shut) { c.fillStyle = P.shade; c.fillRect(ox + k - 1, y, 4, 1); }
-        else { c.fillStyle = P.g; c.fillRect(ox + k - 1, y - 1, 3, 3); c.fillStyle = P.s; c.fillRect(ox + k + look, y + up, 1, 1); }
+        else { c.fillStyle = P.dust; c.fillRect(ox + k - 1, y - 1, 3, 3); c.fillStyle = P.ink; c.fillRect(ox + k + look, y + up, 1, 1); }
       }
     } else if (type === 3) {
       for (let i = 0; i < 3; i++) {
         const y0 = y - 12 + i * 12; let tx = ex, ty = y0;
         for (let k = 0; k < 13; k++) {
-          tx = ex + side * k * 1.6; ty = y0 + Math.sin(ft * 2 + k * 0.45 + i * 2) * k * 0.55;
+          tx = ex + side * k * 1.6; ty = y0 + Math.sin(clock * 2 + k * 0.45 + i * 2) * k * 0.55;
           c.fillStyle = k < 8 ? P.mossDk : P.moss; c.fillRect(Math.round(tx), Math.round(ty), 2, 2);
         }
-        disc(tx, ty, 2, P.lite); c.fillStyle = P.g; c.fillRect(Math.round(tx), Math.round(ty), 1, 1);
+        disc(tx, ty, 2, P.lite); c.fillStyle = P.dust; c.fillRect(Math.round(tx), Math.round(ty), 1, 1);
       }
     } else if (type === 4) {
-      const bd = da + 24 * Math.sin(ft * 0.9 + q), eb = edgeAt(bd), f = Math.floor(ft * 8) % 2;
+      const bd = da + 24 * Math.sin(clock * 0.9 + q), eb = edgeAt(bd), f = Math.floor(clock * 8) % 2;
       sprite(c, side < 0 ? BUG[f] : BUGR[f], side < 0 ? eb.L : eb.R - 12, bd - cam - 9, MAP);
     }
   }
@@ -1307,14 +1214,14 @@ function critters(cam) {
       // Jellies sit in glowing pockets inside the rock, just behind the wall face.
       const d = q * 150 + 75, e = edgeAt(d), wx = side < 0 ? e.L - 16 : e.R + 16;
       if (wx < 10 || wx > W - 10 || lavaSide(Math.floor(d / 180)) === side) continue;
-      const yy = Math.round(d - cam + Math.sin(ft * 1.6 + q) * 2);
-      disc(wx, yy - 1, 10, P.s); disc(wx, yy - 1, 9, palAt(d).sO);
-      ring(wx, yy - 3, 8 + Math.round(Math.sin(ft * 3 + q)), P.bio, 1);
-      sprite(c, JELLY[Math.floor(ft * 3 + q) % 2], wx - 7, yy - 7, MAP);
+      const yy = Math.round(d - cam + Math.sin(clock * 1.6 + q) * 2);
+      disc(wx, yy - 1, 10, P.ink); disc(wx, yy - 1, 9, palAt(d).sO);
+      ring(wx, yy - 3, 8 + Math.round(Math.sin(clock * 3 + q)), P.bio, 1);
+      sprite(c, JELLY[Math.floor(clock * 3 + q) % 2], wx - 7, yy - 7, MAP);
     } else if (kind < 0.8) {
-      const d = q * 150 + 75 + Math.sin(ft * 2.2 + q) * 10, x = laneX(d, side * 0.5 + Math.sin(ft * 1.7 + q) * 0.18);
+      const d = q * 150 + 75 + Math.sin(clock * 2.2 + q) * 10, x = laneX(d, side * 0.5 + Math.sin(clock * 1.7 + q) * 0.18);
       // Bats are scenery: a faint shadow, so only hazards carry strong contrast.
-      c.globalAlpha = 0.3; sprite(c, BAT[Math.floor(ft * 8 + q) % 2], x - 9, d - cam - 5, MAPSIL); c.globalAlpha = 1;
+      c.globalAlpha = 0.3; sprite(c, BAT[Math.floor(clock * 8 + q) % 2], x - 9, d - cam - 5, MAPSIL); c.globalAlpha = 1;
     }
   }
 }
@@ -1329,14 +1236,14 @@ function streaks(cam) {
     const y = H + 20 - ((((cam * 0.45 + k * 61 + hash(k + 70) * 600) % (H + 40)) + H + 40) % (H + 40)), d = cam + y;
     if (d < 8) continue;
     const x = Math.round(laneX(d, (hash(k + 33) * 2 - 1) * 0.8));
-    c.fillStyle = P.s; c.fillRect(x - 1, Math.round(y) - 1, 5, 5);
+    c.fillStyle = P.ink; c.fillRect(x - 1, Math.round(y) - 1, 5, 5);
     c.fillStyle = k % 3 ? P.shade : P.rock; c.fillRect(x, Math.round(y), 3, 3);
   }
   for (let k = 0; k < 14; k++) {
     const y = H + 20 - ((((cam * 1.05 + k * 71 + hash(k + 200) * 500) % (H + 40)) + H + 40) % (H + 40)), d = cam + y;
     if (d < 8) continue;
     c.fillStyle = k % 2 ? P.moss : P.lite;
-    c.fillRect(Math.round(laneX(d, (hash(k + 300) * 2 - 1) * 0.75) + Math.sin(ft * 2 + k) * 4), Math.round(y), k % 3 ? 1 : 2, k % 3 ? 1 : 2);
+    c.fillRect(Math.round(laneX(d, (hash(k + 300) * 2 - 1) * 0.75) + Math.sin(clock * 2 + k) * 4), Math.round(y), k % 3 ? 1 : 2, k % 3 ? 1 : 2);
   }
 }
 // Lava drops fall from the pockets in the wall. They hurt, so drawing and collision share one list.
@@ -1352,7 +1259,7 @@ function dropList(cam) {
     const md = q * 180 + 160, e = edgeAt(md), mx = ls < 0 ? e.L + 1 : e.R - 5;
     addDrop(1, mx, md, ls);
     for (let i = 0; i < 4; i++) {
-      const ph = (ft * 0.8 + i / 4 + hash(q + SEED)) % 1;
+      const ph = (clock * 0.8 + i / 4 + hash(q + SEED)) % 1;
       addDrop(0, Math.round(mx - ls * ph * 12), md + 4 + ph * ph * 170, ls);
     }
   }
@@ -1362,9 +1269,9 @@ function drawDrops(cam) {
   for (const p of DROPS) {
     const y = Math.round(p.d - cam);
     if (y < -10 || y > H + 10) continue;
-    if (p.src) { c.fillStyle = P.a; c.fillRect(p.x, y, 4, 4); continue; }
+    if (p.src) { c.fillStyle = P.lava; c.fillRect(p.x, y, 4, 4); continue; }
     c.fillStyle = P.crust; c.fillRect(p.x + 1, y - 6, 2, 6);
-    c.fillStyle = P.a; c.fillRect(p.x, y, 4, 4);
+    c.fillStyle = P.lava; c.fillRect(p.x, y, 4, 4);
     c.fillStyle = P.hot; c.fillRect(p.x + 1, y, 2, 2);
   }
 }
@@ -1375,39 +1282,39 @@ let ship = null, shipFlat = null, launchShip = null, launchT = 0;
 function drawShipAt(x, y, ang, flame, glow, scale, burn, empty) {
   c.save(); c.translate(Math.round(x), Math.round(y)); c.rotate(ang);
   if (scale && scale !== 1) c.scale(scale, scale);
-  if (glow) { c.globalAlpha = Math.min(1, glow); c.fillStyle = P.a; c.fillRect(-57, -4, 6, 8); c.fillStyle = P.hot; c.fillRect(-55, -2, 3, 4); c.globalAlpha = 1; }
+  if (glow) { c.globalAlpha = Math.min(1, glow); c.fillStyle = P.lava; c.fillRect(-57, -4, 6, 8); c.fillStyle = P.hot; c.fillRect(-55, -2, 3, 4); c.globalAlpha = 1; }
   if (flame) shipFlame(flame);
   c.drawImage(shipFlat, -52, -27);
-  if (!empty) { c.fillStyle = P.g; c.fillRect(19, -7, 5, 5); c.fillStyle = P.m; c.fillRect(20, -6, 3, 2); }
+  if (!empty) { c.fillStyle = P.dust; c.fillRect(19, -7, 5, 5); c.fillStyle = P.blue; c.fillRect(20, -6, 3, 2); }
   if (burn) {
-    const fl = Math.floor(ft * 12) % 2;
-    for (const [bx, by] of [[-24, -12], [6, -13], [-36, 3]]) { c.fillStyle = P.a; c.fillRect(bx, by - 4 - fl * 2, 6, 5 + fl * 2); c.fillStyle = P.hot; c.fillRect(bx + 1, by - 2 - fl, 4, 3 + fl); }
+    const fl = Math.floor(clock * 12) % 2;
+    for (const [bx, by] of [[-24, -12], [6, -13], [-36, 3]]) { c.fillStyle = P.lava; c.fillRect(bx, by - 4 - fl * 2, 6, 5 + fl * 2); c.fillStyle = P.hot; c.fillRect(bx + 1, by - 2 - fl, 4, 3 + fl); }
   }
   c.restore();
 }
 function shipFlame(flame) {
-  const L = Math.round(8 + 28 * flame) + (Math.floor(ft * 24) % 2 ? 4 : 0);
-  for (let i = 0; i < L; i++) { const u = i / L, h = Math.max(1, Math.round(10 * (1 - u * 0.85))); c.fillStyle = u < 0.25 ? P.g : u < 0.6 ? P.hot : P.a; c.fillRect(-53 - i, -(h >> 1), 1, h); }
+  const L = Math.round(8 + 28 * flame) + (Math.floor(clock * 24) % 2 ? 4 : 0);
+  for (let i = 0; i < L; i++) { const u = i / L, h = Math.max(1, Math.round(10 * (1 - u * 0.85))); c.fillStyle = u < 0.25 ? P.dust : u < 0.6 ? P.hot : P.lava; c.fillRect(-53 - i, -(h >> 1), 1, h); }
 }
 function shipPix(u, v) {
   const hh = u > 24 ? 12 * Math.sqrt(Math.max(0, 1 - ((u - 24) / 22) ** 2)) : 12, fin = -12 - (-22 - u) * 0.9;
   if (u >= -44 && u <= 46 && Math.abs(v) <= hh) {
-    if (Math.abs(v) > hh - 1.2 || u < -43) return P.s;
-    if (u > -10 && u < -1 && v > -2 && v < 8) return v < -1 || u < -9 || u > -2 ? P.s : P.deeper;
-    if (u > 14 && u < 28 && v > -8 && v < -1) return u < 17 || (u > 20 && u < 21.5) ? P.lite : P.m;
-    for (const pu of [-32, -22]) { const r2 = (u - pu) ** 2 + (v + 3) ** 2; if (r2 < 8) return r2 > 4 ? P.s : (u < pu && v < -3 ? P.lite : P.m); }
-    if (v > 2 && v < 5) return P.m;
-    if (v > 7) return hash(Math.round(u) * 3 + Math.round(v) * 7) < 0.2 ? P.s : P.shade;
+    if (Math.abs(v) > hh - 1.2 || u < -43) return P.ink;
+    if (u > -10 && u < -1 && v > -2 && v < 8) return v < -1 || u < -9 || u > -2 ? P.ink : P.deeper;
+    if (u > 14 && u < 28 && v > -8 && v < -1) return u < 17 || (u > 20 && u < 21.5) ? P.lite : P.blue;
+    for (const pu of [-32, -22]) { const r2 = (u - pu) ** 2 + (v + 3) ** 2; if (r2 < 8) return r2 > 4 ? P.ink : (u < pu && v < -3 ? P.lite : P.blue); }
+    if (v > 2 && v < 5) return P.blue;
+    if (v > 7) return hash(Math.round(u) * 3 + Math.round(v) * 7) < 0.2 ? P.ink : P.shade;
     if (Math.abs(u + 16) < 0.6 || Math.abs(u - 6) < 0.6 || Math.abs(v + 9) < 0.5) return P.shade;
     if (Math.abs(v + 6) < 0.5 && ((u + 100) % 6) < 1) return P.shade;
     if (u > 30 && hash(Math.round(u) * 5 + Math.round(v) * 9) < 0.3) return P.shade;
-    return P.g;
+    return P.dust;
   }
-  if (u >= -44 && u <= -22 && v < -10 && v > fin) return v < fin + 1.5 || u < -43 || u > -23 ? P.s : (v > fin + 4 && v < fin + 7 ? P.m : P.rock);
-  if (u >= -12 && u <= 8 && v > 10 && v < 18 - (u + 12) * 0.3) return v > 17 - (u + 12) * 0.3 || u < -11 ? P.s : P.shade;
-  if (u < -44 && u > -52 && Math.abs(v) < 7) return Math.abs(v) > 5.5 || u < -51 || Math.abs(v) < 2.5 ? P.s : P.crust;
-  if (u > -2 && u < 0 && v < -12 && v > -24) return P.s;
-  if (u > -2 && u < 7 && v < -23 && v > -25.5) return P.s;
+  if (u >= -44 && u <= -22 && v < -10 && v > fin) return v < fin + 1.5 || u < -43 || u > -23 ? P.ink : (v > fin + 4 && v < fin + 7 ? P.blue : P.rock);
+  if (u >= -12 && u <= 8 && v > 10 && v < 18 - (u + 12) * 0.3) return v > 17 - (u + 12) * 0.3 || u < -11 ? P.ink : P.shade;
+  if (u < -44 && u > -52 && Math.abs(v) < 7) return Math.abs(v) > 5.5 || u < -51 || Math.abs(v) < 2.5 ? P.ink : P.crust;
+  if (u > -2 && u < 0 && v < -12 && v > -24) return P.ink;
+  if (u > -2 && u < 7 && v < -23 && v > -25.5) return P.ink;
   return null;
 }
 function buildShip() {
@@ -1427,7 +1334,7 @@ function planetRing(x, y, front, light) {
   for (let i = 0; i < 300; i++) {
     const an = i / 300 * Math.PI * 2;
     if ((Math.sin(an) > 0) !== front || (i % 38) < 3) continue;
-    c.fillStyle = i % 9 ? (light ? P.strata : P.s) : (light ? P.lite : P.shade);
+    c.fillStyle = i % 9 ? (light ? P.strata : P.ink) : (light ? P.lite : P.shade);
     c.fillRect(Math.round(x + Math.cos(an) * 66), Math.round(y + Math.sin(an) * 14 - Math.cos(an) * 12), 3, 2);
   }
 }
@@ -1438,7 +1345,7 @@ const PLANET_STREAKS = [[-0.75, 0.6, 0.9, 'deep'], [0.16, 2.0, 1.2, 'deep'], [0.
 function drawPlanet(px, py, light, rot) {
   const R = 38;
   planetRing(px, py, false, light);
-  disc(px, py, R + 1, P.s); disc(px, py, R, P.m);
+  disc(px, py, R + 1, P.ink); disc(px, py, R, P.blue);
   if (rot !== undefined) {
     for (let j = -R; j <= R; j++) { const w = Math.floor(Math.sqrt(R * R - j * j)); if (((j + 50) % 13) < 3) { c.fillStyle = P.lite; c.fillRect(px - w, py + j, Math.round(w * 1.1), 1); } }
     for (const [lat, lon, len, col] of PLANET_STREAKS) {
@@ -1462,18 +1369,18 @@ function drawPlanet(px, py, light, rot) {
   planetRing(px, py, true, light);
 }
 // The sky darkens to space as the ship climbs, with stars fading in.
-const SKYMIX = Array.from({ length: 13 }, (_, i) => mix(P.g, P.s, i / 12));
+const SKYMIX = Array.from({ length: 13 }, (_, i) => mix(P.dust, P.ink, i / 12));
 function skyDark(cam, top) {
   for (let y = 0; y < top; y++) {
-    const k = sm((-(cam + y) - 500) / 2600);
+    const k = smoothstep((-(cam + y) - 500) / 2600);
     if (k <= 0) continue;
     const st = Math.max(0, Math.min(12, Math.round((k + (hash(Math.floor(cam + y) * 1.7) - 0.5) * 0.56 * k * (1 - k)) * 12)));
     if (st) { c.fillStyle = SKYMIX[st]; c.fillRect(0, y, W, 1); }
   }
   for (let i = 0; i < 90; i++) {
-    const sy = ((hash(i + 3.3) * H * 4 - cam * 0.08) % H + H) % H, k = sm((-(cam + sy) - 900) / 2400);
+    const sy = ((hash(i + 3.3) * H * 4 - cam * 0.08) % H + H) % H, k = smoothstep((-(cam + sy) - 900) / 2400);
     if (hash(i + 9.1) > k) continue;
-    c.fillStyle = i % 4 ? P.strata : P.g; const z = i % 9 ? 1 : 2; c.fillRect(Math.floor(hash(i + 1.7) * W), Math.round(sy), z, z);
+    c.fillStyle = i % 4 ? P.strata : P.dust; const z = i % 9 ? 1 : 2; c.fillRect(Math.floor(hash(i + 1.7) * W), Math.round(sy), z, z);
   }
 }
 // The pull-out: the moon shrinks below as the ship heads for the stars.
@@ -1496,7 +1403,7 @@ function drawMoonAt(mx, my, R, rot) {
     const dy = (y - my) / R; if (Math.abs(dy) > 1) continue;
     const w = Math.sqrt(1 - dy * dy) * R, x0 = Math.round(mx - w), x1 = Math.round(mx + w);
     c.fillStyle = P.shade; c.fillRect(x0 - 1, y, x1 - x0 + 2, 1);
-    c.fillStyle = P.g; c.fillRect(x0, y, x1 - x0, 1);
+    c.fillStyle = P.dust; c.fillRect(x0, y, x1 - x0, 1);
   }
   const blob = (ux, uy, ur, col) => { const r = Math.round(ur * R), x = mx + ux * R, y = my + uy * R; if (r < 1 || y + r < 0 || y - r > H || x + r < 0 || x - r > W) return; disc(x, y, r, col); };
   if (rot === undefined) {
@@ -1511,7 +1418,7 @@ function drawMoonAt(mx, my, R, rot) {
     else { ellipseIn(x, y, r * f, r, P.shade, mx, my, R); ellipseIn(x + r * 0.12 * f, y + r * 0.12, r * 0.82 * f, r * 0.82, P.hill, mx, my, R); }
   }
   const csx = mx, csy = my - 0.985 * R;
-  if (csy > -10 && csy < H + 10) { disc(csx, csy, Math.max(1, Math.round(0.014 * R)), P.s); if (R > 300) disc(csx, csy, Math.round(0.009 * R), P.deep); }
+  if (csy > -10 && csy < H + 10) { disc(csx, csy, Math.max(1, Math.round(0.014 * R)), P.ink); if (R > 300) disc(csx, csy, Math.round(0.009 * R), P.deep); }
   c.globalAlpha = 0.35; c.fillStyle = P.deep;
   for (let y = top; y <= bot; y++) { const dy = (y - my) / R; if (Math.abs(dy) > 1) continue; const w = Math.sqrt(1 - dy * dy) * R, a = Math.round(mx + w * 0.3), b = Math.round(mx + w); if (b > a) c.fillRect(a, y, b - a, 1); }
   c.globalAlpha = 0.45;
@@ -1520,12 +1427,12 @@ function drawMoonAt(mx, my, R, rot) {
   return [csx, csy];
 }
 function drawSpace(u) {
-  const e = eio(Math.max(0, Math.min(1, u))), Z = Math.pow(46 / 2400, e), R = 2400 * Z, fx = W / 2, fy = H * 0.72;
+  const e = easeInOut(Math.max(0, Math.min(1, u))), Z = Math.pow(46 / 2400, e), R = 2400 * Z, fx = W / 2, fy = H * 0.72;
   const mx = fx, my = fy + (H * 1.05 + 2400 - fy) * Z;
-  c.fillStyle = P.s; c.fillRect(0, 0, W, H);
+  c.fillStyle = P.ink; c.fillRect(0, 0, W, H);
   for (let i = 0; i < 150; i++) {
     const k = 0.9 + 0.1 * Math.pow(Z, 0.3), sx = fx + (hash(i * 1.37) * W - fx) * k, sy = fy + (hash(i * 2.11 + 5) * H - fy) * k;
-    c.fillStyle = i % 5 ? P.strata : (Math.floor(ft * 0.8 + hash(i) * 4) % 4 ? P.g : P.lite);
+    c.fillStyle = i % 5 ? P.strata : (Math.floor(clock * 0.8 + hash(i) * 4) % 4 ? P.dust : P.lite);
     const z = i % 11 ? 1 : 2; c.fillRect(Math.round(sx), Math.round(sy), z, z);
   }
   drawPlanet(Math.round(W * 0.8), Math.round(H * 0.24 + 30 * (1 - e)), true);
@@ -1537,15 +1444,15 @@ function drawSpace(u) {
 }
 function hillH(x, T) { return Math.round(24 + 14 * Math.sin((x + T * 12) * 0.0155) + 8 * Math.sin(x * 0.055 + 2)); }
 function drawSky(cam) {
-  const T = ft, ys0 = -camY0, sk = cam - camY0, Y = v => Math.round(v - cam);
-  c.fillStyle = P.g; c.fillRect(0, 0, W, Math.min(H, Y(0) + 6));
+  const T = clock, ys0 = -camY0, sk = cam - camY0, Y = v => Math.round(v - cam);
+  c.fillStyle = P.dust; c.fillRect(0, 0, W, Math.min(H, Y(0) + 6));
   if (state === 'launch' || state === 'opening') skyDark(cam, Math.min(H, Y(0) + 6));
   const wrecked = !(state === 'opening' && !introCrashed);
   for (let k = 0; k < 44; k++) { c.fillStyle = k % 5 ? P.strata : P.shade; const z = k % 7 ? 1 : 2; c.fillRect(Math.floor(hash(k) * W), Math.round(hash(k + 50) * ys0 * 0.78 - sk * 0.1), z, z); }
   const mp = (T % 7) / 0.9;
-  if (mp < 1) for (let i = 0; i < 12; i++) { c.fillStyle = i ? P.lite : P.g; c.fillRect(Math.round(lerp(30, 200, mp) - i * 3), Math.round(ys0 * 0.16 + mp * 36 - i - sk * 0.15), 2, 1); }
+  if (mp < 1) for (let i = 0; i < 12; i++) { c.fillStyle = i ? P.lite : P.dust; c.fillRect(Math.round(lerp(30, 200, mp) - i * 3), Math.round(ys0 * 0.16 + mp * 36 - i - sk * 0.15), 2, 1); }
   const my = Math.round(ys0 * 0.3 - sk * 0.2);
-  disc(52, my, 11, P.s); disc(52, my, 10, P.hill); disc(48, my - 3, 3, P.strata); disc(56, my + 4, 2, P.shade);
+  disc(52, my, 11, P.ink); disc(52, my, 10, P.hill); disc(48, my - 3, 3, P.strata); disc(56, my + 4, 2, P.shade);
   drawPlanet(Math.round(232 + Math.sin(T * 0.05) * 6), Math.round(ys0 * 0.52 - sk * 0.3), false);
   const hf = Math.round(ys0 - sk * 0.4);
   for (let x = 0; x < W; x += 2) {
@@ -1559,7 +1466,7 @@ function drawSky(cam) {
   const hb = Math.round(ys0 - sk * 0.55);
   for (let x = 0; x < W; x += 2) {
     const h = hillH(x, T);
-    c.fillStyle = P.s; c.fillRect(x, hb - h - 2, 2, 2);
+    c.fillStyle = P.ink; c.fillRect(x, hb - h - 2, 2, 2);
     c.fillStyle = P.hill; c.fillRect(x, hb - h, 2, H);
     if (hash(x * 1.3) < 0.3) { c.fillStyle = P.shade; c.fillRect(x, hb - h + 4 + Math.floor(hash(x) * 16), 2, 2); }
   }
@@ -1570,7 +1477,7 @@ function drawSky(cam) {
     for (let j = 0; j < 26; j++) c.fillRect(Math.round(lerp(wx - 3 + k * 2, fx, j / 26)), gy - 26 + j, 1, 1);
   }
   disc(wx, gy - 28, 6, P.shade); c.fillRect(wx - 9, gy - 34, 6, 2); disc(wx - 11, gy - 35, 3, P.shade);
-  c.fillStyle = P.g; c.fillRect(wx - 12, gy - 36, 1, 1);
+  c.fillStyle = P.dust; c.fillRect(wx - 12, gy - 36, 1, 1);
   c.fillStyle = P.shade;
   for (let k = 0; k < 5; k++) {
     const gx = Math.round(-40 + ((T * 30) % (W + 120)) + k * 15), gyy = Math.round(ys0 * 0.66 + (k % 2) * 7 - sk * 0.15 + Math.sin(T * 5 + k) * 2), up = Math.floor(T * 6 + k) % 2;
@@ -1584,29 +1491,29 @@ function drawSky(cam) {
   if (state === 'launch' && launchShip) drawShipAt(launchShip.x, Y(launchShip.y), launchShip.a, launchShip.f, launchShip.glow);
   else if (!wrecked) { if (introShip) drawShipAt(introShip.x, Y(introShip.y), introShip.a, 0, 0, introShip.scale, true, introShip.empty); }
   else if (state !== 'ended') c.drawImage(ship, SHIP_X, Y(-80));
-  if (wrecked && repair < 1) { const fs = 1 - repair * 0.7; disc(SHIP_X + 20, Y(-33), Math.max(1, Math.round((5 + 2 * Math.sin(T * 9)) * fs)), P.a); disc(SHIP_X + 19, Y(-34), Math.max(1, Math.round((2 + Math.sin(T * 7)) * fs)), P.hot); }
-  if (wrecked && repair < 0.6) for (let i = 0; i < 6; i++) { const ph = (T * 1.1 + i * 0.19) % 1; c.fillStyle = ph < 0.2 ? P.hot : P.a; c.fillRect(Math.round(SHIP_X + 20 + ph * 30 * (i % 2 ? 1 : -0.7)), Y(-34 - 36 * ph + 60 * ph * ph), 2, 2); }
-  if (wrecked) { disc(SHIP_X + 116, Y(1), 15, P.s); disc(SHIP_X + 116, Y(2), 14, P.rock); disc(SHIP_X + 112, Y(-6), 4, P.shade); }
+  if (wrecked && repair < 1) { const fs = 1 - repair * 0.7; disc(SHIP_X + 20, Y(-33), Math.max(1, Math.round((5 + 2 * Math.sin(T * 9)) * fs)), P.lava); disc(SHIP_X + 19, Y(-34), Math.max(1, Math.round((2 + Math.sin(T * 7)) * fs)), P.hot); }
+  if (wrecked && repair < 0.6) for (let i = 0; i < 6; i++) { const ph = (T * 1.1 + i * 0.19) % 1; c.fillStyle = ph < 0.2 ? P.hot : P.lava; c.fillRect(Math.round(SHIP_X + 20 + ph * 30 * (i % 2 ? 1 : -0.7)), Y(-34 - 36 * ph + 60 * ph * ph), 2, 2); }
+  if (wrecked) { disc(SHIP_X + 116, Y(1), 15, P.ink); disc(SHIP_X + 116, Y(2), 14, P.rock); disc(SHIP_X + 112, Y(-6), 4, P.shade); }
 }
 function drawProps(cam) {
-  const T = ft, Y = v => Math.round(v - cam);
-  if (!(state === 'opening' && !introCrashed)) { c.fillStyle = P.shade; c.fillRect(0, Y(0), SHIP_X + 66, 5); c.fillStyle = P.s; c.fillRect(0, Y(4), SHIP_X + 60, 1); }
+  const T = clock, Y = v => Math.round(v - cam);
+  if (!(state === 'opening' && !introCrashed)) { c.fillStyle = P.shade; c.fillRect(0, Y(0), SHIP_X + 66, 5); c.fillStyle = P.ink; c.fillRect(0, Y(4), SHIP_X + 60, 1); }
   for (const [x0, w] of [[252, 18], [302, 11]]) {
-    for (let j = 0; j < 6; j++) { const s = Math.round(w * Math.sqrt(1 - (j / 6) ** 2)); c.fillStyle = j ? P.shade : P.s; c.fillRect(x0 - s, Y(j), s * 2, 1); }
-    for (const e of [-1, 1]) { disc(x0 + e * w, Y(0), 4, P.s); disc(x0 + e * w, Y(1), 3, P.rock); }
+    for (let j = 0; j < 6; j++) { const s = Math.round(w * Math.sqrt(1 - (j / 6) ** 2)); c.fillStyle = j ? P.shade : P.ink; c.fillRect(x0 - s, Y(j), s * 2, 1); }
+    for (const e of [-1, 1]) { disc(x0 + e * w, Y(0), 4, P.ink); disc(x0 + e * w, Y(1), 3, P.rock); }
   }
-  for (const [x, y0, w, h] of [[64, -3, 6, 3], [112, -4, 8, 4]]) { c.fillStyle = P.s; c.fillRect(x - 1, Y(y0) - 1, w + 2, h + 2); c.fillStyle = P.g; c.fillRect(x, Y(y0), w, h); c.fillStyle = P.m; c.fillRect(x, Y(y0) + h - 1, w, 1); }
+  for (const [x, y0, w, h] of [[64, -3, 6, 3], [112, -4, 8, 4]]) { c.fillStyle = P.ink; c.fillRect(x - 1, Y(y0) - 1, w + 2, h + 2); c.fillStyle = P.dust; c.fillRect(x, Y(y0), w, h); c.fillStyle = P.blue; c.fillRect(x, Y(y0) + h - 1, w, 1); }
   for (const [x, s] of [[192, 0], [268, 1], [316, 2], [6, 1]]) drawRock(x, Y(-[5, 8, 12][s] - 1), s);
   for (const [x, h] of [[214, 18], [221, 10], [230, 14], [284, 9]]) for (let j = 0; j < h; j++) {
     const w = Math.round(3 * (1 - j / h)) + 1, yy = Y(-1 - j);
-    c.fillStyle = P.s; c.fillRect(x - w - 1, yy, w * 2 + 3, 1);
-    c.fillStyle = P.lite; c.fillRect(x - w, yy, w, 1); c.fillStyle = P.m; c.fillRect(x, yy, w + 1, 1);
+    c.fillStyle = P.ink; c.fillRect(x - w - 1, yy, w * 2 + 3, 1);
+    c.fillStyle = P.lite; c.fillRect(x - w, yy, w, 1); c.fillStyle = P.blue; c.fillRect(x, yy, w + 1, 1);
   }
   for (let x = 236; x < W; x += 3) { const h = 2 + Math.floor(hash(x) * 5); c.fillStyle = x % 2 ? P.moss : P.mossDk; c.fillRect(x, Y(-h), 1, h); }
   for (const [x, h, i] of [[258, 26, 0], [274, 18, 1], [306, 30, 2]]) {
     let bx = x;
     for (let j = 0; j < h; j++) { bx = x + Math.round(Math.sin(T * 2 + i) * j / 9); c.fillStyle = P.mossDk; c.fillRect(bx, Y(-1 - j), 2, 1); }
-    disc(bx + 1, Y(-h - 3), 4, P.s); disc(bx + 1, Y(-h - 3), 3, P.lite); c.fillStyle = P.g; c.fillRect(bx, Y(-h - 5), 2, 2);
+    disc(bx + 1, Y(-h - 3), 4, P.ink); disc(bx + 1, Y(-h - 3), 3, P.lite); c.fillStyle = P.dust; c.fillRect(bx, Y(-h - 5), 2, 2);
   }
   for (const x of [40, 294]) for (let b = 0; b < 5; b++) {
     const an = -1 + b * 0.5 + Math.sin(T * 1.5 + x) * 0.1, L = 12 + Math.floor(hash(x + b) * 7);
@@ -1630,16 +1537,18 @@ function drawProps(cam) {
 }
 
 // ---------- game state ----------
-let state = 'title', prevState = 'play', ft = 0, introT = 0, dieT = 0, camY = -360, shake = 0, repair = 0, repairStart = 0;
+let state = 'title', prevState = 'play', clock = 0, introT = 0, dieT = 0, camY = -360, shake = 0, repair = 0, repairStart = 0;
 const runParts = { plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 };
 // A fresh pilot for every run (resetRun). `touch` (a finger is on the screen) carries over between runs.
 const playerStart = () => ({ x: 84, y: -30, v: 0, vx: 0, hp: 5, max: 5, inv: 0, blockT: 0, shield: 0, shieldMax: 10, orbs: 0, spare: 0, streak: 0, bestStreak: 0, perks: {}, bought: [], slowUntil: 0, flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false, fallRamp: 1 });
-const pl = { touch: false, ...playerStart() };
-let rocks = [], items = [], parts = [], nextSeg = 0, lastRockD = -999, lastShieldD = -9999, steerAcc = 0;
-const SL = 110, HB = 8;
-const KP = 55, KD = 11, DRAG = 1.5, TMAX = 1400, VMAX = 420, THR_SHOW = 120, THR_FULL = 900, TAP_T = 1100, TAP_MIN = 0.14;
-const depthM = () => Math.max(0, Math.floor(pl.y / PX_PER_M));
-function speedAt(d) { return 250 + 170 * sm(d / 26000); }
+const player = { touch: false, ...playerStart() };
+let rocks = [], items = [], particles = [], nextSeg = 0, lastRockD = -999, lastShieldD = -9999, steerAcc = 0;
+// The shaft is generated SEG_LEN pixels at a time; the pilot's hitbox is HIT_HALF_W pixels either side of his middle.
+const SEG_LEN = 110, HIT_HALF_W = 8;
+// Steering: the jetpack pushes toward the aim point like a spring (STEER_KP) with damping (STEER_KD), capped at TMAX.
+const STEER_KP = 55, STEER_KD = 11, DRAG = 1.5, TMAX = 1400, VMAX = 420, THR_SHOW = 120, THR_FULL = 900, TAP_T = 1100, TAP_MIN = 0.14;
+const depthM = () => Math.max(0, Math.floor(player.y / PX_PER_M));
+function speedAt(d) { return 250 + 170 * smoothstep(d / 26000); }
 
 // ---------- saved settings ----------
 const save = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false };
@@ -1680,8 +1589,8 @@ function makeVoice(ac, dest, noiseBuf) {
       const vib = S.vib ? Math.sin(tau * 6.283 * S.vib[0]) * S.vib[1] : 0;
       fc[i] = through(f0, u) * k * (1 + drift + vib + (Math.random() - 0.5) * 0.012);
       const off = tau > S.dur ? Math.exp(-(tau - S.dur) / (rel * 0.35)) : 1;
-      vc[i] = a * sm((tau - h) / att) * off * (1 + (Math.random() - 0.5) * 0.06);
-      bc[i] = (tau < h ? 0.9 : through(br, u)) * a * sm(tau / 0.012) * (tau > S.dur ? Math.exp(-(tau - S.dur) / (rel * 0.6)) : 1) * BREATH;
+      vc[i] = a * smoothstep((tau - h) / att) * off * (1 + (Math.random() - 0.5) * 0.06);
+      bc[i] = (tau < h ? 0.9 : through(br, u)) * a * smoothstep(tau / 0.012) * (tau > S.dur ? Math.exp(-(tau - S.dur) / (rel * 0.6)) : 1) * BREATH;
       rc[i] = through(ro, u) * 0.5;
     }
     const osc = ac.createOscillator(), vg = ac.createGain(), src = ac.createGain(), out = ac.createGain();
@@ -2041,7 +1950,7 @@ const Music = (() => {
       level(false, (fade || 0.3) / 3);
     },
     setOn() { if (bus) level(playing, 0.05); },
-    setDepth(m) { const L = m < 250 ? 1 : m < 600 ? 2 : 3; if (L > layer) crash = true; layer = L; bpm = 120 + 8 * sm((m - 300) / 1500); },
+    setDepth(m) { const L = m < 250 ? 1 : m < 600 ? 2 : 3; if (L > layer) crash = true; layer = L; bpm = 120 + 8 * smoothstep((m - 300) / 1500); },
     reset() { layer = 1; bpm = 120; crash = false; },
     leap() {
       if (!setup()) return;
@@ -2167,23 +2076,23 @@ function placeHorizon() {
 let hpEls = [...hpBox.querySelectorAll('i')];
 // Health chunks follow the max health, which the Tough suit raises.
 function buildHP() {
-  while (hpEls.length < pl.max) { const i = document.createElement('i'); hpBox.append(i); hpEls.push(i); }
-  while (hpEls.length > pl.max) hpEls.pop().remove();
-  hpBox.setAttribute('aria-valuemax', String(pl.max));
+  while (hpEls.length < player.max) { const i = document.createElement('i'); hpBox.append(i); hpEls.push(i); }
+  while (hpEls.length > player.max) hpEls.pop().remove();
+  hpBox.setAttribute('aria-valuemax', String(player.max));
   sizeHP();
 }
 // The bar keeps one width however many chunks it has; chunks are a little smaller on 320 px wide phones.
 function sizeHP() {
   const row = innerWidth <= 340 ? 101 : 116;
-  hpBox.style.setProperty('--hpw', Math.floor((row - (pl.max - 1) * 4) / pl.max) + 'px');
+  hpBox.style.setProperty('--hpw', Math.floor((row - (player.max - 1) * 4) / player.max) + 'px');
 }
 const streakEl = $('streak'), streakPips = [...streakEl.querySelectorAll('i')], spareHud = $('spareHud'), shopEl = $('shop');
 function bump(el) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
 function renderStreak(fresh) {
-  streakEl.hidden = pl.streak === 0;
-  const on = pl.streak && pl.streak % 8 === 0 ? 8 : pl.streak % 8;
+  streakEl.hidden = player.streak === 0;
+  const on = player.streak && player.streak % 8 === 0 ? 8 : player.streak % 8;
   streakPips.forEach((el, i) => el.classList.toggle('on', i < on));
-  $('streakN').textContent = 'x' + pl.streak;
+  $('streakN').textContent = 'x' + player.streak;
   if (fresh) bump(streakEl);
 }
 // Pickups fly from where they were caught to their HUD counter, which bumps when they land.
@@ -2198,26 +2107,26 @@ function fly(kind, x, d, el, done, part) {
 }
 function drawFlyers() {
   for (const f of flyers) {
-    const u = eio(Math.min(1, f.t / f.life)), x = lerp(f.x0, f.x1, u), y = lerp(f.y0, f.y1, u) - Math.sin(Math.PI * u) * 28;
+    const u = easeInOut(Math.min(1, f.t / f.life)), x = lerp(f.x0, f.x1, u), y = lerp(f.y0, f.y1, u) - Math.sin(Math.PI * u) * 28;
     c.fillStyle = f.kind === 'part' ? '#F2C14E' : P.grnL; c.fillRect(Math.round(lerp(f.x0, f.x1, u * 0.8)), Math.round(lerp(f.y0, f.y1, u * 0.8) - Math.sin(Math.PI * u * 0.8) * 28), 2, 2);
-    if (f.kind === 'part') drawPart(f.part, x, y, ft);
+    if (f.kind === 'part') drawPart(f.part, x, y, clock);
     else sprite(c, ORB, Math.round(x) - 7, Math.round(y) - 7, MAPGRN);
   }
 }
 // +1 health if hurt (flies to the health bar), otherwise +1 spare crystal (flies to the SPARE counter).
 function gainCrystal(x, d, label) {
-  if (pl.hp < pl.max) {
-    pl.hp++;
-    fly('orb', x, d, hpEls[pl.hp - 1], () => setHP('gain'));
+  if (player.hp < player.max) {
+    player.hp++;
+    fly('orb', x, d, hpEls[player.hp - 1], () => setHP('gain'));
     pop(label || '+1', x, d - 10, 'good');
   } else {
-    pl.spare++; spareHud.hidden = false;
-    fly('orb', x, d, spareHud, () => { $('spareRun').textContent = pl.spare; });
+    player.spare++; spareHud.hidden = false;
+    fly('orb', x, d, spareHud, () => { $('spareRun').textContent = player.spare; });
     pop(label || '+1 SPARE', x, d - 10, 'good');
   }
 }
 function giveShield(sec) {
-  pl.shield = Math.max(pl.shield, sec); pl.shieldMax = pl.shield; shieldEl.hidden = false; shieldFill.style.width = '100%'; shownShield = 100;
+  player.shield = Math.max(player.shield, sec); player.shieldMax = player.shield; shieldEl.hidden = false; shieldFill.style.width = '100%'; shownShield = 100;
 }
 let coachTimer = 0;
 function showCoach(text, ms) {
@@ -2225,12 +2134,12 @@ function showCoach(text, ms) {
   clearTimeout(coachTimer); coachTimer = setTimeout(() => coach.classList.add('gone'), ms);
 }
 function setHP(kind, n = 1) {
-  hpEls.forEach((el, i) => { el.classList.toggle('empty', i >= pl.hp); el.classList.remove('hit', 'gain'); });
-  const el = kind === 'hit' ? hpEls[pl.hp] : kind === 'gain' ? hpEls[pl.hp - 1] : null;
+  hpEls.forEach((el, i) => { el.classList.toggle('empty', i >= player.hp); el.classList.remove('hit', 'gain'); });
+  const el = kind === 'hit' ? hpEls[player.hp] : kind === 'gain' ? hpEls[player.hp - 1] : null;
   if (el) { void el.offsetWidth; el.classList.add(kind); }
-  for (let i = 1; kind === 'hit' && i < n; i++) if (hpEls[pl.hp + i]) hpEls[pl.hp + i].classList.add('hit');
-  hpBox.classList.toggle('low', pl.hp === 1);
-  hpBox.setAttribute('aria-valuenow', String(pl.hp));
+  for (let i = 1; kind === 'hit' && i < n; i++) if (hpEls[player.hp + i]) hpEls[player.hp + i].classList.add('hit');
+  hpBox.classList.toggle('low', player.hp === 1);
+  hpBox.setAttribute('aria-valuenow', String(player.hp));
 }
 let shownDepth = -1;
 function setDepth() { const m = depthM(); if (m !== shownDepth) { shownDepth = m; depthEl.firstChild.nodeValue = fmtM(m); renderTarget(); } }
@@ -2262,19 +2171,19 @@ function drawIcons() {
   const pc = $('icoPart').getContext('2d'); pc.clearRect(0, 0, 30, 30); drawPart(PARTS[0], 15, 15, 0.15, pc);
   const mg = $('icoCafe').getContext('2d'); mg.clearRect(0, 0, 14, 14);
   mg.fillStyle = P.lite; mg.fillRect(3, 0, 1, 2); mg.fillRect(6, 1, 1, 2);
-  mg.fillStyle = P.g; mg.fillRect(1, 4, 9, 10); mg.fillRect(10, 6, 3, 1); mg.fillRect(12, 6, 1, 5); mg.fillRect(10, 10, 3, 1);
-  mg.fillStyle = P.m; mg.fillRect(1, 8, 9, 2);
+  mg.fillStyle = P.dust; mg.fillRect(1, 4, 9, 10); mg.fillRect(10, 6, 3, 1); mg.fillRect(12, 6, 1, 5); mg.fillRect(10, 10, 3, 1);
+  mg.fillStyle = P.blue; mg.fillRect(1, 8, 9, 2);
   for (const cv2 of [$('icoSpare'), ...document.querySelectorAll('.ico-orb')]) { const g = cv2.getContext('2d'); g.clearRect(0, 0, 14, 14); sprite(g, ORB, 0, 0, MAPGRN); }
 }
 
 // ---------- flow ----------
 function resetRun() {
   newSeed();
-  rocks = []; items = []; parts = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; steerAcc = 0;
+  rocks = []; items = []; particles = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; steerAcc = 0;
   for (const k in runParts) runParts[k] = 0;
   leviSeen.clear();
   $('partsRun').textContent = '0'; repair = repairFrac(); repairStart = repair;
-  Object.assign(pl, playerStart());
+  Object.assign(player, playerStart());
   cafeVisited.clear(); cafeArt.clear(); signArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
   buildHP(); $('spareRun').textContent = '0'; spareHud.hidden = true; renderStreak(); buildFlags(); refreshBoard();
   Music.reset();
@@ -2372,11 +2281,11 @@ function countPlay() {
 function endRun(how) {
   if (!runId) return;
   const total = Object.values(runParts).reduce((n, v) => n + v, 0);
-  statPing({ event: 'end', player: save.playerId, run: runId, depth: depthM(), secs: Math.round(runSecs), how, orbs: pl.orbs, parts: total, cafes: cafesRun,
+  statPing({ event: 'end', player: save.playerId, run: runId, depth: depthM(), secs: Math.round(runSecs), how, orbs: player.orbs, parts: total, cafes: cafesRun,
     initials: /^[A-Z]{3}$/.test(save.initials || '') ? save.initials : null,
     fps: runRaw > 0 ? Math.round(runFrames / runRaw * 10) / 10 : null, worst: Math.round(runWorst * 1000),
     device: DEVICE, os: OS, screen: screen.width + 'x' + screen.height + '@' + Math.round(devicePixelRatio * 100) / 100,
-    treats: pl.bought.slice(0, 20), streak: pl.bestStreak || 0, sound: !!save.snd, music: !!save.mus, repair: Math.round(repairFrac() * 100),
+    treats: player.bought.slice(0, 20), streak: player.bestStreak || 0, sound: !!save.snd, music: !!save.mus, repair: Math.round(repairFrac() * 100),
     intro: runId === introRun && introHow ? introHow : null });
   if (how !== 'left') runId = '';
 }
@@ -2384,17 +2293,17 @@ function startRun(quick) {
   Sfx.init(); Music.stop(0.4); setCard(null, true);
   resetRun(); countPlay();
   state = 'intro'; introT = quick ? 0.94 : 0;
-  if (quick) { pl.x = 128; pl.pose = 'run'; }
+  if (quick) { player.x = 128; player.pose = 'run'; }
   showScreen(null); hud.classList.remove('off');
 }
 function beginPlay() {
-  state = 'play'; pl.v = speedAt(pl.y); pl.aim = pl.x; pl.vx = 0; steerAcc = 0; tapBurst.l = tapBurst.r = 0;
+  state = 'play'; player.v = speedAt(player.y); player.aim = player.x; player.vx = 0; steerAcc = 0; tapBurst.l = tapBurst.r = 0;
   showCoach('TAP A SIDE, OR DRAG', 2600);
 }
 function pause() {
   if (!['play', 'intro', 'landing', 'cafe', 'cafeJump'].includes(state)) return;
   prevState = state; state = 'paused'; Sfx.wind(0); Sfx.thrust(0); Music.stop(0.15); syncToggles();
-  $('perkPause').textContent = perkSummary(); $('perkPause').hidden = !pl.bought.length;
+  $('perkPause').textContent = perkSummary(); $('perkPause').hidden = !player.bought.length;
   showScreen('pause');
 }
 function resume() {
@@ -2408,16 +2317,16 @@ function toTitle() {
 }
 function die() {
   state = 'dying'; dieT = 0; Buzz.death(); Sfx.death(); Sfx.wind(0); Sfx.thrust(0); Music.stop(0.7);
-  for (let i = 0; i < 18; i++) burst(pl.x, pl.y + PILOT_CY, i % 3 ? P.g : P.a, 1);
+  for (let i = 0; i < 18; i++) burst(player.x, player.y + PILOT_CY, i % 3 ? P.dust : P.lava, 1);
 }
 function gameOver() {
   state = 'over'; endRun(lastHit || 'wall');
   const m = depthM(), isBest = m > save.best;
   if (isBest) { save.best = m; persist(); }
-  $('oDepth').innerHTML = m + '<small>m</small>'; $('oBest').innerHTML = save.best + '<small>m</small>'; $('oOrbs').textContent = pl.orbs;
+  $('oDepth').innerHTML = m + '<small>m</small>'; $('oBest').innerHTML = save.best + '<small>m</small>'; $('oOrbs').textContent = player.orbs;
   $('newBest').hidden = !isBest;
   renderRunParts();
-  const extra = [pl.bestStreak ? 'Best streak ' + pl.bestStreak : '', perkSummary()].filter(Boolean).join(' \u00b7 ');
+  const extra = [player.bestStreak ? 'Best streak ' + player.bestStreak : '', perkSummary()].filter(Boolean).join(' \u00b7 ');
   $('runExtra').textContent = extra; $('runExtra').hidden = !extra;
   $('overLaunchBtn').hidden = repairFrac() < 1;
   hud.classList.add('off'); syncToggles();
@@ -2504,7 +2413,7 @@ function renderTable() {
     li.className = r.you ? 'you' : '';
     for (const [txt, unit] of [[r.n + '.'], [r.i], [fmtM(r.m), 'm']]) {
       const sp = document.createElement('span'); sp.textContent = txt;
-      if (unit) { const sm = document.createElement('small'); sm.textContent = unit; sp.append(sm); }
+      if (unit) { const smoothstep = document.createElement('small'); smoothstep.textContent = unit; sp.append(smoothstep); }
       li.append(sp);
     }
     $('hsList').append(li);
@@ -2575,39 +2484,158 @@ function scoreKey(e) {
   else return;
   e.preventDefault();
 }
-// ---------- the opening film's timeline, and the coffee stop's state ----------
-const OPEN = { pre: 5.6, coffee: 4.0, pull: 3.6, warn: 2.6, hit: 5.0, dive: 10.0, eject: 11.8, chute: 12.2, crash: 12.6, land: 16.2, end: 17.0 };
-let openT = 0, introShip = null, introAst = null, introFx = [], introCrashed = false, astCanvas = null, introPilot = null;
+// ---------- coffee stop (every 1000 m): where each cafe is, drawing it, landing, the counter, the shop, the signs ----------
+// The shaft widens into a cavern around each cafe; CAFE_EVERY, CAFE_OFF, cafeIdx and cavernAt are in the shaft section.
+// -- where each cafe is, and drawing it (the ledge, the cafe, the LAND sign and pad)
+function cafeInfo(k) {
+  const Dc = k * CAFE_EVERY + CAFE_OFF, side = hash(k * 7.7 + SEED) < 0.5 ? -1 : 1, Dl = Dc + 40, e = edgeAt(Dl), wall = side < 0 ? e.L : e.R, len = 140;
+  const tip = wall - side * len;
+  return { k, Dc, Dl, side, wall, tip, padX: tip + side * 30, counterX: wall - side * 58, shopX: side < 0 ? wall + 4 : wall - 70 };
+}
+const SIGN_FONT = { C: ['111', '100', '100', '100', '111'], A: ['010', '101', '111', '101', '101'], F: ['111', '100', '110', '100', '100'], E: ['111', '100', '110', '100', '111'],
+  L: ['100', '100', '100', '100', '111'], N: ['101', '111', '111', '101', '101'], D: ['110', '101', '101', '101', '110'],
+  M: ['10001', '11011', '10101', '10001', '10001'], 0: ['111', '101', '101', '101', '111'], 1: ['010', '110', '010', '010', '111'] };
+function signText(text, x, y, z, g = c) {
+  for (const ch of text) {
+    const gl = SIGN_FONT[ch];
+    if (!gl) { x += 2 * z; continue; }
+    gl.forEach((row, ry) => { for (let rx = 0; rx < row.length; rx++) if (row[rx] === '1') g.fillRect(x + rx * z, y + ry * z, z, z); });
+    x += (gl[0].length + 1) * z;
+  }
+}
+const signWidth = (text, z) => [...text].reduce((w, ch) => w + ((SIGN_FONT[ch] ? SIGN_FONT[ch][0].length : 1) + 1) * z, 0) - z;
+// The cafe's still parts are drawn once per cafe into two images: everything behind the chimney smoke,
+// and the big sign in front of it. Pad lights, the arrow, the barista, smoke and the sign's bulbs stay live.
+const CAFE_Y = 92, cafeArt = new Map();
+function cafeLayers(C) {
+  let a = cafeArt.get(C.k);
+  if (a) return a;
+  for (const key of cafeArt.keys()) if (Math.abs(key - C.k) > 1) cafeArt.delete(key);
+  const mk = () => { const v = document.createElement('canvas'); v.width = W; v.height = CAFE_Y + 50; return v; };
+  const base = mk(), sign = mk(), g = base.getContext('2d'), h = sign.getContext('2d');
+  const Q = palAt(C.Dl), s = C.side, k = C.k, y = CAFE_Y;
+  // rock shelf: flat top, jagged underside narrowing back into the wall
+  for (let j = 0; j < 46; j++) {
+    const t = j / 46, reach = Math.round(Math.abs(C.tip - C.wall) * (1 - t * t) + (hash(j * 3.1 + k) - 0.5) * 6) + 6;
+    const a0 = s < 0 ? 0 : C.wall - reach, b0 = s < 0 ? C.wall + reach : W;
+    g.fillStyle = Q.ink; g.fillRect(a0, y + j, b0 - a0, 1);
+    g.fillStyle = j < 4 ? Q.b0 : j % 9 < 2 ? Q.shade : Q.b1; g.fillRect(s < 0 ? a0 : a0 + 2, y + j, b0 - a0 - 2, 1);
+    if (hash(j * 7.7 + k) < 0.35) { g.fillStyle = Q.shade; g.fillRect(Math.round(lerp(a0, b0, hash(j * 5.3 + k))), y + j, 3, 1); }
+  }
+  g.fillStyle = Q.hi; g.fillRect(s < 0 ? 0 : C.tip - 4, y, Math.abs(C.tip - C.wall) + C.wall * (s < 0 ? 1 : 0) + (s < 0 ? 4 : W - C.wall + 4), 1);
+  // landing pad with hazard edges; the light housings (the lights blink live)
+  const p0 = Math.round(C.padX - 24);
+  g.fillStyle = P.ink; g.fillRect(p0 - 1, y - 4, 50, 5); g.fillStyle = P.shade; g.fillRect(p0, y - 3, 48, 3);
+  for (let i = 0; i < 48; i += 6) { g.fillStyle = '#F2C14E'; g.fillRect(p0 + i, y - 3, 3, 1); }
+  for (const lx of [p0 - 2, p0 + 47]) { g.fillStyle = P.ink; g.fillRect(lx - 1, y - 8, 4, 5); }
+  // "LAND" sign on a pole at the pad's outer end, leaning over the pad
+  const poleX = s < 0 ? p0 + 50 : p0 - 4, bw = 37, bh = 15, bx = s < 0 ? poleX - bw + 3 : poleX - 1, by = y - 62;
+  g.fillStyle = P.ink; g.fillRect(poleX, by + bh, 2, y - 4 - by - bh); g.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+  g.fillStyle = '#3CB86A'; g.fillRect(bx, by, bw, bh); g.fillStyle = '#A6EBB9'; g.fillRect(bx, by, bw, 1);
+  g.fillStyle = P.ink; signText('LAND', bx + 4, by + 3, 2, g);
+  // the cafe: walls, window, door, awning, chimney
+  const x0 = Math.round(C.shopX), top = y - 46;
+  g.fillStyle = P.ink; g.fillRect(x0 - 1, top + 9, 68, 38); g.fillStyle = P.rock2; g.fillRect(x0, top + 10, 66, 36);
+  g.fillStyle = P.shade; for (let yy = top + 16; yy < y; yy += 6) g.fillRect(x0, yy, 66, 1);
+  const wx = s < 0 ? x0 + 30 : x0 + 8;
+  g.fillStyle = P.ink; g.fillRect(wx - 1, top + 19, 28, 18); g.fillStyle = '#F2C14E'; g.fillRect(wx, top + 20, 26, 16);
+  const dx = s < 0 ? x0 + 6 : x0 + 46;
+  g.fillStyle = P.ink; g.fillRect(dx - 1, top + 25, 14, 21); g.fillStyle = P.deeper; g.fillRect(dx, top + 26, 12, 20); g.fillStyle = '#F2C14E'; g.fillRect(s < 0 ? dx + 9 : dx + 1, top + 36, 2, 2);
+  for (let i = 0; i < 72; i++) { g.fillStyle = Math.floor(i / 6) % 2 ? P.dust : P.lava; g.fillRect(x0 - 3 + i, top + 10, 1, 5 + (i % 6 < 3 ? 1 : 0)); }
+  g.fillStyle = P.ink; g.fillRect(x0 - 3, top + 9, 72, 1);
+  const chx = s < 0 ? x0 + 56 : x0 + 4;
+  g.fillStyle = P.ink; g.fillRect(chx - 1, top + 1, 8, 9); g.fillStyle = P.shade; g.fillRect(chx, top + 2, 6, 8);
+  // big gold sign on tall posts (its bulbs chase live)
+  const sgW = 72, sgH = 23, sgx = x0 - 3, sgy = top - 34;
+  h.fillStyle = P.ink; h.fillRect(sgx + 10, sgy + sgH, 3, top + 9 - sgy - sgH); h.fillRect(sgx + sgW - 13, sgy + sgH, 3, top + 9 - sgy - sgH);
+  h.fillRect(sgx - 1, sgy - 1, sgW + 2, sgH + 2); h.fillStyle = '#F2C14E'; h.fillRect(sgx, sgy, sgW, sgH);
+  h.fillStyle = P.ink; signText('CAFE', sgx + 5, sgy + 4, 3, h);
+  const mgx = sgx + 54, mgy = sgy + 6;
+  h.fillStyle = P.dust; h.fillRect(mgx, mgy, 11, 11); h.fillStyle = P.blue; h.fillRect(mgx, mgy + 4, 11, 2);
+  h.fillStyle = P.ink; h.fillRect(mgx + 11, mgy + 2, 3, 6); h.fillStyle = '#F2C14E'; h.fillRect(mgx + 11, mgy + 4, 1, 2);
+  a = { base, sign }; cafeArt.set(C.k, a);
+  return a;
+}
+function drawCafe(cam) {
+  const k0 = Math.max(1, cafeIdx(cam + H / 2));
+  for (let k = k0 - 1; k <= k0 + 1; k++) {
+    if (k < 1) continue;
+    const C = cafeInfo(k), y = Math.round(C.Dl - cam);
+    if (y < -140 || y > H + 70) continue;
+    const art = cafeLayers(C), s = C.side;
+    c.drawImage(art.base, 0, y - CAFE_Y);
+    const p0 = Math.round(C.padX - 24), lit = Math.floor(clock * 3) % 2 === 0;
+    for (const lx of [p0 - 2, p0 + 47]) { c.fillStyle = lit ? '#3CB86A' : P.deep; c.fillRect(lx, y - 7, 2, 2); }
+    if (state === 'play') {
+      const ax = Math.round(C.padX), ay = y - 42 + Math.round(Math.sin(clock * 4) * 2);
+      c.fillStyle = P.ink; c.fillRect(ax - 3, ay - 1, 6, 7); for (let r = 0; r < 6; r++) c.fillRect(ax - 7 + r, ay + 5 + r, 14 - 2 * r, 1);
+      c.fillStyle = Math.floor(clock * 2) % 2 ? '#3CB86A' : '#A6EBB9'; c.fillRect(ax - 2, ay, 4, 6); for (let r = 0; r < 5; r++) c.fillRect(ax - 5 + r, ay + 6 + r, 10 - 2 * r, 1);
+    }
+    const x0 = Math.round(C.shopX), top = y - 46, wx = s < 0 ? x0 + 30 : x0 + 8;
+    sprite(c, BLOB[Math.floor(clock * 2) % 2], wx + 6, top + 24 + Math.round(Math.sin(clock * 2) * 1), MAP);
+    c.fillStyle = '#C98A2E'; c.fillRect(wx, top + 33, 26, 3);
+    const chx = s < 0 ? x0 + 56 : x0 + 4;
+    for (let i = 0; i < 4; i++) { const ph = (clock * 0.4 + i / 4) % 1; disc(chx + 3 + Math.sin(ph * 6 + i) * 3, top - ph * 40, Math.round(2 + ph * 4), i % 2 ? P.strata : P.hill); }
+    c.drawImage(art.sign, 0, y - CAFE_Y);
+    const sgW = 72, sgH = 23, sgx = x0 - 3, sgy = top - 34, chase = Math.floor(clock * 2) % 2;
+    for (let i = 0; i < 12; i++) { c.fillStyle = (i + chase) % 2 ? P.dust : '#C98A2E'; c.fillRect(sgx + 2 + i * 6, sgy + 1, 2, 1); c.fillRect(sgx + 2 + i * 6, sgy + sgH - 2, 2, 1); }
+  }
+}
 // Coffee stop: auto-landing on the pad, a cup at the counter, then a run and jump back into the shaft.
 const cafeVisited = new Set();
 let cafeT = 0, cafeK = 0, landFrom = null;
 function checkCafe() {
-  const feet = pl.y + 28, k = cafeIdx(feet);
+  const feet = player.y + 28, k = cafeIdx(feet);
   if (k < 1 || cafeVisited.has(k)) return;
   const C = cafeInfo(k);
   if (feet < C.Dl - 170 || feet > C.Dl - 4) return;
-  if (C.side < 0 ? pl.x - HB > C.tip + 8 : pl.x + HB < C.tip - 8) return;
-  cafeVisited.add(k); cafesRun++; cafeK = k; state = 'landing'; cafeT = 0; landFrom = { x: pl.x, y: pl.y };
-  steerAcc = 0; tapBurst.l = tapBurst.r = 0; presses.clear(); pl.vx = 0; pl.thr = 0; Sfx.thrust(0.9);
+  if (C.side < 0 ? player.x - HIT_HALF_W > C.tip + 8 : player.x + HIT_HALF_W < C.tip - 8) return;
+  cafeVisited.add(k); cafesRun++; cafeK = k; state = 'landing'; cafeT = 0; landFrom = { x: player.x, y: player.y };
+  steerAcc = 0; tapBurst.l = tapBurst.r = 0; presses.clear(); player.vx = 0; player.thr = 0; Sfx.thrust(0.9);
 }
 function leaveCafe() {
   state = 'cafeJump'; cafeT = 0; shopEl.hidden = true; cafeCard(null, true); Sfx.jump();
 }
-// ---------- cafe shop: spend spare crystals on one perk per cafe ----------
+// -- landing, the counter and leaving: land on the pad, a cup at the counter, run and jump back in
+function updateCafe(dt) {
+  cafeT += dt;
+  const C = cafeInfo(cafeK), t = cafeT, crossed = at => t >= at && t - dt < at, standY = C.Dl - 28;
+  if (state === 'landing') {
+    const u = Math.min(1, t / 1.1);
+    player.x = lerp(landFrom.x, C.padX, easeInOut(u)); player.y = lerp(landFrom.y, standY, 1 - Math.pow(1 - u, 3)); player.pose = 'fall';
+    if (u > 0.55 && Math.random() < 0.6) particles.push({ x: C.padX + (Math.random() - 0.5) * 40, d: C.Dl - 5, vx: (Math.random() - 0.5) * 90, vy: -20 - Math.random() * 40, t: 0, life: 0.5 + Math.random() * 0.4, col: Math.random() < 0.5 ? P.shade : P.strata, z: 2 });
+    if (u >= 1) { state = 'cafe'; cafeT = 0; Sfx.thrust(0); Sfx.land(); Buzz.orb(); Music.title(); }
+  } else if (state === 'cafe') {
+    if (t < 0.7) { player.x = lerp(C.padX, C.counterX, t / 0.7); player.y = standY - 2 * (Math.floor(t * 6) % 2); player.pose = C.side < 0 ? 'runL' : 'run'; }
+    else { player.x = C.counterX; player.y = standY; player.pose = C.side < 0 ? 'standL' : 'stand'; }
+    if (crossed(0.95)) Sfx.slurp();
+    if (crossed(1.4)) { if (player.hp < player.max) { player.hp++; setHP('gain'); pop('+1 COFFEE', player.x, player.y - 10, 'good'); } else pop('REFRESHED', player.x, player.y - 10, 'good'); }
+    if (crossed(1.6)) openShop();
+  } else {
+    const runTo = C.tip + C.side * 8;
+    if (t < 0.5) { player.x = lerp(C.counterX, runTo, t / 0.5); player.y = standY - 2 * (Math.floor(t * 6) % 2); player.pose = C.side < 0 ? 'run' : 'runL'; }
+    else {
+      state = 'play'; player.pose = 'fall'; player.fallRamp = 0; player.vx = -C.side * 150; player.aim = player.x - C.side * 50; player.inv = 0.6; player.y = standY - 6;
+      Music.start();
+    }
+  }
+  camY = player.y - pilotScreenY;
+}
+// -- the shop: spend spare crystals on one perk per cafe
 const PERKS = [
   { id: 'magnet', name: 'Magnet', desc: 'Pulls in crystals', cost: 3, once: true },
-  { id: 'tough', name: 'Tough suit', desc: '+1 max health', cost: 4, ok: () => pl.max < 7 },
+  { id: 'tough', name: 'Tough suit', desc: '+1 max health', cost: 4, ok: () => player.max < 7 },
   { id: 'longshield', name: 'Long shield', desc: 'Shields last 5 s more', cost: 2, once: true },
   { id: 'turbo', name: 'Turbo', desc: 'Faster thrusters', cost: 3, once: true },
-  { id: 'bubble', name: 'Bubble to go', desc: 'Shield as you leave', cost: 2, ok: () => pl.shield <= 0 },
+  { id: 'bubble', name: 'Bubble to go', desc: 'Shield as you leave', cost: 2, ok: () => player.shield <= 0 },
   { id: 'lucky', name: 'Lucky charm', desc: 'More crystals', cost: 3, once: true },
   { id: 'finder', name: 'Part finder', desc: 'More ship parts', cost: 3, once: true },
-  { id: 'patch', name: 'Patch kit', desc: 'Full health', cost: 3, ok: () => pl.hp < pl.max },
-  { id: 'slow', name: 'Slow fall', desc: '20% slower, 250 m', cost: 2, ok: () => pl.slowUntil <= pl.y },
+  { id: 'patch', name: 'Patch kit', desc: 'Full health', cost: 3, ok: () => player.hp < player.max },
+  { id: 'slow', name: 'Slow fall', desc: '20% slower, 250 m', cost: 2, ok: () => player.slowUntil <= player.y },
 ];
 let shopOffer = [], shopDone = false;
 function openShop() {
-  const pool = PERKS.filter(p => (!p.once || !pl.perks[p.id]) && (!p.ok || p.ok()));
+  const pool = PERKS.filter(p => (!p.once || !player.perks[p.id]) && (!p.ok || p.ok()));
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   shopOffer = pool.slice(0, 3); shopDone = false;
   $('shopItems').innerHTML = '';
@@ -2663,12 +2691,12 @@ $('tipsBtn').addEventListener('click', () => cafeCard('tips'));
 $('shopDone').addEventListener('click', () => cafeCard(null));
 $('tipsDone').addEventListener('click', () => cafeCard(null));
 function renderShop() {
-  for (const id of ['shopSpare', 'shopSpare2', 'shopBtnN']) $(id).textContent = pl.spare;
-  const afford = shopOffer.some(p => pl.spare >= p.cost);
-  $('shopNote').textContent = shopDone ? 'Enjoy! One treat per cafe.' : afford ? 'Pick one treat per cafe' : pl.spare ? 'Not enough spare crystals yet' : 'No spare crystals yet: see TIPS';
+  for (const id of ['shopSpare', 'shopSpare2', 'shopBtnN']) $(id).textContent = player.spare;
+  const afford = shopOffer.some(p => player.spare >= p.cost);
+  $('shopNote').textContent = shopDone ? 'Enjoy! One treat per cafe.' : afford ? 'Pick one treat per cafe' : player.spare ? 'Not enough spare crystals yet' : 'No spare crystals yet: see TIPS';
   $('cafeNote').textContent = shopDone ? 'Treat bought. Enjoy the fall!' : !save.cafeTips ? 'New here? Tap TIPS first' : afford ? 'Spend your spare crystals in the shop' : 'Catch crystals at full health to earn spares';
   [...$('shopItems').children].forEach((b, i) => {
-    const p = shopOffer[i], poor = pl.spare < p.cost;
+    const p = shopOffer[i], poor = player.spare < p.cost;
     b.classList.toggle('poor', poor && !b.classList.contains('bought'));
     b.disabled = shopDone || poor;
     b.setAttribute('aria-label', p.name + ', ' + p.desc + ', costs ' + p.cost + ' spare crystals' + (poor && !shopDone ? ', not enough' : ''));
@@ -2676,73 +2704,24 @@ function renderShop() {
 }
 function buyPerk(i) {
   const p = shopOffer[i];
-  if (!p || shopDone || state !== 'cafe' || pl.spare < p.cost || cafeSide !== 'shop') return;
-  pl.spare -= p.cost; shopDone = true; pl.bought.push(p.name);
-  $('spareRun').textContent = pl.spare;
-  if (p.once) pl.perks[p.id] = true;
-  if (p.id === 'tough') { pl.max++; buildHP(); pl.hp++; setHP('gain'); }
-  else if (p.id === 'patch') { pl.hp = pl.max; setHP('gain'); }
-  else if (p.id === 'bubble') giveShield(SHIELD_S + (pl.perks.longshield ? 5 : 0));
-  else if (p.id === 'slow') pl.slowUntil = pl.y + 250 * PX_PER_M;
+  if (!p || shopDone || state !== 'cafe' || player.spare < p.cost || cafeSide !== 'shop') return;
+  player.spare -= p.cost; shopDone = true; player.bought.push(p.name);
+  $('spareRun').textContent = player.spare;
+  if (p.once) player.perks[p.id] = true;
+  if (p.id === 'tough') { player.max++; buildHP(); player.hp++; setHP('gain'); }
+  else if (p.id === 'patch') { player.hp = player.max; setHP('gain'); }
+  else if (p.id === 'bubble') giveShield(SHIELD_S + (player.perks.longshield ? 5 : 0));
+  else if (p.id === 'slow') player.slowUntil = player.y + 250 * PX_PER_M;
   const b = $('shopItems').children[i];
   b.classList.add('bought'); b.querySelector('.perk-cost').textContent = 'BOUGHT';
   renderShop(); Sfx.buy(); Buzz.part();
-  pop(p.name.toUpperCase(), pl.x, pl.y - 10, 'part');
+  pop(p.name.toUpperCase(), player.x, player.y - 10, 'part');
   // One treat per cafe, so the card turns back to the front by itself once the purchase has shown.
   cafeBack = setTimeout(() => { if (state === 'cafe' && cafeSide === 'shop') cafeCard(null); }, 900);
 }
 $('shopGo').addEventListener('click', () => { if (state === 'cafe') leaveCafe(); });
-function perkSummary() { return pl.bought.length ? 'Treats: ' + pl.bought.join(', ') : ''; }
-// ---------- board flags: where runs on the high score board ended, marked on the shaft wall ----------
-let flags = [], nextFlag = 0;
-function boardRows() {
-  const cache = SCORES_URL && save.boardCache && Array.isArray(save.boardCache.top) ? save.boardCache.top : null;
-  const rows = cache ? cache.map(s => ({ i: showName(String(s.initials).slice(0, 3)), m: s.depth })) : save.scores.map(s => ({ i: s.i === '???' ? 'BEST' : showName(s.i), m: s.m }));
-  return rows.filter(r => Number.isFinite(r.m) && r.m >= 30);
-}
-function buildFlags() {
-  flags = boardRows().sort((a, b) => a.m - b.m).map((r, k) => ({ i: r.i, m: r.m, d: r.m * PX_PER_M, side: k % 2 ? 1 : -1, passed: r.m * PX_PER_M <= pl.y + PILOT_CY }));
-  nextFlag = flags.findIndex(f => !f.passed); if (nextFlag < 0) nextFlag = flags.length;
-  renderTarget();
-}
-// With an online board, fetch the latest top 10 at the start of each run (in the background) so the flags are fresh.
-function refreshBoard() {
-  if (!SCORES_URL) return;
-  if (save.boardCache && Date.now() - save.boardCache.at < 120000) return;
-  scoresFetch().then(r => { if (r && Array.isArray(r.top)) { save.boardCache = { top: r.top, at: Date.now() }; persist(); buildFlags(); } }, () => {});
-}
-function passFlags() {
-  while (nextFlag < flags.length && flags[nextFlag].d <= pl.y + PILOT_CY) {
-    const f = flags[nextFlag++]; f.passed = true;
-    pop('PASSED ' + f.i + '!', pl.x, pl.y - 14, 'pass'); Sfx.pass();
-    renderTarget();
-  }
-}
-function renderTarget() {
-  const f = flags[nextFlag], el = $('target');
-  el.hidden = !f;
-  if (f) { $('targetWho').textContent = 'BEAT ' + f.i; $('targetM').textContent = Math.max(0, f.m - depthM()) + ' m'; }
-}
-// Each flag (dotted line, bracket and sign) is drawn once into a full-width image, one for before and one for after passing it.
-function flagArt(f) {
-  const key = f.passed ? 'imgP' : 'img';
-  if (f[key]) return f[key];
-  const v = document.createElement('canvas'); v.width = W; v.height = 16;
-  const g = v.getContext('2d'), e = edgeAt(f.d), label = f.i + ' ' + f.m, y = 13;
-  g.font = '8px Silkscreen'; g.textBaseline = 'top';
-  const w = Math.ceil(g.measureText(label).width) + 6;
-  g.fillStyle = f.passed ? P.lite : P.g;
-  for (let x = Math.ceil(e.L) + 2; x < e.R - 2; x += 4) g.fillRect(x, y, 2, 1);
-  const bx = f.side < 0 ? Math.round(e.L + 6) : Math.round(e.R - 6 - w), by = 0;
-  g.fillStyle = P.s; g.fillRect(f.side < 0 ? Math.round(e.L) : bx + w, by + 5, 6, 2);
-  g.fillStyle = P.m; g.fillRect(bx + 2, by + 2, w, 11);
-  g.fillStyle = f.passed ? '#F2C14E' : P.g; g.fillRect(bx, by, w, 11);
-  g.fillStyle = P.s; g.fillText(label, bx + 3, by + 2);
-  // Only keep it once the pixel font has loaded, so an early fallback-font version gets redrawn.
-  if (!document.fonts || document.fonts.check('8px Silkscreen')) f[key] = v;
-  return v;
-}
-// ---------- cafe signs: 100 m above each cafe, on the rock beside the shaft at the cafe's edge of the screen ----------
+function perkSummary() { return player.bought.length ? 'Treats: ' + player.bought.join(', ') : ''; }
+// -- the signs: 100 m above each cafe, on the rock beside the shaft at the cafe's edge of the screen
 // Block letters like the cafe's own sign: 3x where the rock is wide enough, else 2x. The arrow is drawn live so it can bob.
 const CAFE_SIGN_UP = 100 * PX_PER_M, signArt = new Map();
 const ARROW = ['00100', '00100', '11111', '01110', '00100'];
@@ -2759,11 +2738,11 @@ function cafeSignArt(C) {
   const { z, pad, w, h } = L, x0 = s < 0 ? 3 : W - 3 - w;
   const v = document.createElement('canvas'); v.width = w + 3; v.height = h + 3;
   const g = v.getContext('2d');
-  g.fillStyle = P.a; g.fillRect(2, 2, w + 1, h + 1);
-  g.fillStyle = P.s; g.fillRect(0, 0, w + 1, h + 1);
+  g.fillStyle = P.lava; g.fillRect(2, 2, w + 1, h + 1);
+  g.fillStyle = P.ink; g.fillRect(0, 0, w + 1, h + 1);
   g.fillStyle = '#F2C14E'; g.fillRect(1, 1, w - 1, h - 1);
   g.fillStyle = P.shade; for (const [bx, by] of [[3, 3], [w - 4, 3], [3, h - 4], [w - 4, h - 4]]) g.fillRect(bx, by, 1, 1);
-  g.fillStyle = P.s;
+  g.fillStyle = P.ink;
   signText('CAFE', 1 + Math.round((w - 1 - signWidth('CAFE', z)) / 2), pad, z, g);
   signText('100M', 1 + Math.round((w - 1 - signWidth('100M', z)) / 2), pad + 5 * z + z + 1, z, g);
   a = { img: v, x0, h, z, ax: x0 + 1 + Math.round((w - 1 - 5 * z) / 2), ay: pad + 2 * (5 * z + z + 1) };
@@ -2778,8 +2757,8 @@ function drawCafeSigns(cam) {
     if (mid < -40 || mid > H + 40) continue;
     const a = cafeSignArt(C), y = mid - Math.round(a.h / 2);
     c.drawImage(a.img, a.x0, y);
-    const ay = y + a.ay - 1 + Math.floor(ft * 3) % 2;
-    c.fillStyle = P.a;
+    const ay = y + a.ay - 1 + Math.floor(clock * 3) % 2;
+    c.fillStyle = P.lava;
     ARROW.forEach((row, ry) => { for (let rx = 0; rx < 5; rx++) if (row[rx] === '1') c.fillRect(a.ax + rx * a.z, ay + ry * a.z, a.z, a.z); });
   }
 }
@@ -2790,36 +2769,62 @@ function drawFlags(cam) {
     c.drawImage(flagArt(f), 0, y - 13);
   }
 }
-// ---------- coffee stop: land on the pad, a cup at the counter, run and jump back in ----------
-function updateCafe(dt) {
-  cafeT += dt;
-  const C = cafeInfo(cafeK), t = cafeT, crossed = at => t >= at && t - dt < at, standY = C.Dl - 28;
-  if (state === 'landing') {
-    const u = Math.min(1, t / 1.1);
-    pl.x = lerp(landFrom.x, C.padX, eio(u)); pl.y = lerp(landFrom.y, standY, 1 - Math.pow(1 - u, 3)); pl.pose = 'fall';
-    if (u > 0.55 && Math.random() < 0.6) parts.push({ x: C.padX + (Math.random() - 0.5) * 40, d: C.Dl - 5, vx: (Math.random() - 0.5) * 90, vy: -20 - Math.random() * 40, t: 0, life: 0.5 + Math.random() * 0.4, col: Math.random() < 0.5 ? P.shade : P.strata, z: 2 });
-    if (u >= 1) { state = 'cafe'; cafeT = 0; Sfx.thrust(0); Sfx.land(); Buzz.orb(); Music.title(); }
-  } else if (state === 'cafe') {
-    if (t < 0.7) { pl.x = lerp(C.padX, C.counterX, t / 0.7); pl.y = standY - 2 * (Math.floor(t * 6) % 2); pl.pose = C.side < 0 ? 'runL' : 'run'; }
-    else { pl.x = C.counterX; pl.y = standY; pl.pose = C.side < 0 ? 'standL' : 'stand'; }
-    if (crossed(0.95)) Sfx.slurp();
-    if (crossed(1.4)) { if (pl.hp < pl.max) { pl.hp++; setHP('gain'); pop('+1 COFFEE', pl.x, pl.y - 10, 'good'); } else pop('REFRESHED', pl.x, pl.y - 10, 'good'); }
-    if (crossed(1.6)) openShop();
-  } else {
-    const runTo = C.tip + C.side * 8;
-    if (t < 0.5) { pl.x = lerp(C.counterX, runTo, t / 0.5); pl.y = standY - 2 * (Math.floor(t * 6) % 2); pl.pose = C.side < 0 ? 'run' : 'runL'; }
-    else {
-      state = 'play'; pl.pose = 'fall'; pl.fallRamp = 0; pl.vx = -C.side * 150; pl.aim = pl.x - C.side * 50; pl.inv = 0.6; pl.y = standY - 6;
-      Music.start();
-    }
+// ---------- board flags: where runs on the high score board ended, marked on the shaft wall ----------
+let flags = [], nextFlag = 0;
+function boardRows() {
+  const cache = SCORES_URL && save.boardCache && Array.isArray(save.boardCache.top) ? save.boardCache.top : null;
+  const rows = cache ? cache.map(s => ({ i: showName(String(s.initials).slice(0, 3)), m: s.depth })) : save.scores.map(s => ({ i: s.i === '???' ? 'BEST' : showName(s.i), m: s.m }));
+  return rows.filter(r => Number.isFinite(r.m) && r.m >= 30);
+}
+function buildFlags() {
+  flags = boardRows().sort((a, b) => a.m - b.m).map((r, k) => ({ i: r.i, m: r.m, d: r.m * PX_PER_M, side: k % 2 ? 1 : -1, passed: r.m * PX_PER_M <= player.y + PILOT_CY }));
+  nextFlag = flags.findIndex(f => !f.passed); if (nextFlag < 0) nextFlag = flags.length;
+  renderTarget();
+}
+// With an online board, fetch the latest top 10 at the start of each run (in the background) so the flags are fresh.
+function refreshBoard() {
+  if (!SCORES_URL) return;
+  if (save.boardCache && Date.now() - save.boardCache.at < 120000) return;
+  scoresFetch().then(r => { if (r && Array.isArray(r.top)) { save.boardCache = { top: r.top, at: Date.now() }; persist(); buildFlags(); } }, () => {});
+}
+function passFlags() {
+  while (nextFlag < flags.length && flags[nextFlag].d <= player.y + PILOT_CY) {
+    const f = flags[nextFlag++]; f.passed = true;
+    pop('PASSED ' + f.i + '!', player.x, player.y - 14, 'pass'); Sfx.pass();
+    renderTarget();
   }
-  camY = pl.y - MY;
+}
+function renderTarget() {
+  const f = flags[nextFlag], el = $('target');
+  el.hidden = !f;
+  if (f) { $('targetWho').textContent = 'BEAT ' + f.i; $('targetM').textContent = Math.max(0, f.m - depthM()) + ' m'; }
+}
+// Each flag (dotted line, bracket and sign) is drawn once into a full-width image, one for before and one for after passing it.
+function flagArt(f) {
+  const key = f.passed ? 'imgP' : 'img';
+  if (f[key]) return f[key];
+  const v = document.createElement('canvas'); v.width = W; v.height = 16;
+  const g = v.getContext('2d'), e = edgeAt(f.d), label = f.i + ' ' + f.m, y = 13;
+  g.font = '8px Silkscreen'; g.textBaseline = 'top';
+  const w = Math.ceil(g.measureText(label).width) + 6;
+  g.fillStyle = f.passed ? P.lite : P.dust;
+  for (let x = Math.ceil(e.L) + 2; x < e.R - 2; x += 4) g.fillRect(x, y, 2, 1);
+  const bx = f.side < 0 ? Math.round(e.L + 6) : Math.round(e.R - 6 - w), by = 0;
+  g.fillStyle = P.ink; g.fillRect(f.side < 0 ? Math.round(e.L) : bx + w, by + 5, 6, 2);
+  g.fillStyle = P.blue; g.fillRect(bx + 2, by + 2, w, 11);
+  g.fillStyle = f.passed ? '#F2C14E' : P.dust; g.fillRect(bx, by, w, 11);
+  g.fillStyle = P.ink; g.fillText(label, bx + 3, by + 2);
+  // Only keep it once the pixel font has loaded, so an early fallback-font version gets redrawn.
+  if (!document.fonts || document.fonts.check('8px Silkscreen')) f[key] = v;
+  return v;
 }
 // ---------- the opening film: coffee on the bridge, the asteroid, the crash, the landing ----------
+const OPEN = { pre: 5.6, coffee: 4.0, pull: 3.6, warn: 2.6, hit: 5.0, dive: 10.0, eject: 11.8, chute: 12.2, crash: 12.6, land: 16.2, end: 17.0 };
+let openT = 0, introShip = null, introAst = null, introFx = [], introCrashed = false, astCanvas = null, introPilot = null;
 function startOpening() {
   setCard(null, true);
   Sfx.init(); resetRun();
-  state = 'opening'; openT = 0; introShip = null; introAst = null; introFx = []; introCrashed = false; introPilot = null; pl.hidden = true;
+  state = 'opening'; openT = 0; introShip = null; introAst = null; introFx = []; introCrashed = false; introPilot = null; player.hidden = true;
   showScreen(null); hud.classList.add('off'); Music.stop(0.1); Sfx.wind(0); Music.intro();
   showCoach('TAP TO SKIP', 1800);
 }
@@ -2847,22 +2852,22 @@ function updateOpening(dt) {
   if (crossed(O.hit)) {
     Sfx.impact(); Music.cut(); Buzz.rock(); shake = 1.2;
     const s0 = introShip;
-    introBurst(s0.x + 14, s0.y - 8, [P.a, P.hot, P.g, P.shade], 40, 180, 0.9);
+    introBurst(s0.x + 14, s0.y - 8, [P.lava, P.hot, P.dust, P.shade], 40, 180, 0.9);
     for (let i = 0; i < 7; i++) { const an = -1.2 + i * 0.5; introFx.push({ rock: i % 3 === 0 ? 1 : 0, x: s0.x + 14, y: s0.y - 8, vx: Math.cos(an) * (60 + i * 12), vy: Math.sin(an) * (60 + i * 10) - 20, a: 0, spin: 4 - i, t: 0, life: 4 }); }
     introAst = null;
   }
   if (crossed(O.hit + 0.6)) Sfx.whistle(O.crash - O.hit - 0.6);
   if (crossed(O.crash)) {
     Sfx.crash(); Buzz.launch(); shake = 1.4; introCrashed = true; introShip = null;
-    for (let i = 0; i < 46; i++) parts.push({ x: 30 + Math.random() * 100, d: -2 - Math.random() * 6, vx: (Math.random() - 0.5) * 160, vy: -30 - Math.random() * 130, t: 0, life: 0.9 + Math.random() * 1.1, col: [P.shade, P.strata, P.hill, P.a][i % 4], z: 3 + (i % 2) });
+    for (let i = 0; i < 46; i++) particles.push({ x: 30 + Math.random() * 100, d: -2 - Math.random() * 6, vx: (Math.random() - 0.5) * 160, vy: -30 - Math.random() * 130, t: 0, life: 0.9 + Math.random() * 1.1, col: [P.shade, P.strata, P.hill, P.lava][i % 4], z: 3 + (i % 2) });
   }
   if (crossed(O.eject) && introShip) {
     introPilot = { x: introShip.x, y: introShip.y - 30, vx: -30, vy: -380, x0: 0, y0: 0 };
-    sparks(introShip.x, introShip.y - 10, [P.g, P.hot, P.a], 14); Sfx.eject();
+    sparks(introShip.x, introShip.y - 10, [P.dust, P.hot, P.lava], 14); Sfx.eject();
   }
   if (crossed(O.chute) && introPilot) { introPilot.x0 = introPilot.x; introPilot.y0 = introPilot.y; Sfx.chute(); }
   if (crossed(O.land - 1)) Sfx.thrust(0.9);
-  if (crossed(O.land)) { Sfx.thrust(0); pl.hidden = false; pl.x = 84; pl.y = -30; pl.pose = 'stand'; sparks(84, -2, [P.strata, P.shade], 8); Sfx.land(); }
+  if (crossed(O.land)) { Sfx.thrust(0); player.hidden = false; player.x = 84; player.y = -30; player.pose = 'stand'; sparks(84, -2, [P.strata, P.shade], 8); Sfx.land(); }
   if (t < O.hit) {
     const x = W * 0.36 + Math.sin(t * 0.8) * 4, y = H * 0.42 + Math.sin(t * 1.3) * 6;
     introShip = { x, y, a: Math.sin(t * 0.9) * 0.04, f: 0.6, scale: 0.9, burn: false };
@@ -2875,7 +2880,7 @@ function updateOpening(dt) {
   } else if (t < O.crash) {
     const k = (t - O.dive) / (O.crash - O.dive);
     introShip = { x: lerp(130, 58, k), y: lerp(-2600, -14, k), a: 0.35 - (1 - k) * (1 - k) * 9, f: 0, scale: lerp(0.75, 1, Math.min(1, k * 3)), burn: true, empty: t >= O.eject };
-    for (let i = 0; i < 2; i++) parts.push({ x: introShip.x + (Math.random() - 0.5) * 30, d: introShip.y + (Math.random() - 0.5) * 30, vx: (Math.random() - 0.5) * 30, vy: -10 - Math.random() * 30, t: 0, life: 1 + Math.random(), col: [P.shade, P.s, P.a][Math.floor(Math.random() * 3)], z: 3 + (Math.random() < 0.5 ? 1 : 0) });
+    for (let i = 0; i < 2; i++) particles.push({ x: introShip.x + (Math.random() - 0.5) * 30, d: introShip.y + (Math.random() - 0.5) * 30, vx: (Math.random() - 0.5) * 30, vy: -10 - Math.random() * 30, t: 0, life: 1 + Math.random(), col: [P.shade, P.ink, P.lava][Math.floor(Math.random() * 3)], z: 3 + (Math.random() < 0.5 ? 1 : 0) });
   }
   // The pilot: shot clear on the ejection seat, then drifting down under the canopy to land beside the wreck.
   const ip = introPilot;
@@ -2884,14 +2889,14 @@ function updateOpening(dt) {
     else {
       const u = (t - O.chute) / (O.land - O.chute), ub = 0.75, k = 1 / (ub + 0.6 * (1 - ub));
       const f = u < ub ? k * u : k * ub + k * ((u - ub) - 0.4 * (u - ub) * (u - ub) / (1 - ub));
-      ip.x = lerp(ip.x0, 84, eio(u)) + Math.sin((t - O.chute) * 1.7) * 9 * (1 - u); ip.y = lerp(ip.y0, -30, f);
-      if (t > O.land - 0.5) parts.push({ x: ip.x + (Math.random() - 0.5) * 40, d: -2, vx: (Math.random() - 0.5) * 80, vy: -20 - Math.random() * 40, t: 0, life: 0.5 + Math.random() * 0.4, col: Math.random() < 0.5 ? P.shade : P.strata, z: 2 });
+      ip.x = lerp(ip.x0, 84, easeInOut(u)) + Math.sin((t - O.chute) * 1.7) * 9 * (1 - u); ip.y = lerp(ip.y0, -30, f);
+      if (t > O.land - 0.5) particles.push({ x: ip.x + (Math.random() - 0.5) * 40, d: -2, vx: (Math.random() - 0.5) * 80, vy: -20 - Math.random() * 40, t: 0, life: 0.5 + Math.random() * 0.4, col: Math.random() < 0.5 ? P.shade : P.strata, z: 2 });
     }
   }
   // Camera: ride with the ship, hand over to the pilot after the ejection, settle on the ground for the landing.
   const shipCam = introShip ? Math.min(camY0, introShip.y - Math.round(H * 0.4)) : camY0;
   const pilotCam = ip && t < O.land ? Math.min(camY0, ip.y - Math.round(H * 0.35)) : camY0;
-  if (t >= O.dive) camY = t < O.eject ? shipCam : t < O.eject + 0.5 ? lerp(shipCam, pilotCam, eio((t - O.eject) / 0.5)) : pilotCam;
+  if (t >= O.dive) camY = t < O.eject ? shipCam : t < O.eject + 0.5 ? lerp(shipCam, pilotCam, easeInOut((t - O.eject) / 0.5)) : pilotCam;
   if (t >= O.end) endOpening('watched');
 }
 function pxLine(x1, y1, x2, y2, col) {
@@ -2903,37 +2908,37 @@ function drawCanopy(cx, by, w, h) {
   cx = Math.round(cx); by = Math.round(by);
   for (let j = 0; j < h; j++) {
     const f = (j + 1) / h, half = Math.max(1, Math.round(w / 2 * Math.sqrt(f * (2 - f)))), yy = by - h + j;
-    c.fillStyle = P.s; c.fillRect(cx - half - 1, yy, half * 2 + 3, 1);
-    for (let gx = -half; gx <= half; gx += 7) { c.fillStyle = Math.floor((gx + 105) / 7) % 2 ? P.m : P.g; c.fillRect(cx + gx, yy, Math.min(7, half - gx + 1), 1); }
+    c.fillStyle = P.ink; c.fillRect(cx - half - 1, yy, half * 2 + 3, 1);
+    for (let gx = -half; gx <= half; gx += 7) { c.fillStyle = Math.floor((gx + 105) / 7) % 2 ? P.blue : P.dust; c.fillRect(cx + gx, yy, Math.min(7, half - gx + 1), 1); }
   }
-  c.fillStyle = P.s; for (let x = -Math.round(w / 2); x <= Math.round(w / 2); x += 7) c.fillRect(cx + x, by, 4, 1);
+  c.fillStyle = P.ink; for (let x = -Math.round(w / 2); x <= Math.round(w / 2); x += 7) c.fillRect(cx + x, by, 4, 1);
 }
 // The intro's pilot: ejection seat burst, canopy blooming open, then a swaying drift; the canopy crumples once he lands.
 function drawIntroPilot(cam) {
   const O = OPEN, t = openT - O.pre, ip = introPilot;
   if (ip && t < O.land) {
     const x0 = Math.round(ip.x - 13), y0 = Math.round(ip.y - cam);
-    if (t < O.chute) { const fl = Math.floor(ft * 24) % 2; c.fillStyle = P.a; c.fillRect(x0 + 9, y0 + 28, 8, 6 + fl * 3); c.fillStyle = P.hot; c.fillRect(x0 + 11, y0 + 28, 4, 3 + fl * 2); }
+    if (t < O.chute) { const fl = Math.floor(clock * 24) % 2; c.fillStyle = P.lava; c.fillRect(x0 + 9, y0 + 28, 8, 6 + fl * 3); c.fillStyle = P.hot; c.fillRect(x0 + 11, y0 + 28, 4, 3 + fl * 2); }
     else {
       const open = Math.min(1, (t - O.chute) / 0.35), w = Math.round(lerp(10, 48, open)), h = Math.round(lerp(4, 20, open)), sway = Math.sin((t - O.chute) * 1.7) * 6;
       const cx = ip.x + sway, by = y0 - 22;
       for (const [ax, hx] of [[-w / 2, 1], [-w / 6, 4], [w / 6, 22], [w / 2, 25]]) pxLine(cx + ax, by + 1, x0 + hx, y0 + 2, P.shade);
       drawCanopy(cx, by, w, h);
     }
-    drawMan(ip.x, ip.y - cam, 'fall', ft, 0);
+    drawMan(ip.x, ip.y - cam, 'fall', clock, 0);
     if (t >= O.land - 1) {
-      const kk = Math.min(1, (t - (O.land - 1)) / 0.2), fl = Math.floor(ft * 24) % 2, L = Math.round((7 + fl * 3) * kk + 2);
-      for (const nx of [x0 - 1, x0 + 25]) { c.fillStyle = P.a; c.fillRect(nx - 1, y0 + 23, 5, L); c.fillStyle = P.hot; c.fillRect(nx, y0 + 23, 3, Math.max(1, L - 3)); c.fillStyle = P.g; c.fillRect(nx + 1, y0 + 23, 1, 2); }
+      const kk = Math.min(1, (t - (O.land - 1)) / 0.2), fl = Math.floor(clock * 24) % 2, L = Math.round((7 + fl * 3) * kk + 2);
+      for (const nx of [x0 - 1, x0 + 25]) { c.fillStyle = P.lava; c.fillRect(nx - 1, y0 + 23, 5, L); c.fillStyle = P.hot; c.fillRect(nx, y0 + 23, 3, Math.max(1, L - 3)); c.fillStyle = P.dust; c.fillRect(nx + 1, y0 + 23, 1, 2); }
     }
   } else if (t >= O.land) {
-    const k = Math.min(1, (t - O.land) / 0.7), cx = lerp(84, 112, k), by = lerp(-30 - 22, -1, eio(k)) - cam, w = Math.round(lerp(48, 40, k)), h = Math.max(3, Math.round(lerp(20, 5, k)));
+    const k = Math.min(1, (t - O.land) / 0.7), cx = lerp(84, 112, k), by = lerp(-30 - 22, -1, easeInOut(k)) - cam, w = Math.round(lerp(48, 40, k)), h = Math.max(3, Math.round(lerp(20, 5, k)));
     pxLine(90, -24 - cam, cx - w / 2, by, P.shade); pxLine(90, -20 - cam, cx - w / 6, by, P.shade);
     drawCanopy(cx, by, w, h);
   }
 }
 // Opening shot: the pilot sipping coffee on the bridge, drawn at double pixel size, then pulled back out through the cockpit window.
 let bridgeCv = null;
-const STEAM_HI = mix(P.lite, P.g, 0.45);
+const STEAM_HI = mix(P.lite, P.dust, 0.45);
 function drawBridge(bt) {
   const BW = 160, BH = Math.ceil(H / 2);
   if (!bridgeCv || bridgeCv.height !== BH) { bridgeCv = document.createElement('canvas'); bridgeCv.width = BW; bridgeCv.height = BH; }
@@ -2943,73 +2948,73 @@ function drawBridge(bt) {
   g.fillStyle = P.rock2; g.fillRect(0, 0, BW, 14); g.fillRect(40, 14, 1, 186); g.fillRect(120, 14, 1, 186); g.fillRect(0, 168, BW, 1);
   g.fillStyle = P.shade; for (const [x, y] of [[4, 18], [36, 18], [124, 18], [154, 18], [4, 160], [154, 160]]) g.fillRect(x, y, 2, 2);
   // wall of control panels: nav screen, oscilloscope, gauges, switches, lamps and a big red button
-  g.fillStyle = P.s; g.fillRect(10, 22, 140, 130);
+  g.fillStyle = P.ink; g.fillRect(10, 22, 140, 130);
   g.fillStyle = P.deeper; g.fillRect(12, 24, 136, 126);
   const scr = '#13203A', glow = '#3CB86A';
-  g.fillStyle = P.s; g.fillRect(14, 27, 64, 52); g.fillStyle = scr; g.fillRect(16, 29, 60, 48);
+  g.fillStyle = P.ink; g.fillRect(14, 27, 64, 52); g.fillStyle = scr; g.fillRect(16, 29, 60, 48);
   g.fillStyle = P.deep; for (let x = 16; x < 76; x += 8) g.fillRect(x, 29, 1, 48); for (let y = 29; y < 77; y += 8) g.fillRect(16, y, 60, 1);
   g.fillStyle = P.lite; for (let a = 0; a < 6.28; a += 0.2) g.fillRect(Math.round(32 + Math.cos(a) * 10), Math.round(60 + Math.sin(a) * 10), 1, 1);
   for (let k = 0; k < 10; k++) if (k % 2 === 0) g.fillRect(70 - k * 3, 36 + k * 2, 1, 1);
-  if (Math.floor(bt * 4) % 2 === 0) { g.fillStyle = P.g; g.fillRect(68, 36, 3, 3); }
-  g.fillStyle = P.s; g.fillRect(82, 27, 64, 52); g.fillStyle = scr; g.fillRect(84, 29, 60, 48);
+  if (Math.floor(bt * 4) % 2 === 0) { g.fillStyle = P.dust; g.fillRect(68, 36, 3, 3); }
+  g.fillStyle = P.ink; g.fillRect(82, 27, 64, 52); g.fillStyle = scr; g.fillRect(84, 29, 60, 48);
   g.fillStyle = P.deep; g.fillRect(84, 53, 60, 1);
   g.fillStyle = glow; for (let x = 0; x < 60; x++) g.fillRect(84 + x, Math.round(53 + Math.sin(x * 0.25 + bt * 6) * 9 * Math.sin(x * 0.05 + 0.4)), 1, 2);
   for (const [dx, k] of [[26, 1.3], [52, 2.1], [78, 0.8]]) {
-    disc(dx, 100, 10, P.s, g); disc(dx, 100, 9, P.g, g);
+    disc(dx, 100, 10, P.ink, g); disc(dx, 100, 9, P.dust, g);
     g.fillStyle = P.shade; for (let a = Math.PI * 0.8; a < Math.PI * 2.2; a += 0.35) g.fillRect(Math.round(dx + Math.cos(a) * 7), Math.round(100 + Math.sin(a) * 7), 1, 1);
-    g.fillStyle = P.a; for (let a = Math.PI * 1.9; a < Math.PI * 2.2; a += 0.15) g.fillRect(Math.round(dx + Math.cos(a) * 8), Math.round(100 + Math.sin(a) * 8), 1, 1);
+    g.fillStyle = P.lava; for (let a = Math.PI * 1.9; a < Math.PI * 2.2; a += 0.15) g.fillRect(Math.round(dx + Math.cos(a) * 8), Math.round(100 + Math.sin(a) * 8), 1, 1);
     const na = Math.PI * 1.5 + Math.sin(bt * k + dx) * 0.5;
-    g.fillStyle = P.s; for (let r = 0; r < 7; r++) g.fillRect(Math.round(dx + Math.cos(na) * r), Math.round(100 + Math.sin(na) * r), 1, 1);
+    g.fillStyle = P.ink; for (let r = 0; r < 7; r++) g.fillRect(Math.round(dx + Math.cos(na) * r), Math.round(100 + Math.sin(na) * r), 1, 1);
     g.fillRect(dx - 1, 99, 3, 3);
   }
   for (let i = 0; i < 6; i++) {
     const sx = 96 + i * 8, up = hash(i * 7.3) < 0.5;
-    g.fillStyle = P.s; g.fillRect(sx, 92, 5, 12); g.fillStyle = P.shade; g.fillRect(sx + 1, 93, 3, 10);
-    g.fillStyle = P.g; g.fillRect(sx + 1, up ? 93 : 99, 3, 4);
+    g.fillStyle = P.ink; g.fillRect(sx, 92, 5, 12); g.fillStyle = P.shade; g.fillRect(sx + 1, 93, 3, 10);
+    g.fillStyle = P.dust; g.fillRect(sx + 1, up ? 93 : 99, 3, 4);
     g.fillStyle = Math.floor(bt * 2 + hash(i) * 2) % 2 ? lampOff : (i % 2 ? '#3CB86A' : '#F2C14E'); g.fillRect(sx + 1, 88, 3, 2);
   }
   const lampCols = ['#E0483A', '#3CB86A', P.lite, '#F2C14E'];
   for (let i = 0; i < 18; i++) { const on = Math.floor(bt * 1.5 + hash(i + 40) * 3) % 3 !== 0; g.fillStyle = on ? lampCols[i % 4] : lampOff; g.fillRect(16 + i * 7, 118, 4, 3); }
-  for (let i = 0; i < 5; i++) { const sx = 18 + i * 12, ky = Math.round(134 + Math.sin(bt * 0.7 + i * 1.3) * 5); g.fillStyle = P.s; g.fillRect(sx + 2, 126, 2, 20); g.fillStyle = P.lite; g.fillRect(sx, ky, 6, 3); }
-  disc(128, 136, 8, P.s, g); disc(128, 136, 7, '#9C2F27', g); disc(127, 135, 5, P.a, g); g.fillStyle = P.hot; g.fillRect(124, 132, 2, 2);
+  for (let i = 0; i < 5; i++) { const sx = 18 + i * 12, ky = Math.round(134 + Math.sin(bt * 0.7 + i * 1.3) * 5); g.fillStyle = P.ink; g.fillRect(sx + 2, 126, 2, 20); g.fillStyle = P.lite; g.fillRect(sx, ky, 6, 3); }
+  disc(128, 136, 8, P.ink, g); disc(128, 136, 7, '#9C2F27', g); disc(127, 135, 5, P.lava, g); g.fillStyle = P.hot; g.fillRect(124, 132, 2, 2);
   g.fillStyle = '#F2C14E'; for (let x = 116; x < 141; x += 4) { g.fillRect(x, 125, 2, 1); g.fillRect(x, 147, 2, 1); }
   // console with blinking lights and a radar
   g.fillStyle = P.shade; g.fillRect(0, 200, BW, 6);
   g.fillStyle = P.deeper; g.fillRect(0, 206, BW, BH - 206);
   const lamp = ['#E0483A', '#3CB86A', P.lite, '#F2C14E'];
   for (let i = 0; i < 12; i++) { const on = Math.floor(bt * 2 + hash(i) * 2) % 2 === 0; g.fillStyle = on ? lamp[i % 4] : P.deep; g.fillRect(8 + i * 7, 214 + (i % 2) * 6, 4, 3); }
-  g.fillStyle = P.s; g.fillRect(100, 224, 50, 34); g.fillStyle = P.deep; g.fillRect(102, 226, 46, 30);
+  g.fillStyle = P.ink; g.fillRect(100, 224, 50, 34); g.fillStyle = P.deep; g.fillRect(102, 226, 46, 30);
   g.fillStyle = P.lite; for (let a = 0; a < 6.28; a += 0.25) g.fillRect(Math.round(125 + Math.cos(a) * 12), Math.round(241 + Math.sin(a) * 12), 1, 1);
   for (let r = 0; r < 12; r++) g.fillRect(Math.round(125 + Math.cos(bt * 2) * r), Math.round(241 + Math.sin(bt * 2) * r), 1, 1);
   g.fillStyle = '#3CB86A'; g.fillRect(131, 236, 2, 2);
   for (let j = 0; j < 12; j++) { g.fillStyle = P.mossDk; g.fillRect(150, 199 - j, 1, 1); }
-  disc(150, 185, 3, P.s, g); disc(150, 185, 2, P.lite, g);
+  disc(150, 185, 3, P.ink, g); disc(150, 185, 2, P.lite, g);
   // captain's chair and the pilot, mug in hand
-  g.fillStyle = P.s; g.fillRect(27, 148, 16, 58); g.fillStyle = P.deeper; g.fillRect(28, 149, 14, 56);
-  g.fillStyle = P.s; g.fillRect(28, 195, 38, 10); g.fillStyle = P.deeper; g.fillRect(29, 196, 36, 8); g.fillStyle = P.s; g.fillRect(44, 205, 5, 20);
+  g.fillStyle = P.ink; g.fillRect(27, 148, 16, 58); g.fillStyle = P.deeper; g.fillRect(28, 149, 14, 56);
+  g.fillStyle = P.ink; g.fillRect(28, 195, 38, 10); g.fillStyle = P.deeper; g.fillRect(29, 196, 36, 8); g.fillStyle = P.ink; g.fillRect(44, 205, 5, 20);
   g.fillStyle = P.shade; g.fillRect(31, 178, 5, 12);
   sprite(g, SIT, 34, 164, MAP);
   // curved, angled helm console in front of the pilot, LCARS-style button strips and a small display
   const helmTop = x => Math.round(184 - (x - 60) * 0.16 - Math.sin((x - 60) / 90 * Math.PI) * 4);
   for (let x = 60; x <= 150; x++) {
     const tp = helmTop(x);
-    g.fillStyle = P.s; g.fillRect(x, tp - 1, 1, 201 - tp);
+    g.fillStyle = P.ink; g.fillRect(x, tp - 1, 1, 201 - tp);
     g.fillStyle = P.deep; g.fillRect(x, tp, 1, 4);
     g.fillStyle = '#F2C14E'; g.fillRect(x, tp + 4, 1, 1);
     g.fillStyle = (x - 60) % 14 < 1 ? P.deep : P.deeper; g.fillRect(x, tp + 5, 1, 195 - tp);
   }
-  g.fillStyle = P.s; g.fillRect(59, helmTop(60) - 1, 1, 201 - helmTop(60)); g.fillRect(151, helmTop(150) - 1, 1, 201 - helmTop(150));
+  g.fillStyle = P.ink; g.fillRect(59, helmTop(60) - 1, 1, 201 - helmTop(60)); g.fillRect(151, helmTop(150) - 1, 1, 201 - helmTop(150));
   const lcars = ['#F2C14E', '#E0483A', '#9B6BE8', P.lite, '#F2C14E', '#3CB86A', '#9B6BE8', '#E0483A'];
   for (let i = 0; i < 8; i++) { const x = 64 + i * 7, lit = Math.floor(bt * 1.5 + hash(i + 70) * 3) % 3 !== 0; g.fillStyle = lit ? lcars[i] : P.deeper; g.fillRect(x, helmTop(x + 2) + 1, 5, 2); }
   const dx = 120, dTop = helmTop(133) - 17;
-  g.fillStyle = P.s; g.fillRect(dx, dTop, 28, 16); g.fillStyle = '#13203A'; g.fillRect(dx + 2, dTop + 2, 24, 12);
+  g.fillStyle = P.ink; g.fillRect(dx, dTop, 28, 16); g.fillStyle = '#13203A'; g.fillRect(dx + 2, dTop + 2, 24, 12);
   g.fillStyle = P.lite; for (let a = 0; a < 6.28; a += 0.5) g.fillRect(Math.round(dx + 8 + Math.cos(a) * 4), Math.round(dTop + 8 + Math.sin(a) * 4), 1, 1);
   g.fillStyle = '#3CB86A'; for (let k = 0; k < 3; k++) g.fillRect(dx + 15, dTop + 4 + k * 3, 3 + Math.round((Math.sin(bt * 3 + k) + 1) * 3), 1);
-  g.fillStyle = P.s; g.fillRect(dx + 12, dTop + 16, 4, helmTop(134) - dTop - 16);
+  g.fillStyle = P.ink; g.fillRect(dx + 12, dTop + 16, 4, helmTop(134) - dTop - 16);
   // one slow sip: lift 1.0-1.6 s, drink (tilting up a touch) until 3.0 s, lower by 3.6 s
-  const sip = sm((bt - 1.0) / 0.6) * (1 - sm((bt - 3.0) / 0.6)), mx = Math.round(lerp(55, 50, sip)), my = Math.round(lerp(181, 168, sip) - 2 * sip * sm((bt - 1.6) / 1.4));
-  g.fillStyle = P.s; g.fillRect(mx - 1, my - 1, 9, 9); g.fillRect(mx - 3, my + 1, 3, 4);
-  g.fillStyle = P.g; g.fillRect(mx, my, 7, 7); g.fillStyle = P.m; g.fillRect(mx, my + 3, 7, 2); g.fillStyle = '#5A3A28'; g.fillRect(mx + 1, my, 5, 1);
+  const sip = smoothstep((bt - 1.0) / 0.6) * (1 - smoothstep((bt - 3.0) / 0.6)), mx = Math.round(lerp(55, 50, sip)), my = Math.round(lerp(181, 168, sip) - 2 * sip * smoothstep((bt - 1.6) / 1.4));
+  g.fillStyle = P.ink; g.fillRect(mx - 1, my - 1, 9, 9); g.fillRect(mx - 3, my + 1, 3, 4);
+  g.fillStyle = P.dust; g.fillRect(mx, my, 7, 7); g.fillStyle = P.blue; g.fillRect(mx, my + 3, 7, 2); g.fillStyle = '#5A3A28'; g.fillRect(mx + 1, my, 5, 1);
   // steam: five wisps curl up off the mug, widening and thinning as they rise (lighter while he drinks)
   const steamK = 1 - 0.6 * sip;
   for (let k = 0; k < 5; k++) for (let j = 0; j < 14; j++) {
@@ -3036,12 +3041,12 @@ function col32(hex) {
 }
 function hullPix(u, v, frame) {
   const inWin = u > WIN[0] && u < WIN[2] && v > WIN[1] && v < WIN[3];
-  if (frame && !inWin && u > WIN[0] - 0.5 && u < WIN[2] + 0.5 && v > WIN[1] - 0.5 && v < WIN[3] + 0.5) return P.s;
-  if (u >= 19 && u < 24 && v >= -7 && v < -2) return u >= 20 && u < 23 && v >= -6 && v < -4 ? P.m : P.g;
+  if (frame && !inWin && u > WIN[0] - 0.5 && u < WIN[2] + 0.5 && v > WIN[1] - 0.5 && v < WIN[3] + 0.5) return P.ink;
+  if (u >= 19 && u < 24 && v >= -7 && v < -2) return u >= 20 && u < 23 && v >= -6 && v < -4 ? P.blue : P.dust;
   return shipPix(u, v);
 }
 function drawPullback() {
-  const sh = introShip, k = Math.min(1, (openT - OPEN.coffee) / OPEN.pull), e = sm(k), m = sm(k / 0.25);
+  const sh = introShip, k = Math.min(1, (openT - OPEN.coffee) / OPEN.pull), e = smoothstep(k), m = smoothstep(k / 0.25);
   const S = S0 * Math.pow(sh.scale / S0, e), ang = sh.a * e, ca = Math.cos(ang), sa = Math.sin(ang);
   const R = (u, v) => [u * ca - v * sa, u * sa + v * ca];
   // the point the camera holds slides from the window centre to the middle of the ship, so the ship stays in frame
@@ -3069,7 +3074,7 @@ function drawPullback() {
   hullCv.getContext('2d').putImageData(hullImg, 0, 0);
   c.imageSmoothingEnabled = false; c.drawImage(hullCv, 0, 0, gw * b, gh * b);
   // the bridge seen through the glass: starts as the full screen and closes onto the window, fading to plain glass when small
-  const ia = sm((S - 1.6) / 2.4);
+  const ia = smoothstep((S - 1.6) / 2.4);
   if (ia <= 0) return;
   drawBridge(openT);
   const corners = [[WIN[0], WIN[1]], [WIN[2], WIN[1]], [WIN[2], WIN[3]], [WIN[0], WIN[3]]].map(([u, v], i) => { const [dx, dy] = R(u * S, v * S); return [lerp(i === 1 || i === 2 ? W : 0, Ox + dx, m), lerp(i > 1 ? H : 0, Oy + dy, m)]; });
@@ -3077,27 +3082,27 @@ function drawPullback() {
   c.translate(Ox, Oy); c.rotate(ang); c.scale(S, S); c.globalAlpha = ia;
   c.imageSmoothingEnabled = S * 0.0875 < 1;
   c.save(); c.translate(WIN[0], WIN[1] - BAND * 7 / 80); c.scale(14 / 160, 7 / 80); c.drawImage(bridgeCv, 0, 0); c.restore();
-  c.globalAlpha = ia * m * 0.22; c.fillStyle = P.m; c.fillRect(WIN[0], WIN[1], WIN[2] - WIN[0], WIN[3] - WIN[1]);
+  c.globalAlpha = ia * m * 0.22; c.fillStyle = P.blue; c.fillRect(WIN[0], WIN[1], WIN[2] - WIN[0], WIN[3] - WIN[1]);
   c.globalAlpha = ia * m * 0.3; c.fillStyle = P.lite; c.fillRect(WIN[0], WIN[1], 3, WIN[3] - WIN[1]); c.fillRect(20, WIN[1], 1.5, WIN[3] - WIN[1]);
   c.restore(); c.imageSmoothingEnabled = false;
 }
 // Space shots for the first 13 seconds: cruise, asteroid hit, then the moon swelling as the ship tumbles in.
 function drawIntroSpace(t, sx, sy) {
   c.setTransform(1, 0, 0, 1, sx, sy);
-  c.fillStyle = P.s; c.fillRect(-4, -4, W + 8, H + 8);
-  const drift = (state === 'splash' ? ft : t) * 40;
+  c.fillStyle = P.ink; c.fillRect(-4, -4, W + 8, H + 8);
+  const drift = (state === 'splash' ? clock : t) * 40;
   for (let i = 0; i < 150; i++) {
     const sp = 0.3 + hash(i + 4) * 0.7, x = ((hash(i * 1.37) * (W + 20) - drift * sp) % (W + 20) + W + 20) % (W + 20) - 10, y = hash(i * 2.11 + 5) * H;
-    c.fillStyle = i % 5 ? P.strata : (Math.floor(ft * 0.8 + hash(i) * 4) % 4 ? P.g : P.lite);
+    c.fillStyle = i % 5 ? P.strata : (Math.floor(clock * 0.8 + hash(i) * 4) % 4 ? P.dust : P.lite);
     const z = i % 11 ? 1 : 2; c.fillRect(Math.round(x), Math.round(y), z, z);
   }
   // On the start screen the planet turns once every 24 s and the moon once a minute.
   const spin = state === 'splash';
-  drawPlanet(Math.round(W * 0.8 - t * 2), Math.round(H * 0.2), true, spin ? ft * Math.PI / 12 : undefined);
+  drawPlanet(Math.round(W * 0.8 - t * 2), Math.round(H * 0.2), true, spin ? clock * Math.PI / 12 : undefined);
   const O = OPEN, C0x = W / 2 + 40, C0y = H * 0.8, R0 = 58, Rmax = 2400;
-  const e = t < O.hit ? 0 : eio(Math.min(1, (t - O.hit) / (O.dive - O.hit))), R = R0 * Math.pow(Rmax / R0, e), z = R / R0, zm = Rmax / R0;
+  const e = t < O.hit ? 0 : easeInOut(Math.min(1, (t - O.hit) / (O.dive - O.hit))), R = R0 * Math.pow(Rmax / R0, e), z = R / R0, zm = Rmax / R0;
   const Fx = (W / 2 - zm * C0x) / (1 - zm), Fy = (H * 0.74 + Rmax - zm * C0y) / (1 - zm);
-  drawMoonAt(Fx + (C0x - Fx) * z, Fy + (C0y - Fy) * z, R, spin ? ft * Math.PI / 30 : undefined);
+  drawMoonAt(Fx + (C0x - Fx) * z, Fy + (C0y - Fy) * z, R, spin ? clock * Math.PI / 30 : undefined);
   if (state === 'splash') { c.setTransform(1, 0, 0, 1, 0, 0); return; }
   for (const p of introFx) {
     if (p.rock !== undefined) { c.save(); c.translate(Math.round(p.x), Math.round(p.y)); c.rotate(p.a); const Rk = ROCKS[p.rock]; sprite(c, Rk, -Rk[0].length / 2, -Rk.length / 2, MAP); c.restore(); continue; }
@@ -3107,11 +3112,11 @@ function drawIntroSpace(t, sx, sy) {
   if (introAst) {
     if (!astCanvas) { astCanvas = document.createElement('canvas'); astCanvas.width = 26; astCanvas.height = 24; sprite(astCanvas.getContext('2d'), ROCKS[2], 0, 0, MAP); }
     c.save(); c.translate(Math.round(introAst.x), Math.round(introAst.y)); c.rotate(introAst.a); c.scale(2, 2); c.drawImage(astCanvas, -13, -12); c.restore();
-    for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? P.shade : P.rock2; c.fillRect(Math.round(introAst.x + 20 + i * 7 + Math.sin(i + ft * 3) * 3), Math.round(introAst.y - 16 - i * 5), 3, 3); }
+    for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? P.shade : P.rock2; c.fillRect(Math.round(introAst.x + 20 + i * 7 + Math.sin(i + clock * 3) * 3), Math.round(introAst.y - 16 - i * 5), 3, 3); }
   }
   if (t > O.warn && t < O.hit && Math.floor(t * 5) % 2 === 0 && introShip) {
     const bx = Math.round(introShip.x + 18), by = Math.round(introShip.y - 46);
-    c.fillStyle = P.s; c.fillRect(bx - 4, by - 2, 9, 22); c.fillStyle = P.a; c.fillRect(bx - 2, by, 5, 12); c.fillRect(bx - 2, by + 14, 5, 4);
+    c.fillStyle = P.ink; c.fillRect(bx - 4, by - 2, 9, 22); c.fillStyle = P.lava; c.fillRect(bx - 2, by, 5, 12); c.fillRect(bx - 2, by + 14, 5, 4);
   }
   c.setTransform(1, 0, 0, 1, 0, 0);
 }
@@ -3130,26 +3135,26 @@ function updateLaunch(dt) {
   launchT += dt;
   const L = LAUNCH, t = launchT, crossed = at => t >= at && t - dt < at;
   // He runs back, turns to wave goodbye, then climbs aboard.
-  if (t < L.wave) { pl.x = lerp(84, 64, t / L.wave); pl.y = -30 - 2 * (Math.floor(t * 6) % 2); pl.pose = 'runL'; }
-  else if (t < L.board) { pl.x = 64; pl.y = -30; pl.pose = 'wave'; }
-  else if (t < L.aboard) { pl.x = lerp(64, 52, (t - L.board) / (L.aboard - L.board)); pl.y = -30 - 2 * (Math.floor(t * 6) % 2); pl.pose = 'runL'; }
-  else pl.hidden = true;
+  if (t < L.wave) { player.x = lerp(84, 64, t / L.wave); player.y = -30 - 2 * (Math.floor(t * 6) % 2); player.pose = 'runL'; }
+  else if (t < L.board) { player.x = 64; player.y = -30; player.pose = 'wave'; }
+  else if (t < L.aboard) { player.x = lerp(64, 52, (t - L.board) / (L.aboard - L.board)); player.y = -30 - 2 * (Math.floor(t * 6) % 2); player.pose = 'runL'; }
+  else player.hidden = true;
   if (crossed(L.wave + 0.25)) Sfx.bye();
-  if (crossed(L.aboard)) { sparks(52, -14, [P.g, P.strata, P.shade], 10); Sfx.hatch(); }
+  if (crossed(L.aboard)) { sparks(52, -14, [P.dust, P.strata, P.shade], 10); Sfx.hatch(); }
   if (crossed(L.rumble)) { Sfx.engine(); Buzz.launch(); }
   if (crossed(L.lift)) { Music.fanfare(); Sfx.cheer(); }
   if (crossed(L.groove)) { Music.setDepth(900); Music.start(); }
   if (crossed(L.space)) { Music.stop(0.1); Music.space(); }
   // The ship rumbles, tips upright, then climbs.
   if (t < L.rumble) launchShip = null;
-  else if (t < L.lift) { const k = (t - L.rumble) / (L.lift - L.rumble); launchShip = { x: 58 + Math.sin(ft * 40) * 0.8 * k, y: -14, a: 0.35, f: 0, glow: k }; }
-  else if (t < L.climb) { const k = eio((t - L.lift) / (L.climb - L.lift)); launchShip = { x: lerp(58, 92, k), y: lerp(-14, -72, k), a: lerp(0.35, -Math.PI / 2, k), f: 0.35 + 0.35 * k, glow: 0 }; }
+  else if (t < L.lift) { const k = (t - L.rumble) / (L.lift - L.rumble); launchShip = { x: 58 + Math.sin(clock * 40) * 0.8 * k, y: -14, a: 0.35, f: 0, glow: k }; }
+  else if (t < L.climb) { const k = easeInOut((t - L.lift) / (L.climb - L.lift)); launchShip = { x: lerp(58, 92, k), y: lerp(-14, -72, k), a: lerp(0.35, -Math.PI / 2, k), f: 0.35 + 0.35 * k, glow: 0 }; }
   else { const u = t - L.climb, w = Math.sin(u * 0.9) * Math.min(1, u); launchShip = { x: 92 + w * 6, y: -72 - 50 * u - 110 * u * u, a: -Math.PI / 2 + w * 0.05, f: 1, glow: 0 }; }
   if (t > L.rumble && t < L.climb) shake = t < L.lift ? 0.45 : 0.8;
   if (launchShip && t < L.space) {
     const sh = launchShip, nx = sh.x - 52 * Math.cos(sh.a), ny = sh.y - 52 * Math.sin(sh.a);
-    for (let i = 0; i < 3; i++) parts.push({ x: nx + (Math.random() - 0.5) * 6, d: ny + Math.random() * 24, vx: (Math.random() - 0.5) * 40, vy: (Math.random() - 0.3) * 30, t: 0, life: 1.2 + Math.random(), col: [P.shade, P.hill, P.strata][Math.floor(Math.random() * 3)], z: 3 + (Math.random() < 0.5 ? 1 : 0) });
-    if (t < L.climb) parts.push({ x: 20 + Math.random() * 90, d: -1, vx: (Math.random() - 0.5) * 60, vy: -20 - Math.random() * 40, t: 0, life: 0.6 + Math.random() * 0.4, col: Math.random() < 0.5 ? P.shade : P.strata, z: 2 });
+    for (let i = 0; i < 3; i++) particles.push({ x: nx + (Math.random() - 0.5) * 6, d: ny + Math.random() * 24, vx: (Math.random() - 0.5) * 40, vy: (Math.random() - 0.3) * 30, t: 0, life: 1.2 + Math.random(), col: [P.shade, P.hill, P.strata][Math.floor(Math.random() * 3)], z: 3 + (Math.random() < 0.5 ? 1 : 0) });
+    if (t < L.climb) particles.push({ x: 20 + Math.random() * 90, d: -1, vx: (Math.random() - 0.5) * 60, vy: -20 - Math.random() * 40, t: 0, life: 0.6 + Math.random() * 0.4, col: Math.random() < 0.5 ? P.shade : P.strata, z: 2 });
   }
   // The camera holds on the pad, then follows the ship up into the dark.
   camY = launchShip && t >= L.climb ? Math.min(camY0, launchShip.y - Math.round(H * 0.35)) : camY0;
@@ -3213,7 +3218,7 @@ game.addEventListener('pointerdown', e => {
 game.addEventListener('pointermove', e => {
   const p = presses.get(e.pointerId);
   if (!p) return;
-  if (p.mode === 'tap' && Math.abs(e.clientX - p.x0) > DRAG_START) { p.mode = 'drag'; p.x = p.x0; pl.aim = pl.x; steerAcc = 0; }
+  if (p.mode === 'tap' && Math.abs(e.clientX - p.x0) > DRAG_START) { p.mode = 'drag'; p.x = p.x0; player.aim = player.x; steerAcc = 0; }
   if (p.mode === 'drag') { steerAcc += (e.clientX - p.x) / sc * SENS; p.x = e.clientX; }
 });
 const endPress = e => {
@@ -3255,12 +3260,12 @@ addEventListener('keyup', e => {
 
 // ---------- level generation ----------
 function genSeg(k) {
-  const d0 = k * SL;
-  if (d0 < 560 || cavernAt(d0) > 0.02 || cavernAt(d0 + SL) > 0.02) return;
-  const r = rng32(Math.floor(SEED * 1000) + k * 7919), diff = sm(d0 / 26000);
+  const d0 = k * SEG_LEN;
+  if (d0 < 560 || cavernAt(d0) > 0.02 || cavernAt(d0 + SEG_LEN) > 0.02) return;
+  const r = rng32(Math.floor(SEED * 1000) + k * 7919), diff = smoothstep(d0 / 26000);
   if (r() < 0.38 + 0.36 * diff) {
-    const d = Math.max(d0 + 10 + r() * (SL - 20), lastRockD + 120 - 20 * diff);
-    if (d < d0 + SL) {
+    const d = Math.max(d0 + 10 + r() * (SEG_LEN - 20), lastRockD + 120 - 20 * diff);
+    if (d < d0 + SEG_LEN) {
       const size = r() < 0.3 ? 0 : r() < 0.55 ? 1 : 2, rr = ROCK_R[size], amp = r() < 0.08 + 0.22 * diff ? 8 + r() * 18 : 0;
       const sp = spans(d), pick = sp[sp.length > 1 && r() < 0.5 ? 1 : 0];
       let a = pick[0], b = pick[1];
@@ -3268,34 +3273,34 @@ function genSeg(k) {
       const lo = a + rr + amp + 4, hi = b - rr - amp - 4;
       if (hi >= lo) {
         let x = lo + r() * (hi - lo);
-        if (Math.max(x - rr - amp - a, b - x - rr - amp) < 2 * HB + 16) x = lo;
-        if (b - x - rr - amp >= 2 * HB + 16 || x - rr - amp - a >= 2 * HB + 16) {
-          rocks.push({ d, x0: x, x, size, rr, amp, ph: r() * 6.28, sp: 1 + r() * 1.5, hot: r() < 0.1 + 0.15 * diff, dead: false });
+        if (Math.max(x - rr - amp - a, b - x - rr - amp) < 2 * HIT_HALF_W + 16) x = lo;
+        if (b - x - rr - amp >= 2 * HIT_HALF_W + 16 || x - rr - amp - a >= 2 * HIT_HALF_W + 16) {
+          rocks.push({ d, x0: x, x, size, rr, amp, ph: r() * 6.28, sp: 1 + r() * 1.5, isMine: r() < 0.1 + 0.15 * diff, dead: false });
           lastRockD = d;
         }
       }
     }
   }
-  if (d0 > 760 && r() < (0.16 + (pl.max - pl.hp) * 0.03) * (pl.perks.lucky ? 1.4 : 1)) {
-    const d = d0 + 15 + r() * (SL - 30);
+  if (d0 > 760 && r() < (0.16 + (player.max - player.hp) * 0.03) * (player.perks.lucky ? 1.4 : 1)) {
+    const d = d0 + 15 + r() * (SEG_LEN - 30);
     if (Math.abs(d - lastRockD) > 36) {
       const sp = spans(d), pick = sp[sp.length > 1 && r() < 0.5 ? 1 : 0];
       if (pick[1] - pick[0] > 40) items.push({ d, x: pick[0] + 16 + r() * (pick[1] - pick[0] - 32), kind: 'orb', dead: false });
     }
   }
   if (d0 > 2600 && d0 - lastShieldD > 2400 && r() < 0.06) {
-    const d = d0 + SL / 2;
+    const d = d0 + SEG_LEN / 2;
     if (Math.abs(d - lastRockD) > 40) {
       const sp = spans(d), pick = sp[0];
       if (pick[1] - pick[0] > 44) { items.push({ d, x: (pick[0] + pick[1]) / 2, kind: 'shield', dead: false }); lastShieldD = d0; }
     }
   }
-  if (d0 > 640 && r() < (pl.perks.finder ? 0.3 : 0.2)) {
-    const m = d0 / 8, ws = PARTS.map(pt => pt.w * sm((m - pt.from) / 300) * (save.parts[pt.id] >= pt.need ? 0.2 : 1)), tot = ws.reduce((a, b) => a + b, 0);
+  if (d0 > 640 && r() < (player.perks.finder ? 0.3 : 0.2)) {
+    const m = d0 / 8, ws = PARTS.map(pt => pt.w * smoothstep((m - pt.from) / 300) * (save.parts[pt.id] >= pt.need ? 0.2 : 1)), tot = ws.reduce((a, b) => a + b, 0);
     if (tot > 0) {
       let pick = r() * tot, k = 0;
       while (k < PARTS.length - 1 && (pick -= ws[k]) > 0) k++;
-      const d = d0 + 20 + r() * (SL - 40);
+      const d = d0 + 20 + r() * (SEG_LEN - 40);
       if (Math.abs(d - lastRockD) > 36 && !items.some(it => Math.abs(it.d - d) < 30)) {
         const sp = spans(d), s1 = sp[sp.length > 1 && r() < 0.5 ? 1 : 0];
         if (s1[1] - s1[0] > 44) items.push({ d, x: s1[0] + 18 + r() * (s1[1] - s1[0] - 36), kind: 'part', part: PARTS[k], dead: false });
@@ -3305,27 +3310,27 @@ function genSeg(k) {
 }
 function burst(x, d, col, big) {
   const an = Math.random() * Math.PI * 2, s = (big ? 60 : 40) + Math.random() * 90;
-  parts.push({ x, d, vx: Math.cos(an) * s, vy: Math.sin(an) * s + pl.v * 0.85, t: 0, life: 0.35 + Math.random() * 0.4, col, z: Math.random() < 0.4 ? 3 : 2 });
+  particles.push({ x, d, vx: Math.cos(an) * s, vy: Math.sin(an) * s + player.v * 0.85, t: 0, life: 0.35 + Math.random() * 0.4, col, z: Math.random() < 0.4 ? 3 : 2 });
 }
 function sparks(x, d, cols, n, spread) { for (let i = 0; i < n; i++) burst(x + (Math.random() - 0.5) * (spread || 0), d, cols[i % cols.length]); }
 // A mine going off: a ball of fire puffs that cool from white to red and then to smoke, sparks, shell fragments,
 // a white flash with shock rings on top, and a big shake. The puffs drift down with him a little, so it stays on screen.
-const FIRE = [P.g, '#F6D46A', P.hot, P.a, P.crust, P.shade];
+const FIRE = [P.dust, '#F6D46A', P.hot, P.lava, P.crust, P.shade];
 function explode(x, d, r) {
   shake = Math.max(shake, 2.6);
   // hurt() plays the boom and buzz when the mine costs health. When it can't (shield up, or still blinking from a hit),
   // play them here, so a mine never goes off silently.
-  if (pl.shield > 0 || pl.inv > 0) Sfx.mine();
-  if (pl.shield <= 0 && pl.inv > 0) Buzz.mine();
-  const base = pl.v * 0.85;
-  for (let i = 0; i < 6; i++) parts.push({ fire: 1, smoke: 1, x: x + (Math.random() - 0.5) * r * 1.4, d: d + (Math.random() - 0.5) * r, vx: (Math.random() - 0.5) * 40, vy: base - 30, base: base - 24, drag: 3, r1: 8 + Math.random() * 6, t: -0.15 - Math.random() * 0.15, life: 1.0 + Math.random() * 0.4 });
+  if (player.shield > 0 || player.inv > 0) Sfx.mine();
+  if (player.shield <= 0 && player.inv > 0) Buzz.mine();
+  const base = player.v * 0.85;
+  for (let i = 0; i < 6; i++) particles.push({ fire: 1, smoke: 1, x: x + (Math.random() - 0.5) * r * 1.4, d: d + (Math.random() - 0.5) * r, vx: (Math.random() - 0.5) * 40, vy: base - 30, base: base - 24, drag: 3, r1: 8 + Math.random() * 6, t: -0.15 - Math.random() * 0.15, life: 1.0 + Math.random() * 0.4 });
   for (let i = 0; i < 13; i++) {
     const an = Math.random() * Math.PI * 2, s = 30 + Math.random() * 70, o = Math.random() * r * 0.6;
-    parts.push({ fire: 1, x: x + Math.cos(an) * o, d: d + Math.sin(an) * o, vx: Math.cos(an) * s, vy: base + Math.sin(an) * s, base, drag: 4, r1: 7 + Math.random() * 8, t: -Math.random() * 0.08, life: 0.55 + Math.random() * 0.35 });
+    particles.push({ fire: 1, x: x + Math.cos(an) * o, d: d + Math.sin(an) * o, vx: Math.cos(an) * s, vy: base + Math.sin(an) * s, base, drag: 4, r1: 7 + Math.random() * 8, t: -Math.random() * 0.08, life: 0.55 + Math.random() * 0.35 });
   }
-  sparks(x, d, [P.a, P.hot, P.g, MINE.mid, MINE.tip], 28, r);
-  for (let i = 0; i < 8; i++) { const an = Math.random() * Math.PI * 2, s = 90 + Math.random() * 110; parts.push({ x, d, vx: Math.cos(an) * s, vy: Math.sin(an) * s + pl.v * 0.85, t: 0, life: 0.5 + Math.random() * 0.4, col: i % 2 ? MINE.body : MINE.mid, z: 3 }); }
-  parts.push({ boom: 1, x, d, vx: 0, vy: 0, t: 0, life: 0.5 });
+  sparks(x, d, [P.lava, P.hot, P.dust, MINE.mid, MINE.tip], 28, r);
+  for (let i = 0; i < 8; i++) { const an = Math.random() * Math.PI * 2, s = 90 + Math.random() * 110; particles.push({ x, d, vx: Math.cos(an) * s, vy: Math.sin(an) * s + player.v * 0.85, t: 0, life: 0.5 + Math.random() * 0.4, col: i % 2 ? MINE.body : MINE.mid, z: 3 }); }
+  particles.push({ boom: 1, x, d, vx: 0, vy: 0, t: 0, life: 0.5 });
 }
 
 // ---------- damage and pickups ----------
@@ -3333,35 +3338,35 @@ function explode(x, d, r) {
 const MINE_DAMAGE = 2, HIT_INVULN_S = 1.0;
 function hurt(kind, x, d) {
   if (state !== 'play') return;
-  if (pl.shield > 0) {
+  if (player.shield > 0) {
     // One block per 0.4 s: lava drips stay put when they touch him, so without this they would block on every frame.
-    if (kind !== 'wall' && pl.blockT <= 0) { pl.blockT = 0.4; Buzz.block(); Sfx.block(); pop('BLOCKED', pl.x, pl.y - 6, 'good'); hitStop = 0.04; }
+    if (kind !== 'wall' && player.blockT <= 0) { player.blockT = 0.4; Buzz.block(); Sfx.block(); pop('BLOCKED', player.x, player.y - 6, 'good'); hitStop = 0.04; }
     return;
   }
-  if (pl.inv > 0) return;
+  if (player.inv > 0) return;
   // Mines cost two health, everything else one.
   const dmg = kind === 'mine' ? MINE_DAMAGE : 1;
-  pl.hp = Math.max(0, pl.hp - dmg); pl.inv = HIT_INVULN_S; shake = Math.max(shake, 1);
+  player.hp = Math.max(0, player.hp - dmg); player.inv = HIT_INVULN_S; shake = Math.max(shake, 1);
   // Hit-stop: the world freezes for a beat so the hit lands, with a white flash on the pilot.
-  hitStop = kind === 'mine' ? 0.12 : 0.07; pl.flash = 0.14;
-  if (pl.streak) { pl.streak = 0; renderStreak(); }
+  hitStop = kind === 'mine' ? 0.12 : 0.07; player.flash = 0.14;
+  if (player.streak) { player.streak = 0; renderStreak(); }
   Buzz[kind](); Sfx[kind]();
   setHP('hit', dmg);
-  pop('-' + dmg, pl.x, pl.y - 6, 'bad');
-  if (pl.hp <= 0) { lastHit = kind; die(); } else Sfx.hurtVoice(kind);
+  pop('-' + dmg, player.x, player.y - 6, 'bad');
+  if (player.hp <= 0) { lastHit = kind; die(); } else Sfx.hurtVoice(kind);
 }
 const SHIELD_S = 10, CLOSE_PX = 10;
 let orbChain = 0, lastOrbT = -9;
 function collect(it) {
   it.dead = true;
   if (it.kind === 'orb') {
-    pl.orbs++;
+    player.orbs++;
     // Crystals caught close together chime a step higher each time.
-    orbChain = ft - lastOrbT < 2.5 ? Math.min(orbChain + 1, 7) : 0; lastOrbT = ft;
+    orbChain = clock - lastOrbT < 2.5 ? Math.min(orbChain + 1, 7) : 0; lastOrbT = clock;
     Buzz.orb(); Sfx.orb(Math.pow(2, orbChain * 2 / 12));
     gainCrystal(it.x, it.d);
-    sparks(it.x, it.d, [P.g, P.grnL, P.grn], 10);
-    parts.push({ ring: 1, x: it.x, d: it.d, t: 0, life: 0.35 });
+    sparks(it.x, it.d, [P.dust, P.grnL, P.grn], 10);
+    particles.push({ ring: 1, x: it.x, d: it.d, t: 0, life: 0.35 });
   } else if (it.kind === 'part') {
     const pt = it.part;
     runParts[pt.id]++;
@@ -3375,27 +3380,27 @@ function collect(it) {
     pop('+1 ' + pt.name.toUpperCase(), it.x, it.d - 12, 'part');
     sparks(it.x, it.d, ['#F2C14E', '#FFFFFF', '#A9781B'], 10);
   } else {
-    giveShield(SHIELD_S + (pl.perks.longshield ? 5 : 0)); Buzz.shield(); Sfx.shield();
+    giveShield(SHIELD_S + (player.perks.longshield ? 5 : 0)); Buzz.shield(); Sfx.shield();
     pop('SHIELD', it.x, it.d - 12, 'shield');
-    sparks(it.x, it.d, [P.pur, P.purL, P.g], 12);
+    sparks(it.x, it.d, [P.pur, P.purL, P.dust], 12);
   }
 }
 
 // Passing a rock or mine within a few pixels builds a streak; every 8 pays a crystal, every 24 a short shield.
 function nearMiss(k) {
-  if (state !== 'play' || pl.shield > 0 || pl.inv > 0) return;
-  pl.streak++; pl.bestStreak = Math.max(pl.bestStreak, pl.streak);
-  Sfx.close(pl.streak);
-  pop(pl.streak > 1 ? 'CLOSE x' + pl.streak : 'CLOSE!', k.x, k.d - k.rr - 8, 'close');
-  if (pl.streak % 24 === 0) { giveShield(5); Sfx.streak(); Buzz.shield(); pop('STREAK SHIELD', pl.x, pl.y - 18, 'shield'); }
-  else if (pl.streak % 8 === 0) { Sfx.streak(); Buzz.orb(); gainCrystal(pl.x, pl.y + PILOT_CY, 'STREAK ' + pl.streak + '!'); }
+  if (state !== 'play' || player.shield > 0 || player.inv > 0) return;
+  player.streak++; player.bestStreak = Math.max(player.bestStreak, player.streak);
+  Sfx.close(player.streak);
+  pop(player.streak > 1 ? 'CLOSE x' + player.streak : 'CLOSE!', k.x, k.d - k.rr - 8, 'close');
+  if (player.streak % 24 === 0) { giveShield(5); Sfx.streak(); Buzz.shield(); pop('STREAK SHIELD', player.x, player.y - 18, 'shield'); }
+  else if (player.streak % 8 === 0) { Sfx.streak(); Buzz.orb(); gainCrystal(player.x, player.y + PILOT_CY, 'STREAK ' + player.streak + '!'); }
   renderStreak(true);
 }
 
 // ---------- update ----------
 function collide(prevX) {
-  const cd = pl.y + PILOT_CY, fresh = !pl.touch;
-  pl.touch = false;
+  const cd = player.y + PILOT_CY, fresh = !player.touch;
+  player.touch = false;
   let maxL = -1e9, minR = 1e9, iL = 1e9, iR = -1e9;
   for (let dd = cd - 10; dd <= cd + 12; dd += 2) {
     const e = edgeAt(dd);
@@ -3403,135 +3408,135 @@ function collide(prevX) {
     if (e.R < minR) minR = e.R;
     if (e.iR) { if (e.iL < iL) iL = e.iL; if (e.iR > iR) iR = e.iR; }
   }
-  if (pl.x - HB < maxL) {
-    pl.x = maxL + HB + 2; pl.vx = 170; pl.aim = Math.max(pl.aim, pl.x + 12); pl.touch = true;
-    if (fresh) sparks(maxL, cd, [P.rock, P.shade, P.g], 7);
+  if (player.x - HIT_HALF_W < maxL) {
+    player.x = maxL + HIT_HALF_W + 2; player.vx = 170; player.aim = Math.max(player.aim, player.x + 12); player.touch = true;
+    if (fresh) sparks(maxL, cd, [P.rock, P.shade, P.dust], 7);
     hurt('wall');
-  } else if (pl.x + HB > minR) {
-    pl.x = minR - HB - 2; pl.vx = -170; pl.aim = Math.min(pl.aim, pl.x - 12); pl.touch = true;
-    if (fresh) sparks(minR, cd, [P.rock, P.shade, P.g], 7);
+  } else if (player.x + HIT_HALF_W > minR) {
+    player.x = minR - HIT_HALF_W - 2; player.vx = -170; player.aim = Math.min(player.aim, player.x - 12); player.touch = true;
+    if (fresh) sparks(minR, cd, [P.rock, P.shade, P.dust], 7);
     hurt('wall');
   }
-  if (iR > iL && pl.x + HB > iL && pl.x - HB < iR) {
+  if (iR > iL && player.x + HIT_HALF_W > iL && player.x - HIT_HALF_W < iR) {
     const left = prevX < (iL + iR) / 2, ex = left ? iL : iR;
-    pl.x = left ? iL - HB - 2 : iR + HB + 2; pl.vx = left ? -170 : 170; pl.aim = left ? Math.min(pl.aim, pl.x - 12) : Math.max(pl.aim, pl.x + 12);
-    if (fresh) sparks(ex, cd, [P.rock, P.shade, P.g], 7);
-    pl.touch = true; hurt('wall');
+    player.x = left ? iL - HIT_HALF_W - 2 : iR + HIT_HALF_W + 2; player.vx = left ? -170 : 170; player.aim = left ? Math.min(player.aim, player.x - 12) : Math.max(player.aim, player.x + 12);
+    if (fresh) sparks(ex, cd, [P.rock, P.shade, P.dust], 7);
+    player.touch = true; hurt('wall');
   }
   for (const k of rocks) {
     if (k.dead) continue;
     // Near miss: remember the closest approach, and judge it once the rock is behind him.
     if (cd - k.d > 30) {
-      if (!k.passed) { k.passed = true; if (k.minN !== undefined && (k.minN - 1) * (k.rr + HB) < CLOSE_PX) nearMiss(k); }
+      if (!k.passed) { k.passed = true; if (k.minN !== undefined && (k.minN - 1) * (k.rr + HIT_HALF_W) < CLOSE_PX) nearMiss(k); }
       continue;
     }
     if (Math.abs(k.d - cd) > 30) continue;
-    const dx = (pl.x - k.x) / (k.rr + HB), dy = (cd - k.d) / (k.rr + 12), n2 = dx * dx + dy * dy;
+    const dx = (player.x - k.x) / (k.rr + HIT_HALF_W), dy = (cd - k.d) / (k.rr + 12), n2 = dx * dx + dy * dy;
     if (n2 >= 1) { k.minN = Math.min(k.minN === undefined ? 9 : k.minN, Math.sqrt(n2)); continue; }
     // A hit: knock him sideways, blow up the mine or shatter the rock, and take the damage.
     k.dead = true;
-    pl.vx = (pl.x >= k.x ? 1 : -1) * 150;
-    if (k.hot) explode(k.x, k.d, k.rr);
-    else sparks(k.x, k.d, [P.rock, P.shade, P.s], 8 + k.size * 4, k.rr);
-    hurt(k.hot ? 'mine' : 'rock');
+    player.vx = (player.x >= k.x ? 1 : -1) * 150;
+    if (k.isMine) explode(k.x, k.d, k.rr);
+    else sparks(k.x, k.d, [P.rock, P.shade, P.ink], 8 + k.size * 4, k.rr);
+    hurt(k.isMine ? 'mine' : 'rock');
   }
   for (const p of DROPS) {
     if (p.src) continue;
-    if (Math.abs(p.x + 2 - pl.x) < HB + 2 && Math.abs(p.d + 2 - cd) < 15) { sparks(p.x + 2, p.d, [P.a, P.hot], 5); hurt('lava'); break; }
+    if (Math.abs(p.x + 2 - player.x) < HIT_HALF_W + 2 && Math.abs(p.d + 2 - cd) < 15) { sparks(p.x + 2, p.d, [P.lava, P.hot], 5); hurt('lava'); break; }
   }
   for (const it of items) {
-    if (!it.dead && Math.abs(it.d - cd) < 18 && Math.abs(it.x - pl.x) < 17) collect(it);
+    if (!it.dead && Math.abs(it.d - cd) < 18 && Math.abs(it.x - player.x) < 17) collect(it);
   }
 }
 // In-place filters for the per-frame lists, so no new arrays are made every frame.
 function prune(arr, keep) { let n = 0; for (let i = 0; i < arr.length; i++) { const v = arr[i]; if (keep(v)) arr[n++] = v; } arr.length = n; }
-const partLive = p => p.t < p.life, thingLive = k => !k.dead && k.d > camY - 60;
+const particleLive = p => p.t < p.life, thingLive = k => !k.dead && k.d > camY - 60;
 function update(dt) {
   for (const f of flyers) { f.t += dt; if (f.t >= f.life) { f.hit = true; bump(f.el); if (f.done) f.done(); } }
   if (flyers.length) flyers = flyers.filter(f => !f.hit);
-  if (pl.flash > 0) pl.flash -= dt;
-  ft += dt;
+  if (player.flash > 0) player.flash -= dt;
+  clock += dt;
   if (shake > 0) shake = Math.max(0, shake - dt * 4);
-  for (const p of parts) { p.t += dt; if (!p.ring) { p.x += p.vx * dt; p.d += p.vy * dt; p.vx *= Math.exp(-3 * dt); if (p.drag) p.vy = p.base + (p.vy - p.base) * Math.exp(-p.drag * dt); } }
-  prune(parts, partLive);
+  for (const p of particles) { p.t += dt; if (!p.ring) { p.x += p.vx * dt; p.d += p.vy * dt; p.vx *= Math.exp(-3 * dt); if (p.drag) p.vy = p.base + (p.vy - p.base) * Math.exp(-p.drag * dt); } }
+  prune(particles, particleLive);
   if (state === 'launch') { updateLaunch(dt); return; }
   if (state === 'opening') { updateOpening(dt); return; }
   if (state === 'title' || state === 'over' || state === 'ended' || state === 'splash') return;
   if (state === 'intro') {
     introT += dt;
     const t = introT;
-    if (t < 0.2) { pl.x = 84; pl.y = -30; pl.pose = 'stand'; }
-    else if (t < 0.95) { pl.x = lerp(84, 128, (t - 0.2) / 0.75); pl.y = -30 - 2 * (Math.floor(t * 6) % 2); pl.pose = 'run'; }
-    else if (t < 1.3) { const p = seg(t, 0.95, 1.3); pl.x = lerp(128, 160, p); pl.y = -30 - 36 * Math.sin(Math.PI * p); pl.pose = 'fall'; }
-    else { const u = t - 1.3; pl.x = 160; pl.y = u < 0.5 ? -30 + 250 * u * u : 32.5 + 250 * (u - 0.5); pl.pose = 'fall'; }
+    if (t < 0.2) { player.x = 84; player.y = -30; player.pose = 'stand'; }
+    else if (t < 0.95) { player.x = lerp(84, 128, (t - 0.2) / 0.75); player.y = -30 - 2 * (Math.floor(t * 6) % 2); player.pose = 'run'; }
+    else if (t < 1.3) { const p = seg(t, 0.95, 1.3); player.x = lerp(128, 160, p); player.y = -30 - 36 * Math.sin(Math.PI * p); player.pose = 'fall'; }
+    else { const u = t - 1.3; player.x = 160; player.y = u < 0.5 ? -30 + 250 * u * u : 32.5 + 250 * (u - 0.5); player.pose = 'fall'; }
     if (t >= 0.95 && t - dt < 0.95) { Sfx.jump(); Music.leap(); }
     if (t >= 1.3 && t - dt < 1.3) Music.start();
-    camY = lerp(camY0, pl.y - MY, eio(seg(t, 0.9, 2.0)));
+    camY = lerp(camY0, player.y - pilotScreenY, easeInOut(seg(t, 0.9, 2.0)));
     Sfx.wind(seg(t, 1.3, 2.0) * 0.5);
     if (t >= 2.0) beginPlay();
-    while (nextSeg * SL < camY + H + 200) genSeg(nextSeg++);
+    while (nextSeg * SEG_LEN < camY + H + 200) genSeg(nextSeg++);
     return;
   }
   if (state === 'landing' || state === 'cafe' || state === 'cafeJump') { updateCafe(dt); return; }
   if (state === 'dying') {
     dieT += dt;
-    pl.y += pl.v * dt;
-    camY += pl.v * dt * Math.max(0, 1 - dieT * 1.6);
-    pl.thr *= Math.exp(-8 * dt);
+    player.y += player.v * dt;
+    camY += player.v * dt * Math.max(0, 1 - dieT * 1.6);
+    player.thr *= Math.exp(-8 * dt);
     if (dieT > 1.5) gameOver();
   } else {
-    if (pl.fallRamp < 1) pl.fallRamp = Math.min(1, pl.fallRamp + dt / 0.9);
-    const slow = pl.slowUntil > pl.y ? 0.8 : 1;
-    if (pl.slowUntil && pl.slowUntil <= pl.y) { pl.slowUntil = 0; pop('SLOW FALL OVER', pl.x, pl.y - 10); }
-    pl.v = speedAt(pl.y) * (0.08 + 0.92 * sm(pl.fallRamp)) * slow;
-    pl.y += pl.v * dt;
-    const prevX = pl.x;
+    if (player.fallRamp < 1) player.fallRamp = Math.min(1, player.fallRamp + dt / 0.9);
+    const slow = player.slowUntil > player.y ? 0.8 : 1;
+    if (player.slowUntil && player.slowUntil <= player.y) { player.slowUntil = 0; pop('SLOW FALL OVER', player.x, player.y - 10); }
+    player.v = speedAt(player.y) * (0.08 + 0.92 * smoothstep(player.fallRamp)) * slow;
+    player.y += player.v * dt;
+    const prevX = player.x;
     const td = tapDir(dt);
     let thrust;
-    const tb = pl.perks.turbo ? 1.2 : 1;
-    if (td) { thrust = td * TAP_T * tb; pl.aim = Math.max(8, Math.min(W - 8, pl.x + pl.vx * 0.12)); }
-    else { pl.aim = Math.max(8, Math.min(W - 8, pl.aim + steerAcc)); thrust = Math.max(-TMAX * tb, Math.min(TMAX * tb, KP * tb * (pl.aim - pl.x) - KD * pl.vx)); }
+    const tb = player.perks.turbo ? 1.2 : 1;
+    if (td) { thrust = td * TAP_T * tb; player.aim = Math.max(8, Math.min(W - 8, player.x + player.vx * 0.12)); }
+    else { player.aim = Math.max(8, Math.min(W - 8, player.aim + steerAcc)); thrust = Math.max(-TMAX * tb, Math.min(TMAX * tb, STEER_KP * tb * (player.aim - player.x) - STEER_KD * player.vx)); }
     steerAcc = 0;
-    pl.vx = Math.max(-VMAX * tb, Math.min(VMAX * tb, pl.vx + (thrust - DRAG * pl.vx) * dt));
-    pl.x += pl.vx * dt;
-    pl.thr += (thrust - pl.thr) * Math.min(1, dt * 20);
-    const tk = Math.min(1, Math.abs(pl.thr) / THR_FULL);
-    Sfx.thrust(Math.abs(pl.thr) > THR_SHOW ? 0.3 + 0.7 * tk : 0);
-    if (Math.abs(pl.thr) > THR_SHOW * 2.5 && (pl.puff -= dt) <= 0) {
-      const dir = pl.thr > 0 ? -1 : 1;
-      pl.puff = 0.045;
-      parts.push({ x: pl.x + dir * (20 + 12 * tk + Math.random() * 6), d: pl.y + 15 + Math.random() * 4, vx: dir * (40 + Math.random() * 50), vy: pl.v * 0.7, t: 0, life: 0.25 + Math.random() * 0.2, col: Math.random() < 0.5 ? P.lite : P.shade, z: 2 });
+    player.vx = Math.max(-VMAX * tb, Math.min(VMAX * tb, player.vx + (thrust - DRAG * player.vx) * dt));
+    player.x += player.vx * dt;
+    player.thr += (thrust - player.thr) * Math.min(1, dt * 20);
+    const tk = Math.min(1, Math.abs(player.thr) / THR_FULL);
+    Sfx.thrust(Math.abs(player.thr) > THR_SHOW ? 0.3 + 0.7 * tk : 0);
+    if (Math.abs(player.thr) > THR_SHOW * 2.5 && (player.puff -= dt) <= 0) {
+      const dir = player.thr > 0 ? -1 : 1;
+      player.puff = 0.045;
+      particles.push({ x: player.x + dir * (20 + 12 * tk + Math.random() * 6), d: player.y + 15 + Math.random() * 4, vx: dir * (40 + Math.random() * 50), vy: player.v * 0.7, t: 0, life: 0.25 + Math.random() * 0.2, col: Math.random() < 0.5 ? P.lite : P.shade, z: 2 });
     }
-    pl.x = Math.max(8, Math.min(W - 8, pl.x));
-    if (pl.inv > 0) pl.inv -= dt;
-    if (pl.blockT > 0) pl.blockT -= dt;
-    if (pl.shield > 0) {
-      pl.shield -= dt;
-      const pct = Math.max(0, Math.ceil(pl.shield / pl.shieldMax * 100));
+    player.x = Math.max(8, Math.min(W - 8, player.x));
+    if (player.inv > 0) player.inv -= dt;
+    if (player.blockT > 0) player.blockT -= dt;
+    if (player.shield > 0) {
+      player.shield -= dt;
+      const pct = Math.max(0, Math.ceil(player.shield / player.shieldMax * 100));
       if (pct !== shownShield) { shownShield = pct; shieldFill.style.width = pct + '%'; }
-      if (pl.shield <= 0) shieldEl.hidden = true;
+      if (player.shield <= 0) shieldEl.hidden = true;
     }
-    camY = pl.y - MY;
+    camY = player.y - pilotScreenY;
     dropList(camY);
     // Magnet perk: crystals, parts and bubbles within reach drift toward him.
-    if (pl.perks.magnet) for (const it of items) {
-      const dx = pl.x - it.x, dy = pl.y + PILOT_CY - it.d;
+    if (player.perks.magnet) for (const it of items) {
+      const dx = player.x - it.x, dy = player.y + PILOT_CY - it.d;
       if (!it.dead && dx * dx + dy * dy < 80 * 80) { const k = Math.min(1, dt * 7); it.x += dx * k; it.d += dy * k; }
     }
     collide(prevX);
     passFlags();
     if (state === 'play') checkCafe();
-    Sfx.wind(0.5 + 0.5 * sm((pl.v - 250) / 200));
+    Sfx.wind(0.5 + 0.5 * smoothstep((player.v - 250) / 200));
     Music.setDepth(depthM());
     setDepth();
     const zone = Math.floor(depthM() / ZONE_M);
-    if (zone > pl.zone) { pl.zone = zone; showCoach(zone * ZONE_M + ' M \u00b7 ' + MATS[matI(zone)].label.toUpperCase(), 2400); }
+    if (zone > player.zone) { player.zone = zone; showCoach(zone * ZONE_M + ' M \u00b7 ' + MATS[matI(zone)].label.toUpperCase(), 2400); }
   }
-  while (nextSeg * SL < camY + H + 200) genSeg(nextSeg++);
+  while (nextSeg * SEG_LEN < camY + H + 200) genSeg(nextSeg++);
   prune(rocks, thingLive);
   prune(items, thingLive);
-  for (const k of rocks) k.x = k.x0 + (k.amp ? k.amp * Math.sin(ft * k.sp + k.ph) : 0);
-  const keep = Math.floor((camY - 140) / TH);
+  for (const k of rocks) k.x = k.x0 + (k.amp ? k.amp * Math.sin(clock * k.sp + k.ph) : 0);
+  const keep = Math.floor((camY - 140) / TILE_H);
   for (const key of tiles.keys()) if (key < keep) { retireTile(tiles.get(key)); tiles.delete(key); }
 }
 
@@ -3559,7 +3564,7 @@ function render() {
     return;
   }
   c.setTransform(1, 0, 0, 1, sx, 0);
-  if (sx) { c.fillStyle = P.s; c.fillRect(-4, 0, W + 8, H); }
+  if (sx) { c.fillStyle = P.ink; c.fillRect(-4, 0, W + 8, H); }
   if (cam < 0) drawSky(cam);
   drawShaft(cam);
   if (cam < 20) drawProps(cam);
@@ -3573,23 +3578,23 @@ function render() {
   drawCafe(cam);
   for (const it of items) {
     if (it.dead) continue;
-    const y = Math.round(it.d - cam + Math.sin(ft * 5 + it.x) * 2);
+    const y = Math.round(it.d - cam + Math.sin(clock * 5 + it.x) * 2);
     if (y < -20 || y > H + 20) continue;
-    if (it.kind === 'orb') { ring(it.x, y, 11 + Math.round(Math.sin(ft * 4 + it.x)), P.grnL, 1); ring(it.x, y, 14 + Math.round(Math.sin(ft * 4 + it.x) * 2), P.grnD, 1); drawOrb(it.x, y, ft); }
-    else if (it.kind === 'part') drawPart(it.part, it.x, y, ft);
-    else drawBubble(it.x, y, ft);
+    if (it.kind === 'orb') { ring(it.x, y, 11 + Math.round(Math.sin(clock * 4 + it.x)), P.grnL, 1); ring(it.x, y, 14 + Math.round(Math.sin(clock * 4 + it.x) * 2), P.grnD, 1); drawOrb(it.x, y, clock); }
+    else if (it.kind === 'part') drawPart(it.part, it.x, y, clock);
+    else drawBubble(it.x, y, clock);
   }
   for (const k of rocks) {
-    const y = Math.round(k.d - cam + Math.sin(ft * 3 + k.d) * 2);
+    const y = Math.round(k.d - cam + Math.sin(clock * 3 + k.d) * 2);
     if (y < -24 || y > H + 24) continue;
-    if (k.hot) drawMine(k.x, y, k.rr, Math.floor(k.d) % 2);
+    if (k.isMine) drawMine(k.x, y, k.rr, Math.floor(k.d) % 2);
     else drawRock(k.x, y, k.size);
   }
   drawDrops(cam);
-  for (const p of parts) {
+  for (const p of particles) {
     const y = Math.round(p.d - cam);
-    if (p.ring) { const a = p.t / p.life; ring(p.x, y, 6 + a * 26, P.grnL); ring(p.x, y, 3 + a * 16, P.g); continue; }
-    if (p.boom) { const a = p.t / p.life; if (a < 0.4) disc(p.x, y, Math.round(22 * (1 - a / 0.4)), P.g); ring(p.x, y, 8 + a * 52, P.a); ring(p.x, y, 4 + a * 34, P.hot); continue; }
+    if (p.ring) { const a = p.t / p.life; ring(p.x, y, 6 + a * 26, P.grnL); ring(p.x, y, 3 + a * 16, P.dust); continue; }
+    if (p.boom) { const a = p.t / p.life; if (a < 0.4) disc(p.x, y, Math.round(22 * (1 - a / 0.4)), P.dust); ring(p.x, y, 8 + a * 52, P.lava); ring(p.x, y, 4 + a * 34, P.hot); continue; }
     if (p.fire) {
       if (p.t < 0) continue;
       const a = p.t / p.life, r = p.r1 * (a < 0.25 ? 0.45 + a * 2.2 : 1 - (a - 0.25) * 0.8);
@@ -3604,25 +3609,25 @@ function render() {
   // The pilot and what's attached to him go on the overlay canvas, placed from the exact camera, so he stays steady
   // while the world slides past.
   c = oc; c.setTransform(1, 0, 0, 1, sx, 0);
-  const my = pl.y - camY - sy;
-  if ((state !== 'dying' || dieT < 1.4) && !pl.hidden) {
-    const blink = state === 'play' && pl.inv > 0 && Math.floor(pl.inv * 6.6) % 2 === 1;
+  const my = player.y - camY - sy;
+  if ((state !== 'dying' || dieT < 1.4) && !player.hidden) {
+    const blink = state === 'play' && player.inv > 0 && Math.floor(player.inv * 6.6) % 2 === 1;
     if (blink) c.globalAlpha = 0.4;
-    if (pl.flash > 0 && state !== 'dying') { const a = pl.flash / 0.14; disc(pl.x, my + PILOT_CY, Math.round(10 + 8 * (1 - a)), P.g); ring(pl.x, my + PILOT_CY, Math.round(14 + 14 * (1 - a)), P.g); }
-    drawMan(pl.x + (state === 'dying' ? Math.round(Math.sin(ft * 40) * 2) : 0), my, pl.pose, ft, pl.thr);
+    if (player.flash > 0 && state !== 'dying') { const a = player.flash / 0.14; disc(player.x, my + PILOT_CY, Math.round(10 + 8 * (1 - a)), P.dust); ring(player.x, my + PILOT_CY, Math.round(14 + 14 * (1 - a)), P.dust); }
+    drawMan(player.x + (state === 'dying' ? Math.round(Math.sin(clock * 40) * 2) : 0), my, player.pose, clock, player.thr);
     c.globalAlpha = 1;
-    if (state === 'landing') { const x0 = Math.round(pl.x - 13), y0 = Math.round(my), fl = Math.floor(ft * 24) % 2, L = 8 + fl * 3; for (const nx of [x0 - 1, x0 + 25]) { c.fillStyle = P.a; c.fillRect(nx - 1, y0 + 23, 5, L); c.fillStyle = P.hot; c.fillRect(nx, y0 + 23, 3, L - 3); c.fillStyle = P.g; c.fillRect(nx + 1, y0 + 23, 1, 2); } }
+    if (state === 'landing') { const x0 = Math.round(player.x - 13), y0 = Math.round(my), fl = Math.floor(clock * 24) % 2, L = 8 + fl * 3; for (const nx of [x0 - 1, x0 + 25]) { c.fillStyle = P.lava; c.fillRect(nx - 1, y0 + 23, 5, L); c.fillStyle = P.hot; c.fillRect(nx, y0 + 23, 3, L - 3); c.fillStyle = P.dust; c.fillRect(nx + 1, y0 + 23, 1, 2); } }
     if (state === 'cafe' && cafeT > 0.7) {
-      const left = pl.pose === 'standL', x0 = Math.round(pl.x - 11), y0 = Math.round(my), sip = sm((cafeT - 0.85) / 0.2) * (1 - sm((cafeT - 1.35) / 0.25));
+      const left = player.pose === 'standL', x0 = Math.round(player.x - 11), y0 = Math.round(my), sip = smoothstep((cafeT - 0.85) / 0.2) * (1 - smoothstep((cafeT - 1.35) / 0.25));
       const mx = left ? x0 - 3 + Math.round(sip * 4) : x0 + 20 - Math.round(sip * 4), myy = y0 + 13 - Math.round(sip * 8);
-      c.fillStyle = P.s; c.fillRect(mx - 1, myy - 1, 7, 7); c.fillStyle = P.g; c.fillRect(mx, myy, 5, 5); c.fillStyle = P.m; c.fillRect(mx, myy + 2, 5, 1);
-      if (sip < 0.5) for (let j = 0; j < 5; j++) { c.fillStyle = j < 2 ? P.g : P.strata; c.fillRect(Math.round(mx + 2 + Math.sin(ft * 4 + j) * 1.5), myy - 2 - j * 2, 1, 1); }
+      c.fillStyle = P.ink; c.fillRect(mx - 1, myy - 1, 7, 7); c.fillStyle = P.dust; c.fillRect(mx, myy, 5, 5); c.fillStyle = P.blue; c.fillRect(mx, myy + 2, 5, 1);
+      if (sip < 0.5) for (let j = 0; j < 5; j++) { c.fillStyle = j < 2 ? P.dust : P.strata; c.fillRect(Math.round(mx + 2 + Math.sin(clock * 4 + j) * 1.5), myy - 2 - j * 2, 1, 1); }
     }
   }
-  if (pl.shield > 0 && state === 'play' && !(pl.shield < 1.2 && Math.floor(pl.shield * 5) % 2)) {
-    const r = 20 + Math.round(Math.sin(ft * 4));
-    ring(pl.x, my + PILOT_CY, r, P.purL); ring(pl.x, my + PILOT_CY, r + 2, P.pur, 1);
-    c.fillStyle = P.g; const an = ft * 3; c.fillRect(Math.round(pl.x + Math.cos(an) * r) - 1, Math.round(my + PILOT_CY + Math.sin(an) * r) - 1, 4, 4);
+  if (player.shield > 0 && state === 'play' && !(player.shield < 1.2 && Math.floor(player.shield * 5) % 2)) {
+    const r = 20 + Math.round(Math.sin(clock * 4));
+    ring(player.x, my + PILOT_CY, r, P.purL); ring(player.x, my + PILOT_CY, r + 2, P.pur, 1);
+    c.fillStyle = P.dust; const an = clock * 3; c.fillRect(Math.round(player.x + Math.cos(an) * r) - 1, Math.round(my + PILOT_CY + Math.sin(an) * r) - 1, 4, 4);
   }
   c.setTransform(1, 0, 0, 1, 0, 0);
   if (flyers.length) drawFlyers();
@@ -3641,7 +3646,7 @@ function resize() {
   pxY = Math.max(r.width / W, r.height / (H - 1));
   cv.style.cssText = ov.style.cssText = `width:${W * pxY}px;height:${H * pxY}px;left:${(r.width - W * pxY) / 2}px;top:${(r.height - (H - 1) * pxY) / 2}px`;
   shownShift = null;
-  MY = Math.round(H * 0.3);
+  pilotScreenY = Math.round(H * 0.3);
   sizeHP();
   const was = camY0; camY0 = -Math.round(H * 0.56);
   if (state === 'title' || camY === was) camY = camY0;

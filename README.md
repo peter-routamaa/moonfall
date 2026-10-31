@@ -30,10 +30,11 @@ Nothing in this repository is secret: the game file holds no keys or passwords, 
 You need Python 3, Node 22.13 or newer (for the function test), and Google Chrome for screenshots (the screenshot script is written for a Mac).
 
 1. Edit `src/moonfall.html`. Search for `// ---------- ` to jump between sections; the guide at the top of the script explains the states, units and canvases. When publishing a new version, add one to `VERSION` near the top (the title card shows it as v0.NN).
-2. Try it: `python3 tools/test_pages.py`, then `python3 -m http.server 8766 -d tools/out` and open http://localhost:8766/test-board.html (the game with a pretend online board, so nothing real is sent). In the browser console, `__mf` gives you the game's internals, for example `__mf.pl` (the pilot) or `__mf.state`.
+2. Try it: `python3 tools/test_pages.py`, then `python3 -m http.server 8766 -d tools/out` and open http://localhost:8766/test-board.html (the game with a pretend online board, so nothing real is sent). In the browser console, `__mf` gives you the game's internals, for example `__mf.player` (the pilot) or `__mf.state`.
 3. Screenshots at a phone size, with that server running: `tools/shoot.sh 375 667 tools/out/title.png "scene=title"`. Scenes: `splash`, `title` (add `&card=how` or `&card=settings`), `pause`, `cafe` (add `&face=shop` or `&face=tips`), `sign` (add `&side=1` for the right).
-4. If you changed the scoreboard function: `node tools/test_function.mjs` (runs it against a pretend database; it should say all checks passed). Deploy it in Supabase as described below.
-5. Build the website copy: `python3 tools/build_site.py`, then commit and push. GitHub Pages updates a minute or two later.
+4. If you tidied code and meant to change nothing on screen: `git show HEAD:src/moonfall.html > /tmp/before.html`, then `python3 tools/same_pixels.py /tmp/before.html`. It plays the same scripted session on both versions (title, falling, mines, a café and its shop, dying, the opening film, the launch) and says SAME if every pixel matches.
+5. If you changed the scoreboard function: `node tools/test_function.mjs` (runs it against a pretend database; it should say all checks passed). Deploy it in Supabase as described below.
+6. Build the website copy: `python3 tools/build_site.py`, then commit and push. GitHub Pages updates a minute or two later.
 
 The claude.ai artifact is published from `src/moonfall.html` by the owner, with Claude.
 
