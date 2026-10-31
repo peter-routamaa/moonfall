@@ -34,7 +34,7 @@ window.fetch = async (url, init = {}) => {
   return new Response(JSON.stringify({ top: top() }));
 };"""
 
-# Scenes for screenshots: ?scene=splash|title|pause|cafe|sign, plus options (see each branch).
+# Scenes for screenshots: ?scene=splash|title|launch|pause|cafe|sign, plus options (see each branch).
 SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;animation-delay:0s!important}</style><script>
 (async () => {
   const q = new URLSearchParams(location.search), M = window.__mf, pl = M.player, wait = ms => new Promise(f => setTimeout(f, ms));
@@ -44,6 +44,10 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
   await wait(300);
   if (q.get('scene') === 'splash') { M.clock = +(q.get('ft') || 0); M.render(); M.state = 'paused'; document.title = 'ready'; return; }
   document.getElementById('splashSkip').click(); await wait(300);
+  if (q.get('scene') === 'launch') {   // the ending at ?t= seconds
+    M.startLaunch(); for (let i = 0; i < Math.round(+(q.get('t') || 0) * 60); i++) M.update(1 / 60);
+    document.querySelectorAll('.pop').forEach(e => { if (!q.get('pops')) e.remove(); }); M.prepaint(M.camY); M.render(); document.title = 'ready'; return;
+  }
   if (q.get('scene') === 'title') {
     for (let i = 0; i < 60; i++) M.update(1 / 60);
     if (q.get('card')) { document.getElementById(q.get('card') === 'how' ? 'howBtn' : 'settingsBtn').click(); await wait(800); }

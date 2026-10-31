@@ -527,7 +527,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 58;
+const VERSION = 59;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -1644,20 +1644,20 @@ function drawSky(cam) {
       up = Math.floor(T * 6 + k) % 2;
     c.fillRect(gx - 4, gyy - (up ? 2 : 0), 3, 1); c.fillRect(gx - 1, gyy, 3, 1); c.fillRect(gx + 2, gyy - (up ? 2 : 0), 3, 1);
   }
-  const smokeN = wrecked ? Math.round(9 * (1 - repair * 0.9)) : 0;
+  const dmg = shipDamage(), smokeN = wrecked ? Math.round(9 * dmg.smoke) : 0;
   for (let i = 0; i < smokeN; i++) {
     const ph = (T * 0.32 + i / 9) % 1, r = Math.round(4 + ph * 13), sx = SHIP_X + 20 - ph * 34 + Math.sin(ph * 6 + i) * 6, syy = -36 - ph * 110;
     disc(sx, Y(syy), r, P.shade); disc(sx - 2, Y(syy - 2), Math.max(1, r - 3), i % 2 ? P.hill : P.strata);
   }
   if (state === 'launch' && launchShip) drawShipAt(launchShip.x, Y(launchShip.y), launchShip.a, launchShip.f, launchShip.glow);
   else if (!wrecked) { if (introShip) drawShipAt(introShip.x, Y(introShip.y), introShip.a, 0, 0, introShip.scale, true, introShip.empty); }
-  else if (state !== 'ended') c.drawImage(ship, SHIP_X, Y(-80));
-  if (wrecked && repair < 1) {
-    const fs = 1 - repair * 0.7;
+  else if (state !== 'ended') { c.drawImage(ship, SHIP_X, Y(-80)); if (dmg.shine >= 0) shipShine(SHIP_X, Y(-80), dmg.shine); }
+  if (wrecked && dmg.fire > 0) {
+    const fs = dmg.fire;
     disc(SHIP_X + 20, Y(-33), Math.max(1, Math.round((5 + 2 * Math.sin(T * 9)) * fs)), P.lava);
     disc(SHIP_X + 19, Y(-34), Math.max(1, Math.round((2 + Math.sin(T * 7)) * fs)), P.hot);
   }
-  if (wrecked && repair < 0.6) for (let i = 0; i < 6; i++) {
+  if (wrecked && dmg.sparks) for (let i = 0; i < 6; i++) {
     const ph = (T * 1.1 + i * 0.19) % 1;
     c.fillStyle = ph < 0.2 ? P.hot : P.lava;
     c.fillRect(Math.round(SHIP_X + 20 + ph * 30 * (i % 2 ? 1 : -0.7)), Y(-34 - 36 * ph + 60 * ph * ph), 2, 2);
@@ -2135,6 +2135,9 @@ const Sfx = (() => {
     },
     stopIntro() { for (const n of introNodes) { try { n.stop(); } catch (e) {} } introNodes.length = 0; this.stopEngine(); },
     stopEngine() { try { if (engineSrc) engineSrc.stop(); } catch (e) {} engineSrc = null; },
+    weld() { noise(0.1, 'highpass', 3800, 0.22); noise(0.07, 'bandpass', 1700, 0.16, 0.04); tone('square', 118, 108, 0.1, 0.04); },
+    clang() { tone('triangle', 1180, 1150, 0.4, 0.28); tone('sine', 2650, 2580, 0.28, 0.12); tone('square', 560, 530, 0.07, 0.07); noise(0.04, 'highpass', 5000, 0.35); },
+    repaired() { [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, f, 0.32, 0.2, i * 0.09)); tone('sine', 2093, 2093, 0.5, 0.06, 0.36); },
     hatch() { tone('square', 220, 110, 0.08, 0.2); noise(0.06, 'bandpass', 900, 0.4); },
     engine() {
       if (!ctx) return;
@@ -3681,7 +3684,107 @@ function drawIntroSpace(t, sx, sy) {
   c.setTransform(1, 0, 0, 1, 0, 0);
 }
 // ---------- the launch: run to the ship, climb in, rumble, tip upright, blast off ----------
-const LAUNCH = { wave: 1.0, board: 3.0, aboard: 3.5, rumble: 4.0, lift: 6.5, climb: 8.0, groove: 9.9, space: 15.0, end: 20.0 };
+// The ending starts with the repair, seconds from the start: he runs to the ship, jetpacks up to the burning tail and welds
+// it, lands and hammers the hull, steps back as the smoke clears and a shine runs over the ship. Then the launch runs on
+// its original timings, shifted to start once the repair is done: wave, climb aboard, rumble, tip upright, blast off.
+const REPAIR = { toShip: 1.0, hop: 1.6, weld: 4.4, drop: 5.0, hammer: 7.2, back: 7.7, shine: 8.4, done: 8.8 };
+const REPAIR_HITS = 4, WELD_AT = { x: 9, y: -34 }, HAMMER_AT = { x: 49, y: -15 };
+const LAUNCH = Object.fromEntries(Object.entries({ wave: 1.0, board: 3.0, aboard: 3.5, rumble: 4.0, lift: 6.5, climb: 8.0, groove: 9.9, space: 15.0, end: 20.0 })
+  .map(([k, v]) => [k, v + REPAIR.done]));
+// How broken the crashed ship looks: fire on the tail, sparks, smoke. Fully broken until the repair scene fixes it.
+// `shine` is the light sweeping over the mended ship (0 to 1), or -1 when there's none.
+function shipDamage() {
+  if (state !== 'launch') return { fire: 1, smoke: 1, sparks: true, shine: -1 };
+  const t = launchT, R = REPAIR, weld = smoothstep((t - R.hop) / (R.weld - R.hop));
+  return { fire: 1 - weld, sparks: weld < 0.5, smoke: 1 - smoothstep((t - R.hammer) / (R.shine - R.hammer)),
+    shine: t >= R.back && t < R.shine ? (t - R.back) / (R.shine - R.back) : -1 };
+}
+// A band of light crossing the ship's picture, only where the ship is.
+let shineCv = null;
+function shipShine(x, y, k) {
+  if (!shineCv) { shineCv = document.createElement('canvas'); shineCv.width = ship.width; shineCv.height = ship.height; }
+  const g = shineCv.getContext('2d'), bx = lerp(-40, ship.width + 40, k);
+  g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, ship.width, ship.height); g.drawImage(ship, 0, 0);
+  g.globalCompositeOperation = 'source-atop'; g.fillStyle = '#FFFFFF';
+  g.beginPath(); g.moveTo(bx, 0); g.lineTo(bx + 14, 0); g.lineTo(bx - 26, ship.height); g.lineTo(bx - 40, ship.height); g.closePath(); g.fill();
+  g.globalCompositeOperation = 'source-over';
+  c.globalAlpha = 0.7; c.drawImage(shineCv, x, y); c.globalAlpha = 1;
+}
+// The repair scene's moves: where he is and what he's doing at time t.
+function repairScene(t, dt, crossed) {
+  const R = REPAIR;
+  player.hidden = false; player.thr = 0;
+  if (t < R.toShip) {
+    player.x = lerp(84, 40, t / R.toShip); player.y = -30 - 2 * (Math.floor(t * 6) % 2); player.pose = 'runL';
+  } else if (t < R.hop) {
+    const k = easeInOut((t - R.toShip) / (R.hop - R.toShip));
+    player.x = lerp(40, 26, k); player.y = lerp(-30, -49, k); player.pose = 'standL';
+  } else if (t < R.weld) {
+    player.x = 26; player.y = -49 + Math.round(Math.sin(t * 5)); player.pose = 'standL';
+    // Welding: sparks fly from the torch tip, with a crackle every so often.
+    for (let i = 0; i < 2; i++) {
+      const an = Math.PI * (0.6 + Math.random() * 0.9), sp = 40 + Math.random() * 90;
+      particles.push({ x: WELD_AT.x, d: WELD_AT.y, vx: Math.cos(an) * sp, vy: -Math.sin(an) * sp * 0.6, base: 80, drag: 2.5,
+        t: 0, life: 0.3 + Math.random() * 0.35, col: [P.dust, '#F6D46A', P.hot][i + (Math.random() < 0.5 ? 0 : 1)], z: 1 + (Math.random() < 0.3 ? 1 : 0) });
+    }
+    if (Math.floor(t / 0.18) !== Math.floor((t - dt) / 0.18)) Sfx.weld();
+  } else if (t < R.drop) {
+    const k = easeInOut((t - R.weld) / (R.drop - R.weld));
+    player.x = lerp(26, 70, k); player.y = lerp(-49, -30, k); player.pose = 'stand';
+  } else if (t < R.hammer) {
+    player.x = 70; player.y = -30; player.pose = 'standL';
+  } else if (t < R.back) {
+    const k = (t - R.hammer) / (R.back - R.hammer);
+    player.x = lerp(70, 84, k); player.y = -30 - 2 * (Math.floor(t * 6) % 2); player.pose = 'run';
+  } else { player.x = 84; player.y = -30; player.pose = 'standL'; }
+  // The jetpack hisses while he's off the ground.
+  if (crossed(R.toShip)) Sfx.thrust(0.5);
+  if (crossed(R.drop)) Sfx.thrust(0);
+  // Hammer blows: CLANG, sparks, a jolt.
+  for (let i = 0; i < REPAIR_HITS; i++) {
+    if (!crossed(hammerHitAt(i))) continue;
+    Sfx.clang(); Buzz.orb(); shake = Math.max(shake, 0.35);
+    sparks(HAMMER_AT.x, HAMMER_AT.y, [P.dust, '#F6D46A', P.strata], 8);
+  }
+  if (crossed(R.back + 0.3)) { Sfx.repaired(); pop('SHIP REPAIRED!', 58, -64, 'good'); }
+}
+const hammerHitAt = i => REPAIR.drop + 0.55 + i * 0.42;
+// His tools, drawn on top of him: jet flames while flying, the welding torch and its arc, the hammer's swing.
+function drawRepairTools(my) {
+  const R = REPAIR, t = launchT, hx = Math.round(player.x - 12), hy = Math.round(my + 15);
+  if (t >= R.toShip && t < R.drop) {
+    const x0 = Math.round(player.x - 13), y0 = Math.round(my), L = 4 + (Math.floor(clock * 24) % 2) * 3;
+    for (const nx of [x0 - 1, x0 + 25]) {
+      c.fillStyle = P.lava; c.fillRect(nx - 1, y0 + 23, 5, L);
+      c.fillStyle = P.hot; c.fillRect(nx, y0 + 23, 3, L - 2);
+    }
+  }
+  if (t >= R.hop && t < R.weld) {
+    c.fillStyle = P.ink; c.fillRect(hx - 4, hy - 1, 5, 3);
+    c.fillStyle = P.rock2; c.fillRect(hx - 3, hy, 3, 1);
+    // The arc: a flickering white-hot point in a blue ring, lighting up the hull around it.
+    const r = 1 + Math.floor(Math.random() * 3);
+    c.globalAlpha = 0.22 + Math.random() * 0.18; disc(hx - 6, hy, 9 + Math.floor(Math.random() * 4), '#8EEBF5'); c.globalAlpha = 1;
+    ring(hx - 6, hy, r + 3, '#8EEBF5', 1); disc(hx - 6, hy, r, P.dust);
+  }
+  if (t >= R.drop && t < R.hammer) {
+    // Each blow: lift the hammer up behind, then bring it down fast onto the hull.
+    let up = 0;
+    for (let i = 0; i < REPAIR_HITS; i++) {
+      const p = (t - (hammerHitAt(i) - 0.42)) / 0.42;
+      if (p >= 0 && p < 1) up = p < 0.85 ? smoothstep(p / 0.85) * 1.3 : 1.3 * (1 - (p - 0.85) / 0.15);   // lands as p reaches 1
+    }
+    up = Math.max(0, up);
+    const dx = -Math.cos(up), dy = -Math.sin(up);
+    c.fillStyle = '#8F4A1E';
+    for (let k = 0; k < 9; k++) c.fillRect(Math.round(hx + dx * k), Math.round(hy + dy * k), 2, 2);
+    const ex = Math.round(hx + dx * 9), ey = Math.round(hy + dy * 9);
+    c.fillStyle = P.ink; c.fillRect(ex - 3, ey - 4, 7, 8);
+    c.fillStyle = P.rock2; c.fillRect(ex - 2, ey - 3, 5, 6);
+    c.fillStyle = P.dust; c.fillRect(ex - 2, ey - 3, 1, 2);
+  }
+}
+const LAUNCH_ORIGINAL_START_X = 84;
 function startLaunch() {
   Sfx.init(); resetRun();
   setState('launch'); launchT = 0; launchShip = null;
@@ -3689,13 +3792,17 @@ function startLaunch() {
   showCoach('TAP TO SKIP', 1800);
 }
 function skipLaunch() {
-  Sfx.stopEngine(); Music.stop(0.3); shake = 0; launchT = LAUNCH.end; showEnd();
+  Sfx.stopEngine(); Sfx.thrust(0); Music.stop(0.3); shake = 0; launchT = LAUNCH.end; showEnd();
 }
 function updateLaunch(dt) {
   launchT += dt;
   const L = LAUNCH, t = launchT, crossed = at => t >= at && t - dt < at;
-  // He runs back, turns to wave goodbye, then climbs aboard.
-  if (t < L.wave) { player.x = lerp(84, 64, t / L.wave); player.y = -30 - 2 * (Math.floor(t * 6) % 2); player.pose = 'runL'; }
+  // First the repair; then he runs back, turns to wave goodbye, and climbs aboard.
+  if (t < REPAIR.done) repairScene(t, dt, crossed);
+  else if (t < L.wave) {
+    player.x = lerp(LAUNCH_ORIGINAL_START_X, 64, (t - REPAIR.done) / (L.wave - REPAIR.done));
+    player.y = -30 - 2 * (Math.floor(t * 6) % 2); player.pose = 'runL';
+  }
   else if (t < L.board) { player.x = 64; player.y = -30; player.pose = 'wave'; }
   else if (t < L.aboard) {
     player.x = lerp(64, 52, (t - L.board) / (L.aboard - L.board));
@@ -4269,6 +4376,7 @@ function render() {
       ring(player.x, my + PILOT_CY, Math.round(14 + 14 * (1 - a)), P.dust);
     }
     drawMan(player.x + (state === 'dying' ? Math.round(Math.sin(clock * 40) * 2) : 0), my, player.pose, clock, player.thr);
+    if (state === 'launch' && launchT < REPAIR.done) drawRepairTools(my);
     c.globalAlpha = 1;
     if (state === 'landing') {
       const x0 = Math.round(player.x - 13), y0 = Math.round(my), fl = Math.floor(clock * 24) % 2, L = 8 + fl * 3;
