@@ -10,7 +10,8 @@ Play it at **https://peter-routamaa.github.io/moonfall/**. The `docs` folder is 
 |---|---|
 | `docs/index.html` | The whole game in one file. This is the website people open. |
 | `supabase/migrations/20261031000000_scores.sql` | Creates the online high score table. |
-| `supabase/functions/scores/index.ts` | The small server function that saves runs and returns the top 10. |
+| `supabase/migrations/20261031130000_plays.sql` | Creates the private play counter: the `plays` table and the `play_stats` view. |
+| `supabase/functions/scores/index.ts` | The small server function: saves runs, returns the top 10, and counts plays. |
 
 The game works on its own: each device keeps its own top 10. When `SCORES_URL` in `docs/index.html` is set, the high score table also shows an online board shared by everyone who plays.
 
@@ -33,7 +34,7 @@ Anyone can read this repository, but only people you add can change it. To let a
 
 To set it up from scratch:
 
-1. In the project's **SQL Editor**, run the whole of `supabase/migrations/20261031000000_scores.sql`. It creates a `scores` table that only the function can read or write.
+1. In the project's **SQL Editor**, run `supabase/migrations/20261031000000_scores.sql`, then `supabase/migrations/20261031130000_plays.sql`. They create the `scores` and `plays` tables, which only the function can read or write, and the `play_stats` view.
 2. In **Edge Functions**, create a function named exactly `scores` with the code from `supabase/functions/scores/index.ts`, deploy it, and turn **off** JWT verification in its settings.
 3. Open the function URL in a browser. You should see `{"top":[...]}`. An error about a missing authorization header means JWT verification is still on.
 4. Put the function URL in `docs/index.html`:
@@ -42,6 +43,20 @@ To set it up from scratch:
    ```
 
 From the command line instead: `supabase functions deploy scores --no-verify-jwt`.
+
+## Play counter (private)
+
+Each device gets an anonymous random ID the first time it plays (16 hex characters, stored in the browser; no name or anything personal), and every run sends one ping with it. Only the owner can see the numbers, in Supabase:
+
+- **Table Editor → `play_stats`**, or run `select * from play_stats;` in the SQL Editor.
+- `unique_players` counts devices (one person on a phone and a laptop counts twice; clearing the browser's data counts again).
+- `total_plays` counts runs. Repeat pings from the same device within 5 seconds are ignored.
+- Both also come as `players_last_7_days` and `plays_last_7_days`.
+- The ID `ffffffffffffffff` is reserved for testing and isn't counted.
+
+## Name filter
+
+Kids may play, so rude or offensive initials are refused: the game won't accept them, the function rejects them, and any already stored show as `???`. The list lives in two places that should be kept the same: `BAD_INITIALS` in `docs/index.html` and `BAD` in `supabase/functions/scores/index.ts`.
 
 ## How the online board behaves
 

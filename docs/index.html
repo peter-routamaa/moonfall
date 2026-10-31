@@ -131,6 +131,9 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .hs-depth small { font-size: 18px; margin-left: 4px; }
 .hs-rank, .hs-where { margin: 0; font: 400 12px/1 var(--display); letter-spacing: .06em; color: var(--dust-dim); }
 .score-card .hint { margin: 0; }
+.score-card .hint.bad { color: var(--lava); }
+.initials.no { animation: no .3s steps(4); }
+@keyframes no { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
 .initials { display: flex; justify-content: center; gap: 14px; }
 .slot { display: grid; justify-items: center; gap: 6px; }
 .slot .arrow { width: 56px; height: 38px; border: 0; padding: 0; background: var(--ink-soft); color: var(--dust); display: grid; place-items: center; cursor: pointer; touch-action: manipulation; }
@@ -406,7 +409,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
       <span class="newbest gold">NEW HIGH SCORE</span>
       <p class="hs-depth"><b id="hsDepth">0</b><small>m</small></p>
       <p class="hs-rank" id="hsRank">RANK 1</p>
-      <p class="hint">Enter your initials</p>
+      <p class="hint" id="hsHint">Enter your initials</p>
       <div class="initials" id="initials">
         <div class="slot" data-slot="0">
           <button class="arrow" type="button" data-step="1" aria-label="Letter 1, next"><svg viewBox="0 0 7 4" width="21" height="12" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1h-1zM2 1h3v1h-3zM1 2h5v1h-5zM0 3h7v1h-7z"/></svg></button>
@@ -2293,9 +2296,18 @@ confirmDlg.addEventListener('close', () => $('resetBtn').focus({ preventScroll: 
 $('settingsBtn').addEventListener('click', () => setCard('settings'));
 $('howDone').addEventListener('click', () => setCard(null));
 $('settingsDone').addEventListener('click', () => setCard(null));
+// Play counter for the owner's Supabase dashboard: a random ID made once per device (no name, nothing personal) and one ping per run.
+function countPlay() {
+  if (!SCORES_URL) return;
+  if (!/^[0-9a-f]{16}$/.test(save.playerId || '')) {
+    const b = new Uint8Array(8); crypto.getRandomValues(b);
+    save.playerId = [...b].map(x => x.toString(16).padStart(2, '0')).join(''); persist();
+  }
+  fetch(SCORES_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: 'play', player: save.playerId }), keepalive: true }).catch(() => {});
+}
 function startRun(quick) {
   Sfx.init(); Music.stop(0.4); setCard(null, true);
-  resetRun();
+  resetRun(); countPlay();
   state = 'intro'; introT = quick ? 0.94 : 0;
   if (quick) { pl.x = 128; pl.pose = 'run'; }
   showScreen(null); hud.classList.remove('off');
@@ -2343,6 +2355,11 @@ function gameOver() {
 // Online board: the URL of the `scores` Supabase Edge Function (see README.md). Empty = this device only.
 const SCORES_URL = 'https://ukjajizsnowmdjziqkof.supabase.co/functions/v1/scores';
 const HS_MAX = 10, LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+// Initials that aren't allowed, since kids play this: refused when entered, and shown as ??? if one is ever on a board.
+// Keep in step with the same list in supabase/functions/scores/index.ts.
+const BAD_INITIALS = new Set(['ARS', 'ASS', 'BCH', 'CNT', 'COC', 'COK', 'CUM', 'DCK', 'DIC', 'DIK', 'DIX', 'FAG', 'FCK', 'FCU', 'FGT', 'FKU', 'FUC', 'FUK', 'FUQ', 'FUX', 'GFY',
+  'HOE', 'HOR', 'JIZ', 'JZZ', 'KKK', 'KMS', 'KNT', 'KYS', 'NAZ', 'NGA', 'NGR', 'NIG', 'NZI', 'PIS', 'PNS', 'PSS', 'PUS', 'SEX', 'SHT', 'SLT', 'SLU', 'SXY', 'TIT', 'TWT', 'VAG', 'WNK', 'WTF', 'XXX']);
+const showName = i => BAD_INITIALS.has(i) ? '???' : i;
 if (!Array.isArray(save.scores)) save.scores = save.best > 0 ? [{ i: '???', m: save.best, t: 0 }] : [];
 if (!Array.isArray(save.outbox)) save.outbox = [];
 let scoreOpen = false, hsPending = 0, hsSlot = 0, hsNew = -1, hsHold = 0, hsFrom = 'over';
@@ -2351,7 +2368,10 @@ const hsInit = (typeof save.initials === 'string' && /^[A-Z]{3}$/.test(save.init
 const hsSlots = [...document.querySelectorAll('#initials .slot')];
 const qualifies = m => m > 0 && (save.scores.length < HS_MAX || m > save.scores[HS_MAX - 1].m);
 function hsRankOf(m) { const k = save.scores.findIndex(s => m > s.m); return (k < 0 ? save.scores.length : k) + 1; }
-function hsDraw() { hsSlots.forEach((el, k) => { el.querySelector('.letter').textContent = hsInit[k]; el.classList.toggle('on', k === hsSlot); }); }
+function hsDraw() {
+  const hint = $('hsHint'); hint.textContent = 'Enter your initials'; hint.classList.remove('bad');
+  hsSlots.forEach((el, k) => { el.querySelector('.letter').textContent = hsInit[k]; el.classList.toggle('on', k === hsSlot); });
+}
 function hsStep(k, d) { hsSlot = k; hsInit[k] = LETTERS[(LETTERS.indexOf(hsInit[k]) + d + LETTERS.length) % LETTERS.length]; hsDraw(); Sfx.bleep(d > 0 ? 880 : 660); }
 function showScores(m) {
   scoreOpen = true; hsFrom = 'over'; hsPending = m; hsSlot = 0; hsNew = -1;
@@ -2369,6 +2389,12 @@ function openBoard() {
   $('hsDone').focus({ preventScroll: true });
 }
 function saveScore() {
+  if (BAD_INITIALS.has(hsInit.join(''))) {
+    const hint = $('hsHint'), box = $('initials');
+    hint.textContent = 'Those initials aren\u2019t allowed. Try others.'; hint.classList.add('bad');
+    box.classList.remove('no'); void box.offsetWidth; box.classList.add('no'); Sfx.block();
+    return;
+  }
   const entry = { i: hsInit.join(''), m: hsPending, t: Date.now() };
   save.initials = entry.i;
   save.scores.splice(hsRankOf(entry.m) - 1, 0, entry); save.scores.length = Math.min(save.scores.length, HS_MAX);
@@ -2388,11 +2414,11 @@ function renderTable() {
   $('hsTabOnline').setAttribute('aria-pressed', hsTab === 'online'); $('hsTabLocal').setAttribute('aria-pressed', hsTab === 'local');
   let rows = [], note;
   if (hsTab === 'local') {
-    rows = save.scores.map((s, k) => ({ n: k + 1, i: s.i, m: s.m, you: k === hsNew }));
+    rows = save.scores.map((s, k) => ({ n: k + 1, i: showName(s.i), m: s.m, you: k === hsNew }));
     note = hsErr || (rows.length ? 'Saved on this device' : 'No runs yet');
   } else if (!hsOnline) note = 'Loading the online board…';
   else {
-    rows = hsOnline.top.map((s, k) => ({ n: k + 1, i: s.initials, m: s.depth, you: s.id === hsOnline.id }));
+    rows = hsOnline.top.map((s, k) => ({ n: k + 1, i: showName(String(s.initials)), m: s.depth, you: s.id === hsOnline.id }));
     if (hsOnline.rank > HS_MAX) rows.push(null, { n: hsOnline.rank, i: hsOnline.me.i, m: hsOnline.me.m, you: true });
     note = rows.length ? 'Everyone with the link' : 'No scores yet. Be the first!';
   }
@@ -2596,7 +2622,7 @@ function perkSummary() { return pl.bought.length ? 'Treats: ' + pl.bought.join('
 let flags = [], nextFlag = 0;
 function boardRows() {
   const cache = SCORES_URL && save.boardCache && Array.isArray(save.boardCache.top) ? save.boardCache.top : null;
-  const rows = cache ? cache.map(s => ({ i: String(s.initials).slice(0, 3), m: s.depth })) : save.scores.map(s => ({ i: s.i === '???' ? 'BEST' : s.i, m: s.m }));
+  const rows = cache ? cache.map(s => ({ i: showName(String(s.initials).slice(0, 3)), m: s.depth })) : save.scores.map(s => ({ i: s.i === '???' ? 'BEST' : showName(s.i), m: s.m }));
   return rows.filter(r => Number.isFinite(r.m) && r.m >= 30);
 }
 function buildFlags() {
