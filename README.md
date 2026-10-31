@@ -2,30 +2,27 @@
 
 A pixel-art phone game by PermaFrost Productions. Fall through the moon, dodge the walls, collect parts and repair your ship.
 
-This repository is private. Only the `public` folder is published as the website.
+Play it at **https://peter-routamaa.github.io/moonfall/**. The `docs` folder is what GitHub Pages publishes as the website.
 
 ## What's in here
 
 | Path | What it is |
 |---|---|
-| `public/index.html` | The whole game in one file. This is the website people open. |
+| `docs/index.html` | The whole game in one file. This is the website people open. |
 | `supabase/migrations/20261031000000_scores.sql` | Creates the online high score table. |
 | `supabase/functions/scores/index.ts` | The small server function that saves runs and returns the top 10. |
 
-The game works on its own: each device keeps its own top 10. When `SCORES_URL` in `public/index.html` is set, the high score table also shows an online board shared by everyone who plays.
+The game works on its own: each device keeps its own top 10. When `SCORES_URL` in `docs/index.html` is set, the high score table also shows an online board shared by everyone who plays.
 
-The game file holds no keys or passwords. Players' browsers download the whole game file, so anyone playing can see its code; the scoreboard's database stays private in Supabase.
+Nothing in this repository is secret: the game file holds no keys or passwords, and the scoreboard function reads its key from Supabase. The scoreboard's database stays private in Supabase.
 
-## Hosting: Cloudflare Pages
+## Hosting: GitHub Pages
 
-The site is published by Cloudflare Pages, connected to this repository:
+**Settings → Pages:** source **Deploy from a branch**, branch **main**, folder **/docs**. Every push to `main` republishes the site within a minute or two.
 
-- **Production branch:** `main`
-- **Framework preset:** None
-- **Build command:** (empty)
-- **Build output directory:** `public`
+## Working on it together
 
-Every push to `main` republishes the site within a minute or two.
+Anyone can read this repository, but only people you add can change it. To let a friend help: **Settings → Collaborators → Add people**, enter their GitHub username, and they accept the invite. They can then push changes, or open pull requests for you to review.
 
 ## Scoreboard: Supabase
 
@@ -39,7 +36,7 @@ To set it up from scratch:
 1. In the project's **SQL Editor**, run the whole of `supabase/migrations/20261031000000_scores.sql`. It creates a `scores` table that only the function can read or write.
 2. In **Edge Functions**, create a function named exactly `scores` with the code from `supabase/functions/scores/index.ts`, deploy it, and turn **off** JWT verification in its settings.
 3. Open the function URL in a browser. You should see `{"top":[...]}`. An error about a missing authorization header means JWT verification is still on.
-4. Put the function URL in `public/index.html`:
+4. Put the function URL in `docs/index.html`:
    ```js
    const SCORES_URL = 'https://ukjajizsnowmdjziqkof.supabase.co/functions/v1/scores';
    ```
