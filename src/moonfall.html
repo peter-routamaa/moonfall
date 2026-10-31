@@ -529,7 +529,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 60;
+const VERSION = 61;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -3688,10 +3688,12 @@ function drawIntroSpace(t, sx, sy) {
   c.setTransform(1, 0, 0, 1, 0, 0);
 }
 // ---------- the launch: run to the ship, climb in, rumble, tip upright, blast off ----------
-// The ending starts with the repair, seconds from the start: he runs to the ship, jetpacks up to the burning tail and welds
+// The ending starts with him flying up out of the shaft and landing by the ship, then the repair, seconds from the start:
+// he runs to the ship, jetpacks up to the burning tail and welds
 // it, lands and hammers the hull, steps back as the smoke clears and a shine runs over the ship. Then the launch runs on
 // its original timings, shifted to start once the repair is done: wave, climb aboard, rumble, tip upright, blast off.
-const REPAIR = { toShip: 1.0, hop: 1.6, weld: 4.4, drop: 5.0, hammer: 7.2, back: 7.7, shine: 8.4, done: 8.8 };
+const REPAIR = { up: 1.6, arc: 2.7, arrive: 3.2, toShip: 4.2, hop: 4.8, weld: 7.6, drop: 8.2, hammer: 10.4, back: 10.9, shine: 11.6, done: 12.0 };
+const SHAFT_START_Y = 260;   // how far down the shaft he starts his climb out, in pixels
 const REPAIR_HITS = 4, WELD_AT = { x: 9, y: -34 }, HAMMER_AT = { x: 49, y: -15 };
 const LAUNCH = Object.fromEntries(Object.entries({ wave: 1.0, board: 3.0, aboard: 3.5, rumble: 4.0, lift: 6.5, climb: 8.0, groove: 9.9, space: 15.0, end: 20.0 })
   .map(([k, v]) => [k, v + REPAIR.done]));
@@ -3718,8 +3720,19 @@ function shipShine(x, y, k) {
 function repairScene(t, dt, crossed) {
   const R = REPAIR;
   player.hidden = false; player.thr = 0;
-  if (t < R.toShip) {
-    player.x = lerp(84, 40, t / R.toShip); player.y = -30 - 2 * (Math.floor(t * 6) % 2); player.pose = 'runL';
+  if (t < R.up) {
+    // Up the shaft on full thrust, keeping to its middle, slowing as he clears the top.
+    const u = t / R.up;
+    player.y = lerp(SHAFT_START_Y, -64, 1 - (1 - u) * (1 - u));
+    player.x = Math.round(shaftCentreX(Math.max(0, player.y + PILOT_CY))); player.pose = 'stand';
+  } else if (t < R.arc) {
+    // Out of the hole and over to his spot by the ship, coming down on the jets.
+    const u = (t - R.up) / (R.arc - R.up);
+    player.x = lerp(shaftCentreX(0), 84, easeInOut(u)); player.y = lerp(-64, -30, u) - 18 * Math.sin(Math.PI * u); player.pose = 'standL';
+  } else if (t < R.arrive) {
+    player.x = 84; player.y = -30; player.pose = 'standL';
+  } else if (t < R.toShip) {
+    player.x = lerp(84, 40, (t - R.arrive) / (R.toShip - R.arrive)); player.y = -30 - 2 * (Math.floor(t * 6) % 2); player.pose = 'runL';
   } else if (t < R.hop) {
     const k = easeInOut((t - R.toShip) / (R.hop - R.toShip));
     player.x = lerp(40, 26, k); player.y = lerp(-30, -49, k); player.pose = 'standL';
@@ -3742,6 +3755,8 @@ function repairScene(t, dt, crossed) {
     player.x = lerp(70, 84, k); player.y = -30 - 2 * (Math.floor(t * 6) % 2); player.pose = 'run';
   } else { player.x = 84; player.y = -30; player.pose = 'standL'; }
   // The jetpack hisses while he's off the ground.
+  if (t - dt <= 0) Sfx.thrust(0.9);
+  if (crossed(R.arc)) { Sfx.thrust(0); Sfx.land(); Buzz.orb(); sparks(84, -2, [P.strata, P.shade, P.dust], 12); }
   if (crossed(R.toShip)) Sfx.thrust(0.5);
   if (crossed(R.drop)) Sfx.thrust(0);
   // Hammer blows: CLANG, sparks, a jolt.
@@ -3756,8 +3771,9 @@ const hammerHitAt = i => REPAIR.drop + 0.55 + i * 0.42;
 // His tools, drawn on top of him: jet flames while flying, the welding torch and its arc, the hammer's swing.
 function drawRepairTools(my) {
   const R = REPAIR, t = launchT, hx = Math.round(player.x - 12), hy = Math.round(my + 15);
-  if (t >= R.toShip && t < R.drop) {
-    const x0 = Math.round(player.x - 13), y0 = Math.round(my), L = 4 + (Math.floor(clock * 24) % 2) * 3;
+  if (t < R.arc || (t >= R.toShip && t < R.drop)) {
+    // Jet flames: long on the climb out of the shaft, shorter for the hops.
+    const x0 = Math.round(player.x - 13), y0 = Math.round(my), L = (t < R.up ? 9 : 4) + (Math.floor(clock * 24) % 2) * 3;
     for (const nx of [x0 - 1, x0 + 25]) {
       c.fillStyle = P.lava; c.fillRect(nx - 1, y0 + 23, 5, L);
       c.fillStyle = P.hot; c.fillRect(nx, y0 + 23, 3, L - 2);
@@ -3847,8 +3863,9 @@ function updateLaunch(dt) {
       life: 0.6 + Math.random() * 0.4, col: Math.random() < 0.5 ? P.shade : P.strata, z: 2
     });
   }
-  // The camera holds on the pad, then follows the ship up into the dark.
-  camY = launchShip && t >= L.climb ? Math.min(camY0, launchShip.y - Math.round(H * 0.35)) : camY0;
+  // The camera rides up the shaft with him and settles on the crash site; it holds there, then follows the ship up.
+  if (t < REPAIR.arrive) camY = lerp(Math.max(camY0, player.y - pilotScreenY), camY0, smoothstep((t - REPAIR.up + 0.6) / 1.4));
+  else camY = launchShip && t >= L.climb ? Math.min(camY0, launchShip.y - Math.round(H * 0.35)) : camY0;
   if (t >= L.end) showEnd();
 }
 function showEnd() {
