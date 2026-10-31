@@ -2341,7 +2341,7 @@ function gameOver() {
 
 // ---------- high scores: the top 10 on this device, and an optional online board ----------
 // Online board: the URL of the `scores` Supabase Edge Function (see README.md). Empty = this device only.
-const SCORES_URL = '';
+const SCORES_URL = 'https://ukjajizsnowmdjziqkof.supabase.co/functions/v1/scores';
 const HS_MAX = 10, LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 if (!Array.isArray(save.scores)) save.scores = save.best > 0 ? [{ i: '???', m: save.best, t: 0 }] : [];
 if (!Array.isArray(save.outbox)) save.outbox = [];
