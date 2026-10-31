@@ -529,7 +529,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 61;
+const VERSION = 62;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -1586,14 +1586,9 @@ function drawSpace(u) {
     const z = i % 11 ? 1 : 2; c.fillRect(Math.round(sx), Math.round(sy), z, z);
   }
   drawPlanet(Math.round(W * 0.8), Math.round(H * 0.24 + 30 * (1 - e)), true, clock * Math.PI / 12);
-  const [csx, csy] = drawMoonAt(mx, my, R);
+  drawMoonAt(mx, my, R);
+  // No smoke trail out here: there's no air to hold it (it thins out during the climb, see updateLaunch).
   const sx = lerp(92, W * 0.64, e), sy = lerp(H * 0.35, H * 0.12, e);
-  c.fillStyle = P.strata;
-  for (let k = 0; k < 60; k++) {
-    if (hash(k * 3.1) < 0.35) continue;
-    const q = k / 60;
-    c.fillRect(Math.round(lerp(csx, sx, q)), Math.round(lerp(csy, sy, q)), 1, 1);
-  }
   drawShipAt(sx, sy, -Math.PI / 2 + 0.55 * e, 1, 0, lerp(1, 0.2, e));
 }
 function hillH(x, T) { return Math.round(24 + 14 * Math.sin((x + T * 12) * 0.0155) + 8 * Math.sin(x * 0.055 + 2)); }
@@ -3853,7 +3848,9 @@ function updateLaunch(dt) {
   if (t > L.rumble && t < L.climb) shake = t < L.lift ? 0.45 : 0.8;
   if (launchShip && t < L.space) {
     const sh = launchShip, nx = sh.x - 52 * Math.cos(sh.a), ny = sh.y - 52 * Math.sin(sh.a);
-    for (let i = 0; i < 3; i++) particles.push({
+    // Exhaust smoke needs air: it thins out as the sky darkens (the same height as skyDark) and stops in space.
+    const air = 1 - smoothstep((-ny - 500) / 2600);
+    for (let i = 0; i < 3; i++) if (Math.random() < air) particles.push({
       x: nx + (Math.random() - 0.5) * 6, d: ny + Math.random() * 24, vx: (Math.random() - 0.5) * 40,
       vy: (Math.random() - 0.3) * 30, t: 0, life: 1.2 + Math.random(),
       col: [P.shade, P.hill, P.strata][Math.floor(Math.random() * 3)], z: 3 + (Math.random() < 0.5 ? 1 : 0)
