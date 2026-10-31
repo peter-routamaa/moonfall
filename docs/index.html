@@ -154,6 +154,8 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .best-btn { width: 100%; border: 0; background: transparent; padding: 2px 0; align-items: center; cursor: pointer; }
 .best-btn:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 .best-more { font: 700 10px/1 var(--display); letter-spacing: .06em; padding: 5px 7px 4px; background: var(--blue); color: var(--dust); }
+#titleFront { position: relative; }
+.ver { position: absolute; top: 5px; right: 7px; font: 700 10px/1 var(--display); letter-spacing: .06em; color: var(--dust-dim); }
 .row .btn:first-child { flex: 1; }
 .buzz-note { margin: 0; font-size: 18px; color: var(--dust-dim); }
 
@@ -346,6 +348,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
     <div class="flip" id="titleFlip">
      <div class="flip-inner">
      <div class="card face front" id="titleFront">
+      <span class="ver" id="verTag"></span>
       <button class="best best-big best-btn" id="bestBtn" type="button">BEST <b id="bestTitle">0000 m</b><span class="best-more">TOP 10</span></button>
       <button class="btn launch" id="launchBtn" type="button" hidden>Launch the ship</button>
       <button class="btn" id="startBtn" type="button">Jump in</button>
@@ -492,6 +495,9 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 <script>
 (() => {
 'use strict';
+
+// Shown on the title card as v0.50. Add one with every published version (100 reads v1.00).
+const VERSION = 50;
 
 // ---------- canvas and palette ----------
 const W = 320, TH = 128;
@@ -2071,6 +2077,7 @@ const Buzz = (() => {
 
 // ---------- DOM ----------
 const $ = id => document.getElementById(id);
+$('verTag').textContent = 'v' + (VERSION / 100).toFixed(2);
 const hud = $('hud'), hpBox = $('hp'), depthEl = $('depth'), shieldEl = $('shield'), shieldFill = $('shieldFill'), coach = $('coach');
 const screens = { title: $('titleScreen'), pause: $('pauseScreen'), over: $('overScreen'), end: $('endScreen'), splash: $('splashScreen'), score: $('scoreScreen') };
 const fmtM = m => String(m).padStart(4, '0');
