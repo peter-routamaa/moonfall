@@ -112,6 +112,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .stats dt { font: 400 10px/1 var(--display); letter-spacing: .06em; color: var(--dust-dim); }
 .stats dd { margin: 6px 0 0; font: 700 18px/1 var(--display); font-variant-numeric: tabular-nums; }
 .stats dd small { font-size: 10px; margin-left: 2px; }
+#endScreen .stats { grid-template-columns: repeat(2, 1fr); row-gap: 12px; }
 .newbest { align-self: flex-start; font: 700 11px/1 var(--display); letter-spacing: .06em; background: var(--lava); color: var(--dust); padding: 6px 8px 5px; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 
@@ -469,6 +470,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
       <p class="end-copy">You patched the hull, rewired the ship and lit the core. Time to fly home.</p>
       <dl class="stats">
         <div><dt>BEST</dt><dd id="eBest">0<small>m</small></dd></div>
+        <div><dt>DIVES</dt><dd id="eDives">0</dd></div>
         <div><dt>PARTS</dt><dd id="eParts">74</dd></div>
         <div><dt>LAUNCHES</dt><dd id="eLaunch">1</dd></div>
       </dl>
@@ -516,7 +518,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 //   Mines are rocks with `isMine: true`. `particles` holds sparks, smoke and fire; ship parts are PARTS and runParts.
 //
 // SOUND is made live with the Web Audio API (Sfx, Music); the recorded voice clips are files in voices/.
-// SAVED on the phone in `save` (localStorage 'moonfall.v1'): best depth, settings, ship parts, high scores.
+// SAVED on the phone in `save` (localStorage 'moonfall.v1'): best depth, settings, ship parts, dives this mission, high scores.
 // ONLINE: SCORES_URL is the Supabase function for the shared high score board and the owner's private play stats.
 //   It's empty here; tools/build_site.py fills it in for the website (see the repo's README).
 //
@@ -527,7 +529,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 59;
+const VERSION = 60;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -2598,6 +2600,7 @@ $('confirmYes').addEventListener('click', () => {
   if (confirmStep === 1) { askReset(2); return; }
   confirmDlg.close();
   for (const pt of PARTS) save.parts[pt.id] = 0;
+  save.dives = 0;
   persist(); renderRepair();
   const b = $('resetBtn'); b.textContent = 'Repair reset to 0%';
   clearTimeout(resetTimer); resetTimer = setTimeout(() => (b.textContent = 'Reset ship repair'), 2500);
@@ -2645,6 +2648,7 @@ function endRun(how) {
 function startRun(quick) {
   Sfx.init(); Music.stop(0.4); setCard(null, true);
   resetRun(); countPlay();
+  save.dives = (save.dives || 0) + 1; persist();   // dives this mission, shown when it's complete
   setState('intro'); introT = quick ? 0.94 : 0;
   if (quick) { player.x = 128; player.pose = 'run'; }
   showScreen(null); hud.classList.remove('off');
@@ -3853,6 +3857,7 @@ function showEnd() {
   $('eBest').innerHTML = save.best + '<small>m</small>';
   $('eParts').textContent = PARTS.reduce((n, pt) => n + pt.need, 0);
   $('eLaunch').textContent = save.launches;
+  $('eDives').textContent = save.dives || 0;
   showScreen('end');
   setTimeout(() => { if (state === 'ended') $('endTitleBtn').focus({ preventScroll: true }); }, 50);
 }
@@ -3866,6 +3871,7 @@ $('newMissionBtn').addEventListener('click', e => {
   }
   clearTimeout(armTimer); delete b.dataset.armed; b.textContent = 'New mission';
   for (const pt of PARTS) save.parts[pt.id] = 0;
+  save.dives = 0;
   persist(); toTitle();
 });
 $('endTitleBtn').addEventListener('click', toTitle);
