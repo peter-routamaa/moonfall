@@ -567,7 +567,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 82;
+const VERSION = 83;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -3666,7 +3666,10 @@ let flags = [], nextFlag = 0;
 function boardRows() {
   const cache = SCORES_URL && save.boardCache && Array.isArray(save.boardCache.top) ? save.boardCache.top : null;
   const rows = cache ? cache.map(s => ({ i: showName(String(s.initials).slice(0, 3)), m: s.depth })) : save.scores.map(s => ({ i: s.i === '???' ? 'BEST' : showName(s.i), m: s.m }));
-  return rows.filter(r => Number.isFinite(r.m) && r.m >= 30);
+  // One tombstone per player, at their best score (version 83: several runs by the same initials made a crowd of stones).
+  const best = new Map();
+  for (const r of rows) if (Number.isFinite(r.m) && r.m >= 30 && !(best.get(r.i)?.m >= r.m)) best.set(r.i, r);
+  return [...best.values()];
 }
 function buildFlags() {
   flags = boardRows().sort((a, b) => a.m - b.m).map((r, k) => ({
