@@ -551,7 +551,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 70;
+const VERSION = 71;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -1127,7 +1127,7 @@ function ellipseIn(cx, cy, rx, ry, col, ox, oy, OR) {
 const elderArt = new Map(), ELDER_OX = 120, ELDER_OY = 80;
 function elderFrame(col, flap) {
   let byCol = elderArt.get(col);
-  if (!byCol) { if (elderArt.size > 3) elderArt.clear(); byCol = []; elderArt.set(col, byCol); }
+  if (!byCol) { elderArt.clear(); byCol = []; elderArt.set(col, byCol); }
   let img = byCol[flap + 6];
   if (img) return img;
   img = document.createElement('canvas'); img.width = 240; img.height = 160;
@@ -1140,19 +1140,14 @@ function elderFrame(col, flap) {
   fillEllipse(g, x, y - 52, 20, 14, col);
   return (byCol[flap + 6] = img);
 }
-// `rim` (a colour, optional) draws a 1 px pale outline first, so it stands out when it hovers by a cafe.
-function drawElder(x, y, dir, k, col, rim) {
+function drawElder(x, y, dir, k, col) {
   y += Math.sin(clock * 0.6 + k) * 4;
-  const flap = 2 * Math.round(Math.sin(clock * 0.8 + k) * 3), fx = Math.round(x) - ELDER_OX, fy = Math.round(y) - ELDER_OY;
-  if (rim) { const img = elderFrame(rim, flap); for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) c.drawImage(img, fx + ox, fy + oy); }
-  for (let pass = rim ? 0 : 1; pass < 2; pass++) {
-    if (pass) c.drawImage(elderFrame(col, flap), fx, fy);
-    for (let i = 0; i < 7; i++) {
-      const bx = x - 18 + i * 6, by = y + 8;
-      for (let j = 0; j < 17; j++) {
-        const sw = Math.sin(clock * 1.3 + i * 0.9 + j * 0.35) * j * 0.6, curl = j > 13 ? Math.sin(clock * 2 + i) * (j - 13) * 2 : 0;
-        disc(bx + sw + (i - 3) * j * 0.55 + curl, by + j * 4.2, Math.max(1, Math.round(4 - j * 0.22)) + (pass ? 0 : 1), pass ? col : rim);
-      }
+  c.drawImage(elderFrame(col, 2 * Math.round(Math.sin(clock * 0.8 + k) * 3)), Math.round(x) - ELDER_OX, Math.round(y) - ELDER_OY);
+  for (let i = 0; i < 7; i++) {
+    const bx = x - 18 + i * 6, by = y + 8;
+    for (let j = 0; j < 17; j++) {
+      const sw = Math.sin(clock * 1.3 + i * 0.9 + j * 0.35) * j * 0.6, curl = j > 13 ? Math.sin(clock * 2 + i) * (j - 13) * 2 : 0;
+      disc(bx + sw + (i - 3) * j * 0.55 + curl, by + j * 4.2, Math.max(1, Math.round(4 - j * 0.22)), col);
     }
   }
   if (((clock * 0.25 + k * 0.37) % 1) > 0.04) {
@@ -1173,16 +1168,6 @@ function cafeHover() {
   if (state === 'cafe') return 1;
   if (state === 'cafeJump') return 1 - smoothstep(cafeT / 0.6);
   return 0;
-}
-// The cafe's creature while it hovers is drawn later than the others (hoverDraw, in drawShaft): in front of the
-// background bands and spurs, darker, with a pale outline, so it shows up against the dark rock. It fades into that look
-// as it arrives.
-let hoverDraw = null;
-function drawHoverCreature() {
-  if (!hoverDraw) return;
-  const { x, y, dir, k, D, f } = hoverDraw, Q = palAt(D);
-  c.globalAlpha = f; drawElder(x, y, dir, k, Q.hoverBody || (Q.hoverBody = mix(Q.sO, '#000000', 0.3)), Q.rim || (Q.rim = mix(Q.sI, Q.hi, 0.3))); c.globalAlpha = 1;
-  hoverDraw = null;
 }
 // The hovering spot: centred between the ledge's underside (46 rows below its top) and the card's top edge. The card's
 // top is measured once it shows (until then it's a guess), and the spot glides when it changes.
@@ -1207,7 +1192,6 @@ function leviathans(cam) {
     if (f > 0) { const p = hoverSpot(elder); x = lerp(sx, p.x, f); y = lerp(sy, p.y, f); }
     else if (D === cafeK * CAFE_EVERY) hoverY = null;
     if (cam < -H || y < -150 || y > H + 150) continue;
-    if (f > 0 && elder) { hoverDraw = { x, y, dir, k, D, f }; if (f >= 1) continue; }
     if (elder) drawElder(x, y, dir, k, mix(palAt(D).sO, P.ink, 0.42));
     else drawLeviathan(x, y, dir, k, mix(palAt(D).sO, P.ink, 0.35));
   }
@@ -1346,7 +1330,6 @@ function drawShaft(cam) {
     c.drawImage(img, side < 0 ? e.L + 8 - WEDGE_M : e.R - 8 + WEDGE_M - img.width, yTop);
   }
   drawSpurs(cam, top, y0);
-  drawHoverCreature();
   // The walls go back on top, so everything behind them only shows inside the shaft.
   for (let i = i0; i <= i1; i++) c.drawImage(wallTile(tile(i)), 0, i * TILE_H - top);
   // Lava flickers stay live, but only rows that have lava are visited.
