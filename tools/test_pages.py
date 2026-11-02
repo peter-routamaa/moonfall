@@ -15,7 +15,7 @@ OUT = os.path.join(ROOT, 'tools', 'out')
 
 # The debug handle: the game's internals that the tests and screenshots reach for.
 # Functions added recently are looked up with typeof, so the hook also works on older versions (same_pixels compares them).
-HOOK = """window.__mf = { gameOver, depthM, startLaunch, save, player, Sfx, Music, get state() { return state; }, set state(v) { state = v; }, update, render, get openT() { return openT; }, cafeInfo, get flags() { return flags; }, get rocks() { return rocks; }, get items() { return items; }, get hazards() { return hazards; }, setHP, voidAt: typeof voidAt === 'function' ? voidAt : null, voidInfo: typeof voidInfo === 'function' ? voidInfo : null, get fireworks() { return typeof fireworks === 'undefined' ? [] : fireworks; }, nearMiss, collect, buyPerk, openShop, get shopOffer() { return shopOffer; }, get hitStop() { return hitStop; }, get flyers() { return flyers; }, hurt, buildFlags, get cafeT() { return cafeT; }, set cafeT(v) { cafeT = v; }, get camY() { return camY; }, edgeAt, checkCafe, prepaint, frame, DROPS, dropList, set clock(v) { clock = v; }, get shopDone() { return shopDone; }, leviDepth, openTable, showScreen, get pilotScreenY() { return pilotScreenY; } };"""
+HOOK = """window.__mf = { gameOver, depthM, startLaunch, save, player, Sfx, Music, get state() { return state; }, set state(v) { state = v; }, update, render, get openT() { return openT; }, cafeInfo, get flags() { return flags; }, get rocks() { return rocks; }, get items() { return items; }, get hazards() { return hazards; }, setHP, voidAt: typeof voidAt === 'function' ? voidAt : null, voidInfo: typeof voidInfo === 'function' ? voidInfo : null, get fireworks() { return typeof fireworks === 'undefined' ? [] : fireworks; }, nearMiss, collect, buyPerk, openShop, get shopOffer() { return shopOffer; }, get hitStop() { return hitStop; }, get flyers() { return flyers; }, hurt, buildFlags, get cafeT() { return cafeT; }, set cafeT(v) { cafeT = v; }, get camY() { return camY; }, edgeAt, checkCafe, prepaint, frame, DROPS, dropList, set clock(v) { clock = v; }, get shopDone() { return shopDone; }, leviDepth, openTable, showScreen, setLevi(k, kind) { leviKind(k); leviOrder[k] = LEVI_KINDS.indexOf(kind); }, cafesPassed, speedAt, payNav, renderRepair, canLaunch, leviKind, set cafeSide(v) { cafeSide = v; }, get pilotScreenY() { return pilotScreenY; } };"""
 
 # A pretend scoreboard: answers the game's requests to fake-scores.test from memory. B.mode = 'down' fails them.
 FAKE_BOARD = """window.__board = { rows: [], next: 1, mode: 'ok', calls: [] };
@@ -122,7 +122,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     await wait(300); M.render(); M.state = 'paused'; document.title = 'ready:' + V.T + ':' + V.exitX; return;
   }
   if (q.get('scene') === 'levi') {   // a deep creature at the middle of the screen: &k= its 500 m mark (k % 6 picks the kind)
-    const k = +(q.get('k') || 1); M.clock = +(q.get('ft') || 0);
+    const k = +(q.get('k') || 1); M.clock = +(q.get('ft') || 0); if (q.get('kind')) M.setLevi(k, q.get('kind'));   // &kind=whale|elder|jelly|angler|manta|nautilus
     for (let i = 0; i < 4; i++) { pl.inv = 9; pl.y = M.leviDepth(k) - 667 / 2 + M.pilotScreenY + 14 + (+(q.get('dy') || 0)); pl.x = 160; pl.aim = 160; pl.vx = 0; M.update(1 / 60); }
     M.rocks.length = 0; M.items.length = 0; await wait(300); M.render(); M.state = 'paused'; document.title = 'ready'; return;
   }
@@ -133,7 +133,8 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     M.rocks.length = 0; await wait(500); M.render(); M.state = 'paused'; document.title = 'ready:' + k; return;
   }
   if (q.get('scene') === 'cafe') {
-    const C = M.cafeInfo(+(q.get('n') || 1)); pl.spare = +(q.get('spare') || 5); pl.hp = 4;   // &n=2: the second cafe (2000 m), and so on
+    const n = +(q.get('n') || 1), C = M.cafeInfo(n); pl.spare = +(q.get('spare') || 5); pl.hp = 4; if (q.get('kind')) M.setLevi(2 * n, q.get('kind'));
+    if (q.get('nav')) M.save.nav = +q.get('nav');   // &nav=12: crystals already paid toward the navigation computer   // &n=2: the second cafe (2000 m), and so on
     pl.y = C.Dl - 28 - 120; pl.x = C.padX; pl.aim = pl.x; pl.vx = 0; M.checkCafe();
     for (let i = 0; i < 60 * 3.2; i++) M.update(1 / 60);
     await wait(700);

@@ -217,6 +217,12 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .parts .done .pc { color: var(--gold); }
 .parts .meter { width: 100%; height: 3px; background: var(--ink-soft); }
 .parts .meter b { display: block; height: 100%; width: 0; background: var(--gold); }
+/* The navigation computer: one full-width row under the five parts. */
+.parts li.navrow { grid-column: 1 / -1; flex-direction: row; gap: 8px; margin-top: 2px; }
+.parts li.navrow canvas { width: 24px; height: 24px; }
+.parts li.navrow .meter { flex: 1; }
+/* Short phones: tighter treat rows, so the shop card (three treats and the computer) stays clear of the pilot. */
+@media (max-height: 600px) { .shop-items { gap: 5px; } .perk { padding: 6px 10px 5px; row-gap: 2px; } .perk-desc { font-size: 18px; } .cafe-note { margin: 0; } }
 .run-parts { display: flex; flex-wrap: wrap; gap: 6px; }
 .run-parts span { display: inline-flex; align-items: center; gap: 4px; background: color-mix(in srgb, var(--dust) 7%, var(--ink)); padding: 3px 8px 3px 3px; font: 700 12px/1 var(--display); color: var(--gold); }
 .run-parts canvas { width: 22px; height: 22px; image-rendering: pixelated; }
@@ -272,6 +278,9 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .perk:focus-visible, .btn:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 .perk.poor .perk-cost { color: var(--lava); }
 .perk:disabled { cursor: default; opacity: .45; }
+/* The navigation computer: paid off a little at a time, so it has a gold edge and a progress line instead of a price. */
+.perk.nav { box-shadow: inset 0 0 0 2px var(--gold); }
+.perk.nav .perk-cost { color: var(--gold); }
 .perk.bought { opacity: 1; box-shadow: inset 0 0 0 2px var(--green); }
 .perk.bought .perk-cost { font-size: 12px; color: var(--green); }
 .shop-tips { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; font-size: 20px; line-height: 1.05; }
@@ -333,6 +342,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
         <li>Spend spare crystals in the shop: one treat per cafe.</li>
         <li>Skim past rocks and mines for a streak: every 8 pays a crystal.</li>
         <li>Tombstones on the shaft walls mark where players died: pass them to beat their high scores.</li>
+        <li>The fall gets 5% faster after every cafe, whether you stop or not.</li>
       </ul>
       <button class="btn" id="tipsDone" type="button">Done</button>
      </div>
@@ -391,7 +401,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
       <ul class="legend">
         <li><span class="ico"><i></i></span>Impact with walls, rocks, mines, and lava costs health</li>
         <li><span class="ico"><canvas id="icoOrb" width="14" height="14"></canvas></span>Crystal: +1 health</li>
-        <li><span class="ico"><canvas id="icoShield" width="28" height="28"></canvas></span>Bubble: +10s shield</li>
+        <li><span class="ico"><canvas id="icoShield" width="28" height="28"></canvas></span>Bubble: 8s shield, hits wear it down</li>
         <li><span class="ico"><canvas id="icoPart" class="wide" width="30" height="30"></canvas></span>Gold ring: ship part, collect&nbsp;these</li>
         <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Cafe every 1000 m: coffee (+1 health) and bonus items</li>
       </ul>
@@ -547,7 +557,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 79;
+const VERSION = 80;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -1085,31 +1095,31 @@ function wallTile(t) {
   return w;
 }
 function drawLeviathan(x, y, dir, k, col) {
-  const N = 46, len = 190, ph = clock * 1.3 + k;
+  const S = 1.25, N = 58, len = 190 * S, ph = clock * 1.3 + k;
   let tx = x, ty = y;
   for (let i = 0; i <= N; i++) {
-    const t = i / N, bx = x + dir * (len / 2 - t * len), by = y + Math.sin(ph - t * 4.2) * 7 * t;
-    const r = Math.max(2, Math.round(22 * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.1 + 0.08)), 0.9) * (1 - t * 0.6)));
+    const t = i / N, bx = x + dir * (len / 2 - t * len), by = y + Math.sin(ph - t * 4.2) * 7 * S * t;
+    const r = Math.max(2, Math.round(22 * S * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.1 + 0.08)), 0.9) * (1 - t * 0.6)));
     disc(bx, by, r, col);
     tx = bx; ty = by;
   }
-  const flap = Math.sin(ph * 1.4) * 3;
+  const flap = Math.sin(ph * 1.4) * 4;
   c.fillStyle = col;
-  for (let j = 0; j < 14; j++) {
+  for (let j = 0; j < 18; j++) {
     const bx = Math.round(tx - dir * j * 0.8);
-    c.fillRect(bx - 1, Math.round(ty - 2 - j + flap * j / 14), 3, 2);
-    c.fillRect(bx - 1, Math.round(ty + 1 + j + flap * j / 14), 3, 2);
+    c.fillRect(bx - 1, Math.round(ty - 2 - j + flap * j / 18), 3, 2);
+    c.fillRect(bx - 1, Math.round(ty + 1 + j + flap * j / 18), 3, 2);
   }
-  const fx = x + dir * (len / 2 - 0.32 * len), fy = y + 12 + Math.sin(ph - 1.3) * 2;
-  for (let j = 0; j < 12; j++) c.fillRect(Math.round(fx - dir * j * 1.3) - (dir < 0 ? 12 - j : 0), Math.round(fy + j * 0.8), 12 - j, 1);
-  const hx = x + dir * (len / 2 - 8), hy = y - 3;
+  const fx = x + dir * (len / 2 - 0.32 * len), fy = y + 15 + Math.sin(ph - 1.3) * 2;
+  for (let j = 0; j < 15; j++) c.fillRect(Math.round(fx - dir * j * 1.3) - (dir < 0 ? 15 - j : 0), Math.round(fy + j * 0.8), 15 - j, 1);
+  const hx = x + dir * (len / 2 - 10), hy = y - 4;
   c.fillStyle = P.crust;
   c.fillRect(Math.round(hx) - 2, Math.round(hy) - 1, 4, 4);
   c.fillStyle = P.lava;
   c.fillRect(Math.round(hx) - 1, Math.round(hy), 2, 2);
   c.fillStyle = P.bio;
   for (let i = 0; i < 7; i++) {
-    const t = 0.2 + i * 0.08, bx = x + dir * (len / 2 - t * len), by = y + Math.sin(ph - t * 4.2) * 7 * t + 6;
+    const t = 0.2 + i * 0.08, bx = x + dir * (len / 2 - t * len), by = y + Math.sin(ph - t * 4.2) * 7 * S * t + 8;
     if (Math.floor(clock * 1.2 + i * 0.7) % 3) c.fillRect(Math.round(bx), Math.round(by), 2, 1);
   }
 }
@@ -1184,77 +1194,92 @@ function drawElder(x, y, dir, k, col) {
     }
   }
 }
+// The four newer kinds are drawn at scale S (version 80: as big as the elder thing, about 220 px across or 150 tall),
+// each centred on (x, y) so it sits in the middle of the gap at a cafe.
 // A jellyfish: a pulsing bell with a scalloped rim, four frilled arms and six long trailing threads.
 function drawJelly(x, y, dir, k, col) {
-  const ph = clock * 1.6 + k, p = Math.sin(ph), rx = Math.round(34 + p * 3), ry = Math.round(26 - p * 2);
-  const by = Math.round(y + Math.sin(clock * 0.5 + k) * 5);
+  const S = 1.5, ph = clock * 1.6 + k, p = Math.sin(ph), rx = Math.round((34 + p * 3) * S), ry = Math.round((26 - p * 2) * S);
+  const by = Math.round(y - 32 * S + Math.sin(clock * 0.5 + k) * 5);
   c.fillStyle = col;
   for (let j = -ry; j <= 0; j++) { const w = Math.round(rx * Math.sqrt(1 - (j / ry) ** 2)); c.fillRect(Math.round(x) - w, by + j, w * 2 + 1, 1); }
-  for (let i = 0; i < 7; i++) disc(x - rx + 4 + i * (2 * rx - 8) / 6, by + 1, 4, col);
+  for (let i = 0; i < 9; i++) disc(x - rx + 6 + i * (2 * rx - 12) / 8, by + 1, Math.round(4 * S), col);
   for (let i = 0; i < 4; i++) {
-    const ax = x - 12 + i * 8;
-    for (let j = 0; j < 14; j++) disc(ax + Math.sin(ph * 0.7 + i + j * 0.4) * j * 0.5, by + 4 + j * 3.4, Math.max(1, Math.round(4 - j * 0.2)), col);
+    const ax = x + (i - 1.5) * 8 * S;
+    for (let j = 0; j < 18; j++) disc(ax + Math.sin(ph * 0.7 + i + j * 0.32) * j * 0.6, by + 5 + j * 4 * S * 0.85, Math.max(1, Math.round((4 - j * 0.17) * S)), col);
   }
   c.fillStyle = col;
   for (let i = 0; i < 6; i++) {
-    const tx = x - rx + 6 + i * (2 * rx - 12) / 5;
-    for (let j = 0; j < 30; j++) c.fillRect(Math.round(tx + Math.sin(clock * 1.1 + i * 1.3 - j * 0.22) * j * 0.35), by + 4 + j * 3, 1, 3);
+    const tx = x - rx + 8 + i * (2 * rx - 16) / 5;
+    for (let j = 0; j < 40; j++) c.fillRect(Math.round(tx + Math.sin(clock * 1.1 + i * 1.3 - j * 0.17) * j * 0.4), by + 5 + j * 3.4, 2, 4);
   }
   c.fillStyle = P.bio;
-  for (let i = 0; i < 6; i++) if (Math.floor(clock * 1.2 + i * 0.7) % 3) c.fillRect(Math.round(x - rx + 7 + i * (2 * rx - 14) / 5), by - 3, 2, 1);
+  for (let i = 0; i < 8; i++) if (Math.floor(clock * 1.2 + i * 0.7) % 3) c.fillRect(Math.round(x - rx + 9 + i * (2 * rx - 18) / 7), by - 4, 2, 1);
 }
 // A manta ray seen from below, gliding head first: broad wings that beat slowly, horn-like head fins and a whip tail.
 function drawManta(x, y, dir, k, col) {
-  const ph = clock * 1.1 + k, span = 70 + Math.sin(ph) * 8, lag = 16 + Math.cos(ph) * 10, X = v => x + dir * v;
+  const S = 1.4, ph = clock * 1.1 + k, span = (70 + Math.sin(ph) * 8) * S, lag = (16 + Math.cos(ph) * 10) * S, X = v => x + dir * v * S;
   y += Math.sin(clock * 0.4 + k) * 3;
-  fillPoly(c, [[X(30), y - 8], [X(24), y - 22], [X(-lag), y - span], [X(-20), y - 26], [X(-34), y - 8], [X(-38), y],
-    [X(-34), y + 8], [X(-20), y + 26], [X(-lag), y + span], [X(24), y + 22], [X(30), y + 8]], col);
-  for (const s of [-1, 1]) for (let j = 0; j < 8; j++) c.fillRect(Math.round(X(30 + j)) - 1, Math.round(y + s * (11 - j * 0.6)) - 1, 3, 3);
-  for (let j = 0; j < 40; j++) c.fillRect(Math.round(X(-38 - j * 2)), Math.round(y + Math.sin(ph * 1.3 - j * 0.18) * j * 0.15), 2, 1);
+  fillPoly(c, [[X(30), y - 8 * S], [X(24), y - 22 * S], [x - dir * lag, y - span], [X(-20), y - 26 * S], [X(-34), y - 8 * S], [X(-38), y],
+    [X(-34), y + 8 * S], [X(-20), y + 26 * S], [x - dir * lag, y + span], [X(24), y + 22 * S], [X(30), y + 8 * S]], col);
+  for (const s of [-1, 1]) for (let j = 0; j < 11; j++) c.fillRect(Math.round(X(30 + j * 0.75)) - 2, Math.round(y + s * (11 - j * 0.45) * S) - 2, 4, 4);
+  for (let j = 0; j < 56; j++) c.fillRect(Math.round(X(-38 - j * 2)), Math.round(y + Math.sin(ph * 1.3 - j * 0.13) * j * 0.15 * S), 3, 2);
   c.fillStyle = P.bio;
-  for (let i = 0; i < 6; i++) if (Math.floor(clock * 1.2 + i * 0.7) % 3) { const v = 0.3 + i * 0.1; c.fillRect(Math.round(X(-v * lag)), Math.round(y + (i % 2 ? 1 : -1) * v * span * 0.8), 2, 1); }
+  for (let i = 0; i < 6; i++) if (Math.floor(clock * 1.2 + i * 0.7) % 3) { const v = 0.3 + i * 0.1; c.fillRect(Math.round(x - dir * v * lag), Math.round(y + (i % 2 ? 1 : -1) * v * span * 0.8), 2, 1); }
 }
 // An anglerfish, hanging still: a big round head, a jutting lower jaw with fangs, a ragged tail, and a lure on a stalk
 // that bobs in front of it with a dim glow.
 function drawAngler(x, y, dir, k, col) {
-  const ph = clock * 0.9 + k, X = v => x + dir * v, bob = Math.sin(ph * 1.3) * 3;
-  y = Math.round(y + Math.sin(clock * 0.6 + k) * 4);
-  fillEllipse(c, X(-4), y - 14, 40, 30, col);
-  fillPoly(c, [[X(-30), y + 14], [X(52), y + 10], [X(46), y + 30], [X(-6), y + 40], [X(-28), y + 32]], col);
-  fillPoly(c, [[X(-38), y - 8], [X(-76), y - 32 + Math.sin(ph) * 4], [X(-66), y - 4], [X(-78), y + 20 + Math.sin(ph) * 4], [X(-36), y + 12]], col);
-  for (let i = 0; i < 6; i++) { const v = 22 + i * 5, top = Math.round(y + 14 - (v + 30) * 4 / 82); c.fillRect(Math.round(X(v)), top - 6 + (i % 2) * 2, 2, 6 - (i % 2) * 2); }
-  for (let i = 0; i < 4; i++) { const v = 14 + i * 6, r = (v + 4) / 40; c.fillRect(Math.round(X(v)), Math.round(y - 14 + 30 * Math.sqrt(1 - r * r)), 2, 5 - (i % 2) * 2); }
-  for (let j = 0; j <= 24; j++) {
-    const t = j / 24, u = 1 - t;
-    c.fillRect(Math.round(u * u * X(4) + 2 * u * t * X(30) + t * t * X(48)), Math.round(u * u * (y - 44) + 2 * u * t * (y - 70 + bob) + t * t * (y - 46 + bob)), 1, 1);
+  const S = 1.6, ph = clock * 0.9 + k, X = v => x + dir * v * S, bob = Math.sin(ph * 1.3) * 4;
+  y = Math.round(y + 9 * S + Math.sin(clock * 0.6 + k) * 4);
+  const Y = v => y + v * S;
+  fillEllipse(c, X(-4), Y(-14), Math.round(40 * S), Math.round(30 * S), col);
+  fillPoly(c, [[X(-30), Y(14)], [X(52), Y(10)], [X(46), Y(30)], [X(-6), Y(40)], [X(-28), Y(32)]], col);
+  fillPoly(c, [[X(-38), Y(-8)], [X(-76), Y(-32) + Math.sin(ph) * 6], [X(-66), Y(-4)], [X(-78), Y(20) + Math.sin(ph) * 6], [X(-36), Y(12)]], col);
+  for (let i = 0; i < 6; i++) { const v = 22 + i * 5, top = Math.round(Y(14 - (v + 30) * 4 / 82)); c.fillRect(Math.round(X(v)) - 1, top - 9 + (i % 2) * 3, 3, 9 - (i % 2) * 3); }
+  for (let i = 0; i < 4; i++) { const v = 14 + i * 6, r = (v + 4) / 40; c.fillRect(Math.round(X(v)) - 1, Math.round(Y(-14 + 30 * Math.sqrt(1 - r * r))), 3, 8 - (i % 2) * 3); }
+  for (let j = 0; j <= 36; j++) {
+    const t = j / 36, u = 1 - t;
+    c.fillRect(Math.round(u * u * X(4) + 2 * u * t * X(30) + t * t * X(48)), Math.round(u * u * Y(-44) + 2 * u * t * (Y(-70) + bob) + t * t * (Y(-46) + bob)), 2, 2);
   }
-  disc(X(48), y - 44 + bob, 3, col);
-  if (Math.floor(clock * 0.9 + k) % 4) { c.fillStyle = P.bio; c.fillRect(Math.round(X(48)) - 1, Math.round(y - 45 + bob), 2, 2); }
-  c.fillStyle = P.crust; c.fillRect(Math.round(X(20)) - 2, y - 21, 4, 4);
-  c.fillStyle = P.lava; c.fillRect(Math.round(X(20)) - 1, y - 20, 2, 2);
+  disc(X(48), Y(-44) + bob, 5, col);
+  if (Math.floor(clock * 0.9 + k) % 4) { c.fillStyle = P.bio; c.fillRect(Math.round(X(48)) - 1, Math.round(Y(-44) + bob) - 1, 3, 3); }
+  c.fillStyle = P.crust; c.fillRect(Math.round(X(20)) - 3, Math.round(Y(-20)) - 2, 6, 5);
+  c.fillStyle = P.lava; c.fillRect(Math.round(X(20)) - 2, Math.round(Y(-20)) - 1, 3, 3);
 }
 // A nautilus: a coiled, ribbed shell with a hood over its eye and a fringe of short tentacles that reach forward and curl.
 function drawNautilus(x, y, dir, k, col) {
-  const X = v => x + dir * v;
-  y = Math.round(y + Math.sin(clock * 0.5 + k) * 4);
-  disc(X(-10), y - 8, 38, col);
-  fillEllipse(c, X(20), y, 14, 28, col);
-  fillEllipse(c, X(24), y - 20, 12, 8, col);
+  const S = 1.8, X = v => x + dir * v * S;
+  y = Math.round(y + 8 * S + Math.sin(clock * 0.5 + k) * 4);
+  const Y = v => y + v * S;
+  disc(X(-10), Y(-8), Math.round(38 * S), col);
+  fillEllipse(c, X(20), y, Math.round(14 * S), Math.round(28 * S), col);
+  fillEllipse(c, X(24), Y(-20), Math.round(12 * S), Math.round(8 * S), col);
   c.fillStyle = mix(col, P.ink, 0.25);
-  for (let i = 0; i < 160; i++) { const th = i * 0.08, r = 3 * Math.exp(0.18 * th); c.fillRect(Math.round(X(-10 - Math.cos(th) * r)), Math.round(y - 8 - Math.sin(th) * r), 1, 1); }
-  for (let i = 0; i < 10; i++) {
-    const bx = X(28), by = y - 8 + i * 3;
-    for (let j = 0; j < 12; j++) {
-      const a = 0.1 + i * 0.12 + Math.sin(clock * 1.2 + i * 0.8 + j * 0.3) * 0.25 + j * 0.04;
-      disc(bx + dir * j * 2.6 * Math.cos(a), by + j * 2.6 * Math.sin(a), Math.max(1, Math.round(3 - j * 0.2)), col);
+  for (let i = 0; i < 260; i++) { const th = i * 0.05, r = 3 * S * Math.exp(0.18 * th); c.fillRect(Math.round(X(-10) - dir * Math.cos(th) * r), Math.round(Y(-8) - Math.sin(th) * r), 2, 2); }
+  for (let i = 0; i < 12; i++) {
+    const bx = X(28), by = Y(-8 + i * 2.6);
+    for (let j = 0; j < 14; j++) {
+      const a = 0.1 + i * 0.1 + Math.sin(clock * 1.2 + i * 0.8 + j * 0.3) * 0.25 + j * 0.035;
+      disc(bx + dir * j * 2.6 * S * 0.85 * Math.cos(a), by + j * 2.6 * S * 0.85 * Math.sin(a), Math.max(1, Math.round((3 - j * 0.17) * S)), col);
     }
   }
-  c.fillStyle = P.crust; c.fillRect(Math.round(X(22)) - 2, y - 10, 4, 4);
-  c.fillStyle = P.lava; c.fillRect(Math.round(X(22)) - 1, y - 9, 2, 2);
+  c.fillStyle = P.crust; c.fillRect(Math.round(X(22)) - 3, Math.round(Y(-10)) - 2, 6, 5);
+  c.fillStyle = P.lava; c.fillRect(Math.round(X(22)) - 2, Math.round(Y(-10)) - 1, 3, 3);
 }
-// Six kinds take turns, one per 500 m mark. The even marks belong to the cafes (nautilus, elder thing, anglerfish),
-// which hover in place there; the odd ones (whale, jellyfish, manta ray) drift past in the open shaft.
+// Six kinds, one per 500 m mark, in a fresh random order every run (version 80; it was a fixed cycle), never the same
+// kind twice in a row. The ones at the even marks wait at the cafes, hovering in place; the others drift past.
 const LEVI_KINDS = ['nautilus', 'whale', 'elder', 'jelly', 'angler', 'manta'];
+let leviOrder = [], leviFor = -1;
+function leviKind(k) {
+  if (leviFor !== SEED) { leviFor = SEED; leviOrder = []; }
+  while (leviOrder.length <= k) {
+    const prev = leviOrder[leviOrder.length - 1];
+    let r = Math.floor(hash(leviOrder.length * 7.31 + SEED * 1.37) * 6);
+    if (r === prev) r = (r + 1) % 6;
+    leviOrder.push(r);
+  }
+  return LEVI_KINDS[leviOrder[k]];
+}
 const LEVI_DRAW = { nautilus: drawNautilus, whale: drawLeviathan, elder: drawElder, jelly: drawJelly, angler: drawAngler, manta: drawManta };
 const leviSeen = new Set();
 // Where a creature sits in the half-speed layer. The even-mark creatures belong to the cafes (one at each 1000 m mark), so
@@ -1277,15 +1302,15 @@ function measureCafeCard() {
   shopEl.hidden = true; shopEl.style.visibility = '';
 }
 function leviathans(cam) {
-  const mid = cam + H / 2, reach = (H / 2 + 130) / LEVI_PARALLAX;
+  const mid = cam + H / 2, reach = (H / 2 + 200) / LEVI_PARALLAX;
   let near = false;   // a creature on screen during a run: the music goes quiet under a drone (Music.creature)
   // One slot either side of the plain range, for the cafe creatures set deeper than their marks.
   for (let k = Math.max(1, Math.ceil((mid - reach) / LEVI_EVERY) - 1); k * LEVI_EVERY <= mid + reach + LEVI_EVERY; k++) {
     const D = k * LEVI_EVERY, A = leviDepth(k), sy = H / 2 + (A - mid) * LEVI_PARALLAX, dir = hash(k * 4.3 + SEED) < 0.5 ? 1 : -1, sx = W / 2 + dir * (mid - A) * 0.14;
-    const kind = LEVI_KINDS[k % 6];
+    const kind = leviKind(k);
     if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(kind); }
     if (state === 'play' && sy > -40 && sy < H + 40) near = true;
-    if (cam < -H || sy < -150 || sy > H + 150) continue;
+    if (cam < -H || sy < -220 || sy > H + 220) continue;
     LEVI_DRAW[kind](sx, sy, dir, k, mix(palAt(D).sO, P.ink, k % 2 ? 0.35 : 0.42));
   }
   Music.creature(near);
@@ -1541,7 +1566,7 @@ function motes(cam) {
 // at the starting speed; they build from about 1000 m to 3000 m as the fall speeds up. They move up faster than the
 // walls, so they never look like they're falling with him.
 function speedLines(cam) {
-  const s = smoothstep((player.v - 270) / 150);
+  const s = smoothstep((player.v - 255) / 120);
   if (s <= 0) return;
   c.globalAlpha = 0.25 + 0.35 * s; c.fillStyle = P.lite;
   for (let k = 0, n = Math.round(10 * s); k < n; k++) {
@@ -1956,11 +1981,11 @@ function setState(next) {
   if (!STATES.has(next)) console.error('MoonFall: unknown state', next);
   state = next;
 }
-let state = 'title', prevState = 'play', clock = 0, introT = 0, dieT = 0, camY = -360, shake = 0, repair = 0, repairStart = 0;
+let state = 'title', prevState = 'play', clock = 0, introT = 0, dieT = 0, camY = -360, shake = 0, repair = 0, repairStart = 0, readyStart = false;
 const runParts = { plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 };
 // A fresh pilot for every run (resetRun). `touch` (a finger is on the screen) carries over between runs.
 const playerStart = () => ({
-  x: 84, y: -30, v: 0, vx: 0, hp: 5, max: 5, inv: 0, blockT: 0, shield: 0, shieldMax: 10, orbs: 0, spare: 0, streak: 0,
+  x: 84, y: -30, v: 0, vx: 0, hp: 5, max: 5, inv: 0, blockT: 0, shield: 0, shieldMax: 8, orbs: 0, spare: 0, streak: 0,
   bestStreak: 0, perks: {}, bought: [], slowUntil: 0, flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false,
   fallRamp: 1
 });
@@ -1974,14 +1999,23 @@ const depthM = () => Math.max(0, Math.floor(player.y / PX_PER_M));
 // Fall speed: 250 px/s (31 m/s). It used to rise with depth by up to SPEED_RAMP more (170, reaching 52 m/s by about
 // 3 km); the user found the game too hard and asked for it off for now (version 76). Set SPEED_RAMP back to 170 to bring
 // the speed-up back (the speed lines appear with it).
-const FALL_SPEED = 250, SPEED_RAMP = 0;
-function speedAt(d) { return FALL_SPEED + SPEED_RAMP * smoothstep(d / 26000); }
+// Since version 80 the fall gets CAFE_SPEEDUP (5%) faster for every cafe passed, landed at or not, eased in over the
+// 400 px below each ledge: 263 px/s after the first, 276 after the second, 304 after the fourth, 407 after the tenth.
+const FALL_SPEED = 250, SPEED_RAMP = 0, CAFE_SPEEDUP = 1.05;
+const cafesPassed = d => { const n = (d - (CAFE_EVERY + CAFE_OFF + 40)) / CAFE_EVERY; return n < 0 ? 0 : Math.floor(n) + Math.min(1, (n % 1) * CAFE_EVERY / 400); };
+function speedAt(d) { return (FALL_SPEED + SPEED_RAMP * smoothstep(d / 26000)) * CAFE_SPEEDUP ** cafesPassed(d); }
 
 // ---------- saved settings ----------
 const save = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false, hints: {} };
 try { Object.assign(save, JSON.parse(localStorage.getItem('moonfall.v1') || '{}')); } catch (e) {}
 save.parts = Object.assign({ plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 }, save.parts);
 const repairFrac = () => PARTS.reduce((sum, pt) => sum + Math.min(1, save.parts[pt.id] / pt.need), 0) / PARTS.length;
+// The navigation computer (version 80): needed, with the repaired ship, to fly home. Paid off at cafe shops with spare
+// crystals, a little at a time across dives (save.nav is what's paid so far); about five decent dives' worth.
+const NAV_PRICE = 40;
+if (!Number.isFinite(save.nav)) save.nav = 0;
+const navDone = () => save.nav >= NAV_PRICE;
+const canLaunch = () => repairFrac() >= 1 && navDone();
 function persist() { try { localStorage.setItem('moonfall.v1', JSON.stringify(save)); } catch (e) {} }
 
 // ---------- sound ----------
@@ -2702,7 +2736,15 @@ function buildRepair() {
     li.append(partIcon(pt), name, count, meter); list.appendChild(li);
     partEls[pt.id] = { li, count, fill };
   }
+  // The navigation computer, bought at cafes, sits after the parts with the same look.
+  const nav = { id: 'nav', name: 'NAV COMPUTER', full: 'Navigation computer (buy it at a cafe)', spr: NAV_SPR };
+  const li = document.createElement('li'), name = document.createElement('span'), count = document.createElement('span'),
+    meter = document.createElement('span'), fill = document.createElement('b');
+  li.title = nav.full; li.className = 'navrow'; name.className = 'pn'; name.textContent = nav.name; count.className = 'pc'; meter.className = 'meter'; meter.appendChild(fill);
+  li.append(partIcon(nav), name, count, meter); list.appendChild(li);
+  partEls.nav = { li, count, fill };
 }
+const NAV_SPR = ['kkkkkkkkkkkk', 'knnnnnnnnnnk', 'knEEEEEEEEnk', 'knEeEEEEEEnk', 'knEEEeeEEEnk', 'knEEEEEEeEnk', 'knEEEEEEEEnk', 'knnnnnnnnnnk', 'kkkkkkkkkkkk', '....kqqk....', '..kkkkkkkk..'];
 function renderRepair() {
   repair = repairFrac();
   const pct = Math.floor(repair * 100);
@@ -2715,7 +2757,11 @@ function renderRepair() {
     el.li.classList.toggle('done', have >= pt.need);
     el.li.setAttribute('aria-label', pt.full + ': ' + have + ' of ' + pt.need);
   }
-  $('launchBtn').hidden = repair < 1;
+  const nav = partEls.nav, paid = Math.min(save.nav, NAV_PRICE);
+  nav.count.textContent = paid + '/' + NAV_PRICE; nav.fill.style.width = (paid / NAV_PRICE * 100) + '%';
+  nav.li.classList.toggle('done', navDone());
+  nav.li.setAttribute('aria-label', 'Navigation computer, bought at cafes: ' + paid + ' of ' + NAV_PRICE + ' crystals paid');
+  $('launchBtn').hidden = !canLaunch();
 }
 function renderRunParts() {
   const list = $('runParts'), got = PARTS.filter(pt => runParts[pt.id] > 0);
@@ -2885,7 +2931,7 @@ function resetRun() {
   rocks = []; items = []; particles = []; hazards = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; lastHazD = -9999; steerAcc = 0;
   for (const k in runParts) runParts[k] = 0;
   leviSeen.clear();
-  $('partsRun').textContent = '0'; repair = repairFrac(); repairStart = repair;
+  $('partsRun').textContent = '0'; repair = repairFrac(); repairStart = repair; readyStart = canLaunch();
   Object.assign(player, playerStart());
   cafeVisited.clear(); cafeArt.clear(); signArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
   buildHP(); $('spareRun').textContent = '0'; spareHud.hidden = true; streakFlash.classList.remove('on'); buildFlags(); refreshBoard();
@@ -2942,7 +2988,7 @@ function askReset(step) {
   confirmDlg.classList.toggle('danger', step === 2);
   $('confirmTitle').textContent = step === 1 ? 'Reset ship repair?' : 'Are you sure?';
   $('confirmText').textContent = !n ? 'Your ship repair is already at 0%, so there is nothing to reset.'
-    : step === 1 ? `This clears the ${n} ship part${n === 1 ? '' : 's'} you have collected and sets the repair back to 0%.`
+    : step === 1 ? `This clears the ${n} ship part${n === 1 ? '' : 's'} you have collected and what you paid for the nav computer, and sets the repair back to 0%.`
     : 'This cannot be undone. Your ship goes back to 0% and you start collecting parts from scratch.';
   $('confirmYes').hidden = !n;
   $('confirmYes').textContent = step === 1 ? 'Reset' : 'Yes, reset to 0%';
@@ -2957,7 +3003,7 @@ $('confirmYes').addEventListener('click', () => {
   if (confirmStep === 1) { askReset(2); return; }
   confirmDlg.close();
   for (const pt of PARTS) save.parts[pt.id] = 0;
-  save.dives = 0;
+  save.dives = 0; save.nav = 0;
   persist(); renderRepair();
   const b = $('resetBtn'); b.textContent = 'Repair reset to 0%';
   clearTimeout(resetTimer); resetTimer = setTimeout(() => (b.textContent = 'Reset ship repair'), 2500);
@@ -2970,7 +3016,7 @@ $('settingsDone').addEventListener('click', () => setCard(null));
 // one ping when a run starts and one when it ends with how long it lasted, how deep it got and how it ended.
 // Only sent when the online board is on (SCORES_URL), so the claude.ai copy never counts.
 const hex16 = () => { const b = new Uint8Array(8); crypto.getRandomValues(b); return [...b].map(x => x.toString(16).padStart(2, '0')).join(''); };
-let runId = '', runSecs = 0, cafesRun = 0, lastHit = '';
+let runId = '', runSecs = 0, cafesRun = 0, lastHit = '', fasterN = 0;
 // Frame rate over the run (frames and real time while it's on and not paused) and the slowest frame, to spot phones that struggle.
 let runFrames = 0, runRaw = 0, runWorst = 0;
 // The opening on this page load: watched to the end or skipped. Sent with the first run only, so each launch counts once.
@@ -2985,7 +3031,7 @@ function statPing(body) {
 }
 function countPlay() {
   if (!/^[0-9a-f]{16}$/.test(save.playerId || '')) { save.playerId = hex16(); persist(); }
-  runId = hex16(); runSecs = 0; cafesRun = 0; lastHit = ''; runFrames = 0; runRaw = 0; runWorst = 0;
+  runId = hex16(); runSecs = 0; cafesRun = 0; lastHit = ''; fasterN = 0; runFrames = 0; runRaw = 0; runWorst = 0;
   if (!introDone) { introDone = true; introRun = runId; }
   statPing({ event: 'play', player: save.playerId, run: runId });
 }
@@ -3027,7 +3073,7 @@ function resume() {
   else if (state === 'play' || introT >= 1.3) Music.start();
 }
 function toTitle() {
-  const repairedThisRun = repairStart < 1 && repairFrac() >= 1;
+  const repairedThisRun = !readyStart && canLaunch();   // ready to fly since this run began: the ship or the computer finished
   endRun('quit');
   resetRun();
   setState('title');
@@ -3054,7 +3100,7 @@ function gameOver() {
   renderRunParts();
   const extra = [player.bestStreak ? 'Best streak ' + player.bestStreak : '', perkSummary()].filter(Boolean).join(' \u00b7 ');
   $('runExtra').textContent = extra; $('runExtra').hidden = !extra;
-  $('overLaunchBtn').hidden = repairFrac() < 1;
+  $('overLaunchBtn').hidden = !canLaunch();
   hud.classList.add('off'); syncToggles();
   if (qualifies(m)) { showScores(m); return; }
   showScreen('over');
@@ -3125,8 +3171,8 @@ function openTable() {
   renderTable();
   if (SCORES_URL) syncOnline();
 }
-// Whether this player has escaped the moon: the ship fully repaired, or launched at least once. Saved with each score.
-const escapedNow = () => (save.launches || 0) > 0 || repairFrac() >= 1;
+// Whether this player has escaped the moon: ready to launch (ship repaired, computer paid), or launched at least once. Saved with each score.
+const escapedNow = () => (save.launches || 0) > 0 || canLaunch();
 const ROCKET_SVG = '<svg viewBox="0 0 7 9" width="14" height="18" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1h-1zM2 1h3v6h-3zM1 4h1v3h-1zM5 4h1v3h-1zM0 6h1v2h-1zM6 6h1v2h-1zM3 7h1v2h-1z"/></svg>';
 function renderTable() {
   $('hsTabOnline').setAttribute('aria-pressed', hsTab === 'online'); $('hsTabLocal').setAttribute('aria-pressed', hsTab === 'local');
@@ -3445,6 +3491,15 @@ function openShop() {
     b.addEventListener('click', () => buyPerk(i));
     $('shopItems').append(b);
   });
+  if (!navDone()) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'perk nav'; b.id = 'navBuy';
+    const n = document.createElement('span'); n.className = 'perk-name'; n.textContent = 'NAV COMPUTER';
+    const d = document.createElement('span'); d.className = 'perk-desc'; d.id = 'navDesc';
+    const cst = document.createElement('span'); cst.className = 'perk-cost'; cst.id = 'navCost';
+    b.append(n, d, cst);
+    b.addEventListener('click', payNav);
+    $('shopItems').append(b);
+  }
   cafeCard(null, true);
   renderShop();
   shopEl.hidden = false;
@@ -3473,11 +3528,21 @@ $('shopDone').addEventListener('click', () => cafeCard(null));
 $('tipsDone').addEventListener('click', () => cafeCard(null));
 function renderShop() {
   for (const id of ['shopSpare', 'shopSpare2', 'shopBtnN']) $(id).textContent = player.spare;
-  const afford = shopOffer.some(p => player.spare >= p.cost);
+  const afford = shopOffer.some(p => player.spare >= p.cost) || (!navDone() && player.spare > 0);
   $('shopNote').textContent = shopDone ? 'Enjoy! One treat per cafe.' : afford ? 'Pick one treat per cafe' : player.spare ? 'Not enough spare crystals yet' : 'No spare crystals yet: see TIPS';
   $('cafeNote').textContent = shopDone ? 'Treat bought. Enjoy the fall!' : !save.cafeTips ? 'New here? Tap TIPS first' : afford ? 'Spend your spare crystals in the shop' : 'Catch crystals at full health to earn spares';
+  const nb = $('navBuy');
+  if (nb) {
+    const left = NAV_PRICE - save.nav, put = Math.min(player.spare, left);
+    $('navDesc').textContent = left > 0 ? 'To fly home: ' + save.nav + '/' + NAV_PRICE : 'Installed!';
+    $('navCost').textContent = left > 0 ? (put ? 'PAY ' + put : 'NEED ' + left) : 'DONE';
+    nb.disabled = !put; nb.classList.toggle('poor', !put && left > 0);
+    nb.setAttribute('aria-label', 'Navigation computer, needed to fly home, ' + save.nav + ' of ' + NAV_PRICE + ' crystals paid' + (put ? ', pay ' + put : ''));
+  }
   [...$('shopItems').children].forEach((b, i) => {
-    const p = shopOffer[i], poor = player.spare < p.cost;
+    const p = shopOffer[i];
+    if (!p) return;
+    const poor = player.spare < p.cost;
     b.classList.toggle('poor', poor && !b.classList.contains('bought'));
     b.disabled = shopDone || poor;
     b.setAttribute('aria-label', p.name + ', ' + p.desc + ', costs ' + p.cost + ' spare crystals' + (poor && !shopDone ? ', not enough' : ''));
@@ -3500,6 +3565,20 @@ function buyPerk(i) {
   // The shop stays open until he presses Done (keyboard focus moves there). It used to turn back by itself after 0.9 s,
   // and a tap meant for Done could land on Continue the fall.
   kbFocus($('shopDone'));
+}
+// Puts spare crystals toward the navigation computer: as many as he has, up to what's left. It's kept between runs, and it
+// isn't the cafe's one treat, so he can still buy a treat with what's left.
+function payNav() {
+  const put = Math.min(player.spare, NAV_PRICE - save.nav);
+  if (put <= 0 || state !== 'cafe' || cafeSide !== 'shop') return;
+  player.spare -= put; save.nav += put; persist();
+  $('spareRun').textContent = player.spare;
+  Sfx.buy(); Buzz.part();
+  if (navDone()) {
+    Sfx.repaired(); pop('NAV COMPUTER READY!', player.x, player.y - 10, 'part');
+    showCoach(repairFrac() >= 1 ? 'READY TO FLY HOME! LAUNCH IT FROM THE MAIN MENU' : 'NAV COMPUTER READY. NOW FINISH THE SHIP REPAIR', 3500);
+  } else pop('NAV +' + put, player.x, player.y - 10, 'part');
+  renderShop();
 }
 $('shopGo').addEventListener('click', () => { if (state === 'cafe') leaveCafe(); });
 function perkSummary() { return player.bought.length ? 'Treats: ' + player.bought.join(', ') : ''; }
@@ -3601,29 +3680,32 @@ function renderTarget() {
 // where that run ended, with the player's initials above it: pale before he passes it, gold after. Drawn once into a
 // small image, one for before and one for after passing it. (Version 77; it used to be a dotted line across the shaft
 // and a sign, which the user found cluttered.)
+// Version 80: three times the size, a pale stone with a dark outline and 16 px initials (the user couldn't spot the old ones).
 const GRAVE = ['..kkkkk..', '.ksssssk.', 'ksssdsssk', 'kssdddssk', 'ksssdsssk', 'ksssdsssk', 'ksssssssk', 'ksssssssk', 'ksssssssk', 'kkkkkkkkk'];
-const GRAVE_W = 9, GRAVE_IMG = { w: 30, h: 24 };   // the image: initials on top, the stone's foot on its bottom row
+const GRAVE_W = 9, GRAVE_X = 3, GRAVE_IMG = { w: 50, h: 50 };   // the image: initials on top, the stone's foot on its bottom row
 function flagArt(f) {
   const key = f.passed ? 'imgP' : 'img';
   if (f[key]) return f[key];
   const v = document.createElement('canvas'); v.width = GRAVE_IMG.w; v.height = GRAVE_IMG.h;
-  const g = v.getContext('2d'), sx = Math.round((GRAVE_IMG.w - GRAVE_W) / 2);
-  spriteRows(g, GRAVE, sx, GRAVE_IMG.h - GRAVE.length, { k: P.ink, s: P.shade, d: P.dust });
-  g.font = '8px Silkscreen'; g.textBaseline = 'top'; g.textAlign = 'center';
+  const g = v.getContext('2d'), one = document.createElement('canvas'); one.width = GRAVE_W; one.height = GRAVE.length;
+  spriteRows(one.getContext('2d'), GRAVE, 0, 0, { k: P.ink, s: f.passed ? '#F2C14E' : P.dust, d: P.shade });
+  g.imageSmoothingEnabled = false;
+  g.drawImage(one, Math.round((GRAVE_IMG.w - GRAVE_W * GRAVE_X) / 2), GRAVE_IMG.h - GRAVE.length * GRAVE_X, GRAVE_W * GRAVE_X, GRAVE.length * GRAVE_X);
+  g.font = '16px Silkscreen'; g.textBaseline = 'top'; g.textAlign = 'center';
   const tx = GRAVE_IMG.w / 2, ty = 0;
-  g.fillStyle = P.ink;   // a 1 px dark outline, so the initials read on pale and dark rock alike
-  for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.fillText(f.i, tx + ox, ty + 1 + oy);
+  g.fillStyle = P.ink;   // a dark outline, so the initials read on pale and dark rock alike
+  for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 2; oy++) if (ox || oy) g.fillText(f.i, tx + ox, ty + 1 + oy);
   g.fillStyle = f.passed ? '#F2C14E' : P.dust; g.fillText(f.i, tx, ty + 1);
   // Only keep it once the pixel font has loaded, so an early fallback-font version gets redrawn.
-  if (!document.fonts || document.fonts.check('8px Silkscreen')) f[key] = v;
+  if (!document.fonts || document.fonts.check('16px Silkscreen')) f[key] = v;
   return v;
 }
 function drawFlags(cam) {
   for (const f of flags) {
     const y = Math.round(f.d - cam);
-    if (y < -30 || y > H + 10) continue;
-    const { L, R } = edgeAt(f.d), cx = f.side < 0 ? L - 8 : R + 8;   // the stone's middle, on the rock beside the edge
-    c.drawImage(flagArt(f), Math.max(-10, Math.min(W - GRAVE_IMG.w + 10, Math.round(cx - GRAVE_IMG.w / 2))), y - GRAVE_IMG.h);
+    if (y < -10 || y > H + GRAVE_IMG.h) continue;
+    const { L, R } = edgeAt(f.d), cx = f.side < 0 ? L - 10 : R + 10;   // the stone's middle, on the rock beside the edge
+    c.drawImage(flagArt(f), Math.max(0, Math.min(W - GRAVE_IMG.w, Math.round(cx - GRAVE_IMG.w / 2))), y - GRAVE_IMG.h);
   }
 }
 // ---------- the opening film: coffee on the bridge, the asteroid, the crash, the landing ----------
@@ -4308,7 +4390,7 @@ $('newMissionBtn').addEventListener('click', e => {
   }
   clearTimeout(armTimer); delete b.dataset.armed; b.textContent = 'New mission';
   for (const pt of PARTS) save.parts[pt.id] = 0;
-  save.dives = 0;
+  save.dives = 0; save.nav = 0;
   persist(); toTitle();
 });
 $('endTitleBtn').addEventListener('click', toTitle);
@@ -4622,12 +4704,17 @@ const MINE_DAMAGE = 2, HIT_INVULN_S = 1.0;
 function hurt(kind, x, d, size) {
   if (state !== 'play') return;
   if (player.shield > 0) {
-    // One block per 0.4 s: lava drips stay put when they touch him, so without this they would block on every frame.
-    if (kind !== 'wall' && player.blockT <= 0) {
-      player.blockT = 0.4;
+    // Since version 80 a block wears the shield down: a mine takes half its full time, anything else (walls included) a
+    // quarter. One block per HIT_INVULN_S, like the blink after a hit: lava drips stay put when they touch him, and he can
+    // slide along a wall, so without it they would block on every frame. If it breaks, he blinks as after a hit.
+    if (player.blockT <= 0) {
+      player.blockT = HIT_INVULN_S;
+      const cut = kind === 'mine' ? SHIELD_MINE_CUT : SHIELD_HIT_CUT;
+      player.shield = Math.max(0, player.shield - cut * player.shieldMax);
       Buzz.block();
       Sfx.block();
-      pop('BLOCKED', player.x, player.y - 6, 'good');
+      if (player.shield > 0.05) pop('SHIELD -' + Math.round(cut * 100) + '%', player.x, player.y - 6, 'good');
+      else { player.shield = 0; player.inv = HIT_INVULN_S; pop('SHIELD BROKEN', player.x, player.y - 6, 'bad'); }
       hitStop = 0.04;
     }
     return;
@@ -4644,7 +4731,8 @@ function hurt(kind, x, d, size) {
   pop('-' + dmg, player.x, player.y - 6, 'bad');
   if (player.hp <= 0) { lastHit = kind; die(); } else Sfx.hurtVoice(kind);
 }
-const SHIELD_S = 10, CLOSE_PX = 10;
+// A shield lasts SHIELD_S (8 s since version 80, was 10); a mine takes half of it, any other hit a quarter.
+const SHIELD_S = 8, SHIELD_MINE_CUT = 0.5, SHIELD_HIT_CUT = 0.25, CLOSE_PX = 10;
 let orbChain = 0, lastOrbT = -9;
 function collect(it) {
   it.dead = true;
@@ -4663,7 +4751,7 @@ function collect(it) {
       save.parts[pt.id]++; persist();
       const was = repair; repair = repairFrac();
       if (was < 1 && repair >= 1) {
-        showCoach('SHIP REPAIRED! LAUNCH IT FROM THE MAIN MENU', 3500); Sfx.repaired(); Buzz.shield();
+        showCoach(navDone() ? 'SHIP REPAIRED! LAUNCH IT FROM THE MAIN MENU' : 'SHIP REPAIRED! NOW BUY THE NAV COMPUTER AT A CAFE', 3500); Sfx.repaired(); Buzz.shield();
         sparks(player.x, player.y + PILOT_CY, ['#F2C14E', '#FFFFFF', '#A9781B', P.hot], 40, 16);
       }
     }
@@ -4846,6 +4934,7 @@ function update(dt) {
     updateHazards(dt);
     collide(prevX);
     passFlags();
+    if (Math.floor(cafesPassed(player.y + PILOT_CY)) > fasterN) { fasterN++; pop('FALL +5%', player.x, player.y - 22, 'bad'); }
     if (state === 'play') checkCafe();
     Sfx.wind(0.5 + 0.5 * smoothstep((player.v - 250) / 200));
     Music.setDepth(depthM());
