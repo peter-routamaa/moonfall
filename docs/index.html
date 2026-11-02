@@ -547,11 +547,11 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // SECTIONS, in order (search for "// ---------- " to jump between them): canvas and palette, helpers, sprites, ship parts,
 //   the shaft, alien life, the moon surface, game state, saved settings, sound and his voice, music, haptics, DOM, flow,
 //   high scores, coffee stop (cafes: drawing, landing, the shop, the signs), board flags, the opening film, the launch,
-//   input, level generation, damage and pickups, update, render, sizing and loop.
+//   input, signature hazards (one per rock layer), level generation, damage and pickups, update, render, sizing and loop.
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 64;
+const VERSION = 65;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -1785,7 +1785,7 @@ const depthM = () => Math.max(0, Math.floor(player.y / PX_PER_M));
 function speedAt(d) { return 250 + 170 * smoothstep(d / 26000); }
 
 // ---------- saved settings ----------
-const save = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false };
+const save = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false, hints: {} };
 try { Object.assign(save, JSON.parse(localStorage.getItem('moonfall.v1') || '{}')); } catch (e) {}
 save.parts = Object.assign({ plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 }, save.parts);
 const repairFrac = () => PARTS.reduce((sum, pt) => sum + Math.min(1, save.parts[pt.id] / pt.need), 0) / PARTS.length;
@@ -2158,6 +2158,12 @@ const Sfx = (() => {
     },
     stopIntro() { for (const n of introNodes) { try { n.stop(); } catch (e) {} } introNodes.length = 0; this.stopEngine(); },
     stopEngine() { try { if (engineSrc) engineSrc.stop(); } catch (e) {} engineSrc = null; },
+    // Signature hazards: glazed ice, a ledge crumbling, a column punching out, a geyser, crystals growing.
+    ice() { tone('sine', 1700, 2500, 0.07, 0.16); tone('triangle', 800, 1250, 0.16, 0.2); boing(0); },
+    crumble() { noise(0.5, 'lowpass', 600, 0.55); noise(0.12, 'bandpass', 1400, 0.3); tone('sine', 90, 50, 0.4, 0.3); },
+    column() { noise(0.12, 'lowpass', 900, 0.5); tone('square', 140, 60, 0.14, 0.14); },
+    geyser() { noise(0.6, 'bandpass', 700, 0.3); noise(0.4, 'highpass', 2500, 0.12, 0.05); tone('sawtooth', 110, 70, 0.4, 0.06); },
+    crystal() { [2093, 2637, 3136].forEach((f, i) => tone('sine', f, f, 0.25, 0.05, i * 0.04)); },
     weld() { noise(0.1, 'highpass', 3800, 0.22); noise(0.07, 'bandpass', 1700, 0.16, 0.04); tone('square', 118, 108, 0.1, 0.04); },
     clang() { tone('triangle', 1180, 1150, 0.4, 0.28); tone('sine', 2650, 2580, 0.28, 0.12); tone('square', 560, 530, 0.07, 0.07); noise(0.04, 'highpass', 5000, 0.35); },
     repaired() { [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, f, 0.32, 0.2, i * 0.09)); tone('sine', 2093, 2093, 0.5, 0.06, 0.36); },
@@ -2657,7 +2663,7 @@ function drawIcons() {
 // ---------- flow ----------
 function resetRun() {
   newSeed();
-  rocks = []; items = []; particles = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; steerAcc = 0;
+  rocks = []; items = []; particles = []; hazards = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; lastHazD = -9999; steerAcc = 0;
   for (const k in runParts) runParts[k] = 0;
   leviSeen.clear();
   $('partsRun').textContent = '0'; repair = repairFrac(); repairStart = repair;
@@ -4106,12 +4112,224 @@ addEventListener('keyup', e => {
   if (k === 'ArrowRight' || k === 'd' || k === 'D') keys.r = false;
 });
 
+// ---------- signature hazards: one kind per rock layer ----------
+// Ice: glazed stretches of wall that bounce him back across the shaft (no damage). Sandstone: ledges that shake, then
+// drop a tumbling boulder (an ordinary rock that moves). Basalt: columns that punch out of the wall after a blinking
+// warning line. Magma: vents that glow, then spray lava part of the way across, on a cycle. Amethyst: crystal gates that
+// grow in from both walls, leaving one gap. Each one shows or warns before it can hurt, timed by how soon he'll reach it
+// (its distance over his fall speed), and none reaches more than 58% of the way across.
+const HAZ_KIND = ['glaze', 'crumble', 'column', 'geyser', 'gate'];   // by MATS index
+const HAZ_HINT = {
+  glaze: 'GLAZED ICE BOUNCES YOU', crumble: 'LEDGES CRUMBLE INTO BOULDERS', column: 'COLUMNS PUNCH OUT OF THE WALL',
+  geyser: 'GLOWING VENTS SPRAY LAVA', gate: 'CRYSTAL GATES: FIND THE GAP'
+};
+const HAZ_GAP = 520;                                    // at least this many pixels between hazards
+const CRUMBLE_WARN = 1.6, CRUMBLE_GO = 1.1;             // seconds before he reaches it: start shaking, let go
+const COL_WARN = 1.3, COL_OUT = 0.6;                    // the warning line, then the column punches out
+const GATE_SHOW = 1.5, GATE_SOLID = 0.8;                // the crystals start growing, then they're solid
+const GEY_PERIOD = 2.6, GEY_WARM = 1.1, GEY_ON = 1.7;   // a geyser's cycle: quiet, glowing from 1.1 s, spraying from 1.7 s
+const ICE_GLAZE = '#BFE6F7';
+let hazards = [], lastHazD = -9999;
+// Maybe give this segment its layer's hazard; true if it did (the segment then gets no rock). It draws from its own
+// random stream, so the rest of the shaft is laid out as it would be anyway.
+function placeHazard(k, d0) {
+  const m = d0 / PX_PER_M, z = Math.floor(m / ZONE_M), into = m - z * ZONE_M;
+  if (m < 120 || into < 40 || into > ZONE_M - 30 || d0 - lastHazD < HAZ_GAP) return false;
+  const r = rng32(Math.floor(SEED * 1000) + k * 7919 + 4243);
+  if (r() > 0.5) return false;
+  const d = Math.round(d0 + 20 + r() * (SEG_LEN - 40));
+  if (d - lastRockD < 90) return false;   // room to get past the rock above first
+  if (cavernAt(d - 300) > 0.02 || cavernAt(d) > 0.02 || cavernAt(d + 300) > 0.02) return false;
+  const kind = HAZ_KIND[matI(z)], h = { kind, d, side: r() < 0.5 ? -1 : 1, ext: 0, grow: 0 };
+  if (kind === 'glaze') h.len = Math.round(70 + r() * 70);
+  // Not where the shaft splits around an island.
+  for (let dd = d - 80; dd <= d + (h.len || 0) + 80; dd += 40) if (spans(dd).length > 1) return false;
+  if (kind === 'crumble') h.size = r() < 0.5 ? 1 : 2;
+  if (kind === 'column' || kind === 'geyser') h.reach = 0.42 + r() * 0.16;
+  if (kind === 'geyser') h.ph = r() * GEY_PERIOD;
+  if (kind === 'gate') {
+    const { L, R } = edgeAt(d), gap = 2 * HIT_HALF_W + 34, room = R - L - 40 - gap;
+    if (room < 0) return false;
+    h.gap = gap; h.gx = Math.round(L + 20 + gap / 2 + r() * room);
+  }
+  hazards.push(h); lastHazD = d; lastRockD = Math.max(lastRockD, d);
+  return true;
+}
+// How far a geyser's spray is out (0 to 1): it shoots out and dies back over 0.15 s.
+const gushAt = h => h.on ? Math.min(1, (h.p - GEY_ON) / 0.15) * Math.min(1, (GEY_PERIOD - h.p) / 0.15) : 0;
+// Each frame of a run, before collisions.
+function updateHazards(dt) {
+  const cd = player.y + PILOT_CY, v = Math.max(60, player.v);
+  let gush = false;
+  for (const h of hazards) {
+    const soon = (h.d - cd) / v, y = h.d - camY, seen = y > -20 && y < H + 20;   // seconds until he gets there
+    // The first time each kind comes into view, a tip says what it does (once the coach line is free).
+    if (seen && !save.hints[h.kind] && coach.classList.contains('gone')) { save.hints[h.kind] = 1; persist(); showCoach(HAZ_HINT[h.kind], 2600); }
+    if (h.kind === 'crumble') {
+      h.shake = !h.gone && soon < CRUMBLE_WARN;
+      if (h.shake && Math.random() < dt * 14) {
+        const { L, R } = edgeAt(h.d);
+        particles.push({ x: h.side < 0 ? L + 1 : R - 2, d: h.d + 6, vx: -h.side * 12 * Math.random(), vy: 70, t: 0, life: 0.5, col: palAt(h.d).b0, z: 1 });
+      }
+      if (!h.gone && soon < CRUMBLE_GO) dropBoulder(h, seen);
+    } else if (h.kind === 'column') {
+      const out = soon < COL_OUT && soon > -0.4;   // out as he arrives, back in once he's past
+      if (out && h.ext === 0 && seen) Sfx.column();
+      h.ext = out ? Math.min(1, h.ext + dt / 0.12) : Math.max(0, h.ext - dt / 0.6);
+      h.warn = soon < COL_WARN && h.ext < 1 && soon > 0;
+    } else if (h.kind === 'gate') {
+      h.grow = smoothstep((GATE_SHOW - soon) / (GATE_SHOW - GATE_SOLID));
+      if (h.grow > 0 && !h.chimed && seen) { h.chimed = true; Sfx.crystal(); }
+    } else if (h.kind === 'geyser') {
+      const was = h.on;
+      h.p = (clock + h.ph) % GEY_PERIOD; h.warm = h.p >= GEY_WARM; h.on = h.p >= GEY_ON;
+      if (h.on && !was && seen) gush = true;
+    }
+  }
+  if (gush) Sfx.geyser();
+  prune(hazards, h => h.d + (h.len || 0) > camY - 80);
+}
+// A crumbling ledge lets go: its boulder joins the rocks, falling slower than he does and drifting in from the wall.
+function dropBoulder(h, seen) {
+  h.gone = true;
+  const { L, R } = edgeAt(h.d), rr = ROCK_R[h.size], x = h.side < 0 ? L + rr - 4 : R - rr + 4, Q = palAt(h.d);
+  rocks.push({ d: h.d, x0: x, x, size: h.size, rr, amp: 0, ph: 0, sp: 1, isMine: false, dead: false, vx: -h.side * 80, vd: 110 });
+  if (seen) { Sfx.crumble(); sparks(h.side < 0 ? L + 2 : R - 2, h.d, [Q.b0, Q.shade, Q.hi], 10); }
+}
+function rollBoulder(k, dt) {
+  k.d += k.vd * dt; k.x0 += k.vx * dt; k.vx *= Math.exp(-1.3 * dt);
+  const { L, R } = edgeAt(k.d);
+  k.x0 = Math.max(L + k.rr + 1, Math.min(R - k.rr - 1, k.x0));
+}
+function glazedAt(side, cd) {
+  for (const h of hazards) if (h.kind === 'glaze' && h.side === side && cd > h.d - 10 && cd < h.d + h.len + 10) return true;
+  return false;
+}
+// Glazed ice: a hard bounce back across the shaft instead of a hit.
+function bounceOff(side, edge, cd, fresh) {
+  player.x = side < 0 ? edge + HIT_HALF_W + 2 : edge - HIT_HALF_W - 2;
+  player.vx = -side * 330; player.aim = player.x - side * 80; player.touch = true;
+  if (fresh) { sparks(edge, cd, ['#FFFFFF', ICE_GLAZE, P.lite], 9); Sfx.ice(); Buzz.orb(); }
+}
+// Collisions with columns, geyser spray and crystal gates (boulders are rocks, glazed ice is in collide's wall checks).
+function hazardHits(cd) {
+  for (const h of hazards) {
+    // Threading a crystal gate counts as a near miss.
+    if (h.kind === 'gate' && !h.done && cd - h.d > 14) { h.done = true; nearMiss({ x: player.x, d: h.d, rr: 4 }); continue; }
+    const dy = Math.abs(h.d - cd);
+    if (dy > 16) continue;
+    const { L, R } = edgeAt(h.d), w = R - L, base = h.side < 0 ? L : R;
+    if (h.kind === 'column' && h.ext > 0.3 && !h.hit) {
+      const tip = base - h.side * h.reach * w * h.ext;
+      if (h.side < 0 ? player.x - HIT_HALF_W < tip : player.x + HIT_HALF_W > tip) {
+        h.hit = true; player.vx = -h.side * 160;
+        sparks(player.x, h.d, [P.rock, P.shade, P.ink], 10, 10); hurt('rock');
+      }
+    } else if (h.kind === 'geyser' && dy < 13) {
+      const tip = base - h.side * h.reach * w * gushAt(h);
+      if (gushAt(h) > 0.2 && (h.side < 0 ? player.x - HIT_HALF_W < tip : player.x + HIT_HALF_W > tip)) { sparks(player.x, cd, [P.lava, P.hot], 5); hurt('lava'); }
+    } else if (h.kind === 'gate' && !h.done && h.grow > 0.6 && dy < 14) {
+      const gl = h.gx - h.gap / 2, gr = h.gx + h.gap / 2;
+      if (player.x - HIT_HALF_W < gl || player.x + HIT_HALF_W > gr) {
+        const Q = palAt(h.d);
+        h.done = true; h.broke = player.x < h.gx ? -1 : 1; player.vx = player.x < h.gx ? 140 : -140;
+        sparks(player.x, h.d, [Q.cryL, Q.cryD, Q.hi], 14, 20); hurt('rock');
+      }
+    }
+  }
+}
+// A basalt column `out` pixels long, sticking out of the wall at `base`: 12 px thick, lit on top and shaded below, with
+// joints every 9 px and a pale end face. 8 px of it sit in the wall.
+function drawColumn(base, y, side, out, Q) {
+  const x0 = side < 0 ? base - 8 : base - out, len = out + 8;
+  c.fillStyle = Q.ink; c.fillRect(x0 - 1, y - 7, len + 2, 14);
+  c.fillStyle = Q.hi; c.fillRect(x0, y - 6, len, 3);
+  c.fillStyle = Q.b1; c.fillRect(x0, y - 3, len, 5);
+  c.fillStyle = Q.shade; c.fillRect(x0, y + 2, len, 4);
+  c.fillStyle = Q.ink; for (let i = 9; i < out; i += 9) c.fillRect(side < 0 ? base + out - i : base - out + i, y - 6, 1, 12);
+  c.fillStyle = Q.hi; c.fillRect(side < 0 ? base + out - 3 : base - out, y - 5, 3, 10);
+}
+// A bar of amethyst from the wall at x0 toward the gap, grown to fraction g of the way to x1, pointed at its end.
+function drawCrystalBar(x0, x1, y, dir, g, Q) {
+  const len = Math.round(Math.abs(x1 - x0) * g);
+  for (let i = 0; i < len; i++) {
+    const x = x0 + dir * i, th = Math.min(4, len - i);
+    c.fillStyle = Q.ink; c.fillRect(x, y - th - 1, 1, th * 2 + 3);
+    c.fillStyle = i % 7 < 2 ? Q.hi : Q.cryL; c.fillRect(x, y - th, 1, th);
+    c.fillStyle = Q.cryD; c.fillRect(x, y, 1, th + 1);
+  }
+}
+const CRACKS = [[2, -10, 5], [4, 8, 6], [1, -4, 3], [6, 2, 4], [3, 12, 3]];   // [in from the edge, rows from the middle, length]
+function drawHazards(cam) {
+  for (const h of hazards) {
+    const y = Math.round(h.d - cam);
+    if (y < -30 - (h.len || 0) || y > H + 30) continue;
+    const Q = palAt(h.d), { L, R } = edgeAt(h.d), w = R - L, base = h.side < 0 ? L : R;
+    if (h.kind === 'glaze') {
+      // A frosty crust over the wall's edge, jagged with little ice spikes, with glints sliding along it.
+      for (let dd = Math.max(h.d, Math.ceil(cam) - 2); dd < Math.min(h.d + h.len, cam + H + 2); dd++) {
+        const x = h.side < 0 ? edgeAt(dd).L : edgeAt(dd).R, yy = dd - cam, end = Math.min(dd - h.d, h.d + h.len - dd);
+        const t = end < 3 ? 1 : 3 + (end > 6 && (dd * 7) % 9 < 2 ? 2 : 0);
+        c.fillStyle = ICE_GLAZE; c.fillRect(h.side < 0 ? x - 2 : x - t, yy, t + 2, 1);
+        c.fillStyle = P.dust; c.fillRect(h.side < 0 ? x + t - 1 : x - t, yy, 1, 1);
+      }
+      c.fillStyle = '#FFFFFF';
+      for (let i = 0; i < 3; i++) {
+        const dd = Math.floor(h.d + ((clock * 0.3 + i / 3 + (h.d % 97) / 97) % 1) * h.len), x = h.side < 0 ? edgeAt(dd).L + 1 : edgeAt(dd).R - 2, yy = dd - cam;
+        c.fillRect(x - 1, yy, 3, 1); c.fillRect(x, yy - 1, 1, 3);
+      }
+    } else if (h.kind === 'crumble' && !h.gone) {
+      // The boulder sits half in the wall among cracks, and shivers (dribbling sand) before it falls.
+      const rr = ROCK_R[h.size], j = h.shake ? (Math.floor(clock * 24) % 2 ? 1 : -1) : 0;
+      c.fillStyle = Q.ink;
+      for (const [dx, dy, l] of CRACKS) c.fillRect(h.side < 0 ? L - dx - l : R + dx, y + dy, l, 1);
+      drawRock((h.side < 0 ? L + rr - 5 : R - rr + 5) + j, y, h.size);
+    } else if (h.kind === 'column') {
+      const len = Math.round(h.reach * w);
+      // Before it punches out: a blinking dotted line as far as it will reach, and the end shivers in the wall.
+      if (h.warn && Math.floor(clock * 8) % 2 === 0) {
+        c.fillStyle = P.lava;
+        for (let i = 2; i < len; i += 4) c.fillRect(h.side < 0 ? base + i : base - i - 2, y, 2, 1);
+      }
+      const jig = h.warn && h.ext === 0 ? Math.floor(clock * 30) % 2 : 0;
+      drawColumn(base, y, h.side, Math.max(Math.round(len * h.ext), 2 + jig), Q);
+    } else if (h.kind === 'geyser') {
+      // The vent: a dark mouth in the wall with a glowing rim that flickers hot, with bubbles, before it sprays.
+      const hot = h.warm && Math.floor(clock * 10) % 2 === 0;
+      c.fillStyle = hot ? P.hot : P.lava; c.fillRect(h.side < 0 ? base - 9 : base, y - 6, 9, 12);
+      c.fillStyle = P.ink; c.fillRect(h.side < 0 ? base - 8 : base, y - 5, 8, 10);
+      if (h.warm && !h.on) {
+        c.fillStyle = P.hot;
+        for (let i = 0; i < 3; i++) { const u = (clock * 2.5 + i / 3) % 1; c.fillRect(base - h.side * Math.round(u * 6), y - 3 + i * 3 - Math.round(u * 3), 2, 2); }
+      }
+      const g = gushAt(h);
+      if (g > 0) {
+        const len = Math.round(h.reach * w * g);
+        for (let i = 0; i < len; i++) {
+          const x = h.side < 0 ? base + i : base - 1 - i, wob = Math.round(Math.sin(i * 0.35 - clock * 40) * 1.2), th = i > len - 5 ? 2 : 3;
+          c.fillStyle = P.lava; c.fillRect(x, y - th + wob, 1, th * 2 + 1);
+          c.fillStyle = P.hot; c.fillRect(x, y - 1 + wob, 1, 3);
+        }
+        c.fillStyle = P.hot;
+        for (let i = 0; i < 4; i++) { const u = (clock * 3 + i / 4) % 1, x = base - h.side * (len + u * 10); c.fillRect(Math.round(x), y - 5 + i * 3 + Math.round(u * 4), 2, 2); }
+      }
+    } else if (h.kind === 'gate') {
+      const gl = h.gx - h.gap / 2, gr = h.gx + h.gap / 2;
+      // Where it will close: a faint dotted line until the crystals are solid.
+      if (h.grow < 1) { c.fillStyle = Q.cryL; for (let x = L; x < R; x += 3) if (x < gl || x > gr) c.fillRect(x, y, 1, 1); }
+      if (h.broke !== -1) drawCrystalBar(L - 6, gl, y, 1, h.grow, Q);
+      if (h.broke !== 1) drawCrystalBar(R + 5, gr, y, -1, h.grow, Q);
+    }
+  }
+}
+
 // ---------- level generation ----------
 function genSeg(k) {
   const d0 = k * SEG_LEN;
   if (d0 < 560 || cavernAt(d0) > 0.02 || cavernAt(d0 + SEG_LEN) > 0.02) return;
+  const hz = placeHazard(k, d0);
   const r = rng32(Math.floor(SEED * 1000) + k * 7919), diff = smoothstep(d0 / 26000);
-  if (r() < 0.38 + 0.36 * diff) {
+  if (!hz && r() < 0.38 + 0.36 * diff) {
     const d = Math.max(d0 + 10 + r() * (SEG_LEN - 20), lastRockD + 120 - 20 * diff);
     if (d < d0 + SEG_LEN) {
       const size = r() < 0.3 ? 0 : r() < 0.55 ? 1 : 2, rr = ROCK_R[size], amp = r() < 0.08 + 0.22 * diff ? 8 + r() * 18 : 0;
@@ -4284,13 +4502,19 @@ function collide(prevX) {
     if (e.iR) { if (e.iL < iL) iL = e.iL; if (e.iR > iR) iR = e.iR; }
   }
   if (player.x - HIT_HALF_W < maxL) {
-    player.x = maxL + HIT_HALF_W + 2; player.vx = 170; player.aim = Math.max(player.aim, player.x + 12); player.touch = true;
-    if (fresh) sparks(maxL, cd, [P.rock, P.shade, P.dust], 7);
-    hurt('wall');
+    if (glazedAt(-1, cd)) bounceOff(-1, maxL, cd, fresh);
+    else {
+      player.x = maxL + HIT_HALF_W + 2; player.vx = 170; player.aim = Math.max(player.aim, player.x + 12); player.touch = true;
+      if (fresh) sparks(maxL, cd, [P.rock, P.shade, P.dust], 7);
+      hurt('wall');
+    }
   } else if (player.x + HIT_HALF_W > minR) {
-    player.x = minR - HIT_HALF_W - 2; player.vx = -170; player.aim = Math.min(player.aim, player.x - 12); player.touch = true;
-    if (fresh) sparks(minR, cd, [P.rock, P.shade, P.dust], 7);
-    hurt('wall');
+    if (glazedAt(1, cd)) bounceOff(1, minR, cd, fresh);
+    else {
+      player.x = minR - HIT_HALF_W - 2; player.vx = -170; player.aim = Math.min(player.aim, player.x - 12); player.touch = true;
+      if (fresh) sparks(minR, cd, [P.rock, P.shade, P.dust], 7);
+      hurt('wall');
+    }
   }
   if (iR > iL && player.x + HIT_HALF_W > iL && player.x - HIT_HALF_W < iR) {
     const left = prevX < (iL + iR) / 2, ex = left ? iL : iR;
@@ -4325,6 +4549,7 @@ function collide(prevX) {
       break;
     }
   }
+  hazardHits(cd);
   for (const it of items) {
     if (!it.dead && Math.abs(it.d - cd) < 18 && Math.abs(it.x - player.x) < 17) collect(it);
   }
@@ -4424,6 +4649,7 @@ function update(dt) {
       const dx = player.x - it.x, dy = player.y + PILOT_CY - it.d;
       if (!it.dead && dx * dx + dy * dy < 80 * 80) { const k = Math.min(1, dt * 7); it.x += dx * k; it.d += dy * k; }
     }
+    updateHazards(dt);
     collide(prevX);
     passFlags();
     if (state === 'play') checkCafe();
@@ -4437,7 +4663,10 @@ function update(dt) {
   while (nextSeg * SEG_LEN < camY + H + 200) genSeg(nextSeg++);
   prune(rocks, thingLive);
   prune(items, thingLive);
-  for (const k of rocks) k.x = k.x0 + (k.amp ? k.amp * Math.sin(clock * k.sp + k.ph) : 0);
+  for (const k of rocks) {
+    if (k.vd && (state === 'play' || state === 'dying')) rollBoulder(k, dt);
+    k.x = k.x0 + (k.amp ? k.amp * Math.sin(clock * k.sp + k.ph) : 0);
+  }
   const keep = Math.floor((camY - 140) / TILE_H);
   for (const key of tiles.keys()) if (key < keep) { retireTile(tiles.get(key)); tiles.delete(key); }
 }
@@ -4494,11 +4723,12 @@ function render() {
     else drawBubble(it.x, y, clock);
   }
   for (const k of rocks) {
-    const y = Math.round(k.d - cam + Math.sin(clock * 3 + k.d) * 2);
+    const y = Math.round(k.d - cam + (k.vd ? 0 : Math.sin(clock * 3 + k.d) * 2));
     if (y < -24 || y > H + 24) continue;
     if (k.isMine) drawMine(k.x, y, k.rr, Math.floor(k.d) % 2);
     else drawRock(k.x, y, k.size);
   }
+  drawHazards(cam);
   drawDrops(cam);
   for (const p of particles) {
     const y = Math.round(p.d - cam);

@@ -13,7 +13,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'tools', 'out')
 
 # The debug handle: the game's internals that the tests and screenshots reach for.
-HOOK = """window.__mf = { gameOver, depthM, startLaunch, save, player, Sfx, Music, get state() { return state; }, set state(v) { state = v; }, update, render, get openT() { return openT; }, cafeInfo, get flags() { return flags; }, get rocks() { return rocks; }, get items() { return items; }, nearMiss, collect, buyPerk, openShop, get shopOffer() { return shopOffer; }, get hitStop() { return hitStop; }, get flyers() { return flyers; }, hurt, buildFlags, get cafeT() { return cafeT; }, set cafeT(v) { cafeT = v; }, get camY() { return camY; }, edgeAt, checkCafe, prepaint, frame, DROPS, dropList, set clock(v) { clock = v; }, get shopDone() { return shopDone; } };"""
+HOOK = """window.__mf = { gameOver, depthM, startLaunch, save, player, Sfx, Music, get state() { return state; }, set state(v) { state = v; }, update, render, get openT() { return openT; }, cafeInfo, get flags() { return flags; }, get rocks() { return rocks; }, get items() { return items; }, get hazards() { return hazards; }, nearMiss, collect, buyPerk, openShop, get shopOffer() { return shopOffer; }, get hitStop() { return hitStop; }, get flyers() { return flyers; }, hurt, buildFlags, get cafeT() { return cafeT; }, set cafeT(v) { cafeT = v; }, get camY() { return camY; }, edgeAt, checkCafe, prepaint, frame, DROPS, dropList, set clock(v) { clock = v; }, get shopDone() { return shopDone; } };"""
 
 # A pretend scoreboard: answers the game's requests to fake-scores.test from memory. B.mode = 'down' fails them.
 FAKE_BOARD = """window.__board = { rows: [], next: 1, mode: 'ok', calls: [] };
@@ -54,6 +54,46 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     M.render(); document.title = 'ready'; return;
   }
   document.getElementById('startBtn').click(); await wait(300);
+  if (q.get('scene') === 'haz') {   // a contact sheet of the signature hazards; see tools/shoot_hazards.sh
+    M.save.hints = { glaze: 1, crumble: 1, column: 1, geyser: 1, gate: 1 };
+    const cv = document.getElementById('cv'), ov = document.getElementById('ov');
+    const goTo = (kind, minM) => {
+      for (let m = minM; m < 4400; m += 20) {
+        pl.y = m * 8; const e = M.edgeAt(pl.y + 14); pl.x = (e.L + e.R) / 2; pl.aim = pl.x; pl.vx = 0; pl.inv = 9; M.state = 'play'; M.update(1 / 60);
+        const h = M.hazards.find(h => h.kind === kind && h.d > pl.y + 300);
+        if (h) return h;
+      }
+    };
+    // the pilot `soon` seconds above hazard h, on the far side from it, for a few frames so its state is natural
+    const pose = (h, soon, frames = 20) => {
+      for (let i = 0; i < frames; i++) {
+        const v = Math.max(60, pl.v || 300), back = frames - i - 1;
+        pl.y = h.d - 14 - (soon + back / 60) * v; pl.x = h.side < 0 ? M.edgeAt(h.d).R - 30 : M.edgeAt(h.d).L + 30; pl.aim = pl.x; pl.vx = 0; pl.inv = 9;
+        M.state = 'play'; M.update(1 / 60);
+      }
+      M.render();
+    };
+    const sheet = document.createElement('canvas'); sheet.width = 640; sheet.height = 800; const g = sheet.getContext('2d');
+    g.imageSmoothingEnabled = false; g.fillStyle = '#000'; g.fillRect(0, 0, 640, 800);
+    let slot = 0;
+    const grab = (h, label) => {
+      const y = Math.round(h.d - M.camY) - 100, sx = (slot % 2) * 320, sy = Math.floor(slot / 2) * 200;
+      g.drawImage(cv, 0, y, 320, 200, sx, sy, 320, 200); g.drawImage(ov, 0, y, 320, 200, sx, sy, 320, 200);
+      g.fillStyle = '#fff'; g.fillRect(sx, sy, 120, 13); g.fillStyle = '#000'; g.font = 'bold 10px monospace'; g.fillText(label, sx + 3, sy + 10);
+      g.fillStyle = '#000'; g.fillRect(sx + 319, sy, 1, 200); g.fillRect(sx, sy + 199, 320, 1); slot++;
+    };
+    let h = goTo('glaze', 120); pose(h, 0.3); grab(h, 'glaze');
+    h = goTo('crumble', 520); pose(h, 1.3); grab(h, 'crumble: shaking');
+    pose(h, 0.55, 1); grab(h, 'crumble: boulder');
+    h = goTo('column', 1020); pose(h, 1.0); grab(h, 'column: warning');
+    pose(h, 0.3, 20); grab(h, 'column: out');
+    h = goTo('geyser', 1520); { let n = 0; do { pose(h, 0.6, 1); n++; } while (!(h.on && h.p > 1.95) && n < 400); } grab(h, 'geyser: spraying');
+    h = goTo('gate', 2020); pose(h, 1.15); grab(h, 'gate: growing');
+    pose(h, 0.3, 20); grab(h, 'gate: solid');
+    document.body.innerHTML = ''; document.body.style.cssText = 'margin:0;background:#000';
+    sheet.style.cssText = 'display:block;width:640px;height:800px;image-rendering:pixelated'; document.body.appendChild(sheet);
+    document.title = 'ready'; return;
+  }
   if (q.get('scene') === 'pause') { for (let i = 0; i < 150; i++) M.update(1 / 60); M.render(); document.getElementById('pauseBtn').click(); await wait(300); document.title = 'ready'; return; }
   for (let i = 0; i < 150; i++) M.update(1 / 60);
   if (q.get('scene') === 'sign') {
