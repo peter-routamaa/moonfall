@@ -541,7 +541,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 68;
+const VERSION = 69;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -1151,6 +1151,24 @@ function drawElder(x, y, dir, k, col) {
   }
 }
 const leviSeen = new Set();
+// At a cafe stop, its deep creature (the one at that 1000 m mark) glides into the open shaft between the ledge and the menu
+// card as he lands, hovers there, and swims back off as he jumps. 0 to 1: how far it has moved to its hovering spot.
+function cafeHover() {
+  if (state === 'landing') return smoothstep(cafeT / 1.1);
+  if (state === 'cafe') return 1;
+  if (state === 'cafeJump') return 1 - smoothstep(cafeT / 0.6);
+  return 0;
+}
+// The hovering spot: centred between the ledge's underside (46 rows below its top) and the card's top edge. The card's
+// top is measured once it shows (until then it's a guess), and the spot glides when it changes.
+let cafeCardTop = 0, hoverY = null, hoverClock = 0;
+function hoverSpot(elder) {
+  if (!shopEl.hidden) { const r = $('cafeFront').getBoundingClientRect(); if (r.height) cafeCardTop = (r.top - game.getBoundingClientRect().top) / sc; }
+  const ledge = cafeInfo(cafeK).Dl + 46 - camY, want = (ledge + (cafeCardTop || H * 0.55)) / 2 - (elder ? 7 : 0);
+  hoverY = hoverY === null ? want : hoverY + (want - hoverY) * Math.min(1, (clock - hoverClock) * 4);
+  hoverClock = clock;
+  return { x: W / 2 + Math.sin(clock * 0.25) * 14, y: hoverY };
+}
 function leviathans(cam) {
   const mid = cam + H / 2, reach = (H / 2 + 130) / LEVI_PARALLAX;
   let near = false;   // a creature on screen during a run: the music goes quiet under a drone (Music.creature)
@@ -1159,9 +1177,13 @@ function leviathans(cam) {
     const elder = k % 2 === 0;
     if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(elder ? 'elder' : 'whale'); }
     if (state === 'play' && sy > -40 && sy < H + 40) near = true;
-    if (cam < -H || sy < -150 || sy > H + 150) continue;
-    if (elder) drawElder(sx, sy, dir, k, mix(palAt(D).sO, P.ink, 0.42));
-    else drawLeviathan(sx, sy, dir, k, mix(palAt(D).sO, P.ink, 0.35));
+    const f = D === cafeK * CAFE_EVERY ? cafeHover() : 0;
+    let x = sx, y = sy;
+    if (f > 0) { const p = hoverSpot(elder); x = lerp(sx, p.x, f); y = lerp(sy, p.y, f); }
+    else if (D === cafeK * CAFE_EVERY) hoverY = null;
+    if (cam < -H || y < -150 || y > H + 150) continue;
+    if (elder) drawElder(x, y, dir, k, mix(palAt(D).sO, P.ink, 0.42));
+    else drawLeviathan(x, y, dir, k, mix(palAt(D).sO, P.ink, 0.35));
   }
   Music.creature(near);
 }
