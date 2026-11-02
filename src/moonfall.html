@@ -47,7 +47,9 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .shield { display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px 8px; font: 700 10px/1 var(--display); letter-spacing: .06em; box-shadow: 4px 4px 0 var(--purple-dk); }
 .shield-track { width: 64px; height: 6px; background: var(--ink-soft); }
 .shield-track b { display: block; height: 100%; width: 100%; background: var(--purple); }
-.right { display: flex; gap: 8px; align-items: flex-start; pointer-events: auto; }
+/* Depth and pause on top; the run's counters (parts, then spare) on one line underneath, flush right. */
+.right { display: grid; grid-template-columns: auto auto; justify-items: end; align-items: start; gap: 8px; pointer-events: auto; }
+.counters { grid-column: 1 / -1; display: flex; gap: 6px; }
 .depth { font: 700 18px/1 var(--display); padding: 8px 10px 7px; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
 .depth small { font-size: 10px; margin-left: 3px; }
 .icon-btn { width: 36px; height: 33px; border: 0; padding: 0; background: var(--ink); color: var(--dust); box-shadow: 4px 4px 0 var(--blue); font: 700 14px/1 var(--display); cursor: pointer; }
@@ -189,9 +191,9 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .tag.light { color: var(--dust-dim); margin-bottom: 18px; }
 .fade-in { animation: fadein .6s steps(6); }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
-.stack { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-.parts-hud { display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px; font: 700 10px/1 var(--display); letter-spacing: .06em; box-shadow: 4px 4px 0 var(--gold-dk); }
-.parts-hud b { font-size: 13px; color: var(--gold); font-variant-numeric: tabular-nums; }
+/* PARTS and SPARE share a line under the depth, so they're compact: 8 px labels (the pixel font's own size). */
+.parts-hud { display: flex; align-items: center; gap: 4px; padding: 5px 6px; font: 700 8px/1 var(--display); letter-spacing: .06em; box-shadow: 4px 4px 0 var(--gold-dk); }
+.parts-hud b { font-size: 11px; color: var(--gold); font-variant-numeric: tabular-nums; }
 .repair { width: 100%; max-width: 340px; padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; text-align: left; }
 .repair-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font: 700 12px/1 var(--display); letter-spacing: .06em; }
 .repair-head b { font-size: 16px; color: var(--gold); font-variant-numeric: tabular-nums; }
@@ -223,11 +225,16 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .streak .pips i { display: block; width: 5px; height: 8px; background: var(--ink-soft); }
 .streak .pips i.on { background: var(--dust); }
 .streak b { min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; }
-.spare-hud { display: flex; align-items: center; gap: 5px; padding: 4px 8px 4px 6px; font: 700 10px/1 var(--display); letter-spacing: .06em; box-shadow: 4px 4px 0 var(--green-dk); }
-.spare-hud canvas, .perk-cost canvas { width: 14px; height: 14px; image-rendering: pixelated; }
-.spare-hud b { font-size: 13px; color: var(--green); font-variant-numeric: tabular-nums; }
-/* Next score on the board to beat. */
-.target { display: grid; justify-items: end; gap: 4px; padding: 6px 8px 5px; font: 700 9px/1 var(--display); letter-spacing: .06em; color: var(--dust-dim); }
+.spare-hud { display: flex; align-items: center; gap: 4px; padding: 4px 6px 4px 5px; font: 700 8px/1 var(--display); letter-spacing: .06em; box-shadow: 4px 4px 0 var(--green-dk); }
+.perk-cost canvas { width: 14px; height: 14px; image-rendering: pixelated; }
+.spare-hud canvas { width: 12px; height: 12px; image-rendering: pixelated; }
+.spare-hud b { font-size: 11px; color: var(--green); font-variant-numeric: tabular-nums; }
+/* On the narrowest phones the crystal icon alone says SPARE, so the line clears the panels under the health bar. */
+@media (max-width: 340px) { .spare-hud .lbl { display: none; } }
+/* Next score on the board to beat: one line under the health bar. With nothing to beat it keeps its place (invisible),
+   so the shield and streak panels never move up beside the PARTS / SPARE line. */
+.target { display: flex; align-items: baseline; gap: 6px; align-self: flex-start; padding: 7px 8px; font: 700 9px/1 var(--display); letter-spacing: .06em; color: var(--dust-dim); }
+.target.none { visibility: hidden; }
 .target b { font-size: 12px; color: var(--dust); font-variant-numeric: tabular-nums; }
 .bump { animation: bump .3s steps(3); }
 @keyframes bump { 0% { transform: scale(1.3); } 100% { transform: none; } }
@@ -282,17 +289,17 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
       <div class="panel hp" id="hp" role="meter" aria-label="Health" aria-valuemin="0" aria-valuemax="5" aria-valuenow="5">
         <span class="hp-label">HP</span><i></i><i></i><i></i><i></i><i></i>
       </div>
+      <div class="panel target none" id="target"><span id="targetWho">BEAT</span><b id="targetM">0 m</b></div>
       <div class="panel shield" id="shield" hidden>SHIELD <span class="shield-track"><b id="shieldFill"></b></span></div>
       <div class="panel streak" id="streak" hidden>CLOSE <span class="pips" id="streakPips"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><b id="streakN">x0</b></div>
     </div>
     <div class="right">
-      <div class="stack">
-        <div class="panel depth" id="depth" aria-live="off">0000<small>m</small></div>
-        <div class="panel parts-hud" id="partsHud">PARTS <b id="partsRun">0</b></div>
-        <div class="panel spare-hud" id="spareHud" hidden><canvas id="icoSpare" width="14" height="14"></canvas>SPARE <b id="spareRun">0</b></div>
-        <div class="panel target" id="target" hidden><span id="targetWho">BEAT</span><b id="targetM">0 m</b></div>
-      </div>
+      <div class="panel depth" id="depth" aria-live="off">0000<small>m</small></div>
       <button class="icon-btn" id="pauseBtn" type="button" aria-label="Pause">II</button>
+      <div class="counters">
+        <div class="panel parts-hud" id="partsHud">PARTS <b id="partsRun">0</b></div>
+        <div class="panel spare-hud" id="spareHud" hidden><canvas id="icoSpare" width="14" height="14"></canvas><span class="lbl">SPARE</span><b id="spareRun">0</b></div>
+      </div>
     </div>
   </div>
 
@@ -318,9 +325,9 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
       <h2>Tips</h2>
       <ul class="shop-tips">
         <li>Crystals caught at full health become spare crystals.</li>
-        <li>Skim past rocks and mines for a streak: every 8 pays a crystal.</li>
         <li>Spend spare crystals in the shop: one treat per cafe.</li>
-        <li>Signs on the walls mark high scores to beat.</li>
+        <li>Skim past rocks and mines for a streak: every 8 pays a crystal.</li>
+        <li>While you fall, markers on the shaft walls show the high scores to beat.</li>
       </ul>
       <button class="btn" id="tipsDone" type="button">Done</button>
      </div>
@@ -534,12 +541,13 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 63;
+const VERSION = 64;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
 const PX_PER_M = 8;   // game pixels per metre of depth
 const PILOT_CY = 14;  // the pilot's middle, in pixels below player.y (the top of his sprite)
+const HUD_LEFT_PX = 132;  // CSS px from the top of the screen to the bottom of the HUD's left column with every panel showing
 const game = document.getElementById('game'), cv = document.getElementById('cv'), ov = document.getElementById('ov');
 // Two canvases: the world, and on top of it the pilot (see render). `c` is whichever one is being drawn on.
 const wc = cv.getContext('2d', { alpha: false }), oc = ov.getContext('2d');
@@ -1146,14 +1154,17 @@ function drawElder(x, y, dir, k, col) {
 const leviSeen = new Set();
 function leviathans(cam) {
   const mid = cam + H / 2, reach = (H / 2 + 130) / LEVI_PARALLAX;
+  let near = false;   // a creature on screen during a run: the music goes quiet under a drone (Music.creature)
   for (let k = Math.max(1, Math.ceil((mid - reach) / LEVI_EVERY)); k * LEVI_EVERY <= mid + reach; k++) {
     const D = k * LEVI_EVERY, sy = H / 2 + (D - mid) * LEVI_PARALLAX, dir = hash(k * 4.3 + SEED) < 0.5 ? 1 : -1, sx = W / 2 + dir * (mid - D) * 0.14;
     const elder = k % 2 === 0;
     if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(elder ? 'elder' : 'whale'); }
+    if (state === 'play' && sy > -40 && sy < H + 40) near = true;
     if (cam < -H || sy < -150 || sy > H + 150) continue;
     if (elder) drawElder(sx, sy, dir, k, mix(palAt(D).sO, P.ink, 0.42));
     else drawLeviathan(sx, sy, dir, k, mix(palAt(D).sO, P.ink, 0.35));
   }
+  Music.creature(near);
 }
 // The half-speed texture inside the shaft (bands every 52 rows and specks) is pre-drawn into 128-row tiles as a white
 // stencil, then coloured with the layer's shadow colour and reused while that colour holds.
@@ -2029,11 +2040,10 @@ const Sfx = (() => {
       tone('square', 1650, 700, 0.025, 0.07);
     },
     rock() { noise(0.1, 'bandpass', 1500, 0.8); tone('square', 170, 60, 0.13, 0.2); boing(0.02); },
+    // Pickup sounds take their notes from the chord the music is playing (Music.note), so they're always in key.
     part() {
       noise(0.05, 'highpass', 6000, 0.3);
-      tone('triangle', 660, 660, 0.06, 0.25);
-      tone('triangle', 990, 990, 0.06, 0.25, 0.06);
-      tone('triangle', 1320, 1320, 0.16, 0.25, 0.12);
+      [2, 3, 4].forEach((n, i) => { const f = Music.note(n, 12); tone('triangle', f, f, i < 2 ? 0.06 : 0.16, 0.25, i * 0.06); });
     },
     lava() { noise(0.34, 'highpass', 2600, 0.45); tone('sawtooth', 240, 80, 0.22, 0.14); },
     mine() {
@@ -2043,12 +2053,13 @@ const Sfx = (() => {
       tone('square', 90, 45, 0.3, 0.12, 0.02);
       noise(1.0, 'lowpass', 240, 0.8, 0.05);
     },
-    orb(k = 1) { tone('triangle', 880 * k, 880 * k, 0.08, 0.32); tone('triangle', 1320 * k, 1320 * k, 0.14, 0.28, 0.07); },
-    // Near miss: a quick whoosh and a tick that climbs a semitone per step of the streak.
-    close(n) { const f = 660 * Math.pow(2, Math.min(n - 1, 12) / 12); noise(0.09, 'bandpass', 2400, 0.16); tone('square', f, f, 0.05, 0.09, 0.02); },
-    streak() { for (let i = 0; i < 3; i++) tone('triangle', 660 * Math.pow(1.26, i), 660 * Math.pow(1.26, i), 0.09, 0.22, i * 0.07); },
-    buy() { tone('triangle', 520, 520, 0.07, 0.25); tone('triangle', 780, 780, 0.07, 0.25, 0.06); tone('triangle', 1040, 1040, 0.16, 0.25, 0.12); },
-    pass() { tone('square', 990, 990, 0.06, 0.12); tone('square', 1320, 1320, 0.12, 0.12, 0.07); },
+    // A crystal: two chord notes; crystals caught close together (n) start a chord note higher each time.
+    orb(n = 0) { n = Math.min(n, 3); const a = Music.note(n, 24), b = Music.note(n + 2, 24); tone('triangle', a, a, 0.08, 0.32); tone('triangle', b, b, 0.14, 0.28, 0.07); },
+    // Near miss: a quick whoosh and a tick that climbs the chord with each step of the streak.
+    close(n) { const f = Music.note(Math.min(n - 1, 5), 12); noise(0.09, 'bandpass', 2400, 0.16); tone('square', f, f, 0.05, 0.09, 0.02); },
+    streak() { for (let i = 0; i < 3; i++) { const f = Music.note(i + 3, 12); tone('triangle', f, f, 0.09, 0.22, i * 0.07); } },
+    buy() { [0, 2, 3].forEach((n, i) => { const f = Music.note(n, 12); tone('triangle', f, f, i < 2 ? 0.07 : 0.16, 0.25, i * 0.06); }); },
+    pass() { const a = Music.note(3, 12), b = Music.note(5, 12); tone('square', a, a, 0.06, 0.12); tone('square', b, b, 0.12, 0.12, 0.07); },
     shield() { tone('triangle', 360, 1100, 0.32, 0.3); tone('sine', 720, 2200, 0.32, 0.12, 0.05); },
     block() { tone('square', 1300, 650, 0.08, 0.12); },
     jump() { noise(0.4, 'bandpass', 650, 0.4); tone('sine', 300, 120, 0.4, 0.15); },
@@ -2168,22 +2179,39 @@ const Sfx = (() => {
 })();
 
 // ---------- music: the trailer's 120 BPM groove (Am F C G) that builds as you fall deeper ----------
+// During a run it also follows the moment (mood: low health, shield, near-miss streak), gives each rock layer its own
+// lead instrument, and sinks to near-silence under a low drone while a deep creature passes. Pickup sounds ask it for
+// notes from the chord being heard (note), so they stay in key.
 const Music = (() => {
   const CH = [[57, 60, 64], [53, 57, 60], [55, 60, 64], [55, 59, 62]];
   const BASS = [45, 41, 48, 43], BASSPAT = 'x.xxx.x.';
   const ARP = [[69, 72, 76, 72], [65, 69, 72, 69], [67, 72, 76, 72], [67, 71, 74, 71]];
   const MEL = [{ 0: 76, 6: 81, 10: 79, 12: 76 }, { 0: 77, 6: 76, 10: 72 }, { 0: 76, 4: 79, 8: 84, 12: 79 }, { 0: 74, 6: 71, 8: 67, 12: 74 }];
   const LEVEL = 0.7;
+  const OPEN_HZ = 18000, LOW_HZ = 650;  // the muffle filter, normally and at 1 health
   let A = null, bus = null, send = null, timer = null, nextT = 0, step = 0, playing = false, layer = 1, bpm = 120, crash = false, mode = 'game';
+  // Signal path: instruments -> muff (a low-pass that muffles them at 1 health) -> duck (near-silence for the deep
+  // creatures) -> bus (fades for start, stop and the Music switch) -> the music output. The heartbeat and the creature
+  // drone go straight into bus, so they stay clear while the rest is muffled or ducked.
+  let muff = null, duck = null;
+  // The moment: 1 health (muffled, with a heartbeat), shield up (a bright sparkle), the near-miss streak (0, or 1 and 2
+  // for a busier kit), and whether a deep creature is in view (lurk) with its drone.
+  let low = false, shine = false, drive = 0, lurk = false, drone = null;
+  // Which lead instrument plays the arpeggio (a MATS index), and the one waiting for the next bar.
+  let lead = 0, leadNext = 0;
+  // When each recent bar starts and which chord it is, so pickups can match the chord being heard right now.
+  const bars = [];
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
   function setup() {
     if (bus) return true;
     A = Sfx.audio(); if (!A) return false;
     const { ctx, musicOut } = A;
     bus = ctx.createGain(); bus.gain.value = 0; bus.connect(musicOut);
+    duck = ctx.createGain(); duck.connect(bus);
+    muff = ctx.createBiquadFilter(); muff.type = 'lowpass'; muff.frequency.value = OPEN_HZ; muff.connect(duck);
     const dl = ctx.createDelay(1), fb = ctx.createGain(), wet = ctx.createGain();
     dl.delayTime.value = 0.375; fb.gain.value = 0.3; wet.gain.value = 0.25;
-    send = ctx.createGain(); send.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(bus);
+    send = ctx.createGain(); send.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(muff);
     return true;
   }
   function osc(type, f, t, dur, vol, att, filt, echo) {
@@ -2192,7 +2220,7 @@ const Music = (() => {
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + att); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     let src = o;
     if (filt) { const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = filt; o.connect(fl); src = fl; }
-    src.connect(g); g.connect(bus); if (echo) g.connect(send);
+    src.connect(g); g.connect(muff); if (echo) g.connect(send);
     o.start(t); o.stop(t + dur + 0.05);
   }
   function pad(notes, t, dur) {
@@ -2205,26 +2233,53 @@ const Music = (() => {
       g.gain.linearRampToValueAtTime(0.02, t + 0.35);
       g.gain.setValueAtTime(0.02, t + dur - 0.05);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.45);
-      o.connect(fl); fl.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + 0.5);
+      o.connect(fl); fl.connect(g); g.connect(muff); o.start(t); o.stop(t + dur + 0.5);
     }
   }
   function hit(t, dur, type, freq, vol) {
     const { ctx, noiseBuf } = A, s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
     s.buffer = noiseBuf; f.type = type; f.frequency.value = freq;
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    s.connect(f); f.connect(g); g.connect(bus); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05);
+    s.connect(f); f.connect(g); g.connect(muff); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05);
   }
   function kick(t) {
     const { ctx } = A, o = ctx.createOscillator(), g = ctx.createGain();
     o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12);
     g.gain.setValueAtTime(0.55, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
-    o.connect(g); g.connect(bus); o.start(t); o.stop(t + 0.25);
+    o.connect(g); g.connect(muff); o.start(t); o.stop(t + 0.25);
+  }
+  function tom(t, f) {
+    const { ctx } = A, o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'triangle'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 0.55, t + 0.18);
+    g.gain.setValueAtTime(0.38, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+    o.connect(g); g.connect(muff); o.start(t); o.stop(t + 0.25);
+  }
+  // One heartbeat thump, straight into bus: a low buzz through a dull filter (its overtones carry it on phone speakers,
+  // which can't play the deep part) and a soft knock of noise.
+  function heart(t, vol) {
+    const { ctx, noiseBuf } = A, o = ctx.createOscillator(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
+    const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), ng = ctx.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(50, t + 0.12);
+    lp.type = 'lowpass'; lp.frequency.value = 450;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    o.connect(lp); lp.connect(g); g.connect(bus); o.start(t); o.stop(t + 0.22);
+    s.buffer = noiseBuf; f.type = 'lowpass'; f.frequency.value = 420;
+    ng.gain.setValueAtTime(vol * 0.6, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+    s.connect(f); f.connect(ng); ng.connect(bus); s.start(t, Math.random() * 0.5); s.stop(t + 0.09);
   }
   function glock(m, t, vol) {
     vol = vol || 0.09;
     osc('sine', mtof(m), t, 0.7, vol, 0.004, 0, true);
     osc('sine', mtof(m) * 2.76, t, 0.25, vol * 0.25, 0.002, 0, false);
   }
+  // The arpeggio's instrument in each rock layer (in MATS order), so every layer sounds a little different.
+  const LEADS = [
+    (m, t) => osc('square', mtof(m), t, 0.13, 0.045, 0.003, 2600, true),                                   // Ice: the trailer's square lead
+    (m, t) => { osc('triangle', mtof(m), t, 0.2, 0.055, 0.002, 0, true); osc('sine', mtof(m) * 4, t, 0.05, 0.01, 0.001, 0, false); },  // Sandstone: a plucked kalimba
+    (m, t) => osc('sawtooth', mtof(m - 12), t, 0.16, 0.076, 0.004, 1100, false),                           // Basalt: a low, dark saw
+    (m, t) => { osc('sawtooth', mtof(m - 12), t, 0.12, 0.05, 0.002, 1800, true); osc('sawtooth', mtof(m - 12) * 1.012, t, 0.12, 0.04, 0.002, 1800, false); },  // Magma: a gritty, detuned buzz
+    (m, t) => { osc('sine', mtof(m + 12), t, 0.4, 0.032, 0.002, 0, true); osc('sine', mtof(m + 12) * 3.01, t, 0.12, 0.0085, 0.001, 0, false); },  // Amethyst: glass bells
+  ];
   // Title loop: the same chords, softer and slower, with no drums.
   function titleStep(bar, i, s, t) {
     if (i === 0) pad(CH[bar], t, 240 / bpm);
@@ -2235,24 +2290,74 @@ const Music = (() => {
   }
   function playStep(s, t) {
     const bar = Math.floor(s / 16) % 4, i = s % 16;
+    if (i === 0) { bars.push({ t, bar }); if (bars.length > 3) bars.shift(); }
     if (mode === 'title') { titleStep(bar, i, s, t); return; }
-    if (i === 0) { pad(CH[bar], t, 240 / bpm); if (crash) { hit(t, 1.3, 'highpass', 4500, 0.1); crash = false; } }
+    if (i === 0) {
+      if (lead !== leadNext) { lead = leadNext; crash = true; }   // a new rock layer's instrument comes in on the bar, with a cymbal
+      pad(CH[bar], t, 240 / bpm); if (crash) { hit(t, 1.3, 'highpass', 4500, 0.1); crash = false; }
+    }
     if (i % 2 === 0 && BASSPAT[i / 2] === 'x') {
       osc('triangle', mtof(BASS[bar]), t, 0.24, 0.26, 0.005, 0, false);
       osc('square', mtof(BASS[bar]), t, 0.18, 0.05, 0.005, 500, false);
     }
     if (i === 0 || i === 8) kick(t);
-    if (layer >= 1) osc('square', mtof(ARP[bar][i % 4]), t, 0.13, 0.045, 0.003, 2600, true);
+    if (layer >= 1) LEADS[lead](ARP[bar][i % 4], t);
     if (layer >= 2) {
       if (i === 4 || i === 12) { hit(t, 0.13, 'bandpass', 1800, 0.22); osc('triangle', 190, t, 0.08, 0.1, 0.002, 0, false); }
       if (i % 2 === 0) hit(t, i % 4 === 2 ? 0.12 : 0.035, 'highpass', 7000, 0.07);
     }
     if (layer >= 3 && Math.floor(s / 64) % 2 === 1 && MEL[bar][i]) glock(MEL[bar][i], t);
+    // A near-miss streak brings in a busier kit: 16th hi-hats, an open hat (and the backbeat, if the depth hasn't brought
+    // it in yet) from 3 in a row, then extra kicks and a tom fill every second bar from 8.
+    if (drive >= 1) {
+      if (i % 2 === 1) hit(t, 0.03, 'highpass', 9000, 0.08);
+      if (i === 14) hit(t, 0.14, 'highpass', 6500, 0.1);
+      if (layer < 2 && (i === 4 || i === 12)) { hit(t, 0.13, 'bandpass', 1800, 0.22); osc('triangle', 190, t, 0.08, 0.1, 0.002, 0, false); }
+    }
+    if (drive >= 2) {
+      if (i === 6 || i === 11) kick(t);
+      if (bar % 2 === 1 && i >= 13) tom(t, [196, 165, 131][i - 13]);
+    }
+    // Shield up: a bright chime an octave above the arpeggio on the off-beats.
+    if (shine && i % 2 === 1) glock(ARP[bar][(i >> 1) % 4] + 12, t, 0.04);
+    // 1 health: a slow heartbeat (lub-dub every half bar) over the muffled music.
+    if (low) { if (i % 8 === 0) heart(t, 0.36); else if (i % 8 === 2) heart(t, 0.24); }
   }
   function tick() { while (nextT < A.ctx.currentTime + 0.15) { playStep(step, nextT); nextT += 15 / bpm; step++; } }
   function level(on, tc) {
     bus.gain.cancelScheduledValues(A.ctx.currentTime);
     bus.gain.setTargetAtTime(on && save.mus ? LEVEL : 0, A.ctx.currentTime, tc);
+  }
+  // The creature drone: A against B flat (slowly beating) and the A above, dark and low, swelling in over two seconds.
+  function startDrone(t) {
+    const { ctx } = A, g = ctx.createGain(), f = ctx.createBiquadFilter(), oscs = [];
+    f.type = 'lowpass'; f.frequency.value = 420;
+    g.gain.value = 0; g.gain.setTargetAtTime(0.04, t, 0.7);
+    for (const [m, det] of [[33, -6], [34, 5], [45, 0]]) {
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(m); o.detune.value = det;
+      o.connect(f); o.start(t); oscs.push(o);
+    }
+    f.connect(g); g.connect(bus);
+    return { g, oscs };
+  }
+  // A deep creature in view: the music sinks to near-silence under the drone, and comes back once it has gone.
+  function creature(on) {
+    if (!bus || on === lurk) return;
+    lurk = on;
+    const { ctx } = A, t = ctx.currentTime;
+    duck.gain.setTargetAtTime(on ? 0.1 : 1, t, on ? 0.5 : 1);
+    if (on) drone = startDrone(t);
+    else if (drone) {
+      drone.g.gain.setTargetAtTime(0, t, 0.6);
+      for (const o of drone.oscs) o.stop(t + 3);
+      drone = null;
+    }
+  }
+  // Back to plain music: filter open, no sparkle, no streak drums, no creature.
+  function calm() {
+    shine = false; drive = 0;
+    if (low) { low = false; muff.frequency.setTargetAtTime(OPEN_HZ, A.ctx.currentTime, 0.3); }
+    creature(false);
   }
   return {
     start() { this.begin('game'); },
@@ -2261,7 +2366,7 @@ const Music = (() => {
       if (!setup() || (playing && mode === m)) return;
       if (timer) clearInterval(timer);
       mode = m; playing = true; step = 0; nextT = A.ctx.currentTime + 0.06;
-      if (m === 'title') bpm = 96;
+      if (m === 'title') { bpm = 96; calm(); }
       level(true, m === 'title' ? 0.4 : 0.05); tick(); timer = setInterval(tick, 25);
     },
     stop(fade) {
@@ -2271,7 +2376,24 @@ const Music = (() => {
     },
     setOn() { if (bus) level(playing, 0.05); },
     setDepth(m) { const L = m < 250 ? 1 : m < 600 ? 2 : 3; if (L > layer) crash = true; layer = L; bpm = 120 + 8 * smoothstep((m - 300) / 1500); },
-    reset() { layer = 1; bpm = 120; crash = false; },
+    // The rock layer (a MATS index). Its instrument takes over on the next bar, or at once with `now`.
+    setZone(k, now) { leadNext = k; if (now) lead = k; },
+    // Called every frame during a run; it only touches the audio when something changes.
+    mood(hurt, shielded, streak) {
+      if (!bus) return;
+      shine = shielded; drive = streak >= 8 ? 2 : streak >= 3 ? 1 : 0;
+      const m = hurt && mode === 'game';
+      if (m !== low) { low = m; muff.frequency.setTargetAtTime(m ? LOW_HZ : OPEN_HZ, A.ctx.currentTime, m ? 0.15 : 0.5); }
+    },
+    creature,
+    // The n-th note going up the chord being heard, counting from `base` semitones above it, in Hz. With no music
+    // playing it's the first chord, A minor.
+    note(n, base) {
+      let bar = 0;
+      if (playing) for (const b of bars) if (b.t <= A.ctx.currentTime) bar = b.bar;
+      return mtof(CH[bar][n % 3] + base + 12 * Math.floor(n / 3));
+    },
+    reset() { layer = 1; bpm = 120; crash = false; lead = leadNext = 0; if (bus) calm(); },
     leap() {
       if (!setup()) return;
       level(true, 0.02);
@@ -3218,7 +3340,7 @@ function passFlags() {
 }
 function renderTarget() {
   const f = flags[nextFlag], el = $('target');
-  el.hidden = !f;
+  el.classList.toggle('none', !f);
   if (f) { $('targetWho').textContent = 'BEAT ' + f.i; $('targetM').textContent = Math.max(0, f.m - depthM()) + ' m'; }
 }
 // Each flag (dotted line, bracket and sign) is drawn once into a full-width image, one for before and one for after passing it.
@@ -3834,7 +3956,7 @@ function updateLaunch(dt) {
   if (crossed(L.aboard)) { sparks(52, -14, [P.dust, P.strata, P.shade], 10); Sfx.hatch(); }
   if (crossed(L.rumble)) { Sfx.engine(); Buzz.launch(); }
   if (crossed(L.lift)) { Music.fanfare(); Sfx.cheer(); }
-  if (crossed(L.groove)) { Music.setDepth(900); Music.start(); }
+  if (crossed(L.groove)) { Music.setZone(0, true); Music.setDepth(900); Music.start(); }
   if (crossed(L.space)) { Music.stop(0.1); Music.space(); }
   // The ship rumbles, tips upright, then climbs.
   if (t < L.rumble) launchShip = null;
@@ -4106,7 +4228,7 @@ function collect(it) {
     player.orbs++;
     // Crystals caught close together chime a step higher each time.
     orbChain = clock - lastOrbT < 2.5 ? Math.min(orbChain + 1, 7) : 0; lastOrbT = clock;
-    Buzz.orb(); Sfx.orb(Math.pow(2, orbChain * 2 / 12));
+    Buzz.orb(); Sfx.orb(orbChain);
     gainCrystal(it.x, it.d);
     sparks(it.x, it.d, [P.dust, P.grnL, P.grn], 10);
     particles.push({ ring: 1, x: it.x, d: it.d, t: 0, life: 0.35 });
@@ -4297,9 +4419,10 @@ function update(dt) {
     if (state === 'play') checkCafe();
     Sfx.wind(0.5 + 0.5 * smoothstep((player.v - 250) / 200));
     Music.setDepth(depthM());
+    Music.mood(player.hp === 1, player.shield > 0, player.streak);
     setDepth();
     const zone = Math.floor(depthM() / ZONE_M);
-    if (zone > player.zone) { player.zone = zone; showCoach(zone * ZONE_M + ' M \u00b7 ' + MATS[matI(zone)].label.toUpperCase(), 2400); }
+    if (zone > player.zone) { player.zone = zone; Music.setZone(matI(zone)); showCoach(zone * ZONE_M + ' M \u00b7 ' + MATS[matI(zone)].label.toUpperCase(), 2400); }
   }
   while (nextSeg * SEG_LEN < camY + H + 200) genSeg(nextSeg++);
   prune(rocks, thingLive);
@@ -4456,7 +4579,9 @@ function resize() {
   pxY = Math.max(r.width / W, r.height / (H - 1));
   cv.style.cssText = ov.style.cssText = `width:${W * pxY}px;height:${H * pxY}px;left:${(r.width - W * pxY) / 2}px;top:${(r.height - (H - 1) * pxY) / 2}px`;
   shownShift = null;
-  pilotScreenY = Math.round(H * 0.3);
+  // The top of the pilot sits a fifth of the way down the screen (it was 30%), or just below the HUD's left column if
+  // that's lower, so more of the shaft below him is in view and the HUD never covers him.
+  pilotScreenY = Math.max(Math.round(H * 0.2), Math.round(HUD_LEFT_PX / sc) + 4);
   sizeHP();
   const was = camY0; camY0 = -Math.round(H * 0.56);
   if (state === 'title' || camY === was) camY = camY0;
