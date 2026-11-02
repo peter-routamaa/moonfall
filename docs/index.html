@@ -413,7 +413,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
         <li><span class="ico"><canvas id="icoOrb" width="14" height="14"></canvas></span>Crystal: +1 health</li>
         <li><span class="ico"><canvas id="icoShield" width="28" height="28"></canvas></span>Bubble: 8s shield, hits wear it down</li>
         <li><span class="ico"><canvas id="icoPart" class="wide" width="30" height="30"></canvas></span>Gold ring: ship part, collect&nbsp;these</li>
-        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Cafe every 1000 m: coffee (+1 health) and bonus items</li>
+        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Cafe every 1000 m: coffee (+1 health) and bonus items. The fall gets 5% faster after each cafe</li>
       </ul>
       <button class="btn" id="howDone" type="button">Done</button>
      </div>
@@ -567,7 +567,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 81;
+const VERSION = 82;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -2022,7 +2022,7 @@ save.parts = Object.assign({ plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 }, sav
 const repairFrac = () => PARTS.reduce((sum, pt) => sum + Math.min(1, save.parts[pt.id] / pt.need), 0) / PARTS.length;
 // The navigation computer (version 80): needed, with the repaired ship, to fly home. Paid off at cafe shops with spare
 // crystals, a little at a time across dives (save.nav is what's paid so far); about five decent dives' worth.
-const NAV_PRICE = 30;   // 40 in version 80; lowered with the crystal cut in version 81
+const NAV_PRICE = 50;   // 40 in version 80, 30 in 81, 50 since 82 (user)
 if (!Number.isFinite(save.nav)) save.nav = 0;
 const navDone = () => save.nav >= NAV_PRICE;
 const canLaunch = () => repairFrac() >= 1 && navDone();
