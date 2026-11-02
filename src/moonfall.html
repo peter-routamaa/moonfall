@@ -541,7 +541,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 65;
+const VERSION = 66;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -825,8 +825,7 @@ function newSeed() {
   P1 = hash(SEED + 1) * 6.283; P2 = hash(SEED + 2) * 6.283; P3 = hash(SEED + 3) * 6.283;
   for (const t of tiles.values()) retireTile(t);
   tiles.clear();
-  for (const p of ptiles.values()) if (ptPool.length < 12) ptPool.push(p);
-  ptiles.clear();
+  for (const b of [BACK_FAR, BACK_MID]) { for (const p of b.tiles.values()) if (b.pool.length < 12) b.pool.push(p); b.tiles.clear(); }
 }
 // Every 1000 m the shaft opens into a cavern with a cafe ledge; tunnel splits, wall bumps, lava and hazards keep clear of it.
 // The caverns sit 50 m (400 px) below each 1000 m mark, so that mark's deep creature swims past above the ledge.
@@ -1166,19 +1165,30 @@ function leviathans(cam) {
   }
   Music.creature(near);
 }
-// The half-speed texture inside the shaft (bands every 52 rows and specks) is pre-drawn into 128-row tiles as a white
-// stencil, then coloured with the layer's shadow colour and reused while that colour holds.
-const PT = 128, ptiles = new Map(), ptPool = [];
-function ptile(k) {
-  let p = ptiles.get(k);
+// The back of the shaft, seen through the hole, in layers that scroll slower the further back they are:
+//   far, quarter speed: pale ridges of flowstone and broken ledges
+//   mid, half speed: bands every 52 rows and specks (the deep creatures and the shadow wedges sit at this depth too)
+//   near, three-quarter speed: dark rock spurs reaching in from the walls (drawSpurs)
+// Far and mid are pre-drawn into 128-row tiles as white stencils, then coloured for the rock layer at the tile's middle
+// and reused while that colour holds. They're flat and dim, with no outlines, so nothing back there looks like an obstacle.
+const PT = 128;
+const BACK_FAR = { speed: 0.25, col: Q => Q.far || (Q.far = mix(Q.sI, Q.b1, 0.1)), paint: paintFar, tiles: new Map(), pool: [] };
+const BACK_MID = { speed: 0.5, col: Q => Q.sO, paint: paintMid, tiles: new Map(), pool: [] };
+function backTile(b, k) {
+  let p = b.tiles.get(k);
   if (p) return p;
-  p = ptPool.pop();
+  p = b.pool.pop();
   if (!p) {
     const m = document.createElement('canvas'), o = document.createElement('canvas'); m.width = o.width = W; m.height = o.height = PT;
     p = { mask: m, mg: m.getContext('2d'), out: o, og: o.getContext('2d'), col: null };
   }
   p.col = null;
   const g = p.mg; g.clearRect(0, 0, W, PT); g.fillStyle = '#fff';
+  b.paint(g, k);
+  b.tiles.set(k, p);
+  return p;
+}
+function paintMid(g, k) {
   for (let y = 0; y < PT; y++) {
     const bv = k * PT + y;
     if (((bv % 52) + 52) % 52 < 4) g.fillRect(0, y, W, 1);
@@ -1188,10 +1198,32 @@ function ptile(k) {
       g.fillRect(Math.floor(hash(bv * 5.3) * (W - 2)), y, 2, 1);
     }
   }
-  ptiles.set(k, p);
-  return p;
 }
-function ptileIn(p, col) {
+function paintFar(g, k) {
+  for (let y = 0; y < PT; y++) {
+    const v = k * PT + y;
+    // Three ridges down the back wall, wandering and swelling slowly.
+    for (let r = 0; r < 3; r++) {
+      const x = W * (0.2 + 0.3 * r) + 26 * Math.sin(v * 0.011 + r * 2.1) + 12 * Math.sin(v * 0.027 + r * 4.3);
+      const w = 5 + 9 * (0.5 + 0.5 * Math.sin(v * 0.017 + r * 1.7));
+      g.fillRect(Math.round(x - w / 2), y, Math.round(w), 1);
+    }
+    // A broken ledge every 96 rows.
+    if (((v % 96) + 96) % 96 < 2) for (let x = 0; x < W; x += 16) if (hash(Math.floor(v / 96) * 9.7 + x) < 0.6) g.fillRect(x, y, 16, 1);
+  }
+}
+// One tiled layer for the camera, clipped off above the ground line y0 (the title screen and the leap).
+function drawBack(b, cam, top, y0) {
+  const bk = Math.floor(cam * b.speed), k0 = Math.floor((bk + y0) / PT), k1 = Math.floor((bk + H) / PT);
+  if (y0 > 0) { c.save(); c.beginPath(); c.rect(0, y0, W, H - y0); c.clip(); }
+  for (let k = k0; k <= k1; k++) {
+    const y = k * PT - bk, dm = Math.max(0, top + y + PT / 2);
+    c.drawImage(backTileIn(backTile(b, k), b.col(palAt(dm, true))), 0, y);
+  }
+  if (y0 > 0) c.restore();
+  for (const key of b.tiles.keys()) if (key < k0 - 1 || key > k1 + 1) { if (b.pool.length < 12) b.pool.push(b.tiles.get(key)); b.tiles.delete(key); }
+}
+function backTileIn(p, col) {
   if (p.col !== col) {
     const g = p.og;
     g.globalCompositeOperation = 'copy'; g.drawImage(p.mask, 0, 0);
@@ -1215,21 +1247,45 @@ function wedgeImg(col, side, s) {
   for (let l6 = 0; l6 < 30; l6++) { const len = Math.round((30 - l6) * h1); g.fillRect(side < 0 ? 0 : wid - WEDGE_M - len, l6, WEDGE_M + len, 1); }
   return (byCol[key] = img);
 }
+// The near spurs: jagged teeth of rock, 10-24 px past the shaft's dark rim, drawn once per shape, side and colour and
+// anchored to the wall like the wedges.
+const spurArt = new Map();
+function spurImg(col, side, s) {
+  let byCol = spurArt.get(col);
+  if (!byCol) { if (spurArt.size > 24) spurArt.clear(); byCol = []; spurArt.set(col, byCol); }
+  const key = (side > 0 ? 8 : 0) + s;
+  let img = byCol[key];
+  if (img) return img;
+  const reach = 10 + s * 2, wid = WEDGE_M + reach + 3;
+  img = document.createElement('canvas'); img.width = wid; img.height = 22;
+  const g = img.getContext('2d'); g.fillStyle = col;
+  for (let y = 0; y < 22; y++) {
+    const u = 1 - Math.abs(2 * (y + 0.5) / 22 - 1), len = Math.max(0, Math.round(reach * Math.pow(u, 0.7) + (hash(s * 31 + y) - 0.5) * 3));
+    g.fillRect(side < 0 ? 0 : wid - WEDGE_M - len, y, WEDGE_M + len, 1);
+  }
+  return (byCol[key] = img);
+}
+// In 45% of 60-row blocks (three-quarter speed), set 19 rows off the wedges' rhythm.
+function drawSpurs(cam, top, y0) {
+  const bk = Math.floor(cam * 0.75);
+  for (let q = Math.floor((bk + y0) / 60) - 1; q * 60 - bk < H; q++) {
+    if (hash(q * 2.3 + 7) >= 0.45) continue;
+    const yTop = q * 60 - bk + 19;
+    if (yTop < y0) continue;
+    const dMid = top + yTop + 11, e = edgeAt(dMid), L = e.L, R = e.R, side = hash(q + 5) < 0.5 ? -1 : 1, Q = palAt(dMid, true),
+      img = spurImg(Q.near || (Q.near = mix(Q.sO, Q.ink, 0.35)), side, Math.floor(hash(q + 3) * 8));
+    c.drawImage(img, side < 0 ? L + 8 - WEDGE_M : R - 8 + WEDGE_M - img.width, yTop);
+  }
+}
 function drawShaft(cam) {
   const top = Math.round(cam), bk = Math.floor(cam * 0.5), f8 = Math.floor(clock * 8), fl = Math.floor(clock * 100), y0 = Math.max(0, -top);
   if (y0 >= H) return;
   const i0 = Math.max(0, Math.floor(top / TILE_H)), i1 = Math.floor((top + H) / TILE_H);
   for (let i = i0; i <= i1; i++) c.drawImage(readyTile(i).cnv, 0, i * TILE_H - top);
+  // Back to front: the far layer, the deep creatures, the mid layer and its wedges, then the near spurs.
+  drawBack(BACK_FAR, cam, top, y0);
   leviathans(cam);
-  // Texture tiles, each coloured by the layer at its middle; above the ground (the title screen and the leap) it is clipped off.
-  if (y0 > 0) { c.save(); c.beginPath(); c.rect(0, y0, W, H - y0); c.clip(); }
-  const k0 = Math.floor((bk + y0) / PT), k1 = Math.floor((bk + H) / PT);
-  for (let k = k0; k <= k1; k++) {
-    const y = k * PT - bk, dm = Math.max(0, top + y + PT / 2);
-    c.drawImage(ptileIn(ptile(k), palAt(dm, true).sO), 0, y);
-  }
-  if (y0 > 0) c.restore();
-  for (const key of ptiles.keys()) if (key < k0 - 1 || key > k1 + 1) { if (ptPool.length < 12) ptPool.push(ptiles.get(key)); ptiles.delete(key); }
+  drawBack(BACK_MID, cam, top, y0);
   // Wedges: in 55% of 40-row blocks (half-speed), anchored to the wall at the wedge's middle row.
   for (let q6 = Math.floor((bk + y0) / 40); q6 * 40 - bk < H; q6++) {
     if (hash(q6 * 1.3) >= 0.55) continue;
@@ -1241,7 +1297,8 @@ function drawShaft(cam) {
       img = wedgeImg(palAt(dMid, true).sO, side, Math.min(15, Math.floor(hash(q6 + 1) * 16)));
     c.drawImage(img, side < 0 ? e.L + 8 - WEDGE_M : e.R - 8 + WEDGE_M - img.width, yTop);
   }
-  // The walls go back on top, so creatures, texture and wedges only show inside the shaft.
+  drawSpurs(cam, top, y0);
+  // The walls go back on top, so everything behind them only shows inside the shaft.
   for (let i = i0; i <= i1; i++) c.drawImage(wallTile(tile(i)), 0, i * TILE_H - top);
   // Lava flickers stay live, but only rows that have lava are visited.
   for (let q2 = Math.floor((top + y0) / 180); q2 * 180 <= top + H; q2++) {
