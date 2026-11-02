@@ -541,7 +541,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 66;
+const VERSION = 67;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -1392,20 +1392,9 @@ function critters(cam) {
     }
   }
 }
-function streaks(cam) {
-  c.fillStyle = P.lite;
-  for (let k = 0; k < 8; k++) {
-    const y = H + 40 - ((((cam * 0.9 + k * 131 + hash(k) * 600) % (H + 80)) + H + 80) % (H + 80)), d = cam + y;
-    if (d < 8) continue;
-    c.fillRect(Math.round(laneX(d, (hash(k + 5) * 2 - 1) * 0.85)), Math.round(y), 1, 6 + Math.round(hash(k + 9) * 6));
-  }
-  for (let k = 0; k < 12; k++) {
-    const y = H + 20 - ((((cam * 0.45 + k * 61 + hash(k + 70) * 600) % (H + 40)) + H + 40) % (H + 40)), d = cam + y;
-    if (d < 8) continue;
-    const x = Math.round(laneX(d, (hash(k + 33) * 2 - 1) * 0.8));
-    c.fillStyle = P.ink; c.fillRect(x - 1, Math.round(y) - 1, 5, 5);
-    c.fillStyle = k % 3 ? P.shade : P.rock; c.fillRect(x, Math.round(y), 3, 3);
-  }
+// Dust motes he falls past, drifting a little. (Rain streaks and falling debris used to drift down beside him too; the
+// user found them distracting, so they went in version 67.)
+function motes(cam) {
   for (let k = 0; k < 14; k++) {
     const y = H + 20 - ((((cam * 1.05 + k * 71 + hash(k + 200) * 500) % (H + 40)) + H + 40) % (H + 40)), d = cam + y;
     if (d < 8) continue;
@@ -2161,25 +2150,8 @@ const Sfx = (() => {
       }
     },
     bleep(f) { tone('sine', f, f, 0.06, 0.06); },
-    slurp() { noise(0.18, 'bandpass', 2200, 0.35); noise(0.14, 'bandpass', 1500, 0.3, 0.12); },
-    // One long, slow slurp: airy noise that climbs in pitch and gurgles as he drinks.
-    slurpLong(dur) {
-      if (!ctx) return;
-      const t = ctx.currentTime, s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), wob = ctx.createGain(), g = ctx.createGain();
-      const lfo = ctx.createOscillator(), lg = ctx.createGain(), flfo = ctx.createOscillator(), fg = ctx.createGain();
-      s.buffer = noiseBuf; s.loop = true; f.type = 'bandpass'; f.Q.value = 2.5;
-      f.frequency.setValueAtTime(1300, t);
-      f.frequency.linearRampToValueAtTime(2500, t + dur * 0.75);
-      f.frequency.linearRampToValueAtTime(1800, t + dur);
-      wob.gain.value = 0.6; lfo.frequency.value = 9; lg.gain.value = 0.4; lfo.connect(lg); lg.connect(wob.gain);
-      flfo.frequency.value = 5; fg.gain.value = 260; flfo.connect(fg); fg.connect(f.frequency);
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.linearRampToValueAtTime(0.5, t + 0.15);
-      g.gain.setValueAtTime(0.5, t + dur - 0.3);
-      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-      s.connect(f); f.connect(wob); wob.connect(g); g.connect(master);
-      for (const n of [s, lfo, flfo]) { n.start(t); n.stop(t + dur + 0.05); introNodes.push(n); }
-    },
+    // A mug set down on the counter: a short ceramic clink.
+    mug() { tone('sine', 2350, 2330, 0.16, 0.07); tone('sine', 3560, 3530, 0.08, 0.035); noise(0.02, 'highpass', 4000, 0.05); },
     whoosh() { noise(0.7, 'bandpass', 900, 0.35); },
     land() { noise(0.12, 'lowpass', 500, 0.5); tone('sine', 110, 60, 0.12, 0.3); story('land', 0.03, 'phew'); },
     whistle(d) {
@@ -3197,7 +3169,7 @@ function updateCafe(dt) {
       player.pose = C.side < 0 ? 'runL' : 'run';
     }
     else { player.x = C.counterX; player.y = standY; player.pose = C.side < 0 ? 'standL' : 'stand'; }
-    if (crossed(0.95)) Sfx.slurp();
+    if (crossed(1.55)) Sfx.mug();
     if (crossed(1.4)) {
       if (player.hp < player.max) {
         player.hp++;
@@ -3463,7 +3435,6 @@ function updateOpening(dt) {
   const O = OPEN, t = openT - O.pre, crossed = at => t >= at && t - dt < at, ta = openT, crossedA = at => ta >= at && ta - dt < at;
   if (crossedA(0.3)) Sfx.bleep(1320);
   if (crossedA(0.7)) Sfx.bleep(990);
-  if (crossedA(1.6)) Sfx.slurpLong(1.4);
   if (crossedA(3.5)) Sfx.bleep(880);
   if (crossedA(O.coffee)) Sfx.whoosh();
   for (const p of introFx) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.spin) p.a += p.spin * dt; }
@@ -3824,13 +3795,12 @@ function drawIntroSpace(t, sx, sy) {
     c.fillStyle = i % 5 ? P.strata : (Math.floor(clock * 0.8 + hash(i) * 4) % 4 ? P.dust : P.lite);
     const z = i % 11 ? 1 : 2; c.fillRect(Math.round(x), Math.round(y), z, z);
   }
-  // On the start screen the planet turns once every 24 s and the moon once a minute.
-  const spin = state === 'splash';
-  drawPlanet(Math.round(W * 0.8 - t * 2), Math.round(H * 0.2), true, spin ? clock * Math.PI / 12 : undefined);
+  // The planet turns once every 24 s and the moon once a minute, on the start screen and on through the intro.
+  drawPlanet(Math.round(W * 0.8 - t * 2), Math.round(H * 0.2), true, clock * Math.PI / 12);
   const O = OPEN, C0x = W / 2 + 40, C0y = H * 0.8, R0 = 58, Rmax = 2400;
   const e = t < O.hit ? 0 : easeInOut(Math.min(1, (t - O.hit) / (O.dive - O.hit))), R = R0 * Math.pow(Rmax / R0, e), z = R / R0, zm = Rmax / R0;
   const Fx = (W / 2 - zm * C0x) / (1 - zm), Fy = (H * 0.74 + Rmax - zm * C0y) / (1 - zm);
-  drawMoonAt(Fx + (C0x - Fx) * z, Fy + (C0y - Fy) * z, R, spin ? clock * Math.PI / 30 : undefined);
+  drawMoonAt(Fx + (C0x - Fx) * z, Fy + (C0y - Fy) * z, R, clock * Math.PI / 30);
   if (state === 'splash') { c.setTransform(1, 0, 0, 1, 0, 0); return; }
   for (const p of introFx) {
     if (p.rock !== undefined) {
@@ -4752,7 +4722,7 @@ function render() {
   if (state !== 'play') dropList(cam);
   life(cam);
   const falling = state === 'play' || state === 'dying' || (state === 'intro' && introT > 1.5);
-  if (falling) streaks(cam);
+  if (falling) motes(cam);
   critters(cam);
   drawFlags(cam);
   drawCafeSigns(cam);
