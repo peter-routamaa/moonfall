@@ -553,7 +553,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 75;
+const VERSION = 76;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -1903,7 +1903,11 @@ const SEG_LEN = 110, HIT_HALF_W = 8;
 // Steering: the jetpack pushes toward the aim point like a spring (STEER_KP) with damping (STEER_KD), capped at TMAX.
 const STEER_KP = 55, STEER_KD = 11, DRAG = 1.5, TMAX = 1400, VMAX = 420, THR_SHOW = 120, THR_FULL = 900, TAP_T = 1100, TAP_MIN = 0.14;
 const depthM = () => Math.max(0, Math.floor(player.y / PX_PER_M));
-function speedAt(d) { return 250 + 170 * smoothstep(d / 26000); }
+// Fall speed: 250 px/s (31 m/s). It used to rise with depth by up to SPEED_RAMP more (170, reaching 52 m/s by about
+// 3 km); the user found the game too hard and asked for it off for now (version 76). Set SPEED_RAMP back to 170 to bring
+// the speed-up back (the speed lines appear with it).
+const FALL_SPEED = 250, SPEED_RAMP = 0;
+function speedAt(d) { return FALL_SPEED + SPEED_RAMP * smoothstep(d / 26000); }
 
 // ---------- saved settings ----------
 const save = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false, hints: {} };
