@@ -4,3 +4,4 @@ tools/out/
 tools/.chrome/
 *.png
 !docs/**/*.png
+!src/share.png

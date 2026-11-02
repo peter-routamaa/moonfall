@@ -12,6 +12,7 @@ import os, re, shutil, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCORES_URL = 'https://ukjajizsnowmdjziqkof.supabase.co/functions/v1/scores'   # public; it's in the built page anyway
 
+SITE = 'https://peter-routamaa.github.io/moonfall/'   # where GitHub Pages serves it; link previews need full addresses
 url = '' if '--offline' in sys.argv else SCORES_URL
 game = open(os.path.join(ROOT, 'src', 'moonfall.html')).read()
 cut = game.index('</style>') + len('</style>')
@@ -28,6 +29,16 @@ page = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'
         '<meta name="theme-color" content="#1A1E2C">\n'
         '<meta name="description" content="MoonFall: fall through a moon, dodge the walls, repair your ship.">\n'
+        # Link previews (WhatsApp, iMessage, Slack, X and so on): title, line and the picture from src/share.png.
+        '<meta property="og:type" content="website">\n'
+        '<meta property="og:site_name" content="MoonFall">\n'
+        '<meta property="og:title" content="MoonFall">\n'
+        '<meta property="og:description" content="Dodge. Collect. Repair. Escape. A free pixel-art phone game by PermaFrost Productions.">\n'
+        f'<meta property="og:url" content="{SITE}">\n'
+        f'<meta property="og:image" content="{SITE}share.png">\n'
+        '<meta property="og:image:width" content="1200">\n<meta property="og:image:height" content="630">\n'
+        '<meta property="og:image:alt" content="MoonFall: a pixel-art pilot falling down a moon shaft past a giant jellyfish, and a cafe stop">\n'
+        '<meta name="twitter:card" content="summary_large_image">\n'
         f'<link rel="icon" href="{icon}">\n'
         # Same base styles the claude.ai artifact page gets, so the game looks identical.
         '<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}'
@@ -36,4 +47,5 @@ page = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
 os.makedirs(os.path.join(ROOT, 'docs'), exist_ok=True)
 open(os.path.join(ROOT, 'docs', 'index.html'), 'w').write(page)
 shutil.copytree(os.path.join(ROOT, 'src', 'voices'), os.path.join(ROOT, 'docs', 'voices'), dirs_exist_ok=True)
+shutil.copy(os.path.join(ROOT, 'src', 'share.png'), os.path.join(ROOT, 'docs', 'share.png'))   # the link preview picture
 print(f'docs/index.html {len(page) // 1024} KB, scores URL: {url or "(none: offline)"}')

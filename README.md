@@ -9,6 +9,7 @@ Play it at **https://peter-routamaa.github.io/moonfall/**. The `docs` folder is 
 | Path | What it is |
 |---|---|
 | `src/moonfall.html` | **The game's source**: the whole game in one file (HTML, CSS and JavaScript), exactly as published on claude.ai. Edit this one. A guide at the top of its script explains how the code fits together. |
+| `src/share.png` | The link preview picture (1200 × 630) shown when the game's address is shared in WhatsApp, iMessage and so on. The build copies it to `docs/` and adds the preview tags. |
 | `src/voices/` | The 15 recorded voice clips (CC0, by qubodup on OpenGameArt), loaded by the game when sound starts. |
 | `docs/index.html`, `docs/voices/` | The website copy, built from `src/` by `tools/build_site.py`. Don't edit these by hand. |
 | `tools/` | Build, test and screenshot scripts (see *Working on the game*). |
