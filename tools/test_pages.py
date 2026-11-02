@@ -15,7 +15,7 @@ OUT = os.path.join(ROOT, 'tools', 'out')
 
 # The debug handle: the game's internals that the tests and screenshots reach for.
 # Functions added recently are looked up with typeof, so the hook also works on older versions (same_pixels compares them).
-HOOK = """window.__mf = { gameOver, depthM, startLaunch, save, player, Sfx, Music, get state() { return state; }, set state(v) { state = v; }, update, render, get openT() { return openT; }, cafeInfo, get flags() { return flags; }, get rocks() { return rocks; }, get items() { return items; }, get hazards() { return hazards; }, setHP, voidAt: typeof voidAt === 'function' ? voidAt : null, voidInfo: typeof voidInfo === 'function' ? voidInfo : null, nearMiss, collect, buyPerk, openShop, get shopOffer() { return shopOffer; }, get hitStop() { return hitStop; }, get flyers() { return flyers; }, hurt, buildFlags, get cafeT() { return cafeT; }, set cafeT(v) { cafeT = v; }, get camY() { return camY; }, edgeAt, checkCafe, prepaint, frame, DROPS, dropList, set clock(v) { clock = v; }, get shopDone() { return shopDone; } };"""
+HOOK = """window.__mf = { gameOver, depthM, startLaunch, save, player, Sfx, Music, get state() { return state; }, set state(v) { state = v; }, update, render, get openT() { return openT; }, cafeInfo, get flags() { return flags; }, get rocks() { return rocks; }, get items() { return items; }, get hazards() { return hazards; }, setHP, voidAt: typeof voidAt === 'function' ? voidAt : null, voidInfo: typeof voidInfo === 'function' ? voidInfo : null, get fireworks() { return typeof fireworks === 'undefined' ? [] : fireworks; }, nearMiss, collect, buyPerk, openShop, get shopOffer() { return shopOffer; }, get hitStop() { return hitStop; }, get flyers() { return flyers; }, hurt, buildFlags, get cafeT() { return cafeT; }, set cafeT(v) { cafeT = v; }, get camY() { return camY; }, edgeAt, checkCafe, prepaint, frame, DROPS, dropList, set clock(v) { clock = v; }, get shopDone() { return shopDone; } };"""
 
 # A pretend scoreboard: answers the game's requests to fake-scores.test from memory. B.mode = 'down' fails them.
 FAKE_BOARD = """window.__board = { rows: [], next: 1, mode: 'ok', calls: [] };
@@ -57,6 +57,14 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
   }
   if (q.get('scene') === 'title') {
     for (let i = 0; i < 60; i++) M.update(1 / 60);
+    if (q.get('fw')) {   // &fw=1: a run that finishes the ship, quit back to the menu, 2.5 s of fireworks
+      for (const k in M.save.parts) M.save.parts[k] = 0;   // the saved profile may already have a repaired ship
+      document.getElementById('startBtn').click(); await wait(300);
+      for (const k in M.save.parts) M.save.parts[k] = 999;
+      document.getElementById('pauseBtn').click(); await wait(100); document.getElementById('quitBtn').click(); await wait(100);
+      for (let i = 0; i < 150; i++) M.update(1 / 60);
+      M.render(); document.title = 'ready:' + M.fireworks.length; return;
+    }
     if (q.get('card')) { document.getElementById(q.get('card') === 'how' ? 'howBtn' : 'settingsBtn').click(); await wait(800); }
     M.render(); document.title = 'ready'; return;
   }
