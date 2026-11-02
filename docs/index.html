@@ -43,8 +43,9 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .hud.off { transform: translateY(-130%); opacity: 0; }
 .panel { background: var(--ink); color: var(--dust); box-shadow: 4px 4px 0 var(--blue); }
 .left { display: flex; flex-direction: column; gap: 8px; }
-.hp { display: flex; align-items: center; gap: 4px; padding: 7px 9px 7px 8px; }
-.hp-label { font: 700 12px/1 var(--display); letter-spacing: .06em; margin-right: 5px; }
+.hp { display: flex; align-items: center; gap: 4px; padding: 2px 9px 2px 5px; }
+/* The pilot's face (12 x 12 pixels, drawn at 2x) in place of an HP label; see updateFace. */
+.pilot-face { width: 24px; height: 24px; image-rendering: pixelated; margin-right: 3px; }
 .hp i { display: block; width: var(--hpw, 20px); height: 14px; background: var(--lava); box-shadow: inset 0 -3px 0 var(--lava-dk); }
 .hp i.empty { background: transparent; box-shadow: inset 0 0 0 2px var(--ink-soft); }
 .hp.low i:not(.empty) { animation: low 1s steps(2) infinite; }
@@ -298,7 +299,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
   <div class="hud off" id="hud">
     <div class="left">
       <div class="panel hp" id="hp" role="meter" aria-label="Health" aria-valuemin="0" aria-valuemax="5" aria-valuenow="5">
-        <span class="hp-label">HP</span><i></i><i></i><i></i><i></i><i></i>
+        <canvas class="pilot-face" id="face" width="12" height="12" aria-hidden="true"></canvas><i></i><i></i><i></i><i></i><i></i>
       </div>
       <div class="panel target none" id="target"><span id="targetWho">BEAT</span><b id="targetM">0 m</b></div>
       <div class="panel shield" id="shield" hidden>SHIELD <span class="shield-track"><b id="shieldFill"></b></span></div>
@@ -552,7 +553,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 72;
+const VERSION = 73;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -1423,15 +1424,40 @@ function critters(cam) {
     }
   }
 }
-// Dust motes he falls past, drifting a little. (Rain streaks and falling debris used to drift down beside him too; the
+// Fourteen specks in the air that he falls past, drifting a little, one kind per rock layer: snow in the ice, sand,
+// ash, flickering embers in the magma, and glints in the amethyst that flash now and then. They move up a touch faster
+// than the walls, so none of them falls with him. (Rain streaks and falling debris used to drift down beside him; the
 // user found them distracting, so they went in version 67.)
 function motes(cam) {
   for (let k = 0; k < 14; k++) {
     const y = H + 20 - ((((cam * 1.05 + k * 71 + hash(k + 200) * 500) % (H + 40)) + H + 40) % (H + 40)), d = cam + y;
     if (d < 8) continue;
-    c.fillStyle = k % 2 ? P.moss : P.lite;
-    c.fillRect(Math.round(laneX(d, (hash(k + 300) * 2 - 1) * 0.75) + Math.sin(clock * 2 + k) * 4), Math.round(y), k % 3 ? 1 : 2, k % 3 ? 1 : 2);
+    const x = Math.round(laneX(d, (hash(k + 300) * 2 - 1) * 0.75) + Math.sin(clock * 2 + k) * 4), yy = Math.round(y);
+    const kind = matI(Math.floor(d / PX_PER_M / ZONE_M)), M = MATS[kind], z = k % 3 ? 1 : 2;
+    let star = false;
+    if (kind === 0) { c.fillStyle = '#FFFFFF'; star = k % 4 === 0; }
+    else if (kind === 1) c.fillStyle = k % 2 ? M.b0 : M.cryL;
+    else if (kind === 2) c.fillStyle = k % 2 ? M.b1 : M.hi;
+    else if (kind === 3) { const f = (Math.floor(clock * 10) + k) % 3; c.fillStyle = f === 0 ? P.hot : f === 1 ? M.cryL : P.lava; }
+    else { star = (clock * 0.9 + k * 0.37) % 1 < 0.12; c.fillStyle = star ? M.hi : M.cryL; }
+    if (star) { c.fillRect(x - 1, yy, 3, 1); c.fillRect(x, yy - 1, 1, 3); }
+    else c.fillRect(x, yy, z, z);
   }
+}
+// Speed lines: streaks of air rushing up past him near the walls, more and brighter the faster he falls. There are none
+// at the starting speed; they build from about 1000 m to 3000 m as the fall speeds up. They move up faster than the
+// walls, so they never look like they're falling with him.
+function speedLines(cam) {
+  const s = smoothstep((player.v - 270) / 150);
+  if (s <= 0) return;
+  c.globalAlpha = 0.25 + 0.35 * s; c.fillStyle = P.lite;
+  for (let k = 0, n = Math.round(10 * s); k < n; k++) {
+    const y = H + 40 - ((((cam * 1.8 + k * 97 + hash(k + 60) * 700) % (H + 80)) + H + 80) % (H + 80)), d = cam + y;
+    if (d < 8) continue;
+    const x = Math.round(laneX(d, (hash(k + 90) < 0.5 ? -1 : 1) * (0.62 + hash(k + 120) * 0.33)));
+    c.fillRect(x, Math.round(y), 1, 14 + Math.round(hash(k + 40) * 22 * (0.5 + s)));
+  }
+  c.globalAlpha = 1;
 }
 // Lava drops fall from the pockets in the wall. They hurt, so drawing and collision share one list.
 const DROPS = [], DROP_POOL = [];
@@ -2640,6 +2666,7 @@ function drawFlyers() {
 }
 // +1 health if hurt (flies to the health bar), otherwise +1 spare crystal (flies to the SPARE counter).
 function gainCrystal(x, d, label) {
+  faceJoy = clock;
   if (player.hp < player.max) {
     player.hp++;
     fly('orb', x, d, hpEls[player.hp - 1], () => setHP('gain'));
@@ -2662,7 +2689,33 @@ function showCoach(text, ms) {
   coach.textContent = text; coach.classList.remove('gone');
   clearTimeout(coachTimer); coachTimer = setTimeout(() => coach.classList.add('gone'), ms);
 }
+// The pilot's face beside the health bar: calm at 4 or more health (blinking now and then), worried at 2-3, scared at 1
+// (eyes wide, mouth open, visor flashing red), wincing for half a second after a hit and grinning for a moment after a
+// pickup. Redrawn only when the picture changes.
+// Rows: helmet (w) round a blue visor (v) with a glint (l); eyes and mouth (e) are drawn in through the visor.
+const FACE_TOP = ['...kkkkkk...', '..kwwwwwwk..', '.kwwwwwwwwk.', 'kwwvvvvvvwwk', 'kwvlvvvvvvwk'];
+const face = (eyes5, eyes6, mouth8, mouth9) => [...FACE_TOP, eyes5, eyes6, 'kwvvvvvvvvwk', mouth8, mouth9, '.kwwvvvvwwk.', '..kwwwwwwk..'];
+const FACES = {
+  calm: face('kwvvevvevvwk', 'kwvvevvevvwk', 'kwvevvvvevwk', '.kwveeeevwk.'),
+  blink: face('kwvvvvvvvvwk', 'kwveevveevwk', 'kwvevvvvevwk', '.kwveeeevwk.'),
+  worried: face('kwvvevvevvwk', 'kwvvevvevvwk', 'kwvveeeevvwk', '.kwvvvvvvwk.'),
+  scared: face('kwveevveevwk', 'kwveevveevwk', 'kwvvveevvvwk', '.kwvveevvwk.'),
+  hurt: face('kwvevvvvevwk', 'kwvvevvevvwk', 'kwveeeeeevwk', '.kwveeeevwk.'),
+  happy: face('kwvvevvevvwk', 'kwveveevevwk', 'kwevvvvvvewk', '.kwveeeevwk.'),
+};
+const FACE_MAP = { k: P.ink, w: P.dust, v: P.blue, l: P.lite, e: P.dust }, FACE_RED = Object.assign({}, FACE_MAP, { v: mix(P.blue, P.lava, 0.65) });
+const faceCv = $('face');
+let faceShown = '', faceHit = -9, faceJoy = -9;
+function updateFace() {
+  const hp = player.hp, red = hp <= 1 && Math.floor(clock * 2) % 2 === 1;
+  let key = clock - faceHit < 0.5 ? 'hurt' : clock - faceJoy < 0.6 && hp > 1 ? 'happy' : hp <= 1 ? 'scared' : hp <= 3 ? 'worried' : 'calm';
+  if (key === 'calm' && clock % 3.7 < 0.12) key = 'blink';
+  if (key + red === faceShown) return;
+  faceShown = key + red;
+  const g = faceCv.getContext('2d'); g.clearRect(0, 0, 12, 12); sprite(g, FACES[key], 0, 0, red ? FACE_RED : FACE_MAP);
+}
 function setHP(kind, n = 1) {
+  if (kind === 'hit') faceHit = clock; else if (kind === 'gain') faceJoy = clock;
   hpEls.forEach((el, i) => { el.classList.toggle('empty', i >= player.hp); el.classList.remove('hit', 'gain'); });
   const el = kind === 'hit' ? hpEls[player.hp] : kind === 'gain' ? hpEls[player.hp - 1] : null;
   if (el) { void el.offsetWidth; el.classList.add(kind); }
@@ -4522,7 +4575,7 @@ function collect(it) {
       if (was < 1 && repair >= 1) { showCoach('SHIP REPAIRED! LAUNCH IT FROM THE MAIN MENU', 3500); Sfx.shield(); }
     }
     fly('part', it.x, it.d, $('partsHud'), () => { $('partsRun').textContent = PARTS.reduce((n, q) => n + runParts[q.id], 0); }, pt);
-    Buzz.part(); Sfx.part();
+    Buzz.part(); Sfx.part(); faceJoy = clock;
     pop('+1 ' + pt.name.toUpperCase(), it.x, it.d - 12, 'part');
     sparks(it.x, it.d, ['#F2C14E', '#FFFFFF', '#A9781B'], 10);
   } else {
@@ -4758,7 +4811,7 @@ function render() {
   if (state !== 'play') dropList(cam);
   life(cam);
   const falling = state === 'play' || state === 'dying' || (state === 'intro' && introT > 1.5);
-  if (falling) motes(cam);
+  if (falling) { motes(cam); speedLines(cam); }
   critters(cam);
   drawFlags(cam);
   drawCafeSigns(cam);
@@ -4893,7 +4946,7 @@ function frame(now) {
     if (hitStop > 0) hitStop = Math.max(0, hitStop - dt); else update(dt);
     if (runId) runSecs += dt;
     if (runId && raw < 1) { runFrames++; runRaw += raw; if (runFrames > 5) runWorst = Math.max(runWorst, raw); }
-    prepaint(camY); render(); meter.cpu += performance.now() - t0;
+    updateFace(); prepaint(camY); render(); meter.cpu += performance.now() - t0;
   }
   if (save.fps) {
     meter.n++; meter.time += raw; meter.worst = Math.max(meter.worst, raw);

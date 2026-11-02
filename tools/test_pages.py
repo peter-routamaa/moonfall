@@ -13,7 +13,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'tools', 'out')
 
 # The debug handle: the game's internals that the tests and screenshots reach for.
-HOOK = """window.__mf = { gameOver, depthM, startLaunch, save, player, Sfx, Music, get state() { return state; }, set state(v) { state = v; }, update, render, get openT() { return openT; }, cafeInfo, get flags() { return flags; }, get rocks() { return rocks; }, get items() { return items; }, get hazards() { return hazards; }, nearMiss, collect, buyPerk, openShop, get shopOffer() { return shopOffer; }, get hitStop() { return hitStop; }, get flyers() { return flyers; }, hurt, buildFlags, get cafeT() { return cafeT; }, set cafeT(v) { cafeT = v; }, get camY() { return camY; }, edgeAt, checkCafe, prepaint, frame, DROPS, dropList, set clock(v) { clock = v; }, get shopDone() { return shopDone; } };"""
+HOOK = """window.__mf = { gameOver, depthM, startLaunch, save, player, Sfx, Music, get state() { return state; }, set state(v) { state = v; }, update, render, get openT() { return openT; }, cafeInfo, get flags() { return flags; }, get rocks() { return rocks; }, get items() { return items; }, get hazards() { return hazards; }, setHP, nearMiss, collect, buyPerk, openShop, get shopOffer() { return shopOffer; }, get hitStop() { return hitStop; }, get flyers() { return flyers; }, hurt, buildFlags, get cafeT() { return cafeT; }, set cafeT(v) { cafeT = v; }, get camY() { return camY; }, edgeAt, checkCafe, prepaint, frame, DROPS, dropList, set clock(v) { clock = v; }, get shopDone() { return shopDone; } };"""
 
 # A pretend scoreboard: answers the game's requests to fake-scores.test from memory. B.mode = 'down' fails them.
 FAKE_BOARD = """window.__board = { rows: [], next: 1, mode: 'ok', calls: [] };
@@ -101,6 +101,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
   }
   if (q.get('scene') === 'pause') { for (let i = 0; i < 150; i++) M.update(1 / 60); M.render(); document.getElementById('pauseBtn').click(); await wait(300); document.title = 'ready'; return; }
   for (let i = 0; i < 150; i++) M.update(1 / 60);
+  if (q.get('hp')) { pl.hp = +q.get('hp'); M.setHP(); }   // e.g. &hp=1 for the scared face
   if (q.get('scene') === 'sign') {
     let k = 1; const want = +(q.get('side') || -1); while (M.cafeInfo(k).side !== want) k++;
     const C = M.cafeInfo(k); pl.y = C.Dl - 800 - 150; pl.x = 160; pl.aim = 160; pl.vx = 0;
