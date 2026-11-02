@@ -99,6 +99,10 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
   if (q.get('scene') === 'pause') { for (let i = 0; i < 150; i++) M.update(1 / 60); M.render(); document.getElementById('pauseBtn').click(); await wait(300); document.title = 'ready'; return; }
   for (let i = 0; i < 150; i++) M.update(1 / 60);
   if (q.get('hp')) { pl.hp = +q.get('hp'); M.setHP(); }   // e.g. &hp=1 for the scared face
+  if (q.get('flags')) {   // two pretend high scores just below him, to show their gravestones
+    const m = M.depthM(); M.save.scores = [{ i: 'ABC', m: m + 22 }, { i: 'PVR', m: m + 40 }]; M.buildFlags();
+  }
+  if (q.get('shield')) { pl.shieldMax = 10; pl.shield = 10 * +q.get('shield'); }   // e.g. &shield=0.6: 60% of its time left
   if (q.get('scene') === 'void') {   // the first void: &at= px below its top (it's 1200 deep; its floor is at the bottom)
     const V = M.voidInfo(0), at = +(q.get('at') || 0);
     pl.y = V.T + at - 14; pl.x = q.get('x') ? +q.get('x') : 160; pl.aim = pl.x; pl.vx = 0;

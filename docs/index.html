@@ -54,9 +54,6 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 @keyframes low { 50% { opacity: .5; } }
 @keyframes hit { 0% { background: var(--dust); transform: scale(1.35); } 100% { transform: none; } }
 @keyframes gain { 0% { background: var(--green); transform: scale(1.45); } 100% { transform: none; } }
-.shield { display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px 8px; font: 700 10px/1 var(--display); letter-spacing: .06em; box-shadow: 4px 4px 0 var(--purple-dk); }
-.shield-track { width: 64px; height: 6px; background: var(--ink-soft); }
-.shield-track b { display: block; height: 100%; width: 100%; background: var(--purple); }
 /* Depth and pause on top; the run's counters (parts, then spare) on one line underneath, flush right. */
 .right { display: grid; grid-template-columns: auto auto; justify-items: end; align-items: start; gap: 8px; pointer-events: auto; }
 .counters { grid-column: 1 / -1; display: flex; gap: 6px; }
@@ -229,12 +226,10 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 @keyframes pop { 0% { opacity: 0; translate: 0 8px; } 15% { opacity: 1; translate: 0 0; } 70% { opacity: 1; } 100% { opacity: 0; translate: 0 -36px; } }
 .coach { position: absolute; left: 50%; bottom: 14%; transform: translateX(-50%); font: 700 13px/1 var(--display); letter-spacing: .06em; background: var(--ink); color: var(--dust); padding: 9px 12px 8px; box-shadow: 4px 4px 0 var(--blue); pointer-events: none; white-space: nowrap; transition: opacity .5s steps(5); }
 .coach.gone { opacity: 0; }
-/* Near-miss streak: 8 pips fill toward the next reward. */
-.streak { display: flex; align-items: center; gap: 6px; padding: 5px 8px; font: 700 10px/1 var(--display); letter-spacing: .06em; box-shadow: 4px 4px 0 var(--ink-soft); }
-.streak .pips { display: flex; gap: 2px; }
-.streak .pips i { display: block; width: 5px; height: 8px; background: var(--ink-soft); }
-.streak .pips i.on { background: var(--dust); }
-.streak b { min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; }
+/* Near-miss streak: "x2", "x3"... flashes up on the left for a moment with each near miss (no HUD panel). */
+.streak-flash { position: absolute; left: 14px; top: 34%; font: 700 26px/1 var(--display); letter-spacing: .04em; color: var(--dust); text-shadow: 3px 3px 0 var(--blue); pointer-events: none; opacity: 0; }
+.streak-flash.on { animation: streakflash .9s steps(9); }
+@keyframes streakflash { 0% { opacity: 0; transform: scale(1.6); } 15% { opacity: 1; transform: none; } 70% { opacity: 1; } 100% { opacity: 0; } }
 .spare-hud { display: flex; align-items: center; gap: 4px; padding: 4px 6px 4px 5px; font: 700 8px/1 var(--display); letter-spacing: .06em; box-shadow: 4px 4px 0 var(--green-dk); }
 .perk-cost canvas { width: 14px; height: 14px; image-rendering: pixelated; }
 .spare-hud canvas { width: 12px; height: 12px; image-rendering: pixelated; }
@@ -242,7 +237,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 /* On the narrowest phones the crystal icon alone says SPARE, so the line clears the panels under the health bar. */
 @media (max-width: 340px) { .spare-hud .lbl { display: none; } }
 /* Next score on the board to beat: one line under the health bar. With nothing to beat it keeps its place (invisible),
-   so the shield and streak panels never move up beside the PARTS / SPARE line. */
+   so the HUD's height never changes (HUD_LEFT_PX). */
 .target { display: flex; align-items: baseline; gap: 6px; align-self: flex-start; padding: 7px 8px; font: 700 9px/1 var(--display); letter-spacing: .06em; color: var(--dust-dim); }
 .target.none { visibility: hidden; }
 .target b { font-size: 12px; color: var(--dust); font-variant-numeric: tabular-nums; }
@@ -287,7 +282,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 @media (prefers-reduced-motion: reduce) {
   .hud, .coach, .flip-inner, .flip .face { transition: none; }
   .confirm.pop-in { animation: none; }
-  .hp i.hit, .hp i.gain, .hp.low i:not(.empty), .pop { animation-duration: .01s; }
+  .hp i.hit, .hp i.gain, .hp.low i:not(.empty), .pop, .streak-flash.on { animation-duration: .01s; }
 }
 </style>
 </head>
@@ -302,8 +297,6 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
         <canvas class="pilot-face" id="face" width="12" height="12" aria-hidden="true"></canvas><i></i><i></i><i></i><i></i><i></i>
       </div>
       <div class="panel target none" id="target"><span id="targetWho">BEAT</span><b id="targetM">0 m</b></div>
-      <div class="panel shield" id="shield" hidden>SHIELD <span class="shield-track"><b id="shieldFill"></b></span></div>
-      <div class="panel streak" id="streak" hidden>CLOSE <span class="pips" id="streakPips"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><b id="streakN">x0</b></div>
     </div>
     <div class="right">
       <div class="panel depth" id="depth" aria-live="off">0000<small>m</small></div>
@@ -347,6 +340,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
    </div>
   </div>
   <div class="coach gone" id="coach">TAP A SIDE, OR DRAG</div>
+  <div class="streak-flash" id="streakFlash" aria-hidden="true"></div>
 
   <section class="screen splash" id="splashScreen" hidden>
     <div class="studio">
@@ -553,13 +547,13 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 76;
+const VERSION = 77;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
 const PX_PER_M = 8;   // game pixels per metre of depth
 const PILOT_CY = 14;  // the pilot's middle, in pixels below player.y (the top of his sprite)
-const HUD_LEFT_PX = 132;  // CSS px from the top of the screen to the bottom of the HUD's left column with every panel showing
+const HUD_LEFT_PX = 76;   // CSS px from the top of the screen to the bottom of the HUD's left column (health, then BEAT)
 const game = document.getElementById('game'), cv = document.getElementById('cv'), ov = document.getElementById('ov');
 // Two canvases: the world, and on top of it the pilot (see render). `c` is whichever one is being drawn on.
 const wc = cv.getContext('2d', { alpha: false }), oc = ov.getContext('2d');
@@ -2590,7 +2584,7 @@ const Buzz = (() => {
 // ---------- DOM ----------
 const $ = id => document.getElementById(id);
 $('verTag').textContent = 'v' + (VERSION / 100).toFixed(2);
-const hud = $('hud'), hpBox = $('hp'), depthEl = $('depth'), shieldEl = $('shield'), shieldFill = $('shieldFill'), coach = $('coach');
+const hud = $('hud'), hpBox = $('hp'), depthEl = $('depth'), coach = $('coach');
 const screens = {
   title: $('titleScreen'), pause: $('pauseScreen'), over: $('overScreen'), end: $('endScreen'), splash: $('splashScreen'),
   score: $('scoreScreen')
@@ -2666,17 +2660,16 @@ function sizeHP() {
   const row = innerWidth <= 340 ? 101 : 116;
   hpBox.style.setProperty('--hpw', Math.floor((row - (player.max - 1) * 4) / player.max) + 'px');
 }
-const streakEl = $('streak'), streakPips = [...streakEl.querySelectorAll('i')], spareHud = $('spareHud'), shopEl = $('shop');
+const streakFlash = $('streakFlash'), spareHud = $('spareHud'), shopEl = $('shop');
 function bump(el) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
-function renderStreak(fresh) {
-  streakEl.hidden = player.streak === 0;
-  const on = player.streak && player.streak % 8 === 0 ? 8 : player.streak % 8;
-  streakPips.forEach((el, i) => el.classList.toggle('on', i < on));
-  $('streakN').textContent = 'x' + player.streak;
-  if (fresh) bump(streakEl);
+// Each near miss from the second in a row flashes the streak ("x2", "x3"...) on the left of the screen.
+function flashStreak() {
+  streakFlash.classList.remove('on');
+  if (player.streak < 2) return;
+  streakFlash.textContent = 'x' + player.streak; void streakFlash.offsetWidth; streakFlash.classList.add('on');
 }
 // Pickups fly from where they were caught to their HUD counter, which bumps when they land.
-let flyers = [], hitStop = 0, shownShield = -1;
+let flyers = [], hitStop = 0;
 function hudPoint(el) {
   const g = game.getBoundingClientRect(), r = el.getBoundingClientRect();
   return { x: (r.left + r.width / 2 - g.left) / sc, y: (r.top + r.height / 2 - g.top) / sc };
@@ -2710,9 +2703,6 @@ function gainCrystal(x, d, label) {
 function giveShield(sec) {
   player.shield = Math.max(player.shield, sec);
   player.shieldMax = player.shield;
-  shieldEl.hidden = false;
-  shieldFill.style.width = '100%';
-  shownShield = 100;
 }
 let coachTimer = 0;
 function showCoach(text, ms) {
@@ -2801,10 +2791,10 @@ function resetRun() {
   $('partsRun').textContent = '0'; repair = repairFrac(); repairStart = repair;
   Object.assign(player, playerStart());
   cafeVisited.clear(); cafeArt.clear(); signArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
-  buildHP(); $('spareRun').textContent = '0'; spareHud.hidden = true; renderStreak(); buildFlags(); refreshBoard();
+  buildHP(); $('spareRun').textContent = '0'; spareHud.hidden = true; streakFlash.classList.remove('on'); buildFlags(); refreshBoard();
   Music.reset();
   shake = 0; dieT = 0; camY = camY0; shownDepth = -1;
-  setHP(); setDepth(); shieldEl.hidden = true;
+  setHP(); setDepth();
 }
 // Title card flips over to show settings or instructions on its back.
 let cardSide = null, readTimer = 0;
@@ -3347,7 +3337,7 @@ function openShop() {
   kbFocus($('shopGo'));
 }
 // Turns the cafe card to the shop, the tips or back to the front, growing or shrinking upward like the title card.
-let cafeSide = null, cafeBack = 0, usingKeys = false;
+let cafeSide = null, usingKeys = false;
 // The cafe card only moves focus for keyboard players, so touch players never see a stray focus ring.
 addEventListener('keydown', () => { usingKeys = true; }, true);
 addEventListener('pointerdown', () => { usingKeys = false; }, true);
@@ -3356,7 +3346,7 @@ function kbFocus(el) { if (usingKeys && el) el.focus({ preventScroll: true }); }
 function cafeCard(side, instant) {
   const was = cafeSide;
   instant = !!instant || reduceMotion;
-  cafeSide = side; clearTimeout(cafeBack);
+  cafeSide = side;
   turnCard($('cafeFlip'), $('cafeFront'), { shop: $('cafeShop'), tips: $('cafeTips') }, was, side, instant, () => {
     if (side === 'tips' && !save.cafeTips) { save.cafeTips = true; persist(); renderShop(); }
   });
@@ -3393,8 +3383,9 @@ function buyPerk(i) {
   b.classList.add('bought'); b.querySelector('.perk-cost').textContent = 'BOUGHT';
   renderShop(); Sfx.buy(); Buzz.part();
   pop(p.name.toUpperCase(), player.x, player.y - 10, 'part');
-  // One treat per cafe, so the card turns back to the front by itself once the purchase has shown.
-  cafeBack = setTimeout(() => { if (state === 'cafe' && cafeSide === 'shop') cafeCard(null); }, 900);
+  // The shop stays open until he presses Done (keyboard focus moves there). It used to turn back by itself after 0.9 s,
+  // and a tap meant for Done could land on Continue the fall.
+  kbFocus($('shopDone'));
 }
 $('shopGo').addEventListener('click', () => { if (state === 'cafe') leaveCafe(); });
 function perkSummary() { return player.bought.length ? 'Treats: ' + player.bought.join(', ') : ''; }
@@ -3460,7 +3451,7 @@ function drawCafeSigns(cam) {
     ARROW.forEach((row, ry) => { for (let rx = 0; rx < 5; rx++) if (row[rx] === '1') c.fillRect(a.ax + rx * a.z, ay + ry * a.z, a.z, a.z); });
   }
 }
-// ---------- board flags: where runs on the high score board ended, marked on the shaft wall ----------
+// ---------- board flags: where runs on the high score board ended, marked by a gravestone on the shaft wall ----------
 let flags = [], nextFlag = 0;
 function boardRows() {
   const cache = SCORES_URL && save.boardCache && Array.isArray(save.boardCache.top) ? save.boardCache.top : null;
@@ -3492,21 +3483,23 @@ function renderTarget() {
   el.classList.toggle('none', !f);
   if (f) { $('targetWho').textContent = 'BEAT ' + f.i; $('targetM').textContent = Math.max(0, f.m - depthM()) + ' m'; }
 }
-// Each flag (dotted line, bracket and sign) is drawn once into a full-width image, one for before and one for after passing it.
+// Each flag is a little gravestone on the rock just outside the shaft's edge (sides alternate), standing on the depth
+// where that run ended, with the player's initials above it: pale before he passes it, gold after. Drawn once into a
+// small image, one for before and one for after passing it. (Version 77; it used to be a dotted line across the shaft
+// and a sign, which the user found cluttered.)
+const GRAVE = ['..kkkkk..', '.ksssssk.', 'ksssdsssk', 'kssdddssk', 'ksssdsssk', 'ksssdsssk', 'ksssssssk', 'ksssssssk', 'ksssssssk', 'kkkkkkkkk'];
+const GRAVE_W = 9, GRAVE_IMG = { w: 30, h: 24 };   // the image: initials on top, the stone's foot on its bottom row
 function flagArt(f) {
   const key = f.passed ? 'imgP' : 'img';
   if (f[key]) return f[key];
-  const v = document.createElement('canvas'); v.width = W; v.height = 16;
-  const g = v.getContext('2d'), e = edgeAt(f.d), label = f.i + ' ' + f.m, y = 13;
-  g.font = '8px Silkscreen'; g.textBaseline = 'top';
-  const w = Math.ceil(g.measureText(label).width) + 6;
-  g.fillStyle = f.passed ? P.lite : P.dust;
-  for (let x = Math.ceil(e.L) + 2; x < e.R - 2; x += 4) g.fillRect(x, y, 2, 1);
-  const bx = f.side < 0 ? Math.round(e.L + 6) : Math.round(e.R - 6 - w), by = 0;
-  g.fillStyle = P.ink; g.fillRect(f.side < 0 ? Math.round(e.L) : bx + w, by + 5, 6, 2);
-  g.fillStyle = P.blue; g.fillRect(bx + 2, by + 2, w, 11);
-  g.fillStyle = f.passed ? '#F2C14E' : P.dust; g.fillRect(bx, by, w, 11);
-  g.fillStyle = P.ink; g.fillText(label, bx + 3, by + 2);
+  const v = document.createElement('canvas'); v.width = GRAVE_IMG.w; v.height = GRAVE_IMG.h;
+  const g = v.getContext('2d'), sx = Math.round((GRAVE_IMG.w - GRAVE_W) / 2);
+  spriteRows(g, GRAVE, sx, GRAVE_IMG.h - GRAVE.length, { k: P.ink, s: P.shade, d: P.dust });
+  g.font = '8px Silkscreen'; g.textBaseline = 'top'; g.textAlign = 'center';
+  const tx = GRAVE_IMG.w / 2, ty = 0;
+  g.fillStyle = P.ink;   // a 1 px dark outline, so the initials read on pale and dark rock alike
+  for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.fillText(f.i, tx + ox, ty + 1 + oy);
+  g.fillStyle = f.passed ? '#F2C14E' : P.dust; g.fillText(f.i, tx, ty + 1);
   // Only keep it once the pixel font has loaded, so an early fallback-font version gets redrawn.
   if (!document.fonts || document.fonts.check('8px Silkscreen')) f[key] = v;
   return v;
@@ -3514,8 +3507,9 @@ function flagArt(f) {
 function drawFlags(cam) {
   for (const f of flags) {
     const y = Math.round(f.d - cam);
-    if (y < -20 || y > H + 20) continue;
-    c.drawImage(flagArt(f), 0, y - 13);
+    if (y < -30 || y > H + 10) continue;
+    const { L, R } = edgeAt(f.d), cx = f.side < 0 ? L - 8 : R + 8;   // the stone's middle, on the rock beside the edge
+    c.drawImage(flagArt(f), Math.max(-10, Math.min(W - GRAVE_IMG.w + 10, Math.round(cx - GRAVE_IMG.w / 2))), y - GRAVE_IMG.h);
   }
 }
 // ---------- the opening film: coffee on the bridge, the asteroid, the crash, the landing ----------
@@ -4488,7 +4482,7 @@ function hurt(kind, x, d) {
   player.hp = Math.max(0, player.hp - dmg); player.inv = HIT_INVULN_S; shake = Math.max(shake, 1);
   // Hit-stop: the world freezes for a beat so the hit lands, with a white flash on the pilot.
   hitStop = kind === 'mine' ? 0.12 : 0.07; player.flash = 0.14;
-  if (player.streak) { player.streak = 0; renderStreak(); }
+  player.streak = 0;
   Buzz[kind](); Sfx[kind]();
   setHP('hit', dmg);
   pop('-' + dmg, player.x, player.y - 6, 'bad');
@@ -4530,10 +4524,10 @@ function nearMiss(k) {
   if (state !== 'play' || player.shield > 0 || player.inv > 0) return;
   player.streak++; player.bestStreak = Math.max(player.bestStreak, player.streak);
   Sfx.close(player.streak);
-  pop(player.streak > 1 ? 'CLOSE x' + player.streak : 'CLOSE!', k.x, k.d - k.rr - 8, 'close');
+  pop('CLOSE!', k.x, k.d - k.rr - 8, 'close');
   if (player.streak % 24 === 0) { giveShield(5); Sfx.streak(); Buzz.shield(); pop('STREAK SHIELD', player.x, player.y - 18, 'shield'); }
   else if (player.streak % 8 === 0) { Sfx.streak(); Buzz.orb(); gainCrystal(player.x, player.y + PILOT_CY, 'STREAK ' + player.streak + '!'); }
-  renderStreak(true);
+  flashStreak();
 }
 
 // ---------- update ----------
@@ -4681,12 +4675,7 @@ function update(dt) {
     player.x = Math.max(8, Math.min(W - 8, player.x));
     if (player.inv > 0) player.inv -= dt;
     if (player.blockT > 0) player.blockT -= dt;
-    if (player.shield > 0) {
-      player.shield -= dt;
-      const pct = Math.max(0, Math.ceil(player.shield / player.shieldMax * 100));
-      if (pct !== shownShield) { shownShield = pct; shieldFill.style.width = pct + '%'; }
-      if (player.shield <= 0) shieldEl.hidden = true;
-    }
+    if (player.shield > 0) player.shield -= dt;
     camY = player.y - pilotScreenY;
     dropList(camY);
     // Magnet perk: crystals, parts and bubbles within reach drift toward him.
@@ -4840,12 +4829,18 @@ function render() {
       }
     }
   }
+  // The shield: a ring round him whose bright part is the time left, ticking away clockwise from the top, with a spark at
+  // its end (there's no shield bar on the HUD). It blinks in the last 1.2 s.
   if (player.shield > 0 && state === 'play' && !(player.shield < 1.2 && Math.floor(player.shield * 5) % 2)) {
-    const r = 20 + Math.round(Math.sin(clock * 4));
-    ring(player.x, my + PILOT_CY, r, P.purL); ring(player.x, my + PILOT_CY, r + 2, P.pur, 1);
-    c.fillStyle = P.dust;
-    const an = clock * 3;
-    c.fillRect(Math.round(player.x + Math.cos(an) * r) - 1, Math.round(my + PILOT_CY + Math.sin(an) * r) - 1, 4, 4);
+    const r = 20 + Math.round(Math.sin(clock * 4)), cx = player.x, cy = my + PILOT_CY, left = Math.max(0, Math.min(1, player.shield / player.shieldMax));
+    c.globalAlpha = 0.35; ring(cx, cy, r + 2, P.pur, 1); c.globalAlpha = 1;   // the used-up part, faint
+    c.fillStyle = P.purL;
+    for (let i = 0, n = 96; i < n * left; i++) {
+      const a = -Math.PI / 2 + i / n * Math.PI * 2;
+      c.fillRect(Math.round(cx + Math.cos(a) * r) - 1, Math.round(cy + Math.sin(a) * r) - 1, 2, 2);
+    }
+    const a = -Math.PI / 2 + left * Math.PI * 2;
+    c.fillStyle = P.dust; c.fillRect(Math.round(cx + Math.cos(a) * r) - 2, Math.round(cy + Math.sin(a) * r) - 2, 4, 4);
   }
   c.setTransform(1, 0, 0, 1, 0, 0);
   if (flyers.length) drawFlyers();
