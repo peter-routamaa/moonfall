@@ -26,7 +26,7 @@ globalThis.fetch = async (url, init = {}) => {
   if (q.get('or')) { const m = q.get('or').match(/depth\.gt\.(\d+),and\(depth\.eq\.(\d+),id\.lt\.(\d+)\)/); r = r.filter(x => x.depth > +m[1] || (x.depth === +m[2] && x.id < +m[3])); }
   if (h.Prefer === 'count=exact') return new Response('[]', { headers: { 'content-range': r.length ? `0-0/${r.length}` : `*/0` } });
   r.sort((a, b) => b.depth - a.depth || a.id - b.id);
-  return new Response(JSON.stringify(r.slice(0, +q.get('limit')).map(({ id, initials, depth }) => ({ id, initials, depth }))));
+  return new Response(JSON.stringify(r.slice(0, +q.get('limit')).map(({ id, initials, depth, escaped }) => ({ id, initials, depth, escaped }))));
 };
 await import(root + 'tools/out/function.mjs');
 
@@ -41,11 +41,15 @@ const check = (name, ok, got) => { if (ok) passed++; else { failed++; console.lo
 check('empty board', JSON.stringify(await call('GET')) === JSON.stringify([200, { top: [] }]), await call('GET'));
 const s1 = await call('POST', { initials: 'abc', depth: 500 });
 check('score saved at rank 1', s1[0] === 200 && s1[1].rank === 1 && s1[1].top[0].initials === 'ABC', s1);
+const s2 = await call('POST', { initials: 'ESC', depth: 400, escaped: true }, 'e');
+check('escaped stored and returned', s2[0] === 200 && s2[1].top.find(t => t.initials === 'ESC').escaped === true && s1[1].top[0].escaped === null, [s1, s2]);
+const s3 = await call('POST', { initials: 'JNK', depth: 300, escaped: 'yes' }, 'j');
+check('junk escaped stored as null', s3[0] === 200 && db.scores.find(x => x.initials === 'JNK').escaped === null, db.scores);
 check('rude initials refused', (await call('POST', { initials: 'ass', depth: 300 }, 'b'))[0] === 400, null);
 check('bad depth refused', (await call('POST', { initials: 'ABC', depth: -5 }, 'c'))[0] === 400, null);
 db.scores.push({ id: 99, initials: 'FUK', depth: 900, who: null, created_at: '2026-01-01' });
 const masked = (await call('GET'))[1].top.map(t => t.initials + t.depth).join(' ');
-check('rude names already stored show as ???', masked === '???900 ABC500', masked);
+check('rude names already stored show as ???', masked === '???900 ABC500 ESC400 JNK300', masked);
 const burst = []; for (let k = 0; k < 8; k++) burst.push((await call('POST', { initials: 'SPM', depth: 5 }, 'spam'))[0]);
 check('6 scores a minute per connection, then 429', burst.join(',') === '200,200,200,200,200,200,429,429', burst);
 

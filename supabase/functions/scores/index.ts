@@ -1,6 +1,7 @@
 // MoonFall online high scores and play counter.
 //   GET  -> { top }                 the 10 deepest runs
-//   POST -> { top, rank, id }       body { initials: "ABC", depth: 812 }; saves the run
+//   POST -> { top, rank, id }       body { initials: "ABC", depth: 812, escaped: true }; saves the run
+//                                   (escaped: the player had repaired the ship; optional, stored as null if missing)
 //   POST -> { ok }                  body { event: "play", player: "<16 hex>", run: "<16 hex>" }; a run started (owner's stats)
 //   POST -> { ok }                  body { event: "end", player, run, depth, secs, how, orbs, parts, cafes, initials,
 //                                         fps, worst, device, os, screen, treats, streak, sound, music, repair, intro }; how it went
@@ -39,7 +40,7 @@ const reply = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 
 async function top() {
-  const r = await fetch(`${REST}/scores?select=id,initials,depth&order=depth.desc,id.asc&limit=${TOP}`, { headers: auth });
+  const r = await fetch(`${REST}/scores?select=id,initials,depth,escaped&order=depth.desc,id.asc&limit=${TOP}`, { headers: auth });
   if (!r.ok) throw new Error(`top: ${r.status} ${await r.text()}`);
   const rows = await r.json();
   return rows.map((s: { initials: string }) => (BAD.has(s.initials) ? { ...s, initials: '???' } : s));
@@ -143,7 +144,8 @@ Deno.serve(async req => {
       }
     }
 
-    const row = await insert('scores', { initials, depth, who }, true);
+    const escaped = typeof body?.escaped === 'boolean' ? body.escaped : null;
+    const row = await insert('scores', { initials, depth, who, escaped }, true);
     // Rank in the same order as the table: deeper first, earlier run first on a tie.
     const above = await count('scores', `or=(depth.gt.${depth},and(depth.eq.${depth},id.lt.${row.id}))`);
     return reply({ top: await top(), rank: above + 1, id: row.id });

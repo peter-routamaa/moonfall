@@ -15,7 +15,7 @@ OUT = os.path.join(ROOT, 'tools', 'out')
 
 # The debug handle: the game's internals that the tests and screenshots reach for.
 # Functions added recently are looked up with typeof, so the hook also works on older versions (same_pixels compares them).
-HOOK = """window.__mf = { gameOver, depthM, startLaunch, save, player, Sfx, Music, get state() { return state; }, set state(v) { state = v; }, update, render, get openT() { return openT; }, cafeInfo, get flags() { return flags; }, get rocks() { return rocks; }, get items() { return items; }, get hazards() { return hazards; }, setHP, voidAt: typeof voidAt === 'function' ? voidAt : null, voidInfo: typeof voidInfo === 'function' ? voidInfo : null, get fireworks() { return typeof fireworks === 'undefined' ? [] : fireworks; }, nearMiss, collect, buyPerk, openShop, get shopOffer() { return shopOffer; }, get hitStop() { return hitStop; }, get flyers() { return flyers; }, hurt, buildFlags, get cafeT() { return cafeT; }, set cafeT(v) { cafeT = v; }, get camY() { return camY; }, edgeAt, checkCafe, prepaint, frame, DROPS, dropList, set clock(v) { clock = v; }, get shopDone() { return shopDone; } };"""
+HOOK = """window.__mf = { gameOver, depthM, startLaunch, save, player, Sfx, Music, get state() { return state; }, set state(v) { state = v; }, update, render, get openT() { return openT; }, cafeInfo, get flags() { return flags; }, get rocks() { return rocks; }, get items() { return items; }, get hazards() { return hazards; }, setHP, voidAt: typeof voidAt === 'function' ? voidAt : null, voidInfo: typeof voidInfo === 'function' ? voidInfo : null, get fireworks() { return typeof fireworks === 'undefined' ? [] : fireworks; }, nearMiss, collect, buyPerk, openShop, get shopOffer() { return shopOffer; }, get hitStop() { return hitStop; }, get flyers() { return flyers; }, hurt, buildFlags, get cafeT() { return cafeT; }, set cafeT(v) { cafeT = v; }, get camY() { return camY; }, edgeAt, checkCafe, prepaint, frame, DROPS, dropList, set clock(v) { clock = v; }, get shopDone() { return shopDone; }, leviDepth, openTable, showScreen, get pilotScreenY() { return pilotScreenY; } };"""
 
 # A pretend scoreboard: answers the game's requests to fake-scores.test from memory. B.mode = 'down' fails them.
 FAKE_BOARD = """window.__board = { rows: [], next: 1, mode: 'ok', calls: [] };
@@ -25,18 +25,18 @@ window.fetch = async (url, init = {}) => {
   const B = window.__board; B.calls.push((init.method || 'GET') + (init.body ? ' ' + init.body : ''));
   await new Promise(r => setTimeout(r, 150));
   if (B.mode === 'down') throw new TypeError('Failed to fetch');
-  const top = () => B.rows.slice().sort((a, b) => b.depth - a.depth || a.id - b.id).slice(0, 10).map(({ id, initials, depth }) => ({ id, initials, depth }));
+  const top = () => B.rows.slice().sort((a, b) => b.depth - a.depth || a.id - b.id).slice(0, 10).map(({ id, initials, depth, escaped }) => ({ id, initials, depth, escaped }));
   if ((init.method || 'GET') === 'POST') {
     const b = JSON.parse(init.body);
     if (!/^[A-Z]{3}$/.test(b.initials)) return new Response('{"error":"bad"}', { status: 400 });
-    const row = { id: B.next++, initials: b.initials, depth: b.depth }; B.rows.push(row);
+    const row = { id: B.next++, initials: b.initials, depth: b.depth, escaped: typeof b.escaped === 'boolean' ? b.escaped : null }; B.rows.push(row);
     const rank = B.rows.filter(r => r.depth > row.depth || (r.depth === row.depth && r.id < row.id)).length + 1;
     return new Response(JSON.stringify({ top: top(), rank, id: row.id }));
   }
   return new Response(JSON.stringify({ top: top() }));
 };"""
 
-# Scenes for screenshots: ?scene=splash|title|opening|launch|pause|cafe|sign|haz|void, plus options (see each branch).
+# Scenes for screenshots: ?scene=splash|title|opening|launch|pause|cafe|sign|haz|void|levi|board, plus options (see each branch).
 SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;animation-delay:0s!important}</style><script>
 (async () => {
   const q = new URLSearchParams(location.search), M = window.__mf, pl = M.player, wait = ms => new Promise(f => setTimeout(f, ms));
@@ -104,6 +104,10 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     sheet.style.cssText = 'display:block;width:640px;height:400px;image-rendering:pixelated'; document.body.appendChild(sheet);
     document.title = 'ready'; return;
   }
+  if (q.get('scene') === 'board') {   // the high score table: escaped, not escaped, and an old score with no answer
+    M.save.scores = [{ i: 'PJR', m: 3120, e: true }, { i: 'ABC', m: 2405, e: false }, { i: 'OLD', m: 1810 }, { i: 'MIA', m: 960, e: true }];
+    document.getElementById('hsEntry').hidden = true; M.openTable(); M.showScreen('score'); await wait(400); document.title = 'ready'; return;
+  }
   if (q.get('scene') === 'pause') { for (let i = 0; i < 150; i++) M.update(1 / 60); M.render(); document.getElementById('pauseBtn').click(); await wait(300); document.title = 'ready'; return; }
   for (let i = 0; i < 150; i++) M.update(1 / 60);
   if (q.get('hp')) { pl.hp = +q.get('hp'); M.setHP(); }   // e.g. &hp=1 for the scared face
@@ -117,6 +121,11 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     for (let i = 0; i < 10; i++) { pl.inv = 9; pl.y = V.T + at - 14; pl.x = q.get('x') ? +q.get('x') : 160; M.update(1 / 60); }
     await wait(300); M.render(); M.state = 'paused'; document.title = 'ready:' + V.T + ':' + V.exitX; return;
   }
+  if (q.get('scene') === 'levi') {   // a deep creature at the middle of the screen: &k= its 500 m mark (k % 6 picks the kind)
+    const k = +(q.get('k') || 1); M.clock = +(q.get('ft') || 0);
+    for (let i = 0; i < 4; i++) { pl.inv = 9; pl.y = M.leviDepth(k) - 667 / 2 + M.pilotScreenY + 14 + (+(q.get('dy') || 0)); pl.x = 160; pl.aim = 160; pl.vx = 0; M.update(1 / 60); }
+    M.rocks.length = 0; M.items.length = 0; await wait(300); M.render(); M.state = 'paused'; document.title = 'ready'; return;
+  }
   if (q.get('scene') === 'sign') {
     let k = 1; const want = +(q.get('side') || -1); while (M.cafeInfo(k).side !== want) k++;
     const C = M.cafeInfo(k); pl.y = C.Dl - 800 - 150; pl.x = 160; pl.aim = 160; pl.vx = 0;
@@ -124,7 +133,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     M.rocks.length = 0; await wait(500); M.render(); M.state = 'paused'; document.title = 'ready:' + k; return;
   }
   if (q.get('scene') === 'cafe') {
-    const C = M.cafeInfo(1); pl.spare = +(q.get('spare') || 5); pl.hp = 4;
+    const C = M.cafeInfo(+(q.get('n') || 1)); pl.spare = +(q.get('spare') || 5); pl.hp = 4;   // &n=2: the second cafe (2000 m), and so on
     pl.y = C.Dl - 28 - 120; pl.x = C.padX; pl.aim = pl.x; pl.vx = 0; M.checkCafe();
     for (let i = 0; i < 60 * 3.2; i++) M.update(1 / 60);
     await wait(700);

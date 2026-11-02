@@ -137,12 +137,19 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .slot .letter { width: 56px; height: 56px; display: grid; place-items: center; font: 700 36px/1 var(--display); background: color-mix(in srgb, var(--dust) 7%, var(--ink)); box-shadow: inset 0 -4px 0 var(--ink-soft); }
 .slot.on .letter { color: var(--gold); box-shadow: inset 0 0 0 2px var(--gold); }
 .hs-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; font: 700 14px/1 var(--display); letter-spacing: .06em; font-variant-numeric: tabular-nums; }
-.hs-list li { display: grid; grid-template-columns: 3em 1fr auto; align-items: baseline; text-align: left; padding: 6px 8px 5px; background: color-mix(in srgb, var(--dust) 7%, var(--ink)); }
+.hs-list li { display: grid; grid-template-columns: 2.6em 1fr 5.4em 4.2em; column-gap: 6px; align-items: baseline; text-align: left; padding: 6px 8px 5px; background: color-mix(in srgb, var(--dust) 7%, var(--ink)); }
 .hs-list li span:first-child { color: var(--dust-dim); }
 .hs-list li.you { background: var(--gold); color: var(--ink); }
 .hs-list li.you span:first-child { color: var(--ink); }
 .hs-list small { font-size: 10px; margin-left: 2px; }
 .hs-list li.gap { display: block; text-align: center; background: transparent; padding: 0; color: var(--dust-dim); }
+/* The escaped column: a gold rocket if the player had repaired the ship when they set the score, a dash if nobody knows (older scores). */
+.hs-list li.head { background: transparent; padding: 0 8px; color: var(--dust-dim); }
+.hs-list li.head span { font-size: 9px; }
+.hs-list .esc { justify-self: center; color: var(--gold); }
+.hs-list .esc.unknown { color: var(--dust-dim); }
+.hs-list li.you .esc { color: var(--ink); }
+.hs-list .esc svg { display: block; margin: -3px 0 -1px; }
 .hs-where { line-height: 1.5; }
 .hs-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .hs-tab { font: 700 11px/1 var(--display); letter-spacing: .05em; padding: 9px 6px 8px; border: 2px solid var(--ink-soft); background: transparent; color: var(--dust-dim); cursor: pointer; }
@@ -325,7 +332,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
         <li>Crystals caught at full health become spare crystals.</li>
         <li>Spend spare crystals in the shop: one treat per cafe.</li>
         <li>Skim past rocks and mines for a streak: every 8 pays a crystal.</li>
-        <li>While you fall, markers on the shaft walls show the high scores to beat.</li>
+        <li>Tombstones on the shaft walls mark where players died: pass them to beat their high scores.</li>
       </ul>
       <button class="btn" id="tipsDone" type="button">Done</button>
      </div>
@@ -540,7 +547,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 78;
+const VERSION = 79;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -1177,8 +1184,80 @@ function drawElder(x, y, dir, k, col) {
     }
   }
 }
+// A jellyfish: a pulsing bell with a scalloped rim, four frilled arms and six long trailing threads.
+function drawJelly(x, y, dir, k, col) {
+  const ph = clock * 1.6 + k, p = Math.sin(ph), rx = Math.round(34 + p * 3), ry = Math.round(26 - p * 2);
+  const by = Math.round(y + Math.sin(clock * 0.5 + k) * 5);
+  c.fillStyle = col;
+  for (let j = -ry; j <= 0; j++) { const w = Math.round(rx * Math.sqrt(1 - (j / ry) ** 2)); c.fillRect(Math.round(x) - w, by + j, w * 2 + 1, 1); }
+  for (let i = 0; i < 7; i++) disc(x - rx + 4 + i * (2 * rx - 8) / 6, by + 1, 4, col);
+  for (let i = 0; i < 4; i++) {
+    const ax = x - 12 + i * 8;
+    for (let j = 0; j < 14; j++) disc(ax + Math.sin(ph * 0.7 + i + j * 0.4) * j * 0.5, by + 4 + j * 3.4, Math.max(1, Math.round(4 - j * 0.2)), col);
+  }
+  c.fillStyle = col;
+  for (let i = 0; i < 6; i++) {
+    const tx = x - rx + 6 + i * (2 * rx - 12) / 5;
+    for (let j = 0; j < 30; j++) c.fillRect(Math.round(tx + Math.sin(clock * 1.1 + i * 1.3 - j * 0.22) * j * 0.35), by + 4 + j * 3, 1, 3);
+  }
+  c.fillStyle = P.bio;
+  for (let i = 0; i < 6; i++) if (Math.floor(clock * 1.2 + i * 0.7) % 3) c.fillRect(Math.round(x - rx + 7 + i * (2 * rx - 14) / 5), by - 3, 2, 1);
+}
+// A manta ray seen from below, gliding head first: broad wings that beat slowly, horn-like head fins and a whip tail.
+function drawManta(x, y, dir, k, col) {
+  const ph = clock * 1.1 + k, span = 70 + Math.sin(ph) * 8, lag = 16 + Math.cos(ph) * 10, X = v => x + dir * v;
+  y += Math.sin(clock * 0.4 + k) * 3;
+  fillPoly(c, [[X(30), y - 8], [X(24), y - 22], [X(-lag), y - span], [X(-20), y - 26], [X(-34), y - 8], [X(-38), y],
+    [X(-34), y + 8], [X(-20), y + 26], [X(-lag), y + span], [X(24), y + 22], [X(30), y + 8]], col);
+  for (const s of [-1, 1]) for (let j = 0; j < 8; j++) c.fillRect(Math.round(X(30 + j)) - 1, Math.round(y + s * (11 - j * 0.6)) - 1, 3, 3);
+  for (let j = 0; j < 40; j++) c.fillRect(Math.round(X(-38 - j * 2)), Math.round(y + Math.sin(ph * 1.3 - j * 0.18) * j * 0.15), 2, 1);
+  c.fillStyle = P.bio;
+  for (let i = 0; i < 6; i++) if (Math.floor(clock * 1.2 + i * 0.7) % 3) { const v = 0.3 + i * 0.1; c.fillRect(Math.round(X(-v * lag)), Math.round(y + (i % 2 ? 1 : -1) * v * span * 0.8), 2, 1); }
+}
+// An anglerfish, hanging still: a big round head, a jutting lower jaw with fangs, a ragged tail, and a lure on a stalk
+// that bobs in front of it with a dim glow.
+function drawAngler(x, y, dir, k, col) {
+  const ph = clock * 0.9 + k, X = v => x + dir * v, bob = Math.sin(ph * 1.3) * 3;
+  y = Math.round(y + Math.sin(clock * 0.6 + k) * 4);
+  fillEllipse(c, X(-4), y - 14, 40, 30, col);
+  fillPoly(c, [[X(-30), y + 14], [X(52), y + 10], [X(46), y + 30], [X(-6), y + 40], [X(-28), y + 32]], col);
+  fillPoly(c, [[X(-38), y - 8], [X(-76), y - 32 + Math.sin(ph) * 4], [X(-66), y - 4], [X(-78), y + 20 + Math.sin(ph) * 4], [X(-36), y + 12]], col);
+  for (let i = 0; i < 6; i++) { const v = 22 + i * 5, top = Math.round(y + 14 - (v + 30) * 4 / 82); c.fillRect(Math.round(X(v)), top - 6 + (i % 2) * 2, 2, 6 - (i % 2) * 2); }
+  for (let i = 0; i < 4; i++) { const v = 14 + i * 6, r = (v + 4) / 40; c.fillRect(Math.round(X(v)), Math.round(y - 14 + 30 * Math.sqrt(1 - r * r)), 2, 5 - (i % 2) * 2); }
+  for (let j = 0; j <= 24; j++) {
+    const t = j / 24, u = 1 - t;
+    c.fillRect(Math.round(u * u * X(4) + 2 * u * t * X(30) + t * t * X(48)), Math.round(u * u * (y - 44) + 2 * u * t * (y - 70 + bob) + t * t * (y - 46 + bob)), 1, 1);
+  }
+  disc(X(48), y - 44 + bob, 3, col);
+  if (Math.floor(clock * 0.9 + k) % 4) { c.fillStyle = P.bio; c.fillRect(Math.round(X(48)) - 1, Math.round(y - 45 + bob), 2, 2); }
+  c.fillStyle = P.crust; c.fillRect(Math.round(X(20)) - 2, y - 21, 4, 4);
+  c.fillStyle = P.lava; c.fillRect(Math.round(X(20)) - 1, y - 20, 2, 2);
+}
+// A nautilus: a coiled, ribbed shell with a hood over its eye and a fringe of short tentacles that reach forward and curl.
+function drawNautilus(x, y, dir, k, col) {
+  const X = v => x + dir * v;
+  y = Math.round(y + Math.sin(clock * 0.5 + k) * 4);
+  disc(X(-10), y - 8, 38, col);
+  fillEllipse(c, X(20), y, 14, 28, col);
+  fillEllipse(c, X(24), y - 20, 12, 8, col);
+  c.fillStyle = mix(col, P.ink, 0.25);
+  for (let i = 0; i < 160; i++) { const th = i * 0.08, r = 3 * Math.exp(0.18 * th); c.fillRect(Math.round(X(-10 - Math.cos(th) * r)), Math.round(y - 8 - Math.sin(th) * r), 1, 1); }
+  for (let i = 0; i < 10; i++) {
+    const bx = X(28), by = y - 8 + i * 3;
+    for (let j = 0; j < 12; j++) {
+      const a = 0.1 + i * 0.12 + Math.sin(clock * 1.2 + i * 0.8 + j * 0.3) * 0.25 + j * 0.04;
+      disc(bx + dir * j * 2.6 * Math.cos(a), by + j * 2.6 * Math.sin(a), Math.max(1, Math.round(3 - j * 0.2)), col);
+    }
+  }
+  c.fillStyle = P.crust; c.fillRect(Math.round(X(22)) - 2, y - 10, 4, 4);
+  c.fillStyle = P.lava; c.fillRect(Math.round(X(22)) - 1, y - 9, 2, 2);
+}
+// Six kinds take turns, one per 500 m mark. The even marks belong to the cafes (nautilus, elder thing, anglerfish),
+// which hover in place there; the odd ones (whale, jellyfish, manta ray) drift past in the open shaft.
+const LEVI_KINDS = ['nautilus', 'whale', 'elder', 'jelly', 'angler', 'manta'];
+const LEVI_DRAW = { nautilus: drawNautilus, whale: drawLeviathan, elder: drawElder, jelly: drawJelly, angler: drawAngler, manta: drawManta };
 const leviSeen = new Set();
-// Where a creature sits in the half-speed layer. The elder things belong to the cafes (one at each 1000 m mark), so
+// Where a creature sits in the half-speed layer. The even-mark creatures belong to the cafes (one at each 1000 m mark), so
 // theirs is set for that cafe: when the camera stops there (he stands 28 px above the ledge, which is 46 px thick), the
 // creature is already hovering in the open shaft, centred between the ledge's underside and the menu card's top. It
 // drifts into place with the layer as he falls and lands, with no move of its own.
@@ -1200,15 +1279,14 @@ function measureCafeCard() {
 function leviathans(cam) {
   const mid = cam + H / 2, reach = (H / 2 + 130) / LEVI_PARALLAX;
   let near = false;   // a creature on screen during a run: the music goes quiet under a drone (Music.creature)
-  // One slot either side of the plain range, for the elder things set deeper than their marks.
+  // One slot either side of the plain range, for the cafe creatures set deeper than their marks.
   for (let k = Math.max(1, Math.ceil((mid - reach) / LEVI_EVERY) - 1); k * LEVI_EVERY <= mid + reach + LEVI_EVERY; k++) {
     const D = k * LEVI_EVERY, A = leviDepth(k), sy = H / 2 + (A - mid) * LEVI_PARALLAX, dir = hash(k * 4.3 + SEED) < 0.5 ? 1 : -1, sx = W / 2 + dir * (mid - A) * 0.14;
-    const elder = k % 2 === 0;
-    if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(elder ? 'elder' : 'whale'); }
+    const kind = LEVI_KINDS[k % 6];
+    if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(kind); }
     if (state === 'play' && sy > -40 && sy < H + 40) near = true;
     if (cam < -H || sy < -150 || sy > H + 150) continue;
-    if (elder) drawElder(sx, sy, dir, k, mix(palAt(D).sO, P.ink, 0.42));
-    else drawLeviathan(sx, sy, dir, k, mix(palAt(D).sO, P.ink, 0.35));
+    LEVI_DRAW[kind](sx, sy, dir, k, mix(palAt(D).sO, P.ink, k % 2 ? 0.35 : 0.42));
   }
   Music.creature(near);
 }
@@ -1710,7 +1788,8 @@ function drawMoonAt(mx, my, R, rot) {
   c.globalAlpha = 1;
   return [csx, csy];
 }
-function drawSpace(u) {
+// u: the pull back from the moon (0 to 1); off: the ship then flying away off the top of the screen (0 to 1, gone at 1).
+function drawSpace(u, off = 0) {
   const e = easeInOut(Math.max(0, Math.min(1, u))), Z = Math.pow(46 / 2400, e), R = 2400 * Z, fx = W / 2, fy = H * 0.72;
   const mx = fx, my = fy + (H * 1.05 + 2400 - fy) * Z;
   c.fillStyle = P.ink; c.fillRect(0, 0, W, H);
@@ -1722,8 +1801,10 @@ function drawSpace(u) {
   drawPlanet(Math.round(W * 0.8), Math.round(H * 0.24 + 30 * (1 - e)), true, clock * Math.PI / 12);
   drawMoonAt(mx, my, R);
   // No smoke trail out here: there's no air to hold it (it thins out during the climb, see updateLaunch).
-  const sx = lerp(92, W * 0.64, e), sy = lerp(H * 0.35, H * 0.12, e);
-  drawShipAt(sx, sy, -Math.PI / 2 + 0.55 * e, 1, 0, lerp(1, 0.2, e));
+  if (off >= 1) return;
+  const a = -Math.PI / 2 + 0.55 * e, go = off * off * (H * 0.12 + 40) / 0.85;
+  const sx = lerp(92, W * 0.64, e) + Math.cos(a) * go, sy = lerp(H * 0.35, H * 0.12, e) + Math.sin(a) * go;
+  drawShipAt(sx, sy, a, 1, 0, lerp(1, 0.2, e));
 }
 function hillH(x, T) { return Math.round(24 + 14 * Math.sin((x + T * 12) * 0.0155) + 8 * Math.sin(x * 0.055 + 2)); }
 function drawSky(cam) {
@@ -2215,7 +2296,7 @@ const Sfx = (() => {
         g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.24, t + 0.8); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
         o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + 3.3);
         tone('sine', 430, 300, 2.2, 0.03, 0.5);
-      } else {
+      } else if (kind === 'elder') {
         for (const [fq, det] of [[55, -8], [77.8, 6], [110, 3]]) {
           const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
           o.type = 'sawtooth'; o.frequency.value = fq; o.detune.value = det; f.type = 'lowpass'; f.frequency.value = 380;
@@ -2223,6 +2304,28 @@ const Sfx = (() => {
           o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + 4.3);
         }
         noise(2.6, 'bandpass', 1800, 0.05, 0.7);
+      } else {
+        // The newer four share one soft voice: a note that swells in, slides and dies away through a low-pass filter.
+        const swell = (type, f0, f1, dur, peak, rise, lp, at = 0) => {
+          const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(), s = t + at;
+          o.type = type; o.frequency.setValueAtTime(f0, s); o.frequency.exponentialRampToValueAtTime(f1, s + dur);
+          f.type = 'lowpass'; f.frequency.value = lp;
+          g.gain.setValueAtTime(0.0001, s); g.gain.linearRampToValueAtTime(peak, s + rise); g.gain.exponentialRampToValueAtTime(0.0001, s + dur);
+          o.connect(f); f.connect(g); g.connect(master); o.start(s); o.stop(s + dur + 0.05);
+        };
+        if (kind === 'jelly') {   // a glassy hum with a faint shimmer
+          swell('sine', 196, 208, 3.2, 0.07, 1.2, 2000); swell('sine', 294, 300, 2.8, 0.04, 1.2, 2000, 0.3);
+          swell('triangle', 587, 560, 2.2, 0.015, 0.8, 3000, 0.8); noise(2.2, 'bandpass', 2600, 0.025, 0.5);
+        } else if (kind === 'manta') {   // a slow, deep swoosh as the wings beat
+          swell('sine', 64, 46, 3.0, 0.16, 1.0, 400); swell('sawtooth', 96, 70, 2.4, 0.03, 0.9, 260, 0.4);
+          noise(1.4, 'lowpass', 300, 0.12, 0.2); noise(1.4, 'lowpass', 300, 0.1, 1.5);
+        } else if (kind === 'angler') {   // a croak in three bubbly pulses, then a little blip
+          for (let i = 0; i < 3; i++) { swell('sawtooth', 52, 40, 0.6, 0.09, 0.15, 320, i * 0.5); noise(0.3, 'lowpass', 500, 0.06, i * 0.5 + 0.1); }
+          tone('sine', 880, 1320, 0.09, 0.02, 1.8);
+        } else {   // nautilus: a hollow, shell-like chord
+          swell('triangle', 98, 92, 3.4, 0.1, 1.0, 900); swell('sine', 147, 140, 3.0, 0.05, 1.1, 900, 0.15);
+          swell('sine', 196, 190, 2.6, 0.025, 1.0, 900, 0.35); noise(2.8, 'bandpass', 700, 0.03, 0.3);
+        }
       }
     },
     bleep(f) { tone('sine', f, f, 0.06, 0.06); },
@@ -3007,11 +3110,11 @@ function saveScore() {
     box.classList.remove('no'); void box.offsetWidth; box.classList.add('no'); Sfx.block();
     return;
   }
-  const entry = { i: hsInit.join(''), m: hsPending, t: Date.now() };
+  const entry = { i: hsInit.join(''), m: hsPending, t: Date.now(), e: escapedNow() };
   save.initials = entry.i;
   save.scores.splice(hsRankOf(entry.m) - 1, 0, entry); save.scores.length = Math.min(save.scores.length, HS_MAX);
   hsNew = save.scores.indexOf(entry);
-  if (SCORES_URL) { save.outbox.push({ i: entry.i, m: entry.m }); hsOnline = null; }
+  if (SCORES_URL) { save.outbox.push({ i: entry.i, m: entry.m, e: entry.e }); hsOnline = null; }
   persist(); Sfx.orb();
   $('hsEntry').hidden = true; openTable();
   $('hsDone').focus({ preventScroll: true });
@@ -3022,19 +3125,28 @@ function openTable() {
   renderTable();
   if (SCORES_URL) syncOnline();
 }
+// Whether this player has escaped the moon: the ship fully repaired, or launched at least once. Saved with each score.
+const escapedNow = () => (save.launches || 0) > 0 || repairFrac() >= 1;
+const ROCKET_SVG = '<svg viewBox="0 0 7 9" width="14" height="18" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1h-1zM2 1h3v6h-3zM1 4h1v3h-1zM5 4h1v3h-1zM0 6h1v2h-1zM6 6h1v2h-1zM3 7h1v2h-1z"/></svg>';
 function renderTable() {
   $('hsTabOnline').setAttribute('aria-pressed', hsTab === 'online'); $('hsTabLocal').setAttribute('aria-pressed', hsTab === 'local');
   let rows = [], note;
   if (hsTab === 'local') {
-    rows = save.scores.map((s, k) => ({ n: k + 1, i: showName(s.i), m: s.m, you: k === hsNew }));
+    rows = save.scores.map((s, k) => ({ n: k + 1, i: showName(s.i), m: s.m, e: s.e, you: k === hsNew }));
     note = hsErr || (rows.length ? 'Saved on this device' : 'No runs yet');
   } else if (!hsOnline) note = 'Loading the online board…';
   else {
-    rows = hsOnline.top.map((s, k) => ({ n: k + 1, i: showName(String(s.initials)), m: s.depth, you: s.id === hsOnline.id }));
-    if (hsOnline.rank > HS_MAX) rows.push(null, { n: hsOnline.rank, i: hsOnline.me.i, m: hsOnline.me.m, you: true });
+    rows = hsOnline.top.map((s, k) => ({ n: k + 1, i: showName(String(s.initials)), m: s.depth, e: s.escaped, you: s.id === hsOnline.id }));
+    if (hsOnline.rank > HS_MAX) rows.push(null, { n: hsOnline.rank, i: hsOnline.me.i, m: hsOnline.me.m, e: hsOnline.me.e, you: true });
     note = rows.length ? 'Everyone with the link' : 'No scores yet. Be the first!';
   }
   $('hsList').innerHTML = '';
+  if (rows.length) {
+    const head = document.createElement('li'); head.className = 'head'; head.setAttribute('aria-hidden', 'true');
+    for (const txt of ['', 'NAME', 'DEPTH', 'ESCAPED']) { const sp = document.createElement('span'); sp.textContent = txt; head.append(sp); }
+    head.lastChild.className = 'esc unknown';
+    $('hsList').append(head);
+  }
   for (const r of rows) {
     const li = document.createElement('li');
     if (!r) { li.className = 'gap'; li.textContent = '…'; $('hsList').append(li); continue; }
@@ -3044,6 +3156,12 @@ function renderTable() {
       if (unit) { const smoothstep = document.createElement('small'); smoothstep.textContent = unit; sp.append(smoothstep); }
       li.append(sp);
     }
+    const esc = document.createElement('span');
+    esc.className = 'esc' + (typeof r.e === 'boolean' ? '' : ' unknown'); esc.setAttribute('role', 'img');
+    if (r.e === true) { esc.innerHTML = ROCKET_SVG; esc.setAttribute('aria-label', 'escaped the moon'); }
+    else if (r.e === false) esc.setAttribute('aria-label', 'not escaped yet');
+    else { esc.textContent = '—'; esc.setAttribute('aria-label', 'not known'); }
+    li.append(esc);
     $('hsList').append(li);
   }
   $('hsWhere').textContent = note;
@@ -3065,7 +3183,7 @@ async function syncOnline() {
     while (save.outbox.length) {
       const s = save.outbox[0];
       try {
-        got = await scoresFetch({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initials: s.i, depth: s.m }) });
+        got = await scoresFetch({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initials: s.i, depth: s.m, escaped: typeof s.e === 'boolean' ? s.e : null }) });
         got.me = s;
       }
       catch (e) { if (e.status !== 400) throw e; got = null; }
@@ -3995,7 +4113,7 @@ function drawFireworks() {
 const REPAIR = { up: 1.6, arc: 2.7, arrive: 3.2, toShip: 4.2, hop: 4.8, weld: 7.6, drop: 8.2, hammer: 10.4, back: 10.9, shine: 11.6, done: 12.0 };
 const SHAFT_START_Y = 260;   // how far down the shaft he starts his climb out, in pixels
 const REPAIR_HITS = 4, WELD_AT = { x: 9, y: -34 }, HAMMER_AT = { x: 49, y: -15 };
-const LAUNCH = Object.fromEntries(Object.entries({ wave: 1.0, board: 3.0, aboard: 3.5, rumble: 4.0, lift: 6.5, climb: 8.0, groove: 9.9, space: 15.0, end: 20.0 })
+const LAUNCH = Object.fromEntries(Object.entries({ wave: 1.0, board: 3.0, aboard: 3.5, rumble: 4.0, lift: 6.5, climb: 8.0, groove: 9.9, space: 15.0, away: 20.0, end: 21.4 })
   .map(([k, v]) => [k, v + REPAIR.done]));
 // How broken the crashed ship looks: fire on the tail, sparks, smoke. Fully broken until the repair scene fixes it.
 // `shine` is the light sweeping over the mended ship (0 to 1), or -1 when there's none.
@@ -4499,8 +4617,9 @@ function explode(x, d, r) {
 
 // ---------- damage and pickups ----------
 // Health a hit costs, and how long he blinks afterwards (he can't be hurt while blinking).
+// Only the biggest mines (size 2) cost MINE_DAMAGE; the smaller ones cost 1 like everything else (since version 79).
 const MINE_DAMAGE = 2, HIT_INVULN_S = 1.0;
-function hurt(kind, x, d) {
+function hurt(kind, x, d, size) {
   if (state !== 'play') return;
   if (player.shield > 0) {
     // One block per 0.4 s: lava drips stay put when they touch him, so without this they would block on every frame.
@@ -4514,8 +4633,8 @@ function hurt(kind, x, d) {
     return;
   }
   if (player.inv > 0) return;
-  // Mines cost two health, everything else one.
-  const dmg = kind === 'mine' ? MINE_DAMAGE : 1;
+  // Big mines cost two health, everything else one.
+  const dmg = kind === 'mine' && size === 2 ? MINE_DAMAGE : 1;
   player.hp = Math.max(0, player.hp - dmg); player.inv = HIT_INVULN_S; shake = Math.max(shake, 1);
   // Hit-stop: the world freezes for a beat so the hit lands, with a white flash on the pilot.
   hitStop = kind === 'mine' ? 0.12 : 0.07; player.flash = 0.14;
@@ -4619,7 +4738,7 @@ function collide(prevX) {
     player.vx = (player.x >= k.x ? 1 : -1) * 150;
     if (k.isMine) explode(k.x, k.d, k.rr);
     else sparks(k.x, k.d, [P.rock, P.shade, P.ink], 8 + k.size * 4, k.rr);
-    hurt(k.isMine ? 'mine' : 'rock');
+    hurt(k.isMine ? 'mine' : 'rock', k.x, k.d, k.size);
   }
   for (const p of DROPS) {
     if (p.src) continue;
@@ -4769,7 +4888,9 @@ function render() {
   }
   if ((state === 'launch' && launchT >= LAUNCH.space) || state === 'ended') {
     c.setTransform(1, 0, 0, 1, 0, 0);
-    drawSpace(state === 'ended' ? 1 : (launchT - LAUNCH.space) / (LAUNCH.end - LAUNCH.space));
+    // The pull back, then the ship flies off the top before the mission complete card shows.
+    const L = LAUNCH;
+    drawSpace(state === 'ended' ? 1 : (launchT - L.space) / (L.away - L.space), state === 'ended' ? 1 : Math.max(0, (launchT - L.away) / (L.end - L.away)));
     return;
   }
   c.setTransform(1, 0, 0, 1, sx, 0);
