@@ -60,7 +60,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
   }
   document.getElementById('startBtn').click(); await wait(300);
   if (q.get('scene') === 'haz') {   // a contact sheet of the signature hazards; see tools/shoot_hazards.sh
-    M.save.hints = { glaze: 1, crumble: 1, column: 1, geyser: 1, gate: 1 };
+    M.save.hints = { glaze: 1, crumble: 1, spikes: 1, geyser: 1, gate: 1 };
     const cv = document.getElementById('cv'), ov = document.getElementById('ov');
     const goTo = (kind, minM) => {
       for (let m = minM; m < 4400; m += 20) {
@@ -90,8 +90,8 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     let h = goTo('glaze', 120); pose(h, 0.3); grab(h, 'glaze');
     h = goTo('crumble', 520); pose(h, 1.3); grab(h, 'crumble: shaking');
     pose(h, 0.55, 1); grab(h, 'crumble: boulder');
-    h = goTo('column', 1020); pose(h, 1.0); grab(h, 'column: warning');
-    pose(h, 0.3, 20); grab(h, 'column: out');
+    h = goTo('spikes', 1020); pose(h, 1.0); grab(h, 'ice spikes: ahead');
+    pose(h, 0.3, 20); grab(h, 'ice spikes: close');
     h = goTo('geyser', 1520); { let n = 0; do { pose(h, 0.6, 1); n++; } while (!(h.on && h.p > 1.95) && n < 400); } grab(h, 'geyser: spraying');
     h = goTo('gate', 2020); pose(h, 1.15); grab(h, 'gate: growing');
     pose(h, 0.3, 20); grab(h, 'gate: solid');
