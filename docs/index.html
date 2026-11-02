@@ -567,7 +567,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 80;
+const VERSION = 81;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -2022,7 +2022,7 @@ save.parts = Object.assign({ plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 }, sav
 const repairFrac = () => PARTS.reduce((sum, pt) => sum + Math.min(1, save.parts[pt.id] / pt.need), 0) / PARTS.length;
 // The navigation computer (version 80): needed, with the repaired ship, to fly home. Paid off at cafe shops with spare
 // crystals, a little at a time across dives (save.nav is what's paid so far); about five decent dives' worth.
-const NAV_PRICE = 40;
+const NAV_PRICE = 30;   // 40 in version 80; lowered with the crystal cut in version 81
 if (!Number.isFinite(save.nav)) save.nav = 0;
 const navDone = () => save.nav >= NAV_PRICE;
 const canLaunch = () => repairFrac() >= 1 && navDone();
@@ -2898,7 +2898,14 @@ function setHP(kind, n = 1) {
 }
 let shownDepth = -1;
 function setDepth() { const m = depthM(); if (m !== shownDepth) { shownDepth = m; depthEl.firstChild.nodeValue = fmtM(m); renderTarget(); } }
+// Pops about him go above his head, clear of him, and stack upward when several come at once (version 81: they used to
+// sit on him and hide him).
+let popStack = [];
 function pop(text, x, d, cls) {
+  if (Math.abs(x - player.x) < 40 && Math.abs(d - player.y) < 40) {
+    const now = performance.now(); popStack = popStack.filter(t => now - t < 600);
+    d = player.y - 30 - 22 * Math.min(3, popStack.length); x = player.x; popStack.push(now);
+  }
   const el = document.createElement('div');
   el.className = 'pop' + (cls ? ' ' + cls : ''); el.textContent = text;
   el.style.left = Math.round(Math.max(24, Math.min(W - 24, x)) * sc) + 'px'; el.style.top = Math.round((d - camY) * sc) + 'px';
@@ -3691,7 +3698,7 @@ function renderTarget() {
 // small image, one for before and one for after passing it. (Version 77; it used to be a dotted line across the shaft
 // and a sign, which the user found cluttered.)
 // Version 80: three times the size, a pale stone with a dark outline and 16 px initials (the user couldn't spot the old ones).
-const GRAVE = ['..kkkkk..', '.ksssssk.', 'ksssdsssk', 'kssdddssk', 'ksssdsssk', 'ksssdsssk', 'ksssssssk', 'ksssssssk', 'ksssssssk', 'kkkkkkkkk'];
+const GRAVE = ['..kkkkk..', '.ksssssk.', 'kssdddssk', 'ksdddddsk', 'ksdsdsdsk', 'ksdddddsk', 'kssdsdssk', 'ksssssssk', 'ksssssssk', 'kkkkkkkkk'];   // a skull since version 81 (was a cross)
 const GRAVE_W = 9, GRAVE_X = 3, GRAVE_IMG = { w: 50, h: 50 };   // the image: initials on top, the stone's foot on its bottom row
 function flagArt(f) {
   const key = f.passed ? 'imgP' : 'img';
@@ -4616,7 +4623,8 @@ function genSeg(k) {
       }
     }
   }
-  if (d0 > 760 && r() < (0.16 + (player.max - player.hp) * 0.03) * (player.perks.lucky ? 1.4 : 1)) {
+  // About 30% fewer crystals since version 81 (the user found too much health about): 0.16 + 0.03 per missing chunk before.
+  if (d0 > 760 && r() < (0.11 + (player.max - player.hp) * 0.02) * (player.perks.lucky ? 1.4 : 1)) {
     const d = d0 + 15 + r() * (SEG_LEN - 30);
     if (Math.abs(d - lastRockD) > 36) {
       const sp = spans(d), pick = sp[sp.length > 1 && r() < 0.5 ? 1 : 0];
@@ -4936,10 +4944,12 @@ function update(dt) {
     if (player.shield > 0) player.shield -= dt;
     camY = player.y - pilotScreenY;
     dropList(camY);
-    // Magnet perk: crystals, parts and bubbles within reach drift toward him.
+    // Magnet perk: crystals, parts and bubbles within reach fly to him. Since version 81 they move at a steady speed above
+    // his fall speed; before, each frame closed a share of the gap, so while falling a crystal settled about 36 px behind
+    // him (outside the pickup box) and chased him for ever.
     if (player.perks.magnet) for (const it of items) {
-      const dx = player.x - it.x, dy = player.y + PILOT_CY - it.d;
-      if (!it.dead && dx * dx + dy * dy < 80 * 80) { const k = Math.min(1, dt * 7); it.x += dx * k; it.d += dy * k; }
+      const dx = player.x - it.x, dy = player.y + PILOT_CY - it.d, dist = Math.hypot(dx, dy);
+      if (!it.dead && dist < 80) { const step = Math.min(1, (player.v + 320) * dt / Math.max(1, dist)); it.x += dx * step; it.d += dy * step; }
     }
     updateHazards(dt);
     collide(prevX);
