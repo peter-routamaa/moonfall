@@ -543,7 +543,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 73;
+const VERSION = 74;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -839,12 +839,38 @@ function cavernAt(d) {
   const x = d - k * CAFE_EVERY - CAFE_OFF;
   return smoothstep((x + 320) / 170) * (1 - smoothstep((x - 150) / 170));
 }
+// Every 1000 m, starting just after 500 m, the shaft opens into a void: an empty cavern 95% of the screen wide and 150 m
+// deep, with mines, ship parts and crystals floating in it (voidContents). Its floor funnels into one narrow shaft at a
+// random place: the floor's slopes are walls, so missing the hole costs a hit and shoves him toward it.
+const VOID_EVERY = 1000 * PX_PER_M, VOID_FIRST = 500 * PX_PER_M, VOID_LEN = 150 * PX_PER_M, VOID_HW = W / 2 - 8, HOLE_HW = 28;
+const VOID_OPEN = 160, VOID_FLOOR = 110, VOID_NECK = 240, VOID_BACK = 240;   // px: opening out, the floor's slope, the narrow shaft, back to normal
+function voidInfo(j) {
+  const T = j * VOID_EVERY + VOID_FIRST + 160 + Math.floor(hash(j * 6.7 + SEED) * 400);
+  return { j, T, B: T + VOID_LEN, exitX: Math.round(HOLE_HW + 40 + hash(j * 8.3 + SEED) * (W - 2 * (HOLE_HW + 40))) };
+}
+// The void whose stretch (from opening out to back to normal) covers depth d, or null.
+function voidAt(d) {
+  const j = Math.floor((d - VOID_FIRST) / VOID_EVERY);
+  if (j < 0) return null;
+  const V = voidInfo(j);
+  return d >= V.T - VOID_OPEN && d < V.B + VOID_NECK + VOID_BACK ? V : null;
+}
+// The shaft's centre and half-width at d inside a void's stretch, given the normal shaft's (C0, hw0) there.
+function voidShape(V, d, C0, hw0) {
+  if (d < V.T) { const u = smoothstep((d - V.T + VOID_OPEN) / VOID_OPEN); return [lerp(C0, W / 2, u), lerp(hw0, VOID_HW, u)]; }
+  if (d < V.B - VOID_FLOOR) return [W / 2, VOID_HW];
+  if (d < V.B) { const u = smoothstep((d - V.B + VOID_FLOOR) / VOID_FLOOR); return [lerp(W / 2, V.exitX, u), lerp(VOID_HW, HOLE_HW, u)]; }
+  if (d < V.B + VOID_NECK) return [V.exitX, HOLE_HW];
+  const u = smoothstep((d - V.B - VOID_NECK) / VOID_BACK);
+  return [lerp(V.exitX, C0, u), lerp(HOLE_HW, hw0, u)];
+}
 function splitAt(d) {
   const k = Math.floor((d - 1500) / 1800);
   if (k < 0) return null;
   const sp = { s0: 1500 + k * 1800 + 260 + Math.floor(hash(k * 3.7 + SEED) * 600), len: 500 + Math.floor(hash(k * 5.3 + SEED) * 220) };
   const a = sp.s0 - 450, b = sp.s0 + sp.len + 450;
   for (let j = Math.max(1, Math.round(a / CAFE_EVERY) - 1); j <= Math.round(b / CAFE_EVERY) + 1; j++) if (j * CAFE_EVERY + CAFE_OFF + 420 > a && j * CAFE_EVERY + CAFE_OFF - 420 < b) return null;
+  for (let dd = a; dd <= b + 400; dd += 200) if (voidAt(dd)) return null;
   return sp;
 }
 function splitU(d) {
@@ -870,7 +896,7 @@ function shaftCentreX(d) {
 }
 function ledge(d, side) {
   const q = Math.floor(d / 72), h = hash(q * 2.7 + side * 50 + SEED);
-  if (h > 0.3 || d < 320) return 0;
+  if (h > 0.3 || d < 320 || voidAt(d)) return 0;
   return Math.round(Math.min(10 + h * 44, shaftHalfW(d) * 0.4) * (1 - splitNear(d)) * (1 - cavernAt(d)) * (1 - Math.abs(2 * (d - q * 72) / 72 - 1)));
 }
 // Wall materials change every 500 m and blend over 120 m around each boundary (dithered so there is no hard line).
@@ -904,13 +930,15 @@ function palAt(d, smooth) {
   return Q;
 }
 function lavaSide(q) {
-  if (q < 2 || cavernAt(q * 180 + 90) > 0.02) return 0;
+  if (q < 2 || cavernAt(q * 180 + 90) > 0.02 || voidAt(q * 180) || voidAt(q * 180 + 180)) return 0;
   const h = hash(q * 5.1 + 3 + SEED), pr = matI(Math.floor(q * 22.5 / ZONE_M)) === 3 ? 0.42 : 0.28;
   return h < pr ? -1 : h < pr * 2 ? 1 : 0;
 }
 function mossSide(q) { const h = hash(q * 3.3 + 9 + SEED); return h < 0.3 ? -1 : h < 0.6 ? 1 : 0; }
 function edgesRaw(d) {
-  const q = Math.floor(d / 10), f = Math.floor(d / 3), i = islandOffset(d), C = shaftCentreX(d), h = shaftHalfW(d) + i;
+  const q = Math.floor(d / 10), f = Math.floor(d / 3), i = islandOffset(d), V = voidAt(d);
+  let C = shaftCentreX(d), h = shaftHalfW(d) + i;
+  if (V) [C, h] = voidShape(V, d, C, h);
   const e = { C, q, iL: 0, iR: 0,
     L: Math.round(C - h + (hash(q + SEED) - 0.5) * 10 + (hash(f + 500) - 0.5) * 3 + ledge(d, 0)),
     R: Math.round(C + h + (hash(q + 91 + SEED) - 0.5) * 10 + (hash(f + 900) - 0.5) * 3 - ledge(d, 1)) };
@@ -4231,6 +4259,7 @@ function placeHazard(k, d0) {
   const d = Math.round(d0 + 20 + r() * (SEG_LEN - 40));
   if (d - lastRockD < 90) return false;   // room to get past the rock above first
   if (cavernAt(d - 300) > 0.02 || cavernAt(d) > 0.02 || cavernAt(d + 300) > 0.02) return false;
+  if (voidAt(d - 300) || voidAt(d) || voidAt(d + 300)) return false;
   const kind = HAZ_KIND[matI(z)], h = { kind, d, side: r() < 0.5 ? -1 : 1, grow: 0 };
   if (kind === 'glaze') h.len = Math.round(70 + r() * 70);
   if (kind === 'spikes') { h.len = Math.round(40 + r() * 36); h.n = Math.max(3, Math.round(h.len / 13)); h.reach = 0.24 + r() * 0.12; }
@@ -4253,6 +4282,9 @@ const gushAt = h => h.on ? Math.min(1, (h.p - GEY_ON) / 0.15) * Math.min(1, (GEY
 function updateHazards(dt) {
   const cd = player.y + PILOT_CY, v = Math.max(60, player.v);
   let gush = false;
+  // The first time a void's floor comes into view, a tip.
+  const V = voidAt(cd);
+  if (V && !save.hints.void && V.B - camY < H && coach.classList.contains('gone')) { save.hints.void = 1; persist(); showCoach('FIND THE HOLE IN THE FLOOR', 2600); }
   for (const h of hazards) {
     const soon = (h.d - cd) / v, y = h.d - camY, seen = y > -20 && y < H + 20;   // seconds until he gets there
     // The first time each kind comes into view, a tip says what it does (once the coach line is free).
@@ -4423,6 +4455,8 @@ function drawHazards(cam) {
 function genSeg(k) {
   const d0 = k * SEG_LEN;
   if (d0 < 560 || cavernAt(d0) > 0.02 || cavernAt(d0 + SEG_LEN) > 0.02) return;
+  const V = voidAt(d0) || voidAt(d0 + SEG_LEN);
+  if (V) { voidContents(V, d0); return; }
   const hz = placeHazard(k, d0);
   const r = rng32(Math.floor(SEED * 1000) + k * 7919), diff = smoothstep(d0 / 26000);
   if (!hz && r() < 0.38 + 0.36 * diff) {
@@ -4461,19 +4495,40 @@ function genSeg(k) {
     }
   }
   if (d0 > 640 && r() < (player.perks.finder ? 0.3 : 0.2)) {
-    const m = d0 / 8,
-      ws = PARTS.map(pt => pt.w * smoothstep((m - pt.from) / 300) * (save.parts[pt.id] >= pt.need ? 0.2 : 1)),
-      tot = ws.reduce((a, b) => a + b, 0);
-    if (tot > 0) {
-      let pick = r() * tot, k = 0;
-      while (k < PARTS.length - 1 && (pick -= ws[k]) > 0) k++;
+    const pt = pickPart(r, d0 / 8);
+    if (pt) {
       const d = d0 + 20 + r() * (SEG_LEN - 40);
       if (Math.abs(d - lastRockD) > 36 && !items.some(it => Math.abs(it.d - d) < 30)) {
         const sp = spans(d), s1 = sp[sp.length > 1 && r() < 0.5 ? 1 : 0];
-        if (s1[1] - s1[0] > 44) items.push({ d, x: s1[0] + 18 + r() * (s1[1] - s1[0] - 36), kind: 'part', part: PARTS[k], dead: false });
+        if (s1[1] - s1[0] > 44) items.push({ d, x: s1[0] + 18 + r() * (s1[1] - s1[0] - 36), kind: 'part', part: pt, dead: false });
       }
     }
   }
+}
+// A ship part for depth m (metres): each kind weighted by how deep it appears and (much less) once it's complete.
+function pickPart(r, m) {
+  const ws = PARTS.map(pt => pt.w * smoothstep((m - pt.from) / 300) * (save.parts[pt.id] >= pt.need ? 0.2 : 1)), tot = ws.reduce((a, b) => a + b, 0);
+  if (tot <= 0) return null;
+  let pick = r() * tot, k = 0;
+  while (k < PARTS.length - 1 && (pick -= ws[k]) > 0) k++;
+  return PARTS[k];
+}
+// What floats in a void: a row of mines every 140 px (one, sometimes two; some drift side to side), with a ship part or a
+// crystal between rows (parts on even rows). The top 150 px and the last 230 px above the floor are kept clear, so he
+// can line up with the hole. Each row draws from its own random stream, so it doesn't matter which segment makes it.
+function voidContents(V, d0) {
+  for (let i = 0, d = V.T + 150; d < V.B - 230; i++, d = V.T + 150 + i * 140) {
+    if (d < d0 || d >= d0 + SEG_LEN) continue;
+    const r = rng32(Math.floor(SEED * 1000) + V.j * 977 + i * 31 + 5);
+    const mine = x => { const size = r() < 0.5 ? 1 : 2; rocks.push({ d, x0: x, x, size, rr: ROCK_R[size], amp: r() < 0.4 ? 10 + r() * 20 : 0, ph: r() * 6.28, sp: 0.8 + r(), isMine: true, dead: false }); };
+    const x1 = 40 + r() * (W - 80);
+    mine(x1);
+    if (r() < 0.35) mine(x1 < W / 2 ? x1 + 90 + r() * (W - 130 - x1 - 90) : 40 + r() * (x1 - 130));
+    const di = d + 70, xi = 36 + r() * (W - 72);
+    if (i % 2 === 0) { const pt = pickPart(r, di / PX_PER_M); if (pt) items.push({ d: di, x: xi, kind: 'part', part: pt, dead: false }); }
+    else items.push({ d: di, x: xi, kind: 'orb', dead: false });
+  }
+  lastRockD = Math.max(lastRockD, V.B);
 }
 function burst(x, d, col, big) {
   const an = Math.random() * Math.PI * 2, s = (big ? 60 : 40) + Math.random() * 90;

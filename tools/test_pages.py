@@ -13,7 +13,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'tools', 'out')
 
 # The debug handle: the game's internals that the tests and screenshots reach for.
-HOOK = """window.__mf = { gameOver, depthM, startLaunch, save, player, Sfx, Music, get state() { return state; }, set state(v) { state = v; }, update, render, get openT() { return openT; }, cafeInfo, get flags() { return flags; }, get rocks() { return rocks; }, get items() { return items; }, get hazards() { return hazards; }, setHP, nearMiss, collect, buyPerk, openShop, get shopOffer() { return shopOffer; }, get hitStop() { return hitStop; }, get flyers() { return flyers; }, hurt, buildFlags, get cafeT() { return cafeT; }, set cafeT(v) { cafeT = v; }, get camY() { return camY; }, edgeAt, checkCafe, prepaint, frame, DROPS, dropList, set clock(v) { clock = v; }, get shopDone() { return shopDone; } };"""
+# Functions added recently are looked up with typeof, so the hook also works on older versions (same_pixels compares them).
+HOOK = """window.__mf = { gameOver, depthM, startLaunch, save, player, Sfx, Music, get state() { return state; }, set state(v) { state = v; }, update, render, get openT() { return openT; }, cafeInfo, get flags() { return flags; }, get rocks() { return rocks; }, get items() { return items; }, get hazards() { return hazards; }, setHP, voidAt: typeof voidAt === 'function' ? voidAt : null, voidInfo: typeof voidInfo === 'function' ? voidInfo : null, nearMiss, collect, buyPerk, openShop, get shopOffer() { return shopOffer; }, get hitStop() { return hitStop; }, get flyers() { return flyers; }, hurt, buildFlags, get cafeT() { return cafeT; }, set cafeT(v) { cafeT = v; }, get camY() { return camY; }, edgeAt, checkCafe, prepaint, frame, DROPS, dropList, set clock(v) { clock = v; }, get shopDone() { return shopDone; } };"""
 
 # A pretend scoreboard: answers the game's requests to fake-scores.test from memory. B.mode = 'down' fails them.
 FAKE_BOARD = """window.__board = { rows: [], next: 1, mode: 'ok', calls: [] };
@@ -34,7 +35,7 @@ window.fetch = async (url, init = {}) => {
   return new Response(JSON.stringify({ top: top() }));
 };"""
 
-# Scenes for screenshots: ?scene=splash|title|opening|launch|pause|cafe|sign|haz, plus options (see each branch).
+# Scenes for screenshots: ?scene=splash|title|opening|launch|pause|cafe|sign|haz|void, plus options (see each branch).
 SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;animation-delay:0s!important}</style><script>
 (async () => {
   const q = new URLSearchParams(location.search), M = window.__mf, pl = M.player, wait = ms => new Promise(f => setTimeout(f, ms));
@@ -102,6 +103,12 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
   if (q.get('scene') === 'pause') { for (let i = 0; i < 150; i++) M.update(1 / 60); M.render(); document.getElementById('pauseBtn').click(); await wait(300); document.title = 'ready'; return; }
   for (let i = 0; i < 150; i++) M.update(1 / 60);
   if (q.get('hp')) { pl.hp = +q.get('hp'); M.setHP(); }   // e.g. &hp=1 for the scared face
+  if (q.get('scene') === 'void') {   // the first void: &at= px below its top (it's 1200 deep; its floor is at the bottom)
+    const V = M.voidInfo(0), at = +(q.get('at') || 0);
+    pl.y = V.T + at - 14; pl.x = q.get('x') ? +q.get('x') : 160; pl.aim = pl.x; pl.vx = 0;
+    for (let i = 0; i < 10; i++) { pl.inv = 9; pl.y = V.T + at - 14; pl.x = q.get('x') ? +q.get('x') : 160; M.update(1 / 60); }
+    await wait(300); M.render(); M.state = 'paused'; document.title = 'ready:' + V.T + ':' + V.exitX; return;
+  }
   if (q.get('scene') === 'sign') {
     let k = 1; const want = +(q.get('side') || -1); while (M.cafeInfo(k).side !== want) k++;
     const C = M.cafeInfo(k); pl.y = C.Dl - 800 - 150; pl.x = 160; pl.aim = 160; pl.vx = 0;
