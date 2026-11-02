@@ -6,6 +6,7 @@
     frame.html       shows a page at an exact phone size inside an iframe
 
 Serve the folder and open a page:   python3 -m http.server 8766 -d tools/out   then http://localhost:8766/test.html
+The pages are silent (no sound or music) unless the address has ?sound=1, e.g. test.html?sound=1.
 """
 import os, shutil
 
@@ -133,6 +134,9 @@ document.body.append(f);
 </script></body></html>
 """
 
+# Silent unless ?sound=1: without an AudioContext the game plays nothing (as on a browser with no Web Audio).
+MUTE = "<script>if (!/[?&]sound=1/.test(location.search)) window.AudioContext = window.webkitAudioContext = undefined;</script>"
+
 HEAD = ('<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">'
         '<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}'
         'body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style></head><body>')
@@ -145,8 +149,8 @@ if __name__ == '__main__':
     board = game.replace("const SCORES_URL = '';", "const SCORES_URL = 'https://fake-scores.test/functions/v1/scores';", 1)
     os.makedirs(OUT, exist_ok=True)
     pages = {
-        'test.html': HEAD + '<script>' + FAKE_BOARD + '</script>' + game + '</body></html>',
-        'test-board.html': HEAD + '<script>' + FAKE_BOARD + '</script>' + board + '</body></html>',
+        'test.html': HEAD + MUTE + '<script>' + FAKE_BOARD + '</script>' + game + '</body></html>',
+        'test-board.html': HEAD + MUTE + '<script>' + FAKE_BOARD + '</script>' + board + '</body></html>',
         'frame.html': FRAME,
     }
     local = pages['test.html']
