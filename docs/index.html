@@ -259,10 +259,11 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .wallet b { font-size: 18px; color: var(--green); font-variant-numeric: tabular-nums; }
 .ico-orb { width: 14px; height: 14px; image-rendering: pixelated; }
 .cafe-note { margin: -2px 0 0; font-size: 20px; line-height: 1.05; color: var(--dust-dim); }
-.btn.cafe-shop { display: flex; justify-content: space-between; align-items: center; font-size: 24px; padding: 16px 18px 14px; background: var(--gold); color: var(--ink); box-shadow: 4px 4px 0 var(--lava); }
+.btn.cafe-shop { display: flex; justify-content: space-between; align-items: center; font-size: 20px; padding: 16px 18px 14px; background: var(--gold); color: var(--ink); box-shadow: 4px 4px 0 var(--lava); }
 .shop-count { display: flex; align-items: center; gap: 6px; font-size: 18px; }
 .shop-count .ico-orb { width: 28px; height: 28px; }
-.cafe-ui .btn.settings { font-size: 16px; padding: 13px 13px 12px; }
+/* Tips uses the same 20 px text as Shop and Continue. */
+.cafe-ui .btn.settings { font-size: 20px; padding: 15px 13px 13px; }
 /* All three cafe buttons read from the left, lined up with the Shop label. */
 #tipsBtn { justify-content: flex-start; padding-left: 18px; }
 #shopGo { text-align: left; }
@@ -551,7 +552,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 71;
+const VERSION = 72;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -1161,39 +1162,37 @@ function drawElder(x, y, dir, k, col) {
   }
 }
 const leviSeen = new Set();
-// At a cafe stop, its deep creature (the one at that 1000 m mark) glides into the open shaft between the ledge and the menu
-// card as he lands, hovers there, and swims back off as he jumps. 0 to 1: how far it has moved to its hovering spot.
-function cafeHover() {
-  if (state === 'landing') return smoothstep(cafeT / 1.1);
-  if (state === 'cafe') return 1;
-  if (state === 'cafeJump') return 1 - smoothstep(cafeT / 0.6);
-  return 0;
+// Where a creature sits in the half-speed layer. The elder things belong to the cafes (one at each 1000 m mark), so
+// theirs is set for that cafe: when the camera stops there (he stands 28 px above the ledge, which is 46 px thick), the
+// creature is already hovering in the open shaft, centred between the ledge's underside and the menu card's top. It
+// drifts into place with the layer as he falls and lands, with no move of its own.
+function leviDepth(k) {
+  if (k % 2) return k * LEVI_EVERY;
+  const camAt = cafeLedge(k / 2) - 28 - pilotScreenY, ledge = pilotScreenY + 28 + 46;
+  return camAt + H / 2 + ((ledge + (cafeCardTop || H * 0.55)) / 2 - 7 - H / 2) / LEVI_PARALLAX;
 }
-// The hovering spot: centred between the ledge's underside (46 rows below its top) and the card's top edge. The card's
-// top is measured once it shows (until then it's a guess), and the spot glides when it changes.
-let cafeCardTop = 0, hoverY = null, hoverClock = 0;
-function hoverSpot(elder) {
-  if (!shopEl.hidden) { const r = $('cafeFront').getBoundingClientRect(); if (r.height) cafeCardTop = (r.top - game.getBoundingClientRect().top) / sc; }
-  const ledge = cafeInfo(cafeK).Dl + 46 - camY, want = (ledge + (cafeCardTop || H * 0.55)) / 2 - (elder ? 7 : 0);
-  hoverY = hoverY === null ? want : hoverY + (want - hoverY) * Math.min(1, (clock - hoverClock) * 4);
-  hoverClock = clock;
-  return { x: W / 2 + Math.sin(clock * 0.25) * 14, y: hoverY };
+// The cafe card's top edge in game px, measured with the card laid out but invisible (on resize, and once the fonts
+// have loaded), so the creature's place is known before the card shows.
+let cafeCardTop = 0;
+function measureCafeCard() {
+  if (!shopEl.hidden) return;
+  shopEl.style.visibility = 'hidden'; shopEl.hidden = false;
+  const r = $('cafeFront').getBoundingClientRect();
+  if (r.height) cafeCardTop = (r.top - game.getBoundingClientRect().top) / sc;
+  shopEl.hidden = true; shopEl.style.visibility = '';
 }
 function leviathans(cam) {
   const mid = cam + H / 2, reach = (H / 2 + 130) / LEVI_PARALLAX;
   let near = false;   // a creature on screen during a run: the music goes quiet under a drone (Music.creature)
-  for (let k = Math.max(1, Math.ceil((mid - reach) / LEVI_EVERY)); k * LEVI_EVERY <= mid + reach; k++) {
-    const D = k * LEVI_EVERY, sy = H / 2 + (D - mid) * LEVI_PARALLAX, dir = hash(k * 4.3 + SEED) < 0.5 ? 1 : -1, sx = W / 2 + dir * (mid - D) * 0.14;
+  // One slot either side of the plain range, for the elder things set deeper than their marks.
+  for (let k = Math.max(1, Math.ceil((mid - reach) / LEVI_EVERY) - 1); k * LEVI_EVERY <= mid + reach + LEVI_EVERY; k++) {
+    const D = k * LEVI_EVERY, A = leviDepth(k), sy = H / 2 + (A - mid) * LEVI_PARALLAX, dir = hash(k * 4.3 + SEED) < 0.5 ? 1 : -1, sx = W / 2 + dir * (mid - A) * 0.14;
     const elder = k % 2 === 0;
     if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(elder ? 'elder' : 'whale'); }
     if (state === 'play' && sy > -40 && sy < H + 40) near = true;
-    const f = D === cafeK * CAFE_EVERY ? cafeHover() : 0;
-    let x = sx, y = sy;
-    if (f > 0) { const p = hoverSpot(elder); x = lerp(sx, p.x, f); y = lerp(sy, p.y, f); }
-    else if (D === cafeK * CAFE_EVERY) hoverY = null;
-    if (cam < -H || y < -150 || y > H + 150) continue;
-    if (elder) drawElder(x, y, dir, k, mix(palAt(D).sO, P.ink, 0.42));
-    else drawLeviathan(x, y, dir, k, mix(palAt(D).sO, P.ink, 0.35));
+    if (cam < -H || sy < -150 || sy > H + 150) continue;
+    if (elder) drawElder(sx, sy, dir, k, mix(palAt(D).sO, P.ink, 0.42));
+    else drawLeviathan(sx, sy, dir, k, mix(palAt(D).sO, P.ink, 0.35));
   }
   Music.creature(near);
 }
@@ -3050,10 +3049,11 @@ function scoreKey(e) {
 // ---------- coffee stop (every 1000 m): where each cafe is, drawing it, landing, the counter, the shop, the signs ----------
 // The shaft widens into a cavern around each cafe; CAFE_EVERY, CAFE_OFF, cafeIdx and cavernAt are in the shaft section.
 // -- where each cafe is, and drawing it (the ledge, the cafe, the LAND sign and pad)
+const cafeLedge = k => k * CAFE_EVERY + CAFE_OFF + 40;   // the top of cafe k's ledge
 function cafeInfo(k) {
   const Dc = k * CAFE_EVERY + CAFE_OFF,
     side = hash(k * 7.7 + SEED) < 0.5 ? -1 : 1,
-    Dl = Dc + 40,
+    Dl = cafeLedge(k),
     e = edgeAt(Dl),
     wall = side < 0 ? e.L : e.R,
     len = 140;
@@ -4878,7 +4878,7 @@ function resize() {
   sizeHP();
   const was = camY0; camY0 = -Math.round(H * 0.56);
   if (state === 'title' || camY === was) camY = camY0;
-  placeHorizon();
+  placeHorizon(); measureCafeCard();
   if (ship) render();
 }
 let last = performance.now();
@@ -4911,7 +4911,7 @@ function start(data) {
   addEventListener('resize', resize);
   buildRepair(); resize(); buildShip(); drawIcons(); resetRun(); syncToggles(); renderRepair(); showScreen('title'); placeHorizon();
   setState('splash'); showScreen('splash');
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(placeHorizon);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { placeHorizon(); measureCafeCard(); });
   window.claude?.hot?.snapshot?.(() => ({ best: save.best, parts: save.parts }));
   requestAnimationFrame(t => { last = t; frame(t); });
 }
