@@ -88,11 +88,16 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .set-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 /* Each toggle is a small tile: the name on top, ON/OFF underneath. The badge is one fixed width,
    so flipping a toggle never changes its size (or the card's). */
-.set-tog { display: flex; flex-direction: column; align-items: flex-start; width: 100%; font: 700 12px/1 var(--display); letter-spacing: .04em; color: var(--dust); background: transparent; border: 2px solid var(--ink-soft); padding: 8px 7px 7px 9px; min-width: 0; gap: 6px; cursor: pointer; text-transform: uppercase; white-space: nowrap; }
-.set-tog::after { content: 'OFF'; align-self: flex-end; box-sizing: border-box; width: 4em; text-align: center; font-size: 11px; padding: 3px 0 2px; background: var(--ink-soft); color: var(--dust-dim); }
-.set-tog[aria-pressed="true"] { border-color: var(--dust-dim); }
+/* Settings toggles (restyled in version 84): the name, one word per line, with the ON/OFF badge at the top right beside
+   the first word. Off: a thin diagonal line across the tile. On: a green border. */
+.set-tog { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; column-gap: 4px; width: 100%; font: 700 10px/1 var(--display); letter-spacing: 0; color: var(--dust); border: 2px solid var(--ink-soft); padding: 8px 5px 8px 6px; min-width: 0; cursor: pointer; text-transform: uppercase; white-space: nowrap;
+  background: linear-gradient(to top right, transparent calc(50% - 1px), color-mix(in srgb, var(--dust-dim) 55%, transparent) calc(50% - 1px), color-mix(in srgb, var(--dust-dim) 55%, transparent) calc(50% + 1px), transparent calc(50% + 1px)); }
+.set-tog::after { content: 'OFF'; grid-column: 2; grid-row: 1; box-sizing: border-box; width: 3.6em; text-align: center; font-size: 9px; padding: 3px 0 2px; margin-top: -2px; background: var(--ink-soft); color: var(--dust-dim); }
+.set-tog[aria-pressed="true"] { border-color: var(--green); background: transparent; }
 .set-tog[aria-pressed="true"]::after { content: 'ON'; background: var(--green); color: var(--ink); }
 .set-tog:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+/* Each word of a toggle's name on its own line (user, version 84). */
+.set-tog > span { grid-column: 1; grid-row: 1; line-height: 1.3; text-align: left; }
 .meta .btn.quiet { font-size: 12px; padding: 9px 12px 8px; }
 .btn.settings { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; padding: 11px 13px 10px; background: var(--blue); color: var(--dust); box-shadow: 4px 4px 0 var(--dust-dim); }
 .btn.settings:active { box-shadow: 2px 2px 0 var(--dust-dim); }
@@ -118,7 +123,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
   #howBack .hint, #howBack .legend { font-size: 18px; }
   #howBack .legend { gap: 4px; }
 }
-/* On the shortest phones the ship repair panel steps aside while Instructions is open, so the card fits. */
+/* On the shortest phones the ship repair panel steps aside while Instructions or Settings is open, so the card fits. */
 @media (max-height: 600px) { #titleScreen.reading .repair { display: none; } }
 .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .best { font: 400 12px/1 var(--display); letter-spacing: .05em; color: var(--dust-dim); }
@@ -406,10 +411,11 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
      <div class="card face back" id="titleBack" inert aria-hidden="true">
       <h2>Settings</h2>
       <div class="set-list">
-        <button class="set-tog" id="sndT" type="button" aria-pressed="true">Sound FX</button>
-        <button class="set-tog" id="musT" type="button" aria-pressed="true">Music</button>
-        <button class="set-tog" id="vibT" type="button" aria-pressed="true">Vibration</button>
-        <button class="set-tog" id="fpsT" type="button" aria-pressed="false">FPS</button>
+        <button class="set-tog" id="sndT" type="button" aria-pressed="true" aria-label="Sound FX"><span>Sound<br>FX</span></button>
+        <button class="set-tog" id="musT" type="button" aria-pressed="true" aria-label="Music"><span>Music</span></button>
+        <button class="set-tog" id="vibT" type="button" aria-pressed="true" aria-label="Vibration"><span>Vibration</span></button>
+        <button class="set-tog" id="fpsT" type="button" aria-pressed="false" aria-label="Display FPS"><span>Display<br>FPS</span></button>
+        <button class="set-tog" id="invT" type="button" aria-pressed="false" aria-label="Invert thruster controls"><span>Invert<br>thruster<br>controls</span></button>
       </div>
       <button class="btn quiet" id="introBtn" type="button">Watch the intro</button>
       <button class="btn quiet warn" id="resetBtn" type="button">Reset ship repair</button>
@@ -577,7 +583,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 83;
+const VERSION = 84;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -2927,6 +2933,7 @@ function syncToggles() {
   for (const id of ['vibT', 'vibP']) $(id).setAttribute('aria-pressed', String(save.vib));
   for (const id of ['fpsT', 'fpsP']) $(id).setAttribute('aria-pressed', String(save.fps));
   $('fps').hidden = !save.fps;
+  $('invT').setAttribute('aria-pressed', String(!!save.inv));
   $('buzzNote').hidden = Buzz.canVibrate || !save.vib;
   $('bestTitle').textContent = fmtM(save.best) + ' m'; $('bestPause').textContent = fmtM(save.best) + ' m';
 }
@@ -2935,6 +2942,7 @@ function toggleVib() { save.vib = !save.vib; persist(); syncToggles(); if (save.
 for (const id of ['sndT', 'sndP']) $(id).addEventListener('click', toggleSound);
 for (const id of ['vibT', 'vibP']) $(id).addEventListener('click', toggleVib);
 for (const id of ['fpsT', 'fpsP']) $(id).addEventListener('click', () => { save.fps = !save.fps; persist(); syncToggles(); });
+$('invT').addEventListener('click', () => { save.inv = !save.inv; persist(); syncToggles(); });
 function toggleMusic() { save.mus = !save.mus; Sfx.init(); Music.setOn(); persist(); syncToggles(); }
 for (const id of ['musT', 'musP']) $(id).addEventListener('click', toggleMusic);
 function drawIcons() {
@@ -3000,7 +3008,7 @@ function setCard(side, instant) {
   turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack') }, was, side, instant, () => {
     const ts = $('titleScreen');
     clearTimeout(readTimer);
-    if (side === 'how' || instant) ts.classList.toggle('reading', side === 'how');
+    if (side || instant) ts.classList.toggle('reading', !!side);   // Settings too since version 84 (one more row)
     else readTimer = setTimeout(() => ts.classList.remove('reading'), 480);
   });
   if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $('sndT') : side === 'how' ? $('howDone') : $(was === 'how' ? 'howBtn' : 'settingsBtn')), 460);
@@ -4470,11 +4478,13 @@ const endPress = e => {
   if (p.mode === 'tap') { const rest = TAP_MIN - (performance.now() - p.t0) / 1000; if (rest > 0) tapBurst[p.side < 0 ? 'l' : 'r'] = rest; }
 };
 game.addEventListener('pointerup', endPress); game.addEventListener('pointercancel', endPress);
+// Invert thrusters (Settings, version 84; save.inv): a tap on a side fires that side's thruster, so he moves the other way.
+// Only taps and holds flip; dragging and the arrow keys stay as they are.
 function tapDir(dt) {
   tapBurst.l = Math.max(0, tapBurst.l - dt); tapBurst.r = Math.max(0, tapBurst.r - dt);
-  let d = (tapBurst.r > 0) - (tapBurst.l > 0) + keys.r - keys.l;
-  for (const p of presses.values()) if (p.mode === 'tap') d += p.side;
-  return Math.sign(d);
+  let t = (tapBurst.r > 0) - (tapBurst.l > 0);
+  for (const p of presses.values()) if (p.mode === 'tap') t += p.side;
+  return Math.sign((save.inv ? -t : t) + keys.r - keys.l);
 }
 const keys = { l: false, r: false };
 addEventListener('keydown', e => {
