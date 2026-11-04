@@ -336,7 +336,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
      </div>
      <div class="card face back" id="cafeShop" hidden inert aria-hidden="true">
       <div class="cafe-head"><h2>Shop</h2><span class="wallet"><canvas class="ico-orb" width="14" height="14"></canvas>SPARE <b id="shopSpare2">0</b></span></div>
-      <p class="cafe-note" id="shopNote">Pick one treat per cafe</p>
+      <p class="cafe-note" id="shopNote">One treat per cafe. It lasts until the next cafe (1,000 m).</p>
       <div class="shop-items" id="shopItems"></div>
       <button class="btn" id="shopDone" type="button">Done</button>
      </div>
@@ -344,10 +344,10 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
       <h2>Tips</h2>
       <ul class="shop-tips">
         <li>Crystals caught at full health become spare crystals.</li>
-        <li>Spend spare crystals in the shop: one treat per cafe.</li>
+        <li>Spend spare crystals in the shop: one treat per cafe, lasting until the next cafe.</li>
         <li>Skim past rocks and mines for a streak: every 8 pays a crystal.</li>
         <li>Tombstones on the shaft walls mark where players died: pass them to beat their high scores.</li>
-        <li>The fall gets 5% faster after every cafe, whether you stop or not.</li>
+        <li>The fall gets 5% faster after every cafe, whether you stop or not, up to 25%.</li>
       </ul>
       <button class="btn" id="tipsDone" type="button">Done</button>
      </div>
@@ -409,7 +409,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
         <li><span class="ico"><canvas id="icoOrb" width="14" height="14"></canvas></span>Crystal: +1 health</li>
         <li><span class="ico"><canvas id="icoShield" width="28" height="28"></canvas></span>Bubble: 8s shield, hits wear it down</li>
         <li><span class="ico"><canvas id="icoPart" class="wide" width="30" height="30"></canvas></span>Gold ring: ship part, collect&nbsp;these</li>
-        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Cafe every 1000 m: coffee (+1 health) and bonus items. The fall gets 5% faster after each cafe</li>
+        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Cafe every 1000 m: coffee (+1 health) and bonus items. The fall gets 5% faster after each cafe, up to 25%</li>
       </ul>
       <button class="btn" id="howDone" type="button">Done</button>
      </div>
@@ -563,7 +563,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 84;
+const VERSION = 85;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -1572,7 +1572,7 @@ function motes(cam) {
 // at the starting speed; they build from about 1000 m to 3000 m as the fall speeds up. They move up faster than the
 // walls, so they never look like they're falling with him.
 function speedLines(cam) {
-  const s = smoothstep((player.v - 255) / 120);
+  const s = smoothstep((player.v - 255) / 57.5);   // full at the top cafe speed, 312.5 px/s (version 85)
   if (s <= 0) return;
   c.globalAlpha = 0.25 + 0.35 * s; c.fillStyle = P.lite;
   for (let k = 0, n = Math.round(10 * s); k < n; k++) {
@@ -1992,7 +1992,7 @@ const runParts = { plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 };
 // A fresh pilot for every run (resetRun). `touch` (a finger is on the screen) carries over between runs.
 const playerStart = () => ({
   x: 84, y: -30, v: 0, vx: 0, hp: 5, max: 5, inv: 0, blockT: 0, shield: 0, shieldMax: 8, orbs: 0, spare: 0, streak: 0,
-  bestStreak: 0, perks: {}, bought: [], slowUntil: 0, flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false,
+  bestStreak: 0, perks: {}, perkCafe: 0, toughN: 0, bought: [], slowUntil: 0, flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false,
   fallRamp: 1
 });
 const player = { touch: false, ...playerStart() };
@@ -2005,11 +2005,14 @@ const depthM = () => Math.max(0, Math.floor(player.y / PX_PER_M));
 // Fall speed: 250 px/s (31 m/s). It used to rise with depth by up to SPEED_RAMP more (170, reaching 52 m/s by about
 // 3 km); the user found the game too hard and asked for it off for now (version 76). Set SPEED_RAMP back to 170 to bring
 // the speed-up back (the speed lines appear with it).
-// Since version 80 the fall gets CAFE_SPEEDUP (5%) faster for every cafe passed, landed at or not, eased in over the
-// 400 px below each ledge: 263 px/s after the first, 276 after the second, 304 after the fourth, 407 after the tenth.
-const FALL_SPEED = 250, SPEED_RAMP = 0, CAFE_SPEEDUP = 1.05;
+// Since version 80 the fall gets faster for every cafe passed, landed at or not, eased in over the 400 px below each
+// ledge. Since version 85 it's CAFE_SPEEDUP (5%) of the starting speed per cafe, up to CAFE_SPEED_MAX (+25%, reached at
+// the fifth cafe): 262.5, 275, 287.5, 300, then 312.5 px/s. (Version 80-84 compounded 5% per cafe with no top.)
+const FALL_SPEED = 250, SPEED_RAMP = 0, CAFE_SPEEDUP = 0.05, CAFE_SPEED_MAX = 0.25;
 const cafesPassed = d => { const n = (d - (CAFE_EVERY + CAFE_OFF + 40)) / CAFE_EVERY; return n < 0 ? 0 : Math.floor(n) + Math.min(1, (n % 1) * CAFE_EVERY / 400); };
-function speedAt(d) { return (FALL_SPEED + SPEED_RAMP * smoothstep(d / 26000)) * CAFE_SPEEDUP ** cafesPassed(d); }
+// How many cafe ledges lie above depth d, counted the moment he passes each one (pops and treats use this).
+const ledgesPassed = d => { const n = (d - (CAFE_EVERY + CAFE_OFF + 40)) / CAFE_EVERY; return n < 0 ? 0 : Math.floor(n) + 1; };
+function speedAt(d) { return (FALL_SPEED + SPEED_RAMP * smoothstep(d / 26000)) * (1 + Math.min(CAFE_SPEED_MAX, CAFE_SPEEDUP * cafesPassed(d))); }
 
 // ---------- saved settings ----------
 const save = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false, hints: {} };
@@ -3423,6 +3426,7 @@ function checkCafe() {
   const C = cafeInfo(k);
   if (feet < C.Dl - 170 || feet > C.Dl - 4) return;
   if (C.side < 0 ? player.x - HIT_HALF_W > C.tip + 8 : player.x + HIT_HALF_W < C.tip - 8) return;
+  expireTreats(k);
   cafeVisited.add(k); cafesRun++; cafeK = k; setState('landing'); cafeT = 0; landFrom = { x: player.x, y: player.y };
   steerAcc = 0; tapBurst.l = tapBurst.r = 0; presses.clear(); player.vx = 0; player.thr = 0; Sfx.thrust(0.9);
 }
@@ -3544,7 +3548,9 @@ $('tipsDone').addEventListener('click', () => cafeCard(null));
 function renderShop() {
   for (const id of ['shopSpare', 'shopSpare2', 'shopBtnN']) $(id).textContent = player.spare;
   const afford = shopOffer.some(p => player.spare >= p.cost) || (!navDone() && player.spare > 0);
-  $('shopNote').textContent = shopDone ? 'Enjoy! One treat per cafe.' : afford ? 'Pick one treat per cafe' : player.spare ? 'Not enough spare crystals yet' : 'No spare crystals yet: see TIPS';
+  // Every state says how long treats last (version 85).
+  $('shopNote').textContent = (shopDone ? 'Enjoy! ' : afford ? 'One treat per cafe. ' : player.spare ? 'Not enough spare crystals yet. ' : 'No spare crystals yet: see TIPS. ')
+    + (shopDone ? 'It lasts' : 'Treats last') + ' until the next cafe (1,000 m).';
   $('cafeNote').textContent = shopDone ? 'Treat bought. Enjoy the fall!' : !save.cafeTips ? 'New here? Tap TIPS first' : afford ? 'Spend your spare crystals in the shop' : 'Catch crystals at full health to earn spares';
   const nb = $('navBuy');
   if (nb) {
@@ -3569,7 +3575,8 @@ function buyPerk(i) {
   player.spare -= p.cost; shopDone = true; player.bought.push(p.name);
   $('spareRun').textContent = player.spare;
   if (p.once) player.perks[p.id] = true;
-  if (p.id === 'tough') { player.max++; buildHP(); player.hp++; setHP('gain'); }
+  player.perkCafe = cafeK;
+  if (p.id === 'tough') { player.max++; player.toughN++; buildHP(); player.hp++; setHP('gain'); }
   else if (p.id === 'patch') { player.hp = player.max; setHP('gain'); }
   else if (p.id === 'bubble') giveShield(SHIELD_S + (player.perks.longshield ? 5 : 0));
   else if (p.id === 'slow') player.slowUntil = player.y + 250 * PX_PER_M;
@@ -3594,6 +3601,16 @@ function payNav() {
     showCoach(repairFrac() >= 1 ? 'READY TO FLY HOME! LAUNCH IT FROM THE MAIN MENU' : 'NAV COMPUTER READY. NOW FINISH THE SHIP REPAIR', 3500);
   } else pop('NAV +' + put, player.x, player.y - 10, 'part');
   renderShop();
+}
+// Treats last until the next cafe (version 85; they used to last the whole run): when he lands at a later cafe than the one
+// they came from, or falls past its ledge, the perks switch off and a Tough suit's extra health goes. Bubble to go and the
+// Patch kit act at once, and Slow fall keeps its own 250 m.
+function expireTreats(k) {
+  if (!player.perkCafe || k <= player.perkCafe) return;
+  const had = Object.keys(player.perks).some(id => player.perks[id]) || player.toughN > 0;
+  player.perks = {}; player.perkCafe = 0;
+  if (player.toughN) { player.max -= player.toughN; player.toughN = 0; player.hp = Math.min(player.hp, player.max); buildHP(); setHP(); }
+  if (had) pop('TREAT USED UP', player.x, player.y - 22);
 }
 $('shopGo').addEventListener('click', () => { if (state === 'cafe') leaveCafe(); });
 function perkSummary() { return player.bought.length ? 'Treats: ' + player.bought.join(', ') : ''; }
@@ -4957,7 +4974,11 @@ function update(dt) {
     updateHazards(dt);
     collide(prevX);
     passFlags();
-    if (Math.floor(cafesPassed(player.y + PILOT_CY)) > fasterN) { fasterN++; pop('FALL +5%', player.x, player.y - 22, 'bad'); }
+    if (ledgesPassed(player.y + PILOT_CY) > fasterN) {
+      fasterN++; expireTreats(fasterN);
+      const top = Math.round(CAFE_SPEED_MAX / CAFE_SPEEDUP);
+      if (fasterN <= top) pop(fasterN === top ? 'TOP SPEED' : 'FALL +5%', player.x, player.y - 22, 'bad');
+    }
     if (state === 'play') checkCafe();
     Sfx.wind(0.5 + 0.5 * smoothstep((player.v - 250) / 200));
     Music.setDepth(depthM());
