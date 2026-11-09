@@ -142,13 +142,14 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .slot .letter { width: 56px; height: 56px; display: grid; place-items: center; font: 700 36px/1 var(--display); background: color-mix(in srgb, var(--dust) 7%, var(--ink)); box-shadow: inset 0 -4px 0 var(--ink-soft); }
 .slot.on .letter { color: var(--gold); box-shadow: inset 0 0 0 2px var(--gold); }
 .hs-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; font: 700 14px/1 var(--display); letter-spacing: .06em; font-variant-numeric: tabular-nums; }
-.hs-list li { display: grid; grid-template-columns: 2.6em 1fr 5.4em 4.2em; column-gap: 6px; align-items: baseline; text-align: left; padding: 6px 8px 5px; background: color-mix(in srgb, var(--dust) 7%, var(--ink)); }
+.hs-list li { display: grid; grid-template-columns: 2.2em repeat(3, minmax(0, 1fr)); column-gap: 6px; align-items: baseline; justify-items: center; text-align: left; padding: 6px 8px 5px; background: color-mix(in srgb, var(--dust) 7%, var(--ink)); }
 .hs-list li span:first-child { color: var(--dust-dim); }
 .hs-list li.you { background: var(--gold); color: var(--ink); }
 .hs-list li.you span:first-child { color: var(--ink); }
 .hs-list small { font-size: 10px; margin-left: 2px; }
 .hs-list li.gap { display: block; text-align: center; background: transparent; padding: 0; color: var(--dust-dim); }
 /* The escaped column: a gold rocket if the player had repaired the ship when they set the score, a dash if nobody knows (older scores). */
+.hs-list li span:first-child { justify-self: start; }   /* rank on the left; name, depth and escaped evenly spaced (version 86) */
 .hs-list li.head { background: transparent; padding: 0 8px; color: var(--dust-dim); }
 .hs-list li.head span { font-size: 9px; }
 .hs-list .esc { justify-self: center; color: var(--gold); }
@@ -563,7 +564,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 85;
+const VERSION = 86;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -3189,8 +3190,9 @@ function openTable() {
   renderTable();
   if (SCORES_URL) syncOnline();
 }
-// Whether this player has escaped the moon: ready to launch (ship repaired, computer paid), or launched at least once. Saved with each score.
-const escapedNow = () => (save.launches || 0) > 0 || canLaunch();
+// Since version 86 only the run that made the ship ready to fly (repair and nav computer finished during it) gets the
+// rocket; before, every score set after escaping did.
+const escapedNow = () => !readyStart && canLaunch();
 const ROCKET_SVG = '<svg viewBox="0 0 7 9" width="14" height="18" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1h-1zM2 1h3v6h-3zM1 4h1v3h-1zM5 4h1v3h-1zM0 6h1v2h-1zM6 6h1v2h-1zM3 7h1v2h-1z"/></svg>';
 function renderTable() {
   $('hsTabOnline').setAttribute('aria-pressed', hsTab === 'online'); $('hsTabLocal').setAttribute('aria-pressed', hsTab === 'local');
