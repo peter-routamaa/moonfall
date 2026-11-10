@@ -90,17 +90,18 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .card-nav { display: grid; gap: 10px; }
 .best.best-big b { font-size: 22px; color: var(--gold); letter-spacing: .03em; }
 #titleScreen { padding-block: 8px 22px; gap: 8px; }
-/* The news sticker (version 99): floats in the sky under the repair panel, tilted, bobbing and wiggling (a 45-degree
-   corner ribbon covered the end of the logo). Change its text in the markup (id newsTag), or delete it when the news is old. */
+/* The news sticker (version 99): floats in the sky under the repair panel, tilted (a 45-degree corner ribbon covered the
+   end of the logo). Since version 100 it swells toward the viewer and back, its shadow growing as it lifts, instead of
+   wiggling, and it hides while Instructions or Settings are open (they grow up over it). Change its text in the markup
+   (id newsTag), or delete it when the news is old. */
 #titleScreen .repair { position: relative; }
-.news { position: absolute; top: calc(100% + 30px); left: 4px; z-index: 2; padding: 6px 10px 5px; background: var(--gold); color: var(--ink); box-shadow: 3px 3px 0 var(--gold-dk); text-align: center; pointer-events: none; transform: rotate(-12deg); animation: newsBob 2.4s ease-in-out infinite; }
+.news { position: absolute; top: calc(100% + 30px); left: 4px; z-index: 2; padding: 6px 10px 5px; background: var(--gold); color: var(--ink); box-shadow: 3px 3px 0 var(--gold-dk); text-align: center; pointer-events: none; transform: rotate(-12deg); animation: newsBob 2s ease-in-out infinite; }
 .news b { display: block; font: 700 12px/1 var(--display); letter-spacing: .12em; color: var(--lava-dk); }
 .news span { display: block; margin-top: 2px; font: 400 15px/1 var(--body); letter-spacing: .02em; }
+#titleScreen.reading .news { display: none; }
 @keyframes newsBob {
-  0%, 100% { transform: translateY(0) rotate(-12deg); }
-  25% { transform: translateY(-3px) rotate(-15deg); }
-  50% { transform: translateY(0) rotate(-12deg); }
-  75% { transform: translateY(2px) rotate(-9deg); }
+  0%, 100% { transform: rotate(-12deg) scale(1); box-shadow: 2px 2px 0 var(--gold-dk); }
+  50% { transform: rotate(-12deg) scale(1.1) translateY(-2px); box-shadow: 6px 7px 0 color-mix(in srgb, var(--gold-dk) 70%, transparent); }
 }
 .legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; font-size: 21px; line-height: 1; }
 .legend li { display: flex; align-items: center; gap: 10px; }
@@ -582,7 +583,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 99;
+const VERSION = 100;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
