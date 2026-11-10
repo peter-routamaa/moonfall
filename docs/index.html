@@ -631,7 +631,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 104;
+const VERSION = 105;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3379,10 +3379,13 @@ function countPlay() {
 }
 // how: wall, rock, mine or lava (what took the last health), quit (Main menu from pause) or left (the game was hidden
 // mid-run; sent again with the real ending if they come back).
+// The last ended run's report, kept so it can be sent again with the initials typed on the high score entry (version 105:
+// the run ends before the entry opens, so its report carried the old initials, or none on a first high score).
+let lastEnd = null;
 function endRun(how) {
   if (!runId) return;
   const total = Object.values(runParts).reduce((n, v) => n + v, 0);
-  statPing({ event: 'end', player: save.playerId, run: runId, depth: depthM(), secs: Math.round(runSecs), how, orbs: player.orbs, parts: total, cafes: cafesRun,
+  statPing(lastEnd = { event: 'end', player: save.playerId, run: runId, depth: depthM(), secs: Math.round(runSecs), how, orbs: player.orbs, parts: total, cafes: cafesRun,
     initials: /^[A-Z]{3}$/.test(save.initials || '') ? save.initials : null,
     fps: runRaw > 0 ? Math.round(runFrames / runRaw * 10) / 10 : null, worst: Math.round(runWorst * 1000),
     device: DEVICE, os: OS, screen: screen.width + 'x' + screen.height + '@' + Math.round(devicePixelRatio * 100) / 100,
@@ -3512,6 +3515,8 @@ function saveScore() {
   save.scores.splice(hsRankOf(entry.m) - 1, 0, entry); save.scores.length = Math.min(save.scores.length, HS_MAX);
   hsNew = save.scores.indexOf(entry);
   if (SCORES_URL) { save.outbox.push({ i: entry.i, m: entry.m, e: entry.e }); hsOnline = null; }
+  if (lastEnd && lastEnd.depth === entry.m) { lastEnd.initials = entry.i; statPing(lastEnd); }   // this run's stats row gets these initials
+  lastEnd = null;
   persist(); Sfx.orb();
   $('hsEntry').hidden = true; openTable();
   $('hsDone').focus({ preventScroll: true });
