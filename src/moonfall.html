@@ -98,6 +98,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .news { position: absolute; top: calc(100% + 30px); left: 4px; z-index: 2; padding: 6px 10px 5px; border: 0; background: var(--gold); color: var(--ink); box-shadow: 3px 3px 0 var(--gold-dk); text-align: center; cursor: pointer; transform: rotate(-12deg); animation: newsBob 2s ease-in-out infinite; }
 .news b { display: block; font: 700 12px/1 var(--display); letter-spacing: .12em; color: var(--lava-dk); }
 .news span { display: block; margin-top: 2px; font: 400 15px/1 var(--body); letter-spacing: .02em; }
+.news small { display: block; margin-top: 1px; font: 400 13px/1 var(--body); color: color-mix(in srgb, var(--ink) 70%, var(--gold)); }
 #titleScreen.reading .news { display: none; }
 .news:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 /* The Leviathans card (version 102), on the back of the main menu's card: tap the NEW sticker. Two columns of portraits
@@ -412,7 +413,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
       <div class="repair-head"><span id="repairTitle">SHIP REPAIR</span><b><span id="repairPct">0</span><svg class="pct" viewBox="0 0 9 10" width="9" height="10" shape-rendering="crispEdges" role="img" aria-label="%"><path fill="currentColor" d="M0 0h3v3h-3zM6 7h3v3h-3zM8 0h1v1h-1zM7 1h2v1h-2zM6 2h2v1h-2zM5 3h2v1h-2zM4 4h2v1h-2zM3 5h2v1h-2zM2 6h2v1h-2zM1 7h2v1h-2zM0 8h2v1h-2zM0 9h1v1h-1z"/></svg></b></div>
       <div class="repair-bar" id="repairBar"></div>
       <ul class="parts" id="partsList"></ul>
-      <button class="news" id="newsTag" type="button"><b>NEW!</b><span>Leviathan chases added</span></button>
+      <button class="news" id="newsTag" type="button"><b>NEW!</b><span>Leviathan chases added</span><small>(tap to see)</small></button>
     </section>
     <div class="flip" id="titleFlip">
      <div class="flip-inner">
@@ -608,7 +609,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 102;
+const VERSION = 103;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
