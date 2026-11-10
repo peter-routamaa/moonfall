@@ -51,6 +51,9 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 
 .hud { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 10px 12px; pointer-events: none; transition: transform .4s steps(6), opacity .4s steps(6); }
 .hud.off { transform: translateY(-130%); opacity: 0; }
+/* Boss fights clear the HUD down to the health bar (version 87). */
+.hud .right, .hud .target { transition: opacity .3s steps(3), visibility .3s steps(1); }
+.hud.boss .right, .hud.boss .target { opacity: 0; visibility: hidden; }
 .panel { background: var(--ink); color: var(--dust); box-shadow: 4px 4px 0 var(--blue); }
 .left { display: flex; flex-direction: column; gap: 8px; }
 .hp { display: flex; align-items: center; gap: 4px; padding: 2px 9px 2px 5px; }
@@ -58,6 +61,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .pilot-face { width: 24px; height: 24px; image-rendering: pixelated; margin-right: 3px; }
 .hp i { display: block; width: var(--hpw, 20px); height: 14px; background: var(--lava); box-shadow: inset 0 -3px 0 var(--lava-dk); }
 .hp i.empty { background: transparent; box-shadow: inset 0 0 0 2px var(--ink-soft); }
+.hp i.half { background: linear-gradient(90deg, var(--lava) 50%, transparent 50%); box-shadow: inset 0 0 0 2px var(--ink-soft); }
 .hp.low i:not(.empty) { animation: low 1s steps(2) infinite; }
 .hp i.hit { animation: hit .45s steps(5); }
 .hp i.gain { animation: gain .45s steps(5); }
@@ -357,7 +361,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
      </div>
      <div class="card face back" id="cafeShop" hidden inert aria-hidden="true">
       <div class="cafe-head"><h2>Shop</h2><span class="wallet"><canvas class="ico-orb" width="14" height="14"></canvas>SPARE <b id="shopSpare2">0</b></span></div>
-      <p class="cafe-note" id="shopNote">One treat per cafe. It lasts until the next cafe (1,000 m).</p>
+      <p class="cafe-note" id="shopNote">One treat per cafe. It lasts until the next cafe.</p>
       <div class="shop-items" id="shopItems"></div>
       <button class="btn" id="shopDone" type="button">Done</button>
      </div>
@@ -426,11 +430,11 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
       <h2>Instructions</h2>
       <p class="hint">Tap or hold either side of the screen to steer, OR drag with one finger</p>
       <ul class="legend">
-        <li><span class="ico"><i></i></span>Impact with walls, rocks, mines, and lava costs health</li>
+        <li><span class="ico"><i></i></span>Rocks, mines and lava cost one health; walls cost half</li>
         <li><span class="ico"><canvas id="icoOrb" width="14" height="14"></canvas></span>Crystal: +1 health</li>
         <li><span class="ico"><canvas id="icoShield" width="28" height="28"></canvas></span>Bubble: 8s shield, hits wear it down</li>
         <li><span class="ico"><canvas id="icoPart" class="wide" width="30" height="30"></canvas></span>Gold ring: ship part, collect&nbsp;these</li>
-        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Cafe every 1000 m: coffee (+1 health) and bonus items. The fall gets 5% faster after each cafe, up to 25%</li>
+        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Cafes from 1050 m, every 1000 m (1600 m after a Leviathan fight): coffee (+1 health) and bonus items. The fall gets 5% faster after each cafe, up to 25%</li>
       </ul>
       <button class="btn" id="howDone" type="button">Done</button>
      </div>
@@ -584,7 +588,10 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 86;
+const VERSION = 98;
+// Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
+// boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
+const TEST_START_M = 0;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -870,31 +877,87 @@ function newSeed() {
   tiles.clear();
   for (const b of [BACK_FAR, BACK_MID]) { for (const p of b.tiles.values()) if (b.pool.length < 12) b.pool.push(p); b.tiles.clear(); }
 }
-// Every 1000 m the shaft opens into a cavern with a cafe ledge; tunnel splits, wall bumps, lava and hazards keep clear of it.
-// The caverns sit 50 m (400 px) below each 1000 m mark, so that mark's deep creature swims past above the ledge.
-const CAFE_EVERY = 1000 * PX_PER_M, CAFE_OFF = 50 * PX_PER_M;
-const cafeIdx = d => Math.round((d - CAFE_OFF) / CAFE_EVERY);
+// At each cafe the shaft opens into a cavern with a cafe ledge; tunnel splits, wall bumps, lava and hazards keep clear
+// of it. The first cafe is at 1,050 m. A cafe with a boss fight after it (the odd ones, bossCafe) is followed by
+// 1,600 m to the next (the fight, then 800 m of normal shaft); one without is followed by the standard 1,000 m
+// (version 97, user). So the cafes are at 1,050, 2,650, 3,650, 5,250, 6,250 m ... (1,050 m, then every 1,600 m in
+// versions 92-96; every 1,000 m before). The pattern repeats every CAFE_PAIR. cafeD(k) is cafe k's cavern; it also
+// works for k <= 0 (cafe 0 would be at 50 m), which the shaft maths uses above the first cafe.
+const CAFE_FIRST = 1050 * PX_PER_M, CAFE_AFTER_BOSS = 1600 * PX_PER_M, CAFE_PLAIN = 1000 * PX_PER_M, CAFE_PAIR = CAFE_AFTER_BOSS + CAFE_PLAIN;
+const cafeD = k => CAFE_FIRST + Math.floor((k - 1) / 2) * CAFE_PAIR + ((k - 1) & 1) * CAFE_AFTER_BOSS;
+// The cafe nearest depth d, and the last cafe at or above d.
+function cafeIdx(d) {
+  const p = Math.floor((d - CAFE_FIRST) / CAFE_PAIR), x = d - CAFE_FIRST - p * CAFE_PAIR;
+  return 2 * p + (x < CAFE_AFTER_BOSS / 2 ? 1 : x < (CAFE_AFTER_BOSS + CAFE_PAIR) / 2 ? 2 : 3);
+}
+function cafeAbove(d) {
+  const p = Math.floor((d - CAFE_FIRST) / CAFE_PAIR);
+  return 2 * p + (d - CAFE_FIRST - p * CAFE_PAIR < CAFE_AFTER_BOSS ? 1 : 2);
+}
 function cavernAt(d) {
   const k = cafeIdx(d);
   if (k < 1) return 0;
-  const x = d - k * CAFE_EVERY - CAFE_OFF;
+  const x = d - cafeD(k);
   return smoothstep((x + 320) / 170) * (1 - smoothstep((x - 150) / 170));
 }
-// Every 1000 m, starting just after 500 m, the shaft opens into a void: an empty cavern 95% of the screen wide and 150 m
+// Once in every stretch between two cafes (void j before cafe j + 1: its top is 480-530 m above that cafe, so just
+// after 500 m for the first) the shaft opens into a void: an empty cavern 95% of the screen wide and 150 m
 // deep, with mines, ship parts and crystals floating in it (voidContents). Its floor funnels into one narrow shaft at a
 // random place: the floor's slopes are walls, so missing the hole costs a hit and shoves him toward it.
-const VOID_EVERY = 1000 * PX_PER_M, VOID_FIRST = 500 * PX_PER_M, VOID_LEN = 150 * PX_PER_M, VOID_HW = W / 2 - 8, HOLE_HW = 28;
+const VOID_ABOVE = 550 * PX_PER_M, VOID_LEN = 150 * PX_PER_M, VOID_HW = W / 2 - 8, HOLE_HW = 28;
 const VOID_OPEN = 160, VOID_FLOOR = 110, VOID_NECK = 240, VOID_BACK = 240;   // px: opening out, the floor's slope, the narrow shaft, back to normal
 function voidInfo(j) {
-  const T = j * VOID_EVERY + VOID_FIRST + 160 + Math.floor(hash(j * 6.7 + SEED) * 400);
+  const T = cafeD(j + 1) - VOID_ABOVE + 160 + Math.floor(hash(j * 6.7 + SEED) * 400);
   return { j, T, B: T + VOID_LEN, exitX: Math.round(HOLE_HW + 40 + hash(j * 8.3 + SEED) * (W - 2 * (HOLE_HW + 40))) };
 }
 // The void whose stretch (from opening out to back to normal) covers depth d, or null.
 function voidAt(d) {
-  const j = Math.floor((d - VOID_FIRST) / VOID_EVERY);
+  const j = cafeAbove(d);
   if (j < 0) return null;
   const V = voidInfo(j);
+  if (bossAt(V.T)) return null;   // no void in a boss cavern
   return d >= V.T - VOID_OPEN && d < V.B + VOID_NECK + VOID_BACK ? V : null;
+}
+// After every second cafe a boss fight (see bossCafe and the boss section). Below the cafe's
+// cavern the shaft closes to a thin shaft (50 m), which breaks wide open into a giant empty cavern where that cafe's
+// creature chases him. A slow funnel then leads into a thin neck (20 m) it can't follow, and the shaft is back to normal
+// for the last 800 m to the next cafe (BOSS_AFTER; 200 m until version 91, when the cafes were 1,000 m apart), with a
+// void and a passing creature in it like the first kilometre. The cavern is about 585 m: the fall eases to whatever
+// speed makes it last BOSS_TIME seconds (about 30 m/s, a little slower than usual).
+// Depths, in px: T0 the thin shaft's top, A0 the cavern's top, F0 the funnel's top, N0..N1 the neck, E back to normal.
+const BOSS_THIN = 50 * PX_PER_M, BOSS_OPEN = 80, BOSS_FUNNEL = 60 * PX_PER_M, BOSS_NECK = 20 * PX_PER_M, BOSS_BACK = 240, BOSS_AFTER = 800 * PX_PER_M;
+const BOSS_TIME = 20, BOSS_HW = W / 2 - 8, BOSS_THIN_HW = 30, BOSS_NECK_HW = 26;
+// Which cafes have a boss after them: every second one, starting with the first (1, 3, 5 ...; version 96). Every
+// cafe had one in versions 91-95. The even ones are followed by the standard 1,000 m of shaft (cafeD).
+const bossCafe = k => k >= 1 && k % 2 === 1;
+const bossInfos = new Map();
+function bossInfo(k) {
+  let B = bossInfos.get(k);
+  if (B && B.seed === SEED) return B;
+  const T0 = cafeD(k) + 320, A0 = T0 + BOSS_THIN + BOSS_OPEN;
+  const N1 = cafeD(k + 1) + 40 - BOSS_AFTER - BOSS_BACK, N0 = N1 - BOSS_NECK, F0 = N0 - BOSS_FUNNEL;
+  B = { k, seed: SEED, T0, A0, F0, N0, N1, E: N1 + BOSS_BACK, exitX: Math.round(W / 2 + (hash(k * 5.9 + SEED) - 0.5) * 120), speed: (F0 - A0) / BOSS_TIME };
+  bossInfos.set(k, B);
+  return B;
+}
+// The boss section covering depth d (from 160 px above the thin shaft, where it starts closing in, to back to normal), or null.
+function bossAt(d) {
+  const k = cafeAbove(d - 160);
+  if (!bossCafe(k)) return null;
+  const B = bossInfo(k);
+  return d >= B.T0 - 160 && d < B.E ? B : null;
+}
+// The shaft's centre and half-width at d in a boss section, given the normal shaft's (C0, hw0) there.
+function bossShape(B, d, C0, hw0) {
+  const wob = 8 * Math.sin(d * 0.013 + P2);
+  if (d < B.T0) { const u = smoothstep((d - B.T0 + 160) / 160); return [lerp(C0, W / 2 + wob, u), lerp(hw0, BOSS_THIN_HW, u)]; }
+  if (d < B.A0 - BOSS_OPEN) return [W / 2 + wob, BOSS_THIN_HW];
+  if (d < B.A0) { const u = smoothstep((d - B.A0 + BOSS_OPEN) / BOSS_OPEN); return [lerp(W / 2 + wob, W / 2, u), lerp(BOSS_THIN_HW, BOSS_HW, u)]; }
+  if (d < B.F0) return [W / 2, BOSS_HW];
+  if (d < B.N0) { const u = smoothstep((d - B.F0) / BOSS_FUNNEL); return [lerp(W / 2, B.exitX, u), lerp(BOSS_HW, BOSS_NECK_HW, u)]; }
+  if (d < B.N1) return [B.exitX, BOSS_NECK_HW];
+  const u = smoothstep((d - B.N1) / BOSS_BACK);
+  return [lerp(B.exitX, C0, u), lerp(BOSS_NECK_HW, hw0, u)];
 }
 // The shaft's centre and half-width at d inside a void's stretch, given the normal shaft's (C0, hw0) there.
 function voidShape(V, d, C0, hw0) {
@@ -910,8 +973,8 @@ function splitAt(d) {
   if (k < 0) return null;
   const sp = { s0: 1500 + k * 1800 + 260 + Math.floor(hash(k * 3.7 + SEED) * 600), len: 500 + Math.floor(hash(k * 5.3 + SEED) * 220) };
   const a = sp.s0 - 450, b = sp.s0 + sp.len + 450;
-  for (let j = Math.max(1, Math.round(a / CAFE_EVERY) - 1); j <= Math.round(b / CAFE_EVERY) + 1; j++) if (j * CAFE_EVERY + CAFE_OFF + 420 > a && j * CAFE_EVERY + CAFE_OFF - 420 < b) return null;
-  for (let dd = a; dd <= b + 400; dd += 200) if (voidAt(dd)) return null;
+  for (let j = Math.max(1, cafeIdx(a) - 1); j <= cafeIdx(b) + 1; j++) if (cafeD(j) + 420 > a && cafeD(j) - 420 < b) return null;
+  for (let dd = a; dd <= b + 400; dd += 200) if (voidAt(dd) || bossAt(dd)) return null;
   return sp;
 }
 function splitU(d) {
@@ -937,7 +1000,7 @@ function shaftCentreX(d) {
 }
 function ledge(d, side) {
   const q = Math.floor(d / 72), h = hash(q * 2.7 + side * 50 + SEED);
-  if (h > 0.3 || d < 320 || voidAt(d)) return 0;
+  if (h > 0.3 || d < 320 || voidAt(d) || bossAt(d)) return 0;
   return Math.round(Math.min(10 + h * 44, shaftHalfW(d) * 0.4) * (1 - splitNear(d)) * (1 - cavernAt(d)) * (1 - Math.abs(2 * (d - q * 72) / 72 - 1)));
 }
 // Wall materials change every 500 m and blend over 120 m around each boundary (dithered so there is no hard line).
@@ -971,7 +1034,7 @@ function palAt(d, smooth) {
   return Q;
 }
 function lavaSide(q) {
-  if (q < 2 || cavernAt(q * 180 + 90) > 0.02 || voidAt(q * 180) || voidAt(q * 180 + 180)) return 0;
+  if (q < 2 || cavernAt(q * 180 + 90) > 0.02 || voidAt(q * 180) || voidAt(q * 180 + 180) || bossAt(q * 180) || bossAt(q * 180 + 180)) return 0;
   const h = hash(q * 5.1 + 3 + SEED), pr = matI(Math.floor(q * 22.5 / ZONE_M)) === 3 ? 0.42 : 0.28;
   return h < pr ? -1 : h < pr * 2 ? 1 : 0;
 }
@@ -980,6 +1043,8 @@ function edgesRaw(d) {
   const q = Math.floor(d / 10), f = Math.floor(d / 3), i = islandOffset(d), V = voidAt(d);
   let C = shaftCentreX(d), h = shaftHalfW(d) + i;
   if (V) [C, h] = voidShape(V, d, C, h);
+  const B = bossAt(d);
+  if (B) [C, h] = bossShape(B, d, C, h);
   const e = { C, q, iL: 0, iR: 0,
     L: Math.round(C - h + (hash(q + SEED) - 0.5) * 10 + (hash(f + 500) - 0.5) * 3 + ledge(d, 0)),
     R: Math.round(C + h + (hash(q + 91 + SEED) - 0.5) * 10 + (hash(f + 900) - 0.5) * 3 - ledge(d, 1)) };
@@ -1057,13 +1122,19 @@ function tile(i) {
     const cnv = document.createElement('canvas'); cnv.width = W; cnv.height = TILE_H;
     t = {
       cnv, g: cnv.getContext('2d'), i, done: 0, L: new Int16Array(TILE_H), R: new Int16Array(TILE_H), iL: new Int16Array(TILE_H),
-      iR: new Int16Array(TILE_H), sO: new Array(TILE_H), wall: null, wallReady: false
+      iR: new Int16Array(TILE_H), sO: new Array(TILE_H), wall: null, wallReady: false, x0: 0, x1: W
     };
   }
+  let x0 = W, x1 = 0;
   for (let y = 0; y < TILE_H; y++) {
     const e = edgesRaw(i * TILE_H + y);
     t.L[y] = e.L; t.R[y] = e.R; t.iL[y] = e.iL; t.iR[y] = e.iR; t.sO[y] = palAt(i * TILE_H + y).sO;
+    if (e.L < x0) x0 = e.L;
+    if (e.R > x1) x1 = e.R;
   }
+  // The columns the open shaft spans anywhere in this tile (version 92): everything outside them is wall, which the
+  // wall overlay draws, so drawShaft only draws this strip of the rock and of the layers behind it (see drawShaft).
+  t.x0 = Math.max(0, Math.min(W, x0 + 2)); t.x1 = Math.max(0, Math.min(W, x1 - 2));
   tiles.set(i, t);
   return t;
 }
@@ -1103,8 +1174,9 @@ function laneX(d, u) {
 }
 function spans(d) { const e = edgeAt(d); return e.iR ? [[e.L, e.iL], [e.iR, e.R]] : [[e.L, e.R]]; }
 
-// Far beyond the shaft walls, leviathans drift past: one every 500 m, seen only through the open hole.
-const LEVI_EVERY = 500 * PX_PER_M, LEVI_PARALLAX = 0.5;
+// Far beyond the shaft walls, leviathans drift past, seen only through the open hole: one waits at each cafe and one
+// passes in each normal stretch (leviMark).
+const LEVI_PARALLAX = 0.5;
 // A copy of a tile's wall pixels with the open shaft cut out. Laid over the deep creatures, it hides
 // whatever is outside the hole (this replaced a clip path that was rebuilt every frame).
 function wallTile(t) {
@@ -1293,28 +1365,33 @@ function drawNautilus(x, y, dir, k, col) {
   c.fillStyle = P.crust; c.fillRect(Math.round(X(22)) - 3, Math.round(Y(-10)) - 2, 6, 5);
   c.fillStyle = P.lava; c.fillRect(Math.round(X(22)) - 2, Math.round(Y(-10)) - 1, 3, 3);
 }
-// Six kinds, one per 500 m mark, in a fresh random order every run (version 80; it was a fixed cycle), never the same
-// kind twice in a row. The ones at the even marks wait at the cafes, hovering in place; the others drift past.
+// Six kinds in a fresh random order every run (version 80; it was a fixed cycle). Each differs from the two before it
+// (version 94), so two cafes (and two boss fights) in a row never have the same one, nor the one passing between them.
+// The even-numbered ones wait at the cafes (creature 2n at cafe n), hovering in place; the odd ones drift past.
 const LEVI_KINDS = ['nautilus', 'whale', 'elder', 'jelly', 'angler', 'manta'];
 let leviOrder = [], leviFor = -1;
 function leviKind(k) {
   if (leviFor !== SEED) { leviFor = SEED; leviOrder = []; }
   while (leviOrder.length <= k) {
-    const prev = leviOrder[leviOrder.length - 1];
+    const prev = leviOrder[leviOrder.length - 1], prev2 = leviOrder[leviOrder.length - 2];
     let r = Math.floor(hash(leviOrder.length * 7.31 + SEED * 1.37) * 6);
-    if (r === prev) r = (r + 1) % 6;
+    while (r === prev || r === prev2) r = (r + 1) % 6;
     leviOrder.push(r);
   }
   return LEVI_KINDS[leviOrder[k]];
 }
 const LEVI_DRAW = { nautilus: drawNautilus, whale: drawLeviathan, elder: drawElder, jelly: drawJelly, angler: drawAngler, manta: drawManta };
 const leviSeen = new Set();
-// Where a creature sits in the half-speed layer. The even-mark creatures belong to the cafes (one at each 1000 m mark), so
+// The depth each creature belongs to (its colour comes from the rock there). Creature 2n is cafe n's, 50 m above its
+// cavern. The odd ones pass in the normal shaft 550 m above the next cafe: 500 m down for the first, as it always was,
+// then just above the void in each stretch (version 92; they sat at every 500 m mark before).
+const leviMark = k => k % 2 ? cafeD((k + 1) / 2) - 550 * PX_PER_M : cafeD(k / 2) - 50 * PX_PER_M;
+// Where a creature sits in the half-speed layer. The even ones belong to the cafes, so
 // theirs is set for that cafe: when the camera stops there (he stands 28 px above the ledge, which is 46 px thick), the
 // creature is already hovering in the open shaft, centred between the ledge's underside and the menu card's top. It
 // drifts into place with the layer as he falls and lands, with no move of its own.
 function leviDepth(k) {
-  if (k % 2) return k * LEVI_EVERY;
+  if (k % 2) return leviMark(k);
   const camAt = cafeLedge(k / 2) - 28 - pilotScreenY, ledge = pilotScreenY + 28 + 46;
   return camAt + H / 2 + ((ledge + (cafeCardTop || H * 0.55)) / 2 - 7 - H / 2) / LEVI_PARALLAX;
 }
@@ -1329,18 +1406,24 @@ function measureCafeCard() {
   shopEl.hidden = true; shopEl.style.visibility = '';
 }
 function leviathans(cam) {
-  const mid = cam + H / 2, reach = (H / 2 + 200) / LEVI_PARALLAX;
+  const mid = cam + H / 2, j = cafeAbove(mid);
   let near = false;   // a creature on screen during a run: the music goes quiet under a drone (Music.creature)
-  // One slot either side of the plain range, for the cafe creatures set deeper than their marks.
-  for (let k = Math.max(1, Math.ceil((mid - reach) / LEVI_EVERY) - 1); k * LEVI_EVERY <= mid + reach + LEVI_EVERY; k++) {
-    const D = k * LEVI_EVERY, A = leviDepth(k), sy = H / 2 + (A - mid) * LEVI_PARALLAX, dir = hash(k * 4.3 + SEED) < 0.5 ? 1 : -1, sx = W / 2 + dir * (mid - A) * 0.14;
+  // The cafe above's, the one passing between the two cafes, and the cafe below's: no other is ever near the screen.
+  for (let k = Math.max(1, 2 * j); k <= 2 * j + 2; k++) {
+    const D = leviMark(k), A = leviDepth(k), sy = H / 2 + (A - mid) * LEVI_PARALLAX, dir = hash(k * 4.3 + SEED) < 0.5 ? 1 : -1, sx = W / 2 + dir * (mid - A) * 0.14;
+    if (bossHides(k)) continue;
     const kind = leviKind(k);
     if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(kind); }
     if (state === 'play' && sy > -40 && sy < H + 40) near = true;
     if (cam < -H || sy < -220 || sy > H + 220) continue;
     LEVI_DRAW[kind](sx, sy, dir, k, mix(palAt(D).sO, P.ink, k % 2 ? 0.35 : 0.42));
   }
-  Music.creature(near);
+  Music.creature(near && !boss);
+}
+// In a boss section the creature passing the cavern isn't drawn, nor the cafe's own once it has come forward as the boss.
+function bossHides(k) {
+  if (k % 2) return !!bossAt(leviMark(k));
+  return bossCafe(k / 2) && (bossGone.has(k / 2) || (boss && boss.B.k === k / 2));
 }
 // The back of the shaft, seen through the hole, in layers that scroll slower the further back they are:
 //   far, quarter speed: pale ridges of flowstone and broken ledges
@@ -1395,7 +1478,14 @@ function drawBack(b, cam, top, y0) {
   if (y0 > 0) { c.save(); c.beginPath(); c.rect(0, y0, W, H - y0); c.clip(); }
   for (let k = k0; k <= k1; k++) {
     const y = k * PT - bk, dm = Math.max(0, top + y + PT / 2);
-    c.drawImage(backTileIn(backTile(b, k), b.col(palAt(dm, true))), 0, y);
+    // Only the strip the open shaft spans over these rows (version 92): the rest would be hidden by the walls.
+    let x0 = W, x1 = 0;
+    for (let i = Math.max(0, Math.floor((top + Math.max(y, y0)) / TILE_H)), iEnd = Math.floor((top + Math.min(y + PT, H) - 1) / TILE_H); i <= iEnd; i++) {
+      const t = tile(i);
+      if (t.x0 < x0) x0 = t.x0;
+      if (t.x1 > x1) x1 = t.x1;
+    }
+    if (x1 > x0) c.drawImage(backTileIn(backTile(b, k), b.col(palAt(dm, true))), x0, 0, x1 - x0, PT, x0, y, x1 - x0, PT);
   }
   if (y0 > 0) c.restore();
   for (const key of b.tiles.keys()) if (key < k0 - 1 || key > k1 + 1) { if (b.pool.length < 12) b.pool.push(b.tiles.get(key)); b.tiles.delete(key); }
@@ -1458,7 +1548,16 @@ function drawShaft(cam) {
   const top = Math.round(cam), bk = Math.floor(cam * 0.5), f8 = Math.floor(clock * 8), fl = Math.floor(clock * 100), y0 = Math.max(0, -top);
   if (y0 >= H) return;
   const i0 = Math.max(0, Math.floor(top / TILE_H)), i1 = Math.floor((top + H) / TILE_H);
-  for (let i = i0; i <= i1; i++) c.drawImage(readyTile(i).cnv, 0, i * TILE_H - top);
+  // Four layers lie over each other here: the rock, the far layer, the mid layer and the walls on top. Until version
+  // 91 each was drawn the full width of the screen, though the first three only show through the open shaft. Now the
+  // rock and the two back layers are drawn only across the strip the shaft spans (each tile's x0..x1), and the wall
+  // overlay, drawn last at full width, supplies every pixel outside the hole. The picture is the same, pixel for
+  // pixel; in a normal shaft the back layers fill about a third fewer pixels each frame and this function a fifth
+  // fewer (nothing is saved in a void or a boss cavern, where the hole is nearly the whole screen).
+  for (let i = i0; i <= i1; i++) {
+    const t = readyTile(i), w = t.x1 - t.x0;
+    if (w > 0) c.drawImage(t.cnv, t.x0, 0, w, TILE_H, t.x0, i * TILE_H - top, w, TILE_H);
+  }
   // Back to front: the far layer, the deep creatures, the mid layer and its wedges, then the near spurs.
   drawBack(BACK_FAR, cam, top, y0);
   leviathans(cam);
@@ -1859,6 +1958,40 @@ function drawSpace(u, off = 0) {
   drawShipAt(sx, sy, a, 1, 0, lerp(1, 0.2, e));
 }
 function hillH(x, T) { return Math.round(24 + 14 * Math.sin((x + T * 12) * 0.0155) + 8 * Math.sin(x * 0.055 + 2)); }
+// The two lines of hills, each painted into an image SURFACE_HZ times a second and stamped every frame (version 91: they
+// were about 800 rectangles a frame, the most costly thing on the title screen). Each image holds the hills' tops, down
+// to their foot (HILL_*_H rows) and, for the near ones, a little below it for their specks; the rest is one rectangle.
+// Returns the time the hills were painted for.
+const SURFACE_HZ = 30, HILL_FAR_H = 72, HILL_NEAR_H = 50, HILL_NEAR_LOW = 20;
+let hillFar = null, hillNear = null, hillQ = NaN;
+function paintHills(T) {
+  const q = Math.floor(T * SURFACE_HZ), Tq = q / SURFACE_HZ;
+  if (q === hillQ) return Tq;
+  if (!hillFar) {
+    hillFar = document.createElement('canvas'); hillFar.width = W; hillFar.height = HILL_FAR_H;
+    hillNear = document.createElement('canvas'); hillNear.width = W; hillNear.height = HILL_NEAR_H + HILL_NEAR_LOW;
+  }
+  hillQ = q;
+  let g = hillFar.getContext('2d');
+  g.clearRect(0, 0, W, HILL_FAR_H);
+  for (let x = 0; x < W; x += 2) {
+    const k = Math.floor(x / 48), u = (x - k * 48) / 48;
+    let h = 44 + 16 * Math.sin((x + Tq * 6) * 0.011 + 1) + 9 * Math.sin(x * 0.035);
+    if (hash(k) < 0.4) h -= 10 * Math.max(0, 1 - Math.abs(2 * u - 1) * 1.4);
+    h = Math.round(h);
+    g.fillStyle = P.hill; g.fillRect(x, HILL_FAR_H - h - 1, 2, 1);
+    g.fillStyle = P.strata; g.fillRect(x, HILL_FAR_H - h, 2, h);
+  }
+  g = hillNear.getContext('2d');
+  g.clearRect(0, 0, W, HILL_NEAR_H + HILL_NEAR_LOW);
+  for (let x = 0; x < W; x += 2) {
+    const h = hillH(x, Tq);
+    g.fillStyle = P.ink; g.fillRect(x, HILL_NEAR_H - h - 2, 2, 2);
+    g.fillStyle = P.hill; g.fillRect(x, HILL_NEAR_H - h, 2, h + HILL_NEAR_LOW);
+    if (hash(x * 1.3) < 0.3) { g.fillStyle = P.shade; g.fillRect(x, HILL_NEAR_H - h + 4 + Math.floor(hash(x) * 16), 2, 2); }
+  }
+  return Tq;
+}
 function drawSky(cam) {
   const T = clock, ys0 = -camY0, sk = cam - camY0, Y = v => Math.round(v - cam);
   c.fillStyle = P.dust; c.fillRect(0, 0, W, Math.min(H, Y(0) + 6));
@@ -1877,23 +2010,12 @@ function drawSky(cam) {
   const my = Math.round(ys0 * 0.3 - sk * 0.2);
   disc(52, my, 11, P.ink); disc(52, my, 10, P.hill); disc(48, my - 3, 3, P.strata); disc(56, my + 4, 2, P.shade);
   drawPlanet(Math.round(232 + Math.sin(T * 0.05) * 6), Math.round(ys0 * 0.52 - sk * 0.3), false, clock * Math.PI / 12);
-  const hf = Math.round(ys0 - sk * 0.4);
-  for (let x = 0; x < W; x += 2) {
-    const q = Math.floor(x / 48), u = (x - q * 48) / 48;
-    let h = 44 + 16 * Math.sin((x + T * 6) * 0.011 + 1) + 9 * Math.sin(x * 0.035);
-    if (hash(q) < 0.4) h -= 10 * Math.max(0, 1 - Math.abs(2 * u - 1) * 1.4);
-    h = Math.round(h);
-    c.fillStyle = P.hill; c.fillRect(x, hf - h - 1, 2, 1);
-    c.fillStyle = P.strata; c.fillRect(x, hf - h, 2, H);
-  }
-  const hb = Math.round(ys0 - sk * 0.55);
-  for (let x = 0; x < W; x += 2) {
-    const h = hillH(x, T);
-    c.fillStyle = P.ink; c.fillRect(x, hb - h - 2, 2, 2);
-    c.fillStyle = P.hill; c.fillRect(x, hb - h, 2, H);
-    if (hash(x * 1.3) < 0.3) { c.fillStyle = P.shade; c.fillRect(x, hb - h + 4 + Math.floor(hash(x) * 16), 2, 2); }
-  }
-  const wx = Math.round(W + 30 - ((T * 10) % (W + 70))), gy = hb - hillH(wx, T);
+  const hf = Math.round(ys0 - sk * 0.4), hb = Math.round(ys0 - sk * 0.55), Th = paintHills(T);
+  c.drawImage(hillFar, 0, hf - HILL_FAR_H);
+  if (hf < H) { c.fillStyle = P.strata; c.fillRect(0, hf, W, H - hf); }
+  c.drawImage(hillNear, 0, hb - HILL_NEAR_H);
+  if (hb + HILL_NEAR_LOW < H) { c.fillStyle = P.hill; c.fillRect(0, hb + HILL_NEAR_LOW, W, H - hb - HILL_NEAR_LOW); }
+  const wx = Math.round(W + 30 - ((T * 10) % (W + 70))), gy = hb - hillH(wx, Th);
   c.fillStyle = P.shade;
   for (let k = 0; k < 4; k++) {
     const fx = wx - 9 + k * 6 + Math.round(Math.sin(T * 4 + k * Math.PI) * 5);
@@ -1928,8 +2050,30 @@ function drawSky(cam) {
   }
   if (wrecked) { disc(SHIP_X + 116, Y(1), 15, P.ink); disc(SHIP_X + 116, Y(2), 14, P.rock); disc(SHIP_X + 112, Y(-6), 4, P.shade); }
 }
+// The things standing on the surface (rocks, plants, the blob, the ground by the ship) are painted into one image
+// SURFACE_HZ times a second and stamped every frame (version 91; about 700 rectangles a frame before). The image covers
+// PROPS_UP px above the ground to 8 below it. The landing ring of the intro is drawn straight on, as it reaches lower.
+const PROPS_UP = 64, PROPS_H = PROPS_UP + 8;
+let propsCv = null, propsKey = NaN;
 function drawProps(cam) {
-  const T = clock, Y = v => Math.round(v - cam);
+  const key = Math.floor(clock * SURFACE_HZ) * 2 + (state === 'opening' && !introCrashed ? 1 : 0);
+  if (!propsCv) { propsCv = document.createElement('canvas'); propsCv.width = W; propsCv.height = PROPS_H; }
+  if (key !== propsKey) {
+    propsKey = key;
+    const was = c;
+    c = propsCv.getContext('2d'); c.clearRect(0, 0, W, PROPS_H);
+    paintProps(-PROPS_UP, Math.floor(clock * SURFACE_HZ) / SURFACE_HZ);
+    c = was;
+  }
+  c.drawImage(propsCv, 0, -PROPS_UP - cam);
+  if (state === 'intro' && introT > 0.95 && introT < 1.4) {
+    const a = introT - 0.95, y = Math.round(-2 - cam);
+    ring(128, y, a * 44, P.shade);
+    ring(128, y, a * 26, P.rock);
+  }
+}
+function paintProps(cam, T) {
+  const Y = v => Math.round(v - cam);
   if (!(state === 'opening' && !introCrashed)) {
     c.fillStyle = P.shade;
     c.fillRect(0, Y(0), SHIP_X + 66, 5);
@@ -1994,11 +2138,6 @@ function drawProps(cam) {
   }
   const n = Math.floor(T / 0.55), ph = (T / 0.55) % 1, bx = Math.round(252 + 24 * Math.sin((n + ph) * 0.3));
   sprite(c, BLOB[ph < 0.15 ? 1 : 0], bx - 7, Y(-13 - Math.round(Math.sin(Math.PI * ph) * 10)), MAP);
-  if (state === 'intro' && introT > 0.95 && introT < 1.4) {
-    const a = introT - 0.95;
-    ring(128, Y(-2), a * 44, P.shade);
-    ring(128, Y(-2), a * 26, P.rock);
-  }
 }
 
 // ---------- game state ----------
@@ -2030,10 +2169,16 @@ const depthM = () => Math.max(0, Math.floor(player.y / PX_PER_M));
 // ledge. Since version 85 it's CAFE_SPEEDUP (5%) of the starting speed per cafe, up to CAFE_SPEED_MAX (+25%, reached at
 // the fifth cafe): 262.5, 275, 287.5, 300, then 312.5 px/s. (Version 80-84 compounded 5% per cafe with no top.)
 const FALL_SPEED = 250, SPEED_RAMP = 0, CAFE_SPEEDUP = 0.05, CAFE_SPEED_MAX = 0.25;
-const cafesPassed = d => { const n = (d - (CAFE_EVERY + CAFE_OFF + 40)) / CAFE_EVERY; return n < 0 ? 0 : Math.floor(n) + Math.min(1, (n % 1) * CAFE_EVERY / 400); };
+const cafesPassed = d => { const k = cafeAbove(d - 40); return k < 1 ? 0 : k - 1 + Math.min(1, (d - cafeLedge(k)) / 400); };
 // How many cafe ledges lie above depth d, counted the moment he passes each one (pops and treats use this).
-const ledgesPassed = d => { const n = (d - (CAFE_EVERY + CAFE_OFF + 40)) / CAFE_EVERY; return n < 0 ? 0 : Math.floor(n) + 1; };
-function speedAt(d) { return (FALL_SPEED + SPEED_RAMP * smoothstep(d / 26000)) * (1 + Math.min(CAFE_SPEED_MAX, CAFE_SPEEDUP * cafesPassed(d))); }
+const ledgesPassed = d => Math.max(0, cafeAbove(d - 40));
+function speedAt(d) {
+  const s = (FALL_SPEED + SPEED_RAMP * smoothstep(d / 26000)) * (1 + Math.min(CAFE_SPEED_MAX, CAFE_SPEEDUP * cafesPassed(d))), B = bossAt(d);
+  if (!B) return s;
+  // Through a boss cavern (version 87) the fall eases to the speed that makes it last BOSS_TIME, then back after the neck.
+  const u = d < B.A0 ? smoothstep((d - B.A0 + 240) / 240) : d < B.N1 ? 1 : 1 - smoothstep((d - B.N1) / BOSS_BACK);
+  return lerp(s, Math.min(s, B.speed), u);
+}
 
 // ---------- saved settings ----------
 const save = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false, hints: {} };
@@ -2422,6 +2567,15 @@ const Sfx = (() => {
     stopEngine() { try { if (engineSrc) engineSrc.stop(); } catch (e) {} engineSrc = null; },
     // Signature hazards: glazed ice, a ledge crumbling.
     ice() { tone('sine', 1700, 2500, 0.07, 0.16); tone('triangle', 800, 1250, 0.16, 0.2); boing(0); },
+    // Boss fights (version 87): a roar as it comes forward, a hit by one of its shots, a rising whine while it gathers a
+    // volley, a quiet spit per volley, and a beam firing. Its crash uses crash() and mine().
+    bossRoar() { noise(1.6, 'lowpass', 380, 0.9); tone('sawtooth', 92, 44, 1.5, 0.3); tone('sawtooth', 138, 62, 1.3, 0.16, 0.08); tone('square', 61, 38, 1.4, 0.1, 0.1); },
+    boss() { noise(0.3, 'bandpass', 1300, 0.6); tone('sawtooth', 300, 90, 0.22, 0.18); },
+    bossCharge() { tone('sawtooth', 140, 560, 0.45, 0.045); noise(0.45, 'bandpass', 1100, 0.06); },
+    bossShot(big) { tone('square', big ? 260 : 620, big ? 110 : 240, big ? 0.16 : 0.08, 0.045); noise(0.06, 'highpass', 3000, 0.08); },
+    bossBeam() { noise(0.4, 'highpass', 1800, 0.22); tone('sawtooth', 230, 170, 0.38, 0.1); },
+    bossPing() { tone('sine', 1250, 420, 0.55, 0.07); tone('sine', 620, 300, 0.7, 0.04); },
+    bossShriek() { tone('sawtooth', 1900, 700, 0.5, 0.05); tone('square', 2600, 1200, 0.35, 0.025); noise(0.45, 'bandpass', 3200, 0.07); },
     crumble() { noise(0.5, 'lowpass', 600, 0.55); noise(0.12, 'bandpass', 1400, 0.3); tone('sine', 90, 50, 0.4, 0.3); },
     weld() { noise(0.1, 'highpass', 3800, 0.22); noise(0.07, 'bandpass', 1700, 0.16, 0.04); tone('square', 118, 108, 0.1, 0.04); },
     clang() { tone('triangle', 1180, 1150, 0.4, 0.28); tone('sine', 2650, 2580, 0.28, 0.12); tone('square', 560, 530, 0.07, 0.07); noise(0.04, 'highpass', 5000, 0.35); },
@@ -2564,10 +2718,59 @@ const Music = (() => {
     if (i % 4 === 2) hit(t, 0.03, 'highpass', 8000, 0.02);
     if (Math.floor(s / 64) % 2 === 1 && MEL[bar][i]) glock(MEL[bar][i], t, 0.06);
   }
+  // Boss fights (version 87): three tracks, one picked at random for each fight, each four bars of 16 steps.
+  //   hunt  (D minor, 150 BPM): a driving octave bass, four on the floor, a climbing square arpeggio, a saw lead on repeats
+  //   march (E Phrygian, 116 BPM): slow and heavy, big low toms, brass stabs and a bell, with a dark drone under it
+  //   pulse (C sharp minor, 168 BPM): a galloping bass, 16th hats and a falling arpeggio, glass bells on repeats
+  const BOSS_TRACKS = [
+    { bpm: 150, ch: [[62, 65, 69], [58, 62, 65], [60, 64, 67], [57, 61, 64]], bass: [38, 34, 36, 33],
+      mel: [{ 0: 74, 4: 77, 8: 81, 12: 79 }, { 0: 77, 6: 74, 10: 70 }, { 0: 76, 4: 79, 8: 84, 12: 79 }, { 0: 81, 6: 76, 8: 73, 12: 69 }] },
+    { bpm: 116, ch: [[64, 67, 71], [65, 69, 72], [64, 67, 71], [62, 66, 69]], bass: [40, 41, 40, 38] },
+    { bpm: 168, ch: [[61, 64, 68], [57, 61, 64], [59, 63, 66], [56, 60, 63]], bass: [37, 33, 35, 32],
+      mel: [{ 0: 80, 8: 76 }, { 0: 81, 8: 76 }, { 0: 78, 8: 83 }, { 0: 80, 4: 79, 8: 75, 12: 72 }] },
+  ];
+  let track = 0;
+  function bossStep(s, t) {
+    const T = BOSS_TRACKS[track], bar = Math.floor(s / 16) % 4, i = s % 16, ch = T.ch[bar], b = T.bass[bar], loop = Math.floor(s / 64), beat = 60 / bpm;
+    if (s === 0) hit(t, 1.6, 'highpass', 3800, 0.14);
+    if (track === 0) {
+      if (i === 0) pad(ch, t, 4 * beat);
+      if (i % 2 === 0) { const n = i % 4 === 2 ? b + 12 : b; osc('triangle', mtof(n), t, 0.16, 0.24, 0.004, 0, false); osc('sawtooth', mtof(n), t, 0.12, 0.06, 0.004, 650, false); }
+      if (i % 4 === 0) kick(t);
+      if (i === 4 || i === 12) { hit(t, 0.14, 'bandpass', 1800, 0.24); osc('triangle', 190, t, 0.08, 0.1, 0.002, 0, false); }
+      if (i % 2 === 1) hit(t, 0.03, 'highpass', 8000, 0.06);
+      osc('square', mtof(ch[i % 3] + 12 + (i >= 8 ? 12 : 0)), t, 0.08, 0.03, 0.002, 2600, true);
+      if (loop % 2 === 1 && T.mel[bar][i]) osc('sawtooth', mtof(T.mel[bar][i]), t, 0.5, 0.05, 0.01, 2200, true);
+      if (bar === 3 && i >= 12) tom(t, [220, 185, 156, 131][i - 12]);
+    } else if (track === 1) {
+      if (i === 0) {
+        pad(ch.map(n => n - 12), t, 4 * beat);
+        osc('sawtooth', mtof(b - 12), t, 4 * beat, 0.09, 0.08, 380, false); osc('sawtooth', mtof(b - 12) * 1.008, t, 4 * beat, 0.07, 0.08, 380, false);
+      }
+      if (i === 0 || i === 8) kick(t);
+      if ([0, 3, 6, 10, 13].includes(i)) tom(t, i === 0 ? 98 : i === 10 ? 87 : 110);
+      if (i === 8) hit(t, 0.3, 'bandpass', 900, 0.32);
+      if (i === 0 || i === 6) for (const n of ch) osc('square', mtof(n), t, 0.28, 0.035, 0.01, 1300, false);
+      if (i === 0 && bar % 2 === 1) glock(ch[0] + 12, t, 0.08);
+      if (loop % 2 === 1 && i % 2 === 0) hit(t, i % 4 === 2 ? 0.1 : 0.03, 'highpass', 7000, 0.06);
+      if (loop % 2 === 1 && i % 4 === 2) osc('sawtooth', mtof(ch[(i >> 2) % 3] + 12), t, 0.2, 0.035, 0.005, 1600, true);
+    } else {
+      if (i === 0) pad(ch, t, 4 * beat);
+      if (i % 4 !== 1) { osc('sawtooth', mtof(b), t, 0.1, 0.09, 0.003, 900, false); osc('triangle', mtof(b), t, 0.12, 0.2, 0.003, 0, false); }
+      if (i % 4 === 0) kick(t);
+      if (i === 4 || i === 12) hit(t, 0.12, 'bandpass', 2000, 0.24);
+      hit(t, i % 4 === 2 ? 0.07 : 0.025, 'highpass', 8500, 0.05);
+      osc('sawtooth', mtof(ch[2 - (i % 3)] + 24 - (i >> 2) * 2), t, 0.07, 0.025, 0.002, 3000, true);
+      if (loop % 2 === 1 && T.mel[bar][i]) glock(T.mel[bar][i], t, 0.09);
+      if (bar === 3 && i === 8) hit(t, 1.0, 'bandpass', 2400, 0.08);
+    }
+    if (low) { if (i % 8 === 0) heart(t, 0.36); else if (i % 8 === 2) heart(t, 0.24); }
+  }
   function playStep(s, t) {
     const bar = Math.floor(s / 16) % 4, i = s % 16;
     if (i === 0) { bars.push({ t, bar }); if (bars.length > 3) bars.shift(); }
     if (mode === 'title') { titleStep(bar, i, s, t); return; }
+    if (mode === 'boss') { bossStep(s, t); return; }
     if (i === 0) {
       if (lead !== leadNext) { lead = leadNext; crash = true; }   // a new rock layer's instrument comes in on the bar, with a cymbal
       pad(CH[bar], t, 240 / bpm); if (crash) { hit(t, 1.3, 'highpass', 4500, 0.1); crash = false; }
@@ -2618,6 +2821,7 @@ const Music = (() => {
   }
   // A deep creature in view: the music sinks to near-silence under the drone, and comes back once it has gone.
   function creature(on) {
+    if (on && mode === 'boss') on = false;   // no hush under the boss music
     if (!bus || on === lurk) return;
     lurk = on;
     const { ctx } = A, t = ctx.currentTime;
@@ -2637,12 +2841,15 @@ const Music = (() => {
   }
   return {
     start() { this.begin('game'); },
+    // A boss fight's track (0-2); Music.start() goes back to the run's own music.
+    boss(v) { track = v; this.begin('boss'); },
     title() { this.begin('title'); },
     begin(m) {
       if (!setup() || (playing && mode === m)) return;
       if (timer) clearInterval(timer);
       mode = m; playing = true; step = 0; nextT = A.ctx.currentTime + 0.06;
       if (m === 'title') { bpm = 96; calm(); }
+      if (m === 'boss') { bpm = BOSS_TRACKS[track].bpm; creature(false); }
       level(true, m === 'title' ? 0.4 : 0.05); tick(); timer = setInterval(tick, 25);
     },
     stop(fade) {
@@ -2651,7 +2858,7 @@ const Music = (() => {
       level(false, (fade || 0.3) / 3);
     },
     setOn() { if (bus) level(playing, 0.05); },
-    setDepth(m) { const L = m < 250 ? 1 : m < 600 ? 2 : 3; if (L > layer) crash = true; layer = L; bpm = 120 + 8 * smoothstep((m - 300) / 1500); },
+    setDepth(m) { if (mode === 'boss') return; const L = m < 250 ? 1 : m < 600 ? 2 : 3; if (L > layer) crash = true; layer = L; bpm = 120 + 8 * smoothstep((m - 300) / 1500); },
     // The rock layer (a MATS index). Its instrument takes over on the next bar, or at once with `now`.
     setZone(k, now) { leadNext = k; if (now) lead = k; },
     // Called every frame during a run; it only touches the audio when something changes.
@@ -2731,6 +2938,7 @@ const Buzz = (() => {
     wall: () => fire([45], 1),
     rock: () => fire([25, 30, 55], 2),
     lava: () => fire([15, 25, 15, 25, 30], 3),
+    boss: () => fire([20, 30, 40], 2),
     mine: () => fire([90, 40, 170], 2),
     orb: () => fire([12], 1),
     part: () => fire([10, 30, 10], 2),
@@ -2744,7 +2952,7 @@ const Buzz = (() => {
 
 // ---------- DOM ----------
 const $ = id => document.getElementById(id);
-$('verTag').textContent = 'v' + (VERSION / 100).toFixed(2);
+$('verTag').textContent = 'v' + (VERSION / 100).toFixed(2) + (TEST_START_M ? ' TEST' : '');
 const hud = $('hud'), hpBox = $('hp'), depthEl = $('depth'), coach = $('coach');
 const screens = {
   title: $('titleScreen'), pause: $('pauseScreen'), over: $('overScreen'), end: $('endScreen'), splash: $('splashScreen'),
@@ -2864,8 +3072,8 @@ function drawFlyers() {
 function gainCrystal(x, d, label) {
   faceJoy = clock;
   if (player.hp < player.max) {
-    player.hp++;
-    fly('orb', x, d, hpEls[player.hp - 1], () => setHP('gain'));
+    player.hp = Math.min(player.max, player.hp + 1);
+    fly('orb', x, d, hpEls[Math.ceil(player.hp) - 1], () => setHP('gain'));
     pop(label || '+1', x, d - 10, 'good');
   } else {
     player.spare++; spareHud.hidden = false;
@@ -2879,6 +3087,7 @@ function giveShield(sec) {
 }
 let coachTimer = 0;
 function showCoach(text, ms) {
+  if (boss) return;   // nothing but health on screen during a boss fight
   coach.textContent = text; coach.classList.remove('gone');
   clearTimeout(coachTimer); coachTimer = setTimeout(() => coach.classList.add('gone'), ms);
 }
@@ -2907,13 +3116,15 @@ function updateFace() {
   faceShown = key + red;
   const g = faceCv.getContext('2d'); g.clearRect(0, 0, 12, 12); sprite(g, FACES[key], 0, 0, red ? FACE_RED : FACE_MAP);
 }
+// Health can be a half (a wall costs half a chunk since version 94): that chunk shows its left half filled.
 function setHP(kind, n = 1) {
   if (kind === 'hit') faceHit = clock; else if (kind === 'gain') faceJoy = clock;
-  hpEls.forEach((el, i) => { el.classList.toggle('empty', i >= player.hp); el.classList.remove('hit', 'gain'); });
-  const el = kind === 'hit' ? hpEls[player.hp] : kind === 'gain' ? hpEls[player.hp - 1] : null;
+  const hp = player.hp;
+  hpEls.forEach((el, i) => { el.classList.toggle('empty', i >= Math.ceil(hp)); el.classList.toggle('half', i < hp && i + 1 > hp); el.classList.remove('hit', 'gain'); });
+  const el = kind === 'hit' ? hpEls[Math.floor(hp)] : kind === 'gain' ? hpEls[Math.ceil(hp) - 1] : null;
   if (el) { void el.offsetWidth; el.classList.add(kind); }
-  for (let i = 1; kind === 'hit' && i < n; i++) if (hpEls[player.hp + i]) hpEls[player.hp + i].classList.add('hit');
-  hpBox.classList.toggle('low', player.hp === 1);
+  for (let i = 1; kind === 'hit' && i < n; i++) if (hpEls[Math.floor(hp) + i]) hpEls[Math.floor(hp) + i].classList.add('hit');
+  hpBox.classList.toggle('low', hp <= 1);
   hpBox.setAttribute('aria-valuenow', String(player.hp));
 }
 let shownDepth = -1;
@@ -2975,6 +3186,7 @@ function resetRun() {
   cafeVisited.clear(); cafeArt.clear(); signArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
   buildHP(); $('spareRun').textContent = '0'; spareHud.hidden = true; streakFlash.classList.remove('on'); buildFlags(); refreshBoard();
   Music.reset();
+  boss = null; bossShots.length = 0; bossGone.clear(); pilotNow = pilotScreenY; hud.classList.remove('boss'); bossTune = -1; bossTuneOn = false;
   shake = 0; dieT = 0; camY = camY0; shownDepth = -1;
   setHP(); setDepth();
 }
@@ -3096,7 +3308,15 @@ function startRun(quick) {
   showScreen(null); hud.classList.remove('off');
 }
 function beginPlay() {
-  setState('play'); player.v = speedAt(player.y); player.aim = player.x; player.vx = 0; steerAcc = 0; tapBurst.l = tapBurst.r = 0;
+  setState('play');
+  if (TEST_START_M) {   // the boss test copy: skip ahead to just above cafe 1 (see TEST_START_M)
+    player.y = TEST_START_M * PX_PER_M;
+    const e = edgeAt(player.y + PILOT_CY);
+    player.x = (e.L + e.R) / 2; camY = player.y - pilotNow; nextSeg = Math.floor(camY / SEG_LEN); lastRockD = player.y;
+    player.zone = Math.floor(TEST_START_M / ZONE_M); Music.setZone(matI(player.zone), true); fasterN = ledgesPassed(player.y + PILOT_CY);
+    while (nextFlag < flags.length && flags[nextFlag].d <= player.y + PILOT_CY) flags[nextFlag++].passed = true;
+    renderTarget();
+  } player.v = speedAt(player.y); player.aim = player.x; player.vx = 0; steerAcc = 0; tapBurst.l = tapBurst.r = 0;
   showCoach('TAP A SIDE, OR DRAG', 2600);
 }
 function pause() {
@@ -3109,6 +3329,7 @@ function resume() {
   if (state !== 'paused') return;
   setState(prevState); showScreen(null); last = performance.now();
   if (state === 'landing' || state === 'cafe' || state === 'cafeJump') Music.title();
+  else if (bossTuneOn) Music.boss(bossTrack);
   else if (state === 'play' || introT >= 1.3) Music.start();
 }
 function toTitle() {
@@ -3319,19 +3540,28 @@ function scoreKey(e) {
   else return;
   e.preventDefault();
 }
-// ---------- coffee stop (every 1000 m): where each cafe is, drawing it, landing, the counter, the shop, the signs ----------
-// The shaft widens into a cavern around each cafe; CAFE_EVERY, CAFE_OFF, cafeIdx and cavernAt are in the shaft section.
+// ---------- coffee stop (1,050 m, then 1,600 m after a boss fight or 1,000 m without): where each cafe is, drawing it, landing, the counter, the shop, the signs ----------
+// The shaft widens into a cavern around each cafe; cafeD, cafeIdx, cafeAbove and cavernAt are in the shaft section.
 // -- where each cafe is, and drawing it (the ledge, the cafe, the LAND sign and pad)
-const cafeLedge = k => k * CAFE_EVERY + CAFE_OFF + 40;   // the top of cafe k's ledge
+const cafeLedge = k => cafeD(k) + 40;   // the top of cafe k's ledge
+// Worked out once per cafe and kept (version 91): drawCafe and drawCafeSigns ask for the cafes above and below every
+// frame, and reading the wall at a far cafe's ledge built a whole rock tile (128 rows of edges) that was thrown away
+// and built again the next frame. The ledge is 175 px long (version 91; 140 before: the user wanted it 25% wider, to be
+// easier to land on).
+const CAFE_LEDGE = 175, cafeInfos = new Map();
 function cafeInfo(k) {
-  const Dc = k * CAFE_EVERY + CAFE_OFF,
+  let C = cafeInfos.get(k);
+  if (C && C.seed === SEED) return C;
+  const Dc = cafeD(k),
     side = hash(k * 7.7 + SEED) < 0.5 ? -1 : 1,
     Dl = cafeLedge(k),
     e = edgeAt(Dl),
     wall = side < 0 ? e.L : e.R,
-    len = 140;
+    len = CAFE_LEDGE;
   const tip = wall - side * len;
-  return { k, Dc, Dl, side, wall, tip, padX: tip + side * 30, counterX: wall - side * 58, shopX: side < 0 ? wall + 4 : wall - 70 };
+  C = { k, seed: SEED, Dc, Dl, side, wall, tip, padX: tip + side * 30, counterX: wall - side * 58, shopX: side < 0 ? wall + 4 : wall - 70 };
+  cafeInfos.set(k, C);
+  return C;
 }
 const SIGN_FONT = { C: ['111', '100', '100', '100', '111'], A: ['010', '101', '111', '101', '101'], F: ['111', '100', '110', '100', '100'], E: ['111', '100', '110', '100', '111'],
   L: ['100', '100', '100', '100', '111'], N: ['101', '111', '111', '101', '101'], D: ['110', '101', '101', '101', '110'],
@@ -3477,7 +3707,7 @@ function updateCafe(dt) {
     if (crossed(1.55)) Sfx.mug();
     if (crossed(1.4)) {
       if (player.hp < player.max) {
-        player.hp++;
+        player.hp = Math.min(player.max, player.hp + 1);
         setHP('gain');
         pop('+1 COFFEE', player.x, player.y - 10, 'good');
       } else pop('REFRESHED', player.x, player.y - 10, 'good');
@@ -3572,7 +3802,7 @@ function renderShop() {
   const afford = shopOffer.some(p => player.spare >= p.cost) || (!navDone() && player.spare > 0);
   // Every state says how long treats last (version 85).
   $('shopNote').textContent = (shopDone ? 'Enjoy! ' : afford ? 'One treat per cafe. ' : player.spare ? 'Not enough spare crystals yet. ' : 'No spare crystals yet: see TIPS. ')
-    + (shopDone ? 'It lasts' : 'Treats last') + ' until the next cafe (1,000 m).';
+    + (shopDone ? 'It lasts' : 'Treats last') + ' until the next cafe.';
   $('cafeNote').textContent = shopDone ? 'Treat bought. Enjoy the fall!' : !save.cafeTips ? 'New here? Tap TIPS first' : afford ? 'Spend your spare crystals in the shop' : 'Catch crystals at full health to earn spares';
   const nb = $('navBuy');
   if (nb) {
@@ -4638,7 +4868,7 @@ function drawHazards(cam) {
 // ---------- level generation ----------
 function genSeg(k) {
   const d0 = k * SEG_LEN;
-  if (d0 < 560 || cavernAt(d0) > 0.02 || cavernAt(d0 + SEG_LEN) > 0.02) return;
+  if (d0 < 560 || cavernAt(d0) > 0.02 || cavernAt(d0 + SEG_LEN) > 0.02 || bossAt(d0) || bossAt(d0 + SEG_LEN)) return;
   const V = voidAt(d0) || voidAt(d0 + SEG_LEN);
   if (V) { voidContents(V, d0); return; }
   const hz = placeHazard(k, d0);
@@ -4659,8 +4889,10 @@ function genSeg(k) {
         if (Math.max(x - rr - amp - a, b - x - rr - amp) < 2 * HIT_HALF_W + 16) x = lo;
         if (b - x - rr - amp >= 2 * HIT_HALF_W + 16 || x - rr - amp - a >= 2 * HIT_HALF_W + 16) {
           const ph = r() * 6.28, sp = 1 + r() * 1.5, isMine = r() < 0.1 + 0.15 * diff;
-          // Only half the plain boulders are kept (since version 75: the shaft felt crowded with them); every mine stays.
-          if (isMine || r() < 0.5) { rocks.push({ d, x0: x, x, size, rr, amp, ph, sp, isMine, dead: false }); lastRockD = d; }
+          // Only 30% of the plain boulders are kept (version 92: the user still found the shaft busy; half were kept
+          // from version 75, all of them before). Only the big mines are kept (version 94: the user asked for the
+          // small ones to go).
+          if (isMine ? size === 2 : r() < 0.3) { rocks.push({ d, x0: x, x, size, rr, amp, ph, sp, isMine, dead: false }); lastRockD = d; }
         }
       }
     }
@@ -4680,7 +4912,8 @@ function genSeg(k) {
       if (pick[1] - pick[0] > 44) { items.push({ d, x: (pick[0] + pick[1]) / 2, kind: 'shield', dead: false }); lastShieldD = d0; }
     }
   }
-  if (d0 > 640 && r() < (player.perks.finder ? 0.3 : 0.2)) {
+  // A quarter fewer ship parts since version 98 (0.2 a segment, 0.3 with the finder perk, before).
+  if (d0 > 640 && r() < (player.perks.finder ? 0.225 : 0.15)) {
     const pt = pickPart(r, d0 / 8);
     if (pt) {
       const d = d0 + 20 + r() * (SEG_LEN - 40);
@@ -4706,12 +4939,14 @@ function voidContents(V, d0) {
   for (let i = 0, d = V.T + 150; d < V.B - 230; i++, d = V.T + 150 + i * 140) {
     if (d < d0 || d >= d0 + SEG_LEN) continue;
     const r = rng32(Math.floor(SEED * 1000) + V.j * 977 + i * 31 + 5);
-    const mine = x => { const size = r() < 0.5 ? 1 : 2; rocks.push({ d, x0: x, x, size, rr: ROCK_R[size], amp: r() < 0.4 ? 10 + r() * 20 : 0, ph: r() * 6.28, sp: 0.8 + r(), isMine: true, dead: false }); };
+    // Every mine here is a big one since version 94 (half were small); r() is still drawn so the rest of the row stays the same.
+    const mine = x => { r(); const size = 2; rocks.push({ d, x0: x, x, size, rr: ROCK_R[size], amp: r() < 0.4 ? 10 + r() * 20 : 0, ph: r() * 6.28, sp: 0.8 + r(), isMine: true, dead: false }); };
     const x1 = 40 + r() * (W - 80);
     mine(x1);
     if (r() < 0.35) mine(x1 < W / 2 ? x1 + 90 + r() * (W - 130 - x1 - 90) : 40 + r() * (x1 - 130));
     const di = d + 70, xi = 36 + r() * (W - 72);
-    if (i % 2 === 0) { const pt = pickPart(r, di / PX_PER_M); if (pt) items.push({ d: di, x: xi, kind: 'part', part: pt, dead: false }); }
+    // Three in four of the part rows have one since version 98 (all of them before).
+    if (i % 2 === 0) { const pt = pickPart(r, di / PX_PER_M); if (pt && r() < 0.75) items.push({ d: di, x: xi, kind: 'part', part: pt, dead: false }); }
     else items.push({ d: di, x: xi, kind: 'orb', dead: false });
   }
   lastRockD = Math.max(lastRockD, V.B);
@@ -4727,12 +4962,12 @@ function sparks(x, d, cols, n, spread) { for (let i = 0; i < n; i++) burst(x + (
 // A mine going off: a ball of fire puffs that cool from white to red and then to smoke, sparks, shell fragments,
 // a white flash with shock rings on top, and a big shake. The puffs drift down with him a little, so it stays on screen.
 const FIRE = [P.dust, '#F6D46A', P.hot, P.lava, P.crust, P.shade];
-function explode(x, d, r) {
+function explode(x, d, r, quiet) {
   shake = Math.max(shake, 2.6);
   // hurt() plays the boom and buzz when the mine costs health. When it can't (shield up, or still blinking from a hit),
-  // play them here, so a mine never goes off silently.
-  if (player.shield > 0 || player.inv > 0) Sfx.mine();
-  if (player.shield <= 0 && player.inv > 0) Buzz.mine();
+  // play them here, so a mine never goes off silently. `quiet`: the boss's crash, which plays its own.
+  if (!quiet && (player.shield > 0 || player.inv > 0)) Sfx.mine();
+  if (!quiet && player.shield <= 0 && player.inv > 0) Buzz.mine();
   const base = player.v * 0.85;
   for (let i = 0; i < 6; i++) particles.push({
     fire: 1, smoke: 1, x: x + (Math.random() - 0.5) * r * 1.4, d: d + (Math.random() - 0.5) * r, vx: (Math.random() - 0.5) * 40,
@@ -4759,8 +4994,9 @@ function explode(x, d, r) {
 
 // ---------- damage and pickups ----------
 // Health a hit costs, and how long he blinks afterwards (he can't be hurt while blinking).
-// Only the biggest mines (size 2) cost MINE_DAMAGE; the smaller ones cost 1 like everything else (since version 79).
-const MINE_DAMAGE = 2, HIT_INVULN_S = 1.0;
+// Version 94 (user): a wall costs half a health chunk (WALL_DAMAGE); everything else, mines included, costs one. From
+// version 79 to 93 the big mines cost two and walls one.
+const WALL_DAMAGE = 0.5, HIT_INVULN_S = 1.0;
 function hurt(kind, x, d, size) {
   if (state !== 'play') return;
   if (player.shield > 0) {
@@ -4780,16 +5016,16 @@ function hurt(kind, x, d, size) {
     return;
   }
   if (player.inv > 0) return;
-  // Big mines cost two health, everything else one.
-  const dmg = kind === 'mine' && size === 2 ? MINE_DAMAGE : 1;
+  const dmg = kind === 'wall' ? WALL_DAMAGE : 1;
   player.hp = Math.max(0, player.hp - dmg); player.inv = HIT_INVULN_S; shake = Math.max(shake, 1);
   // Hit-stop: the world freezes for a beat so the hit lands, with a white flash on the pilot.
   hitStop = kind === 'mine' ? 0.12 : 0.07; player.flash = 0.14;
   player.streak = 0;
   Buzz[kind](); Sfx[kind]();
   setHP('hit', dmg);
-  pop('-' + dmg, player.x, player.y - 6, 'bad');
-  if (player.hp <= 0) { lastHit = kind; die(); } else Sfx.hurtVoice(kind);
+  pop(dmg === 0.5 ? '-½' : '-' + dmg, player.x, player.y - 6, 'bad');
+  // The stats only know wall, rock, mine and lava, so a boss shot counts as lava (version 87).
+  if (player.hp <= 0) { lastHit = kind === 'boss' ? 'lava' : kind; die(); } else Sfx.hurtVoice(kind);
 }
 // A shield lasts SHIELD_S (8 s since version 80, was 10); a mine takes half of it, any other hit a quarter.
 const SHIELD_S = 8, SHIELD_MINE_CUT = 0.5, SHIELD_HIT_CUT = 0.25, CLOSE_PX = 10;
@@ -4835,6 +5071,708 @@ function nearMiss(k) {
   if (player.streak % 24 === 0) { giveShield(5); Sfx.streak(); Buzz.shield(); pop('STREAK SHIELD', player.x, player.y - 18, 'shield'); }
   else if (player.streak % 8 === 0) { Sfx.streak(); Buzz.orb(); gainCrystal(player.x, player.y + PILOT_CY, 'STREAK ' + player.streak + '!'); }
   flashStreak();
+}
+
+// ---------- boss fights: after every second cafe (1, 3, 5 ...), that cafe's creature chases him through a giant cavern ----------
+// (Version 87, a first try to iterate on.) The cavern's shape is in the shaft section (bossInfo, bossAt, bossShape).
+// As he reaches the cavern, the creature that waited at the cafe comes forward out of the background, the HUD clears
+// down to the health bar, the camera drops him to the bottom of the screen and boss music starts. It sways across the
+// top firing patterns of shots for him to dodge, with a few crystals rising past for health. Near the funnel the camera
+// lifts him back up, it lunges after him, wedges in the funnel and blows up while he drops through the neck.
+// The boss and its shots live in screen pixels (x across, y down from the top of the screen): they move with the camera.
+const BOSS_PATTERNS = {
+  whale: ['aimed', 'curtain', 'ring', 'fan'], elder: ['beam', 'aimed', 'fan', 'ring'], jelly: ['wave', 'ring', 'curtain', 'bomb'],
+  angler: ['bomb', 'aimed', 'fan', 'beam'], manta: ['curtain', 'wave', 'fan', 'aimed'], nautilus: ['ring', 'bomb', 'wave', 'beam'],
+};
+// Version 93 (user: more variety): each creature also has an attack of its own, which only it does. It opens the fight
+// and comes round more often than the others (SIG_CHANCE).
+//   whale, sonar: pulses of an arc of shots spreading from its mouth, each with one gap that swings across
+//   elder, shriek: three rings of sound spreading from its mouth, each with two gaps (version 97; it had a tentacle lash
+//     from the walls at his height in versions 93-94, taken out at the user's request)
+//   jelly, sting: stingers drift down slowly, swaying, leaving lanes to weave between while other patterns fire
+//   angler, lure: a glowing lure hangs over the cavern and draws him toward it, then the jaws snap down there
+//   manta, sweep: a wing sweeps a wide band down one side of the cavern, then the other; the split moves each time
+//   nautilus, spiral: two arms of shots winding out of its shell as it spins
+// Each is one new kind of shot at most (drawn with a handful of rectangles), or plain globs.
+const BOSS_SIGNATURE = { whale: 'sonar', elder: 'shriek', jelly: 'sting', angler: 'lure', manta: 'sweep', nautilus: 'spiral' };
+const SIG_CHANCE = 0.35;
+// Patterns that close off part of the cavern: two of them at once (enraged) could leave nowhere to go, so never paired.
+const BOSS_ZONE = { curtain: true, beam: true, lure: true, sweep: true, shriek: true };
+// Where its shots come from, relative to its middle (x flips with the way it faces), and how far it sways either side.
+const BOSS_MOUTH = { whale: [100, 4], elder: [0, -14], jelly: [0, -22], angler: [76, -56], manta: [44, 0], nautilus: [54, 22] };
+// Version 89 (user): the side-on ones (whale, angler, manta, nautilus) turn a quarter turn as they come forward, to
+// dive head first down the shaft with their mouths chasing him; the elder thing and the jellyfish already face down.
+// BOSS_MOUTH stays in the creature's own drawing (x along the way it faces); bossMouth() turns it onto the screen.
+// BOSS_HALF: half its width on screen, for wedging in the funnel.
+const BOSS_DIVES = { whale: true, angler: true, manta: true, nautilus: true };
+const BOSS_SWAY = { whale: 80, elder: 60, jelly: 70, angler: 60, manta: 50, nautilus: 60 };
+const BOSS_HALF = { whale: 30, elder: 110, jelly: 55, angler: 60, manta: 100, nautilus: 70 };
+// Its shots' colours: outline, body, hot core. All in the reds, so they read as danger (green is health, purple shields).
+const BOSS_SHOT = {
+  whale: [P.ink, P.lava, P.hot], elder: [P.ink, P.lava, '#F6D46A'], jelly: ['#2A1030', '#E0489A', '#F7B3D8'],
+  angler: [P.ink, '#F08A3C', '#FFE2A8'], manta: [P.ink, '#C83A6A', '#F2A0BE'], nautilus: [P.ink, '#D85A2A', '#F6C08A'],
+};
+const BOSS_ENTER = 1.8, BOSS_LIFT = 1.6;   // s to come forward (and turn to dive); s of fall before the funnel when it stops firing
+const BOSS_ORBS = [4.5, 9.5, 14];                              // s into the fight when a crystal rises past
+const BOSS_RAGE = 7.5, BOSS_TURN = 0.55;                       // s into the fight when it starts doubling up its patterns; s to turn round
+let boss = null, pilotNow = 180;   // the fight on now (or null), and where the pilot's top sits on screen (pilotScreenY normally)
+// The boss music starts as he enters the thin shaft, before the creature shows (version 88): the section it's for, its
+// track, and whether it's the music playing now (so Resume picks it back up).
+let bossTune = -1, bossTrack = 0, bossTuneOn = false;
+const bossShots = [], bossGone = new Set();
+let bossFront = null, bossBack = null, bossTmp = null, bossTmpG = null;   // the boss's paint buffers (see drawBoss)
+const BOSS_PAINT_EVERY = 0.05; let bossPaintAt = 0;
+function bossMusic(B) {
+  if (bossTune === B.k) return;
+  bossTune = B.k; bossTrack = Math.floor(Math.random() * 3); bossTuneOn = true;
+  Music.boss(bossTrack);
+}
+function startBoss(B) {
+  const k2 = 2 * B.k, kind = leviKind(k2), mid = camY + H / 2, A = leviDepth(k2), dir = hash(k2 * 4.3 + SEED) < 0.5 ? 1 : -1;
+  const x0 = W / 2 + dir * (mid - A) * 0.14, y0 = Math.max(-170, H / 2 + (A - mid) * LEVI_PARALLAX);
+  boss = { B, kind, k2, n: (B.k + 1) / 2, dir, rot: 0, turnT: -1, turnFrom: dir, sideT: 0, lastTurn: 0, kick: 0, rage: false,
+    phase: 'enter', t: 0, pt: 0, x0, y0, x: x0, y: y0, next: 0.6, queue: [], charge: 0, last: '', orbs: 0, d: 0, sil: mix(palAt(A).sO, P.ink, 0.42) };
+  bossShots.length = 0; bossFront = bossBack = null;
+  hud.classList.add('boss'); coach.classList.add('gone');
+  Sfx.groan(kind); Sfx.bossRoar(); Buzz.mine(); shake = Math.max(shake, 1.6);
+  bossMusic(B);
+}
+// Which way it faces, as a horizontal scale: ±1 normally, passing through 0 while it turns round (it squashes and
+// unfolds the other way over BOSS_TURN seconds, like a fish turning, instead of flipping in one frame).
+const bossFacing = b => b.turnT < 0 ? b.dir : b.turnFrom * Math.cos(Math.PI * b.turnT);
+// Where its mouth is on screen, from its middle: for a diver, its drawing's mouth turned by its angle (b.rot).
+function bossMouth(b) {
+  const [mx, my] = BOSS_MOUTH[b.kind];
+  if (!BOSS_DIVES[b.kind]) return [bossFacing(b) * mx, my];
+  const ax = b.dir * mx, s = Math.sin(b.rot), co = Math.cos(b.rot);
+  return [ax * co - my * s, ax * s + my * co];
+}
+// The pattern `kind`: queues its shots and returns how long it takes. Fight n (b.n: 1, 2, 3 for the fights
+// after cafes 1, 3, 5, since version 96) is faster and busier, and
+// from BOSS_RAGE seconds in it's enraged: faster still, and it often fires two patterns at once.
+// Version 88 (the user found the first fight very easy): every pattern has more shots, faster, with less rest between.
+function bossFire(kind) {
+  const b = boss, lv = Math.min(5, Math.ceil(b.n)), sp = 1.12 + 0.08 * (b.n - 1) + (b.rage ? 0.08 : 0);
+  const mouth = () => { const [dx, dy] = bossMouth(b); return [b.x + dx, b.y + dy - 5 * b.kick]; };
+  const later = (dt, fn) => b.queue.push({ at: b.t + dt, fn: () => { b.kick = 1; fn(); } });
+  const glob = (x, y, ang, v, r) => bossShots.push({ type: 'glob', x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, r: r || 4, t: 0 });
+  // Aimed shots lead him a little: they go where he's heading, not only where he is.
+  const aim = (x, y, lead) => Math.atan2(pilotNow + PILOT_CY - y, player.x + (lead ? player.vx * 0.3 : 0) - x);
+  b.charge = b.t + 0.45; Sfx.bossCharge();
+  if (kind === 'aimed') {   // a quick burst of shots at him, leading him
+    const N = 4 + Math.floor(lv / 2);
+    for (let i = 0; i < N; i++) later(0.45 + i * 0.15, () => { const [x, y] = mouth(); glob(x, y, aim(x, y, true), 235 * sp); Sfx.bossShot(); });
+    return 0.45 + N * 0.15;
+  }
+  if (kind === 'fan') {   // spreads aimed at him, each turned a little from the last
+    const N = 7 + Math.min(2, lv - 1), waves = lv >= 3 ? 3 : 2;
+    for (let w = 0; w < waves; w++) later(0.45 + w * 0.5, () => { const [x, y] = mouth(), a = aim(x, y) + (w % 2 ? 0.085 : 0); for (let i = 0; i < N; i++) glob(x, y, a + (i - (N - 1) / 2) * 0.17, 180 * sp); Sfx.bossShot(); });
+    return 0.45 + waves * 0.5;
+  }
+  if (kind === 'ring') {   // three rings bursting out of it, each turned half a step
+    const N = 16 + 2 * Math.min(3, lv - 1);
+    for (let w = 0; w < 3; w++) later(0.45 + w * 0.32, () => { for (let i = 0; i < N; i++) glob(b.x, b.y + 10, (i + w * 0.5) / N * Math.PI * 2 + b.t * 0.3, 150 * sp); Sfx.bossShot(true); });
+    return 1.3;
+  }
+  if (kind === 'curtain') {   // rows across the cavern, each with one narrow gap, a short way from the last row's gap
+    const rows = lv >= 3 ? 3 : 2;
+    let gx = 44 + Math.random() * (W - 88);
+    for (let j = 0; j < rows; j++) later(0.45 + j * 0.85, () => {
+      if (j) gx = Math.max(40, Math.min(W - 40, gx + (Math.random() < 0.5 ? -1 : 1) * (60 + Math.random() * 60)));
+      for (let x = 10; x < W - 4; x += 16) if (Math.abs(x - gx) > 22) glob(x, mouth()[1] + 10, Math.PI / 2, 135 * sp);
+      Sfx.bossShot(true);
+    });
+    return 0.45 + rows * 0.85;
+  }
+  if (kind === 'beam') {   // beams down the cavern: a warning line first, then it fires; the first is where he is
+    const N = 3 + Math.min(2, lv - 1);
+    for (let i = 0; i < N; i++) later(0.3 + i * 0.38, () => bossShots.push({ type: 'beam', x: i ? Math.max(16, Math.min(W - 16, player.x + (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 60))) : player.x + player.vx * 0.25, y: mouth()[1] + 6, t: 0, warn: 0.7, dur: 0.35 }));
+    return 0.3 + N * 0.38 + 1;
+  }
+  if (kind === 'wave') {   // snakes of spores wriggling down
+    const S = 3 + (lv >= 3 ? 1 : 0);
+    for (let k = 0; k < S; k++) {
+      const x0 = 36 + Math.random() * (W - 72);
+      for (let i = 0; i < 7; i++) later(0.45 + k * 0.3 + i * 0.11, () => { bossShots.push({ type: 'wave', x0, x: x0, y: mouth()[1] + 6, vy: 160 * sp, amp: 40, f: 3.4, ph: k * 2, t: 0, r: 3 }); if (!i) Sfx.bossShot(); });
+    }
+    return 0.45 + S * 0.3 + 0.8;
+  }
+  if (kind === 'sonar') {   // whale: arcs of shots spreading down from its mouth, each with a gap that swings across
+    const n = lv >= 3 ? 3 : 2;
+    let gx = player.x + (Math.random() < 0.5 ? -1 : 1) * (50 + Math.random() * 40);
+    for (let w = 0; w < n; w++) later(0.45 + w * 0.75, () => {
+      const [x, y] = mouth();
+      if (w) gx = W - gx + (Math.random() - 0.5) * 60;   // the next gap is over on the other side
+      gx = Math.max(40, Math.min(W - 40, gx));
+      const gap = Math.atan2(pilotNow + PILOT_CY - y, gx - x);
+      for (let i = 0; i < 25; i++) { const a = Math.PI / 2 + (i - 12) * 0.095; if (Math.abs(a - gap) > 0.16) glob(x, y, a, 150 * sp, 3); }
+      Sfx.bossPing();
+    });
+    return 0.45 + n * 0.75 + 0.3;
+  }
+  if (kind === 'shriek') {   // elder: rings of sound from its mouth, each with two gaps (one near him), shifting each ring
+    const n = lv >= 2 ? 3 : 2;
+    for (let w = 0; w < n; w++) later(0.5 + w * 0.6, () => {
+      const [x, y] = mouth(), px = player.x, py = pilotNow + PILOT_CY, D = Math.max(120, Math.hypot(px - x, py - y));
+      const side = Math.random() < 0.5 ? -1 : 1, g1 = Math.max(30, Math.min(W - 30, px + side * (45 + Math.random() * 45)));
+      const g2 = Math.max(30, Math.min(W - 30, px - side * (100 + Math.random() * 60)));
+      bossShots.push({ type: 'shriek', x, y, r: 6, v: 150 * sp, t: 0, gw: 34 / D, gaps: [Math.atan2(py - y, g1 - x), Math.atan2(py - y, g2 - x)].sort((a, b) => a - b) });
+      Sfx.bossShriek(); shake = Math.max(shake, 0.8);
+    });
+    return 0.5 + n * 0.6 + 0.5;
+  }
+  if (kind === 'sting') {   // jellyfish: stingers drifting down slowly in lanes (one lane left empty), swaying
+    const N = 5 + (lv >= 3 ? 1 : 0), lane = (W - 40) / N, skip = Math.floor(Math.random() * N);
+    let alive = 0; for (const q of bossShots) if (q.type === 'sting') alive++;
+    if (alive > 6) return 0.6;   // the last lot is still drifting down
+    for (let i = 0; i < N; i++) if (i !== skip) later(0.4 + i * 0.1, () => { const [x, y] = mouth();
+      bossShots.push({ type: 'sting', sx: x, lx: 20 + lane * (i + 0.5), x, y, vy: 72 * sp, amp: 8 + Math.random() * 8, ph: Math.random() * 6.28, t: 0, r: 5 }); });
+    Sfx.bossShot(true);
+    return 1.7;
+  }
+  if (kind === 'lure') {   // angler: a lure that pulls him toward it, then the jaws snap down where it hangs
+    const n = lv >= 3 ? 2 : 1;
+    for (let i = 0; i < n; i++) later(0.35 + i * 1.9, () => {
+      let dx = (Math.random() < 0.5 ? -1 : 1) * (60 + Math.random() * 50);
+      if (player.x + dx < 30 || player.x + dx > W - 30) dx = -dx;
+      bossShots.push({ type: 'lure', x: Math.max(30, Math.min(W - 30, player.x + dx)), y: pilotNow + PILOT_CY - 130, t: 0, warn: 1.5, dur: 0.3, w: 34 });
+    });
+    return 0.35 + n * 1.9 + 0.4;
+  }
+  if (kind === 'sweep') {   // manta: a wide band down one side (his side first), then the other; the split moves
+    const n = lv >= 3 ? 3 : 2;
+    let side = player.x < W / 2 ? -1 : 1;
+    for (let j = 0; j < n; j++) later(0.45 + j * 0.85, () => {
+      bossShots.push({ type: 'sweep', side, split: Math.round(W / 2 + (Math.random() - 0.5) * 80), y: mouth()[1] + 8, vy: 175 * sp, t: 0 });
+      side = -side; Sfx.bossShot(true);
+    });
+    return 0.45 + n * 0.85 + 0.6;
+  }
+  if (kind === 'spiral') {   // nautilus: two arms of shots winding out of its shell
+    const n = 22 + 2 * Math.min(3, lv - 1), turn = (Math.random() < 0.5 ? -1 : 1) * 0.21, a0 = Math.random() * 6.28;
+    for (let i = 0; i < n; i++) later(0.4 + i * 0.07, () => { for (let arm = 0; arm < 2; arm++) glob(b.x, b.y + 10, a0 + arm * Math.PI + i * turn, 125 * sp, 3); if (i % 4 === 0) Sfx.bossShot(); });
+    return 0.4 + n * 0.07 + 0.3;
+  }
+  // bomb: slow, big shots lobbed toward him that burst into a ring of small ones
+  const N = 3 + (lv >= 3 ? 1 : 0);
+  for (let i = 0; i < N; i++) later(0.45 + i * 0.45, () => { const [x, y] = mouth(); bossShots.push({ type: 'bomb', x, y, vx: (player.x - x) * 0.45, vy: 120 * sp, r: 7, t: 0, fuse: 1.35 + Math.random() * 0.25 }); Sfx.bossShot(true); });
+  return 0.45 + N * 0.45 + 0.8;
+}
+// Each frame of a run, before the camera is placed: start the music and the fight, move it, end it, and set where he
+// sits on screen.
+function updateBoss(dt) {
+  const cd = player.y + PILOT_CY;
+  if (!boss) {
+    const B = bossAt(cd);
+    if (B && !bossGone.has(B.k)) {
+      if (cd >= B.T0) bossMusic(B);
+      if (cd >= B.A0 - 24 && cd < B.F0) startBoss(B);
+    }
+  }
+  let target = pilotScreenY;
+  const b = boss;
+  if (b) {
+    const B = b.B;
+    b.t += dt; b.pt += dt; b.kick *= Math.exp(-7 * dt);
+    const dive = BOSS_DIVES[b.kind], md = dive ? BOSS_MOUTH[b.kind][0] : 0;   // a diver's mouth is md px below its middle
+    // Version 95 (user: wiggle more in the chase): it rocks to and fro (b.wob, up to about 8 degrees, on two rhythms so it
+    // never looks mechanical), stronger once enraged; a diver's angle includes it, so its mouth and shots follow.
+    const wa = b.phase === 'crash' ? 0 : (b.rage ? 0.15 : 0.11) * (b.phase === 'enter' ? Math.min(1, b.pt / BOSS_ENTER) : 1);
+    b.wob = wa * (0.75 * Math.sin(b.t * 2.7) + 0.25 * Math.sin(b.t * 6.1 + 1));
+    b.rot = (dive ? b.dir * Math.PI / 2 * (b.phase === 'enter' ? easeInOut(Math.min(1, b.pt / BOSS_ENTER)) : 1) : 0) + b.wob;
+    // Turning round (not the divers): only once he has stayed on its other side for a moment, and not too often.
+    if (!dive && b.phase !== 'crash') {
+      const want = player.x > b.x + 36 ? 1 : player.x < b.x - 36 ? -1 : b.dir;
+      b.sideT = want !== b.dir ? b.sideT + dt : 0;
+      if (b.turnT < 0 && b.sideT > 0.45 && b.t - b.lastTurn > 1.4) { b.turnT = 0; b.turnFrom = b.dir; b.dir = want; b.sideT = 0; }
+    }
+    if (b.turnT >= 0 && (b.turnT += dt / BOSS_TURN) >= 1) { b.turnT = -1; b.lastTurn = b.t; }
+    if (b.phase === 'enter' || b.phase === 'fight') {
+      const sx = W / 2 + BOSS_SWAY[b.kind] * Math.sin(b.t * 0.6) + 16 * Math.sin(b.t * 1.9 + 0.7), sy = (dive ? Math.round(H * 0.42) - md : Math.round(H * 0.24)) + 9 * Math.sin(b.t * 1.4) + 4 * Math.sin(b.t * 3.3);
+      if (b.phase === 'enter') {
+        const u = 1 - Math.pow(1 - Math.min(1, b.pt / BOSS_ENTER), 3);
+        b.x = lerp(b.x0, sx, u); b.y = lerp(b.y0, sy, u);
+        if (b.pt >= BOSS_ENTER) { b.phase = 'fight'; b.pt = 0; }
+      } else {
+        b.x = sx; b.y = sy;
+        if (!b.rage && b.pt >= BOSS_RAGE) { b.rage = true; Sfx.bossRoar(); shake = Math.max(shake, 1.2); }
+        for (let i = b.queue.length - 1; i >= 0; i--) if (b.queue[i].at <= b.t) { const q = b.queue[i]; b.queue.splice(i, 1); q.fn(); }
+        if (!b.queue.length && (b.next -= dt) <= 0) {
+          const sig = BOSS_SIGNATURE[b.kind], pool = BOSS_PATTERNS[b.kind].concat(sig || []).filter(p => p !== b.last), hasSig = sig && sig !== b.last;
+          const pick = hasSig && (!b.last || Math.random() < SIG_CHANCE) ? sig : pool[Math.floor(Math.random() * (pool.length - (hasSig ? 1 : 0)))];
+          let dur = bossFire(pick);
+          if (b.rage && Math.random() < 0.5) {   // enraged: a second pattern on top (never two that close off the cavern)
+            const more = pool.filter(p => p !== pick && !(BOSS_ZONE[p] && BOSS_ZONE[pick]));
+            if (more.length) dur = Math.max(dur, bossFire(more[Math.floor(Math.random() * more.length)]));
+          }
+          b.last = pick; b.next = dur + Math.max(0.45, 0.95 - 0.1 * (b.n - 1)) * (b.rage ? 0.8 : 1);
+        }
+        if (b.orbs < BOSS_ORBS.length && b.pt >= BOSS_ORBS[b.orbs]) {
+          b.orbs++;
+          items.push({ d: camY + H + 14, x: 40 + Math.random() * (W - 80), kind: 'orb', dead: false, drift: 0.82 });
+        }
+        if (cd >= B.F0 - BOSS_LIFT * B.speed) { b.phase = 'chase'; b.pt = 0; b.queue.length = 0; b.charge = 0; }
+      }
+      target = H - 112;
+    } else if (b.phase === 'chase') {
+      // It lunges after him, heading for the funnel's middle, until the funnel is too narrow for it.
+      b.x += (Math.max(70, Math.min(W - 70, lerp(player.x, B.exitX, 0.5))) - b.x) * Math.min(1, dt * 1.5);
+      b.y += (Math.max(dive ? -80 : 36, Math.min(pilotNow, Math.round(H * 0.42)) - (dive ? 60 + md : 110)) - b.y) * Math.min(1, dt * 3);
+      const e = edgeAt(camY + b.y + (dive ? md : 16));
+      if (e.R - e.L < 2 * BOSS_HALF[b.kind] + 16 || cd > B.N1) crashBoss();
+      target = Math.round(H * 0.42);
+    } else {
+      // Wedged in the funnel: it stays put on the rock while the blasts go off, then the HUD and the music come back.
+      b.y = b.d - camY;
+      const booms = [0.12, 0.26, 0.4, 0.55];
+      for (let i = 0; i < booms.length; i++) if (b.pt >= booms[i] && b.pt - dt < booms[i]) explode(b.x + (i % 2 ? 1 : -1) * (20 + i * 14), b.d + md * 0.6 + (Math.random() - 0.5) * 30, 20, true);
+      shake = Math.max(shake, 2.4 * (1 - b.pt / 1.6));
+      if (b.pt >= 1 && b.pt - dt < 1) { hud.classList.remove('boss'); bossTuneOn = false; Music.start(); }
+      target = b.pt < 0.8 ? Math.round(H * 0.42) : pilotScreenY;
+      if (b.pt >= 2) boss = null;
+    }
+  }
+  // The camera eases him to his place, never so fast that it scrolls back up the shaft.
+  const diff = target - pilotNow, cap = diff > 0 ? Math.max(30, 0.8 * player.v) : 420;
+  pilotNow += Math.sign(diff) * Math.min(Math.abs(diff), Math.min(cap, Math.abs(diff) * 3 + 40) * dt);
+  // Crystals rising past in the cavern fall a little slower than him, so they drift up the screen.
+  for (const it of items) if (it.drift && !it.dead) it.d += player.v * it.drift * dt;
+}
+function crashBoss() {
+  const b = boss;
+  b.phase = 'crash'; b.pt = 0; b.queue.length = 0; b.charge = 0; b.d = camY + b.y;
+  const hit = b.d + (BOSS_DIVES[b.kind] ? BOSS_MOUTH[b.kind][0] : 0);   // where it hits the rock: a diver's head
+  bossGone.add(b.B.k);
+  for (const s of bossShots) if (s.type !== 'beam') sparks(s.x, camY + s.y, [P.shade, P.dust], 2);
+  bossShots.length = 0;
+  Sfx.crash(); Sfx.mine(); Buzz.death(); shake = 3;
+  explode(b.x, hit, 30, true);
+  const e = edgeAt(hit), Q = palAt(hit);
+  for (const x of [e.L + 3, e.R - 3]) sparks(x, hit, [Q.b0, Q.shade, Q.ink, P.dust], 18, 8);
+}
+// Its shots, after he has moved: `live` is false while he's dying (they keep flying but can't hurt).
+function updateBossShots(dt, live) {
+  const py = pilotNow + PILOT_CY;
+  for (const s of bossShots) {
+    s.t += dt;
+    if (s.type === 'beam') {
+      if (s.t >= s.warn && s.t - dt < s.warn) Sfx.bossBeam();
+      if (s.t > s.warn + s.dur) s.dead = true;
+      else if (live && s.t > s.warn && py > s.y && Math.abs(player.x - s.x) < HIT_HALF_W + 3) bossHit(s, false);
+      continue;
+    }
+    if (s.type === 'shriek') {   // a ring spreading out: it hurts where it crosses him, unless he's in one of its gaps
+      s.r += s.v * dt;
+      if (s.r > 900) { s.dead = true; continue; }
+      const dx = player.x - s.x, dy = py - s.y, d = Math.hypot(dx, dy);
+      if (live && Math.abs(d - s.r) < 3 + 9) {
+        const a = Math.atan2(dy, dx), m = s.gw - (HIT_HALF_W - 2) / Math.max(1, d);
+        let open = false; for (const g of s.gaps) { let da = Math.abs(a - g); if (da > Math.PI) da = 2 * Math.PI - da; if (da < m) open = true; }
+        if (!open) bossHit(s, false);
+      }
+      continue;
+    }
+    if (s.type === 'lure') {   // pulls him toward it while it glows (he can steer against it), then the bite
+      if (s.t < s.warn) {
+        if (live) { const pull = Math.sign(s.x - player.x) * Math.min(Math.abs(s.x - player.x), 50 * dt); player.x += pull; player.aim += pull; }
+      } else {
+        if (s.t - dt < s.warn) { Sfx.bossBeam(); Sfx.bossRoar(); shake = Math.max(shake, 1.4); if (boss) boss.kick = 1; }
+        if (s.t > s.warn + s.dur) s.dead = true;
+        else if (live && Math.abs(player.x - s.x) < s.w / 2 + HIT_HALF_W - 2) bossHit(s, false);
+      }
+      continue;
+    }
+    if (s.type === 'sweep') {   // a band 12 px tall across his half of the cavern
+      s.y += s.vy * dt;
+      if (s.y > H + 20) { s.dead = true; continue; }
+      if (live && Math.abs(s.y - py) < 6 + 10 && (s.side < 0 ? player.x - HIT_HALF_W + 2 < s.split : player.x + HIT_HALF_W - 2 > s.split)) bossHit(s, false);
+      continue;
+    }
+    if (s.type === 'wave') { s.y += s.vy * dt; s.x = s.x0 + s.amp * Math.sin(s.t * s.f + s.ph); }
+    else if (s.type === 'sting') {   // fans out from the mouth to its lane in 0.6 s, then drifts down swaying
+      const u = Math.min(1, s.t / 0.6), e = 1 - (1 - u) * (1 - u);
+      s.y += s.vy * dt * (0.4 + 0.6 * u); s.x = s.sx + (s.lx - s.sx) * e + s.amp * u * Math.sin(s.t * 1.7 + s.ph);
+    }
+    else { s.x += s.vx * dt; s.y += s.vy * dt; }
+    if (s.type === 'bomb' && (s.t >= s.fuse || s.y > H - 160)) {
+      s.dead = true; Sfx.bossShot(true);
+      for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2 + 0.2; bossShots.push({ type: 'glob', x: s.x, y: s.y, vx: Math.cos(a) * 155, vy: Math.sin(a) * 155, r: 3, t: 0 }); }
+      continue;
+    }
+    if (s.y > H + 20 || s.y < -40 || s.x < -20 || s.x > W + 20) { s.dead = true; continue; }
+    if (live && Math.abs(s.x - player.x) < HIT_HALF_W - 1 + s.r && Math.abs(s.y - py) < 10 + s.r) bossHit(s, true);
+  }
+  prune(bossShots, s => !s.dead);
+}
+// A shot reaching him: it hurts like anything else (the shield blocks it); while he blinks after a hit, shots pass through.
+function bossHit(s, pops) {
+  if (player.inv > 0 && player.shield <= 0) return;
+  if (pops) { s.dead = true; sparks(s.x, camY + s.y, BOSS_SHOT[boss ? boss.kind : 'whale'].slice(1).concat(P.dust), 6); }
+  hurt('boss');
+}
+
+// -- the bosses' foreground art (version 88). The background creatures are flat silhouettes; up close each boss gets
+// its own colours, a shaded body (a dark underside dithered into the base colour, light along the top), and features
+// drawn over it: eyes, teeth, gills, wing bones, stripes, glowing marks. Each is drawn in three steps (bossStage): the
+// background creature's own shape in the base colour, colour regions inside it (art step 0), the shading, then the
+// features (art step 1). Each art function repeats its creature's own shape maths, so the features move with it.
+const BOSS_PALS = {
+  // Version 98 (user: the same sinister pass as the nautilus on the other five): near-black bodies, dark bellies, muted
+  // highlights, and one hot colour each. Whale: slate with bone teeth and a red glowing side line (was blue-grey with a
+  // pale belly). Elder: black-olive with blood-dark wings (was green and purple). Jelly: bruised violet with a toxic
+  // green glow (was pink and yellow). Angler: near-black (was brown). Manta: black-navy with a dark belly and blood
+  // spots (the belly was white).
+  whale: { base: '#2C3743', dark: '#182029', deep: '#090D12', light: '#46576A', hi: '#7D8E9E', belly: '#3E4952', mark: '#D2C8AE', eye: '#FF3A26' },
+  elder: { base: '#323A2A', dark: '#1B2016', deep: '#0A0D07', light: '#535E42', hi: '#8A9870', belly: '#3E1424', mark: '#9A3A4C', eye: '#FF3A26' },
+  jelly: { base: '#4A2347', dark: '#2A1029', deep: '#130615', light: '#763A70', hi: '#B97CB0', belly: '#5C2B58', mark: '#A6FF3C', eye: '#A6FF3C' },
+  angler: { base: '#3A3029', dark: '#1F1813', deep: '#0A0705', light: '#5C4B3C', hi: '#8E7558', belly: '#4A3C31', mark: '#E3D9BE', eye: '#5CF2DA' },
+  manta: { base: '#212839', dark: '#111624', deep: '#060810', light: '#3B4764', hi: '#6E7EA0', belly: '#3A4256', mark: '#8E2230', eye: '#FF3A26' },
+  // Version 96 (user: too light, make it more sinister): a dark, scorched shell with dried-blood stripes, a glowing red
+  // coil and a hot red eye (it was cream and white).
+  nautilus: { base: '#4A3D35', dark: '#2B221C', deep: '#120C09', light: '#6F5A4A', hi: '#A8906F', belly: '#6A1A16', mark: '#B8332A', eye: '#FF3A26' },
+};
+// A boss's colours, tinted a little toward the rock layer it's in, so it belongs there.
+function bossPal(kind, Q) {
+  const m = Q.bossPal || (Q.bossPal = {});
+  if (m[kind]) return m[kind];
+  const src = BOSS_PALS[kind], p = {};
+  for (const n in src) p[n] = n === 'eye' || n === 'mark' || n === 'hi' ? src[n] : mix(src[n], Q.sO, 0.12);
+  return (m[kind] = p);
+}
+// Two-pixel checks of one colour, for dithering one shade into another.
+const checkArt = new Map();
+function checks(col) {
+  let pat = checkArt.get(col);
+  if (pat) return pat;
+  if (checkArt.size > 40) checkArt.clear();   // the colours change every paint while it fades in
+  const cnv = document.createElement('canvas'); cnv.width = cnv.height = 2;
+  const g = cnv.getContext('2d'); g.fillStyle = col; g.fillRect(0, 0, 1, 1); g.fillRect(1, 1, 1, 1);
+  pat = bossTmpG.createPattern(cnv, 'repeat'); checkArt.set(col, pat);
+  return pat;
+}
+// The strip of the boss's body within `off` px of its lower edge (or its upper edge, with `up`), painted with `fill`.
+function bossBand(buf, off, fill, up) {
+  const t = bossTmpG;
+  t.globalCompositeOperation = 'copy'; t.drawImage(buf.cv, 0, 0);
+  t.globalCompositeOperation = 'destination-out'; t.drawImage(buf.cv, 0, up ? off : -off);
+  t.globalCompositeOperation = 'source-in'; t.fillStyle = fill; t.fillRect(0, 0, buf.w, buf.h);
+  t.globalCompositeOperation = 'source-over';
+  buf.g.drawImage(bossTmp, 0, 0);
+}
+const bpx = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), w, h); };
+function bline(x0, y0, x1, y1, col, w) {
+  c.fillStyle = col;
+  const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0)));
+  for (let i = 0; i <= n; i++) c.fillRect(Math.round(x0 + (x1 - x0) * i / n), Math.round(y0 + (y1 - y0) * i / n), w, w);
+}
+// A glowing eye whose pupil looks straight at him (version 95: it only looked the way the creature faced); brighter
+// once the boss is enraged. bossLook is the way to him in the drawing's own frame, set for each paint (bossStage).
+let bossLook = [1, 0];
+function bossEye(x, y, r, p, look) {
+  const glow = (boss && boss.rage ? 0.55 : 0.3) * (0.6 + 0.4 * Math.sin(clock * 6)), m = Math.max(1, r - 2);
+  c.globalAlpha = glow; disc(x, y, r + 3, p.eye); c.globalAlpha = 1;
+  disc(x, y, r + 1, p.deep); disc(x, y, r, p.eye);
+  disc(x + Math.round(bossLook[0] * m), y + Math.round(bossLook[1] * m), Math.max(1, r - 2), P.ink);
+  bpx(x - Math.max(1, r - 2), y - Math.max(1, r - 2), 1, 1, P.dust);
+}
+function artWhale(x, y, dir, k, p, step) {
+  const S = 1.25, len = 190 * S, ph = clock * 1.3 + k;
+  const at = t => [x + dir * (len / 2 - t * len), y + Math.sin(ph - t * 4.2) * 7 * S * t, Math.max(2, 22 * S * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.1 + 0.08)), 0.9) * (1 - t * 0.6))];
+  if (!step) {
+    for (let t = 0; t < 0.8; t += 0.004) { const [bx, by, r] = at(t); bpx(bx, by + r * 0.15, 2, Math.max(1, Math.round(r * 0.9)), p.belly); }   // pale belly
+    for (let t = 0.06; t < 0.95; t += 0.004) { const [bx, by, r] = at(t); bpx(bx, by - r, 2, Math.max(1, Math.round(r * 0.5)), p.dark); }  // dark back
+    return;
+  }
+  for (let t = 0.03; t < 0.46; t += 0.0035) { const [bx, by, r] = at(t); for (const g of [0.4, 0.56, 0.72]) bpx(bx, by + r * g, 1, 1, p.dark); }   // throat grooves
+  for (let t = 0; t < 0.17; t += 0.003) {   // the mouth, with a row of small teeth
+    const [bx, by, r] = at(t); bpx(bx, by + r * 0.15, 1, 2, p.deep);
+    if (Math.floor(t * 330) % 5 === 0) bpx(bx, by + r * 0.15 + 2, 1, 2, p.mark);
+  }
+  for (let i = 0; i < 16; i++) {   // barnacles along the back
+    const [bx, by, r] = at(0.16 + hash(i * 3.1 + k) * 0.6), oy = -r * (0.45 + hash(i * 5.7 + k) * 0.4);
+    bpx(bx, by + oy, 2, 2, p.light); bpx(bx + 1, by + oy + 1, 1, 1, p.deep);
+  }
+  for (let i = 0; i < 3; i++) { const [bx, by, r] = at(0.3 + i * 0.12); bline(bx - 4, by - r * 0.1, bx + 5, by + r * 0.25, p.light, 1); }   // old scars
+  for (let i = 0; i < 17; i++) { const [bx, by] = at(0.13 + i * 0.045); if ((Math.floor(clock * 4) + i) % 5) bpx(bx, by + 2, 2, 1, p.eye); }   // glowing side line, red
+  const [ex, ey, er] = at(0.065);
+  bossEye(ex, ey - er * 0.3, 3, p, dir);
+}
+function artElder(x, y, dir, k, p, step) {
+  y += Math.sin(clock * 0.6 + k) * 4;
+  const flap = 2 * Math.round(Math.sin(clock * 0.8 + k) * 3);
+  const WING = [[24, 6], [70, -40 + flap], [98, -58 + flap], [92, -30 + flap * 0.7], [112, -8 + flap * 0.5], [88, 10], [96, 36], [66, 26], [58, 54], [30, 34]];
+  if (!step) {
+    for (const s of [-1, 1]) { const cx = x + s * 50, cy = y; fillPoly(c, WING.map(([u, v]) => [lerp(cx, x + s * u, 0.84), lerp(cy, y + v, 0.84)]), p.belly); }   // wing membranes
+    fillEllipse(c, x, y + 40, 26, 16, p.dark);   // the throat, shadowed under the beard
+    return;
+  }
+  for (const s of [-1, 1]) {   // wing bones from the shoulder to each point, and a claw at the top
+    for (const [u, v] of [WING[2], WING[4], WING[6], WING[8]]) bline(x + s * 26, y + 2, x + s * u, y + v, p.dark, 2);
+    bpx(x + s * 98 - 1, y - 62 + flap, 3, 4, p.mark);
+  }
+  for (let i = 0; i < 5; i++) for (let j = -16 + i * 2; j <= 16 - i * 2; j++) bpx(x + j, y - 62 + i * 6 + Math.sin(j * 0.55 + i * 1.7) * 1.6, 1, 1, p.dark);   // folds on the dome
+  for (let j = -24; j <= 24; j += 2) bpx(x + j, y - 6 + Math.abs(j) * 0.12, 2, 1, p.deep);   // the brow's lower edge
+  const lx = Math.round(bossLook[0] * 3), ly = Math.round(bossLook[1] * 1.6);
+  for (const s of [-1, 1]) {   // slanted glowing eyes, the bright pupils looking at him
+    const ex = Math.round(x + s * 13), ey = Math.round(y - 15), g = (boss && boss.rage ? 0.5 : 0.28) * (0.6 + 0.4 * Math.sin(clock * 6));
+    c.globalAlpha = g; fillEllipse(c, ex, ey + 1, 11, 6, p.eye); c.globalAlpha = 1;
+    bpx(ex - 7, ey - 2, 14, 7, p.deep);
+    c.fillStyle = p.eye; c.fillRect(ex - 6, ey + (s < 0 ? 0 : 1), 6, 3); c.fillRect(ex, ey + (s < 0 ? 1 : 0), 6, 3);
+    bpx(ex - 1 + lx, ey + 1 + ly, 3, 2, P.dust);
+  }
+  if (((clock * 0.3 + k) % 1) > 0.08) { bpx(x - 2, y - 38, 5, 3, p.deep); bpx(x - 1, y - 37, 3, 1, p.eye); }   // a third eye on the brow
+  for (let i = 0; i < 7; i++) {   // suckers down the tentacles
+    const bx = x - 18 + i * 6, by = y + 8;
+    for (let j = 2; j < 17; j += 2) {
+      const sw = Math.sin(clock * 1.3 + i * 0.9 + j * 0.35) * j * 0.6, curl = j > 13 ? Math.sin(clock * 2 + i) * (j - 13) * 2 : 0;
+      bpx(bx + sw + (i - 3) * j * 0.55 + curl, by + j * 4.2, 1, 1, p.mark);
+    }
+  }
+}
+function artJelly(x, y, dir, k, p, step) {
+  const S = 1.5, ph = clock * 1.6 + k, pp = Math.sin(ph), rx = Math.round((34 + pp * 3) * S), ry = Math.round((26 - pp * 2) * S);
+  const by = Math.round(y - 32 * S + Math.sin(clock * 0.5 + k) * 5);
+  if (!step) {   // the bell's glassy inside, paler
+    for (let j = -ry + 6; j <= -4; j++) { const w = Math.round((rx - 8) * Math.sqrt(Math.max(0, 1 - (j / (ry - 4)) ** 2))); bpx(x - w, by + j, 2 * w + 1, 1, p.belly); }
+    return;
+  }
+  for (let i = 0; i < 9; i++) { const a = Math.PI * (0.06 + 0.88 * i / 8); bline(x, by - ry * 0.72, x - Math.cos(a) * (rx - 6), by - 4 - Math.sin(a) * 4, p.light, 1); }   // radial canals
+  for (let i = 0; i < 4; i++) ring(x + (i - 1.5) * rx * 0.34, by - ry * 0.4, 5 + Math.round(Math.sin(ph + i)), p.mark, 1);   // four horseshoe organs
+  for (let i = 0; i <= 16; i++) { if ((Math.floor(clock * 5) + i) % 4) bpx(x - rx + 4 + i * (2 * rx - 8) / 16, by - 1, 2, 2, i % 2 ? p.mark : p.hi); }   // rim lights
+  for (let i = 0; i < 4; i++) {   // frills on the arms
+    const ax = x + (i - 1.5) * 8 * S;
+    for (let j = 1; j < 18; j += 2) bpx(ax + Math.sin(ph * 0.7 + i + j * 0.32) * j * 0.6 + (j % 4 ? 3 : -3), by + 5 + j * 4 * S * 0.85, 1, 1, p.hi);
+  }
+}
+function artAngler(x, y, dir, k, p, step) {
+  const S = 1.6, ph = clock * 0.9 + k, X = v => x + dir * v * S, bob = Math.sin(ph * 1.3) * 4;
+  y = Math.round(y + 9 * S + Math.sin(clock * 0.6 + k) * 4);
+  const Y = v => y + v * S;
+  if (!step) {
+    fillPoly(c, [[X(-26), Y(18)], [X(48), Y(13)], [X(43), Y(28)], [X(-4), Y(37)], [X(-24), Y(30)]], p.belly);   // paler jaw
+    fillPoly(c, [[X(26), Y(4)], [X(36), Y(-2)], [X(50), Y(10)], [X(44), Y(15)], [X(22), Y(14)]], p.deep);   // inside the gaping mouth
+    return;
+  }
+  for (let i = 0; i < 30; i++) {   // warts
+    const a = hash(i * 2.3 + k) * 6.28, r = Math.sqrt(hash(i * 4.1 + k)) * 0.85, wx = X(-4) + Math.cos(a) * 40 * S * r, wy = Y(-14) + Math.sin(a) * 30 * S * r;
+    if (wy < Y(6)) { bpx(wx, wy, 2, 1, p.light); bpx(wx, wy + 1, 2, 1, p.deep); }
+  }
+  for (let i = 0; i < 5; i++) { const u = i / 4; bline(X(-40), Y(-6 + 16 * u), X(-70 - Math.abs(u - 0.5) * 8), Y(-28 + 46 * u) + Math.sin(ph) * 6 * (1 - Math.abs(u - 0.5)), p.dark, 1); }   // fin rays
+  for (let i = 0; i < 6; i++) {   // fangs, bone white with dark tips
+    const v = 22 + i * 5, top = Math.round(Y(14 - (v + 30) * 4 / 82)), h = 9 - (i % 2) * 3;
+    bpx(X(v) - 1, top - h, 3, h, p.mark); bpx(X(v), top - h, 1, 1, p.deep);
+  }
+  for (let i = 0; i < 4; i++) {
+    const v = 14 + i * 6, r = (v + 4) / 40, h = 8 - (i % 2) * 3, top = Math.round(Y(-14 + 30 * Math.sqrt(1 - r * r)));
+    bpx(X(v) - 1, top, 3, h, p.mark); bpx(X(v), top + h - 1, 1, 1, p.deep);
+  }
+  bossEye(X(20), Y(-20), 4, p, dir);
+  const lx = X(48), ly = Y(-44) + bob, pulse = 0.5 + 0.5 * Math.sin(clock * 5);   // the lure, glowing
+  c.globalAlpha = 0.18 + 0.2 * pulse; disc(lx, ly, 12 + Math.round(pulse * 3), p.eye); c.globalAlpha = 0.35; disc(lx, ly, 7, p.eye); c.globalAlpha = 1;
+  disc(lx, ly, 3, p.eye); bpx(lx - 1, ly - 1, 2, 2, P.dust);
+}
+function artManta(x, y, dir, k, p, step) {
+  const S = 1.4, ph = clock * 1.1 + k, span = (70 + Math.sin(ph) * 8) * S, lag = (16 + Math.cos(ph) * 10) * S, X = v => x + dir * v * S;
+  y += Math.sin(clock * 0.4 + k) * 3;
+  if (!step) {
+    fillPoly(c, [[X(27), y - 7 * S], [X(19), y - 17 * S], [X(-16), y - 19 * S], [X(-31), y - 7 * S], [X(-33), y], [X(-31), y + 7 * S], [X(-16), y + 19 * S], [X(19), y + 17 * S], [X(27), y + 7 * S]], p.belly);   // the pale belly (seen from below)
+    for (const s of [-1, 1]) fillPoly(c, [[x - dir * lag, y + s * span], [X(-28), y + s * 24 * S], [lerp(X(-6), x - dir * lag, 0.4), lerp(y + s * 20 * S, y + s * span, 0.45)]], p.dark);   // dark wingtips
+    return;
+  }
+  for (const s of [-1, 1]) for (let i = 0; i < 5; i++) { const gx = X(13 - i * 4.5); bline(gx, y + s * 8 * S, gx - dir * 2, y + s * 13 * S, p.dark, 1); }   // gill slits
+  bline(X(29), y - 8 * S, X(29), y + 8 * S, p.deep, 2);   // the wide mouth
+  for (let i = 0; i < 10; i++) bpx(X(-18 + hash(i * 3.3 + k) * 24), y + (hash(i * 7.1 + k) - 0.5) * 24 * S, 2, 2, p.mark);   // belly spots
+  for (const s of [-1, 1]) { bline(X(24), y + s * 22 * S, x - dir * lag, y + s * span, p.light, 1); bossEye(X(25), y + s * 18 * S, 2, p, dir); }   // leading edges and eyes
+}
+function artNautilus(x, y, dir, k, p, step) {
+  const S = 1.8, X = v => x + dir * v * S;
+  y = Math.round(y + 8 * S + Math.sin(clock * 0.5 + k) * 4);
+  const Y = v => y + v * S, cx = X(-10), cy = Y(-8), R0 = Math.round(38 * S);
+  if (!step) {   // flame stripes over the older part of the shell, fading before the opening
+    for (let i = 0; i < 9; i++) {
+      const th0 = Math.PI * (0.55 + i * 0.16);
+      for (let rr = R0 * 0.42; rr < R0; rr += 1) { const th = th0 + 0.3 * (rr / R0) + 0.07 * Math.sin(rr * 0.16 + i); bpx(cx + dir * Math.cos(th) * rr, cy + Math.sin(th) * rr, 3, 2, p.belly); }
+    }
+    return;
+  }
+  for (let i = 0; i < 260; i++) { const th = i * 0.05, r = 3 * S * Math.exp(0.18 * th); bpx(cx - dir * Math.cos(th) * r, cy - Math.sin(th) * r, 2, 2, p.mark); }   // the coil
+  for (let a = 0; a < 1.1; a += 0.02) bpx(cx - dir * Math.cos(2.2 + a) * R0 * 0.8, cy - Math.sin(2.2 + a) * R0 * 0.8, 2, 2, p.hi);   // shine on the shell
+  for (let i = 0; i < 18; i++) bpx(X(18 + hash(i * 2.9 + k) * 14), Y(-26 + hash(i * 6.1 + k) * 12), 1, 1, p.dark);   // the hood's grain
+  bossEye(X(22), Y(-10), 4, p, dir);
+  for (let i = 0; i < 12; i++) {   // pale tentacle tips
+    const bx = X(28), by = Y(-8 + i * 2.6), j = 13, a = 0.1 + i * 0.1 + Math.sin(clock * 1.2 + i * 0.8 + j * 0.3) * 0.25 + j * 0.035;
+    bpx(bx + dir * j * 2.6 * S * 0.85 * Math.cos(a) - 1, by + j * 2.6 * S * 0.85 * Math.sin(a) - 1, 2, 2, p.hi);
+  }
+}
+const BOSS_ART = { whale: artWhale, elder: artElder, jelly: artJelly, angler: artAngler, manta: artManta, nautilus: artNautilus };
+// -- drawing the boss quickly (version 90). Version 89 repainted and shaded the boss on a 480 px canvas with about 35
+// full-canvas compositing passes every frame, which took a 120 Hz phone down to about 10 fps in the fight. Now it's
+// painted into a canvas only as big as the creature (BOSS_BOX: its extent around its middle, facing right), in three
+// steps spread over three frames, into the back one of two buffers, which then swaps to the front: so the creature
+// animates at a third of the frame rate (40 fps on a 120 Hz phone) and every frame just stamps the front buffer.
+const BOSS_BOX = { whale: [-132, -44, 132, 50], elder: [-124, -94, 124, 100], jelly: [-76, -110, 76, 110], angler: [-134, -110, 94, 94], manta: [-220, -120, 64, 120], nautilus: [-94, -84, 120, 120] };
+function bossBuf(kind) {
+  const [L, T, R, B] = BOSS_BOX[kind], w = R - L + 12, h = B - T + 12;
+  const mk = () => { const v = document.createElement('canvas'); v.width = w; v.height = h; return v; };
+  const cv = mk(), rim = mk();
+  return { kind, cv, g: cv.getContext('2d'), rim, rg: rim.getContext('2d'), w, h, stage: 0, ox: 0, oy: 0, dir: 1, clock: 0, p: null, fade: 1, look: [1, 0] };
+}
+// One of the three painting steps into `buf`: (0) the creature's shape in its base colour with its colour regions,
+// (1) the shading, (2) its features and the light rim. The paint keeps the clock and colours of its first step, so the
+// three steps match. True when the paint is finished.
+function bossStage(b, buf) {
+  const [L, T, R] = BOSS_BOX[b.kind], dive = BOSS_DIVES[b.kind], keepClock = clock, keepX = player.x;
+  if (buf.stage === 0) {
+    const dir = dive ? b.dir : bossFacing(b) < 0 ? -1 : 1, p = bossPal(b.kind, palAt(camY + b.y, true));
+    // Its body (tail, fins, wings, tentacles) animates 1.6 times as fast as in the background while it fights
+    // (version 95): the clock runs ahead by 0.6 of the fight's time, so there's no jump as it starts.
+    buf.dir = dir; buf.clock = clock + 0.6 * b.t; buf.ox = dir > 0 ? 6 - L : R + 6; buf.oy = 6 - T;
+    // Where he is from it, turned into the drawing's own frame (a diver's drawing is rotated by b.rot; the others are
+    // drawn as they are, since their art already faces the way they face): its eyes look that way (bossLook).
+    const vx = player.x - b.x, vy = pilotNow + PILOT_CY - b.y, co = Math.cos(-b.rot), si = Math.sin(-b.rot);
+    const lx = dive ? vx * co - vy * si : vx, ly = dive ? vx * si + vy * co : vy, n = Math.hypot(lx, ly) || 1;
+    buf.look = [lx / n, ly / n];
+    buf.fade = b.phase === 'enter' ? smoothstep(b.pt / (BOSS_ENTER * 0.7)) : 1;
+    if (buf.fade < 1) { const q = {}; for (const n in p) q[n] = mix(b.sil, p[n], buf.fade); buf.p = q; } else buf.p = p;   // fading in from its silhouette
+  }
+  clock = buf.clock; bossLook = buf.look;
+  if (!dive) player.x += buf.ox - b.x;   // the elder's eyes follow him: place him as he is relative to it on screen
+  const was = c, p = buf.p, x = buf.ox, y = buf.oy, dir = buf.dir;
+  c = buf.g;
+  if (buf.stage === 0) {
+    c.clearRect(0, 0, buf.w, buf.h);
+    LEVI_DRAW[b.kind](x, y, dir, b.k2, p.base);
+    c.globalCompositeOperation = 'source-atop'; BOSS_ART[b.kind](x, y, dir, b.k2, p, 0); c.globalCompositeOperation = 'source-over';
+  } else if (buf.stage === 1) {
+    // A diver lies on its side in its drawing, so its back (the drawing's top) is shaded dark and its belly lit.
+    const flip = !!dive;
+    bossBand(buf, 12, checks(p.dark), flip); bossBand(buf, 5, p.dark, flip); bossBand(buf, 2, p.deep, flip);
+    bossBand(buf, 5, checks(p.light), !flip); bossBand(buf, 2, p.light, !flip); bossBand(buf, 1, p.hi, !flip);
+  } else {
+    BOSS_ART[b.kind](x, y, dir, b.k2, p, 1);
+    const g = buf.rg;
+    g.globalCompositeOperation = 'copy'; g.drawImage(buf.cv, -1, 0);
+    g.globalCompositeOperation = 'source-over'; g.drawImage(buf.cv, 1, 0); g.drawImage(buf.cv, 0, -1); g.drawImage(buf.cv, 0, 1);
+    g.globalCompositeOperation = 'source-in'; g.fillStyle = p.hi; g.fillRect(0, 0, buf.w, buf.h);
+    g.globalCompositeOperation = 'source-over';
+  }
+  c = was; clock = keepClock; player.x = keepX;
+  buf.stage = (buf.stage + 1) % 3;
+  return buf.stage === 0;
+}
+// The boss on the pilot's canvas: the front buffer stamped at its place, a diver turned by b.rot, the others squashed
+// sideways while they turn round (and mirrored if the buffer was painted facing the other way).
+function drawBoss(sy) {
+  const b = boss;
+  if (!b || (b.phase === 'crash' && b.pt > 0.45)) return;
+  if (!bossFront || bossFront.kind !== b.kind) {
+    bossFront = bossBuf(b.kind); bossBack = bossBuf(b.kind);
+    bossTmp = document.createElement('canvas'); bossTmp.width = bossFront.w; bossTmp.height = bossFront.h; bossTmpG = bossTmp.getContext('2d');
+    while (!bossStage(b, bossFront));
+  } else if (bossBack.stage || Math.abs(clock - bossPaintAt) >= BOSS_PAINT_EVERY) {
+    // A new paint starts at most 20 times a second (version 91), so a 120 Hz screen doesn't paint it twice as often as a 60 Hz one.
+    if (!bossBack.stage) bossPaintAt = clock;
+    if (bossStage(b, bossBack)) { const t = bossFront; bossFront = bossBack; bossBack = t; }
+  }
+  const F = bossFront, dive = BOSS_DIVES[b.kind], f = dive ? b.dir : bossFacing(b);
+  const jit = b.charge > b.t || b.phase === 'crash' ? Math.round((Math.random() - 0.5) * (b.phase === 'crash' ? 8 : 3)) : 0;
+  const x = b.x + jit, y = b.y - sy - 5 * b.kick;
+  c.save(); c.translate(Math.round(x), Math.round(y));
+  if (dive) c.rotate(b.rot); else c.rotate(b.wob || 0), c.scale(Math.max(0.06, Math.abs(f)) * ((f < 0 ? -1 : 1) === F.dir ? 1 : -1), 1);
+  c.globalAlpha = F.fade * 0.55; c.drawImage(F.rim, -F.ox, -F.oy);
+  c.globalAlpha = 1; c.drawImage(F.cv, -F.ox, -F.oy);
+  c.restore();
+  if (b.charge > b.t) {   // gathering a volley: a pulsing glow at its mouth
+    const [dx, dy] = bossMouth(b), cl = BOSS_SHOT[b.kind], r = 3 + Math.floor((b.t * 24) % 4), gx = x + dx, gy = y + dy;
+    disc(gx, gy, r + 1, cl[0]); disc(gx, gy, r, cl[1]); disc(gx, gy, Math.max(1, r - 2), cl[2]);
+  }
+}
+// A shot is its outline, body and hot core: drawn once per colour set and size into a small image and stamped (one
+// image a shot instead of three discs; version 93).
+const shotCache = new Map();
+// The angler's lure glows sea-green like the one on its head, with a faint halo (one image, made once).
+const LURE_GLOW = ['#0E3A34', '#5FD8B4', '#E6FFF6'];
+let lureHalo = null;
+function ringImg() {
+  if (!lureHalo) {
+    lureHalo = document.createElement('canvas'); lureHalo.width = lureHalo.height = 25;
+    const g = lureHalo.getContext('2d'); g.globalAlpha = 0.35; discRows(g, 12, 12, 12, LURE_GLOW[1]); g.globalAlpha = 1;
+  }
+  return lureHalo;
+}
+function shotImg(o, m, h, r) {
+  const key = o + m + h + r;
+  let img = shotCache.get(key);
+  if (!img) {
+    img = document.createElement('canvas'); img.width = img.height = 2 * r + 3;
+    const g = img.getContext('2d');
+    discRows(g, r + 1, r + 1, r + 1, o); discRows(g, r + 1, r + 1, r, m); discRows(g, r + 1, r + 1, Math.max(1, r - 2), h);
+    shotCache.set(key, img);
+  }
+  return img;
+}
+function drawBossShots(sy) {
+  if (!bossShots.length) return;
+  const [o, m, h] = BOSS_SHOT[boss ? boss.kind : 'whale'], py = Math.round(pilotNow + PILOT_CY - sy);
+  for (const s of bossShots) {
+    const x = Math.round(s.x), y = Math.round(s.y - sy);
+    if (s.type === 'shriek') {   // a ring of sound: two arcs (between the gaps), dark edge, bright body and a hot line
+      const [g1, g2] = s.gaps, gw = s.gw, cx = s.x, cy = s.y - sy;
+      c.lineCap = 'butt';
+      for (const [lw, col] of [[7, o], [5, m], [1, h]]) {
+        c.lineWidth = lw; c.strokeStyle = col; c.beginPath();
+        c.arc(cx, cy, s.r, g1 + gw, g2 - gw); c.moveTo(cx + Math.cos(g2 + gw) * s.r, cy + Math.sin(g2 + gw) * s.r);
+        c.arc(cx, cy, s.r, g2 + gw, g1 - gw + 2 * Math.PI); c.stroke();
+      }
+      continue;
+    }
+    if (s.type === 'lure') {   // a bulb on a dangling thread, glowing faster as the bite nears; then the jaws' column
+      if (s.t < s.warn) {
+        const q = s.t / s.warn, on = Math.floor(s.t * (4 + 14 * q)) % 2, r = on ? 7 : 6;
+        c.fillStyle = LURE_GLOW[0]; c.fillRect(x, y - 90, 1, 84);
+        if (q > 0.55 && on) { c.fillStyle = m; for (let yy = y + 12; yy < H; yy += 8) c.fillRect(x - s.w / 2, yy, 3, 3), c.fillRect(x + s.w / 2 - 3, yy, 3, 3); }
+        if (on) c.drawImage(ringImg(), x - 12, y - 12);
+        c.drawImage(shotImg(LURE_GLOW[0], LURE_GLOW[1], LURE_GLOW[2], r), x - r - 1, y - r - 1);
+      } else {
+        const w = s.w + (s.t - s.warn < 0.06 ? 8 : 0), l = x - w / 2;
+        c.fillStyle = o; c.fillRect(l - 1, 0, w + 2, H);
+        c.fillStyle = m; c.fillRect(l, 0, w, H);
+        c.fillStyle = h; c.fillRect(x - 2, 0, 4, H);
+        c.fillStyle = P.dust; for (let i = 0; i < 4; i++) c.fillRect(Math.round(l + 2 + i * (w - 6) / 3), y - 4, 2, 8);   // teeth
+      }
+      continue;
+    }
+    if (s.type === 'sweep') {   // a wing's edge: a band across one side with a feathered trailing edge and a rounded tip
+      if (y < -12 || y > H + 12) continue;
+      const a = s.side < 0 ? 0 : s.split, w = s.side < 0 ? s.split : W - s.split, tip = s.side < 0 ? s.split : s.split - 6;
+      c.fillStyle = o; c.fillRect(a, y - 7, w, 14);
+      c.fillStyle = m; c.fillRect(a, y - 6, w, 12);
+      c.fillStyle = h; c.fillRect(a, y - 1, w, 2);
+      c.fillStyle = o; for (let xx = a + 4; xx < a + w - 6; xx += 12) c.fillRect(xx, y - 10, 6, 3);   // feathers trailing above
+      c.fillStyle = m; c.fillRect(tip, y - 4, 6, 8);
+      continue;
+    }
+    if (s.type === 'sting') {   // a little bell with three trailing threads
+      if (y < -14 || y > H + 14) continue;
+      const wig = Math.round(2 * Math.sin(s.t * 6 + s.ph));
+      c.fillStyle = m; c.fillRect(x - 3 + wig, y + 4, 1, 7); c.fillRect(x, y + 5, 1, 8); c.fillRect(x + 3 - wig, y + 4, 1, 7);
+      c.drawImage(shotImg(o, m, h, s.r), x - s.r - 1, y - s.r - 1);
+      continue;
+    }
+    if (s.type === 'beam') {
+      if (s.t < s.warn) {
+        if (Math.floor(s.t * 14) % 2) { c.fillStyle = m; for (let yy = y; yy < H; yy += 6) c.fillRect(x - 1, yy, 2, 3); }
+      } else {
+        const w = s.t - s.warn < 0.06 ? 14 : 8;
+        c.fillStyle = o; c.fillRect(x - w / 2 - 1, y, w + 2, H - y);
+        c.fillStyle = m; c.fillRect(x - w / 2, y, w, H - y);
+        c.fillStyle = h; c.fillRect(x - 1, y, 3, H - y);
+      }
+      continue;
+    }
+    if (y < -10 || y > H + 10) continue;
+    c.drawImage(shotImg(o, m, s.type === 'bomb' && Math.floor(s.t * 8) % 2 ? P.dust : h, s.r), x - s.r - 1, y - s.r - 1);
+  }
 }
 
 // ---------- update ----------
@@ -4949,6 +5887,8 @@ function update(dt) {
     player.y += player.v * dt;
     camY += player.v * dt * Math.max(0, 1 - dieT * 1.6);
     player.thr *= Math.exp(-8 * dt);
+    if (boss) boss.t += dt;
+    if (bossShots.length) updateBossShots(dt, false);
     if (dieT > 1.5) gameOver();
   } else {
     if (player.fallRamp < 1) player.fallRamp = Math.min(1, player.fallRamp + dt / 0.9);
@@ -4984,7 +5924,8 @@ function update(dt) {
     if (player.inv > 0) player.inv -= dt;
     if (player.blockT > 0) player.blockT -= dt;
     if (player.shield > 0) player.shield -= dt;
-    camY = player.y - pilotScreenY;
+    updateBoss(dt);
+    camY = player.y - pilotNow;
     dropList(camY);
     // Magnet perk: crystals, parts and bubbles within reach fly to him. Since version 81 they move at a steady speed above
     // his fall speed; before, each frame closed a share of the gap, so while falling a crystal settled about 36 px behind
@@ -4995,6 +5936,7 @@ function update(dt) {
     }
     updateHazards(dt);
     collide(prevX);
+    if (bossShots.length) updateBossShots(dt, state === 'play');
     passFlags();
     if (ledgesPassed(player.y + PILOT_CY) > fasterN) {
       fasterN++; expireTreats(fasterN);
@@ -5004,7 +5946,7 @@ function update(dt) {
     if (state === 'play') checkCafe();
     Sfx.wind(0.5 + 0.5 * smoothstep((player.v - 250) / 200));
     Music.setDepth(depthM());
-    Music.mood(player.hp === 1, player.shield > 0, player.streak);
+    Music.mood(player.hp <= 1, player.shield > 0, player.streak);
     setDepth();
     const zone = Math.floor(depthM() / ZONE_M);
     if (zone > player.zone) { player.zone = zone; Music.setZone(matI(zone)); showCoach(zone * ZONE_M + ' M \u00b7 ' + MATS[matI(zone)].label.toUpperCase(), 2400); }
@@ -5106,6 +6048,7 @@ function render() {
   // The pilot and what's attached to him go on the overlay canvas, placed from the exact camera, so he stays steady
   // while the world slides past.
   c = oc; c.setTransform(1, 0, 0, 1, sx, 0);
+  if (boss) drawBoss(sy);
   const my = player.y - camY - sy;
   if ((state !== 'dying' || dieT < 1.4) && !player.hidden) {
     const blink = state === 'play' && player.inv > 0 && Math.floor(player.inv * 6.6) % 2 === 1;
@@ -5160,6 +6103,7 @@ function render() {
     const a = -Math.PI / 2 + left * Math.PI * 2;
     c.fillStyle = P.dust; c.fillRect(Math.round(cx + Math.cos(a) * r) - 2, Math.round(cy + Math.sin(a) * r) - 2, 4, 4);
   }
+  drawBossShots(sy);
   c.setTransform(1, 0, 0, 1, 0, 0);
   if (flyers.length) drawFlyers();
   c = wc;
@@ -5180,6 +6124,7 @@ function resize() {
   // The top of the pilot sits a fifth of the way down the screen (it was 30%), or just below the HUD's left column if
   // that's lower, so more of the shaft below him is in view and the HUD never covers him.
   pilotScreenY = Math.max(Math.round(H * 0.2), Math.round(HUD_LEFT_PX / sc) + 4);
+  if (!boss) pilotNow = pilotScreenY;
   sizeHP();
   const was = camY0; camY0 = -Math.round(H * 0.56);
   if (state === 'title' || camY === was) camY = camY0;
