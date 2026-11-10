@@ -582,8 +582,9 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 //   input, signature hazards (glazed ice, crumbling ledges), level generation, damage and pickups, update, render, sizing and loop.
 // ======================================================================================================================
 
-// Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 100;
+// Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
+// was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
+const VERSION = 101;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -2947,7 +2948,7 @@ const Buzz = (() => {
 
 // ---------- DOM ----------
 const $ = id => document.getElementById(id);
-$('verTag').textContent = 'v' + (VERSION / 100).toFixed(2) + (TEST_START_M ? ' TEST' : '');
+$('verTag').textContent = 'v0.' + VERSION + (TEST_START_M ? ' TEST' : '');
 const hud = $('hud'), hpBox = $('hp'), depthEl = $('depth'), coach = $('coach');
 const screens = {
   title: $('titleScreen'), pause: $('pauseScreen'), over: $('overScreen'), end: $('endScreen'), splash: $('splashScreen'),
