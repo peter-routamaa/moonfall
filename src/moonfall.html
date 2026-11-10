@@ -142,6 +142,8 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 @media (max-height: 600px) { #titleScreen.reading .repair { display: none; } }
 /* The Leviathans card is taller: the panel steps aside for it on phones up to 760 px tall (version 102). */
 @media (max-height: 760px) { #titleScreen.reading.levi .repair { display: none; } }
+/* And for Instructions on phones up to 680 px tall (version 104: its Done button ran 8 px off a 627 px screen). */
+@media (max-height: 680px) { #titleScreen.reading.how .repair { display: none; } }
 .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .best { font: 400 12px/1 var(--display); letter-spacing: .05em; color: var(--dust-dim); }
 .best b { color: var(--dust); font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -427,7 +429,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
         <button class="btn settings" id="settingsBtn" type="button"><svg viewBox="0 0 9 9" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM1 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM7 1h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM0 3h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM8 5h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM1 7h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM5 8h1v1h-1z"/></svg>Settings</button>
       </div>
      </div>
-     <div class="card face back" id="titleBack" inert aria-hidden="true">
+     <div class="card face back" id="titleBack" hidden inert aria-hidden="true">
       <h2>Settings</h2>
       <div class="set-list">
         <button class="set-tog" id="sndT" type="button" aria-pressed="true" aria-label="Sound FX"><span>Sound<br>FX</span></button>
@@ -609,7 +611,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 103;
+const VERSION = 104;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3223,7 +3225,10 @@ function turnCard(flip, front, backs, was, side, instant, prepare) {
   if (prepare) prepare();
   flip.classList.toggle('instant', instant);
   clearTimeout(flipTimers.get(flip));
-  if (instant) faces.forEach(f => (f.style.height = ''));
+  // Once it's back on its front, the back faces are hidden again (version 104): left showing, the tallest one kept the
+  // card that tall, which pushed the main menu's buttons off short screens after the Leviathans card had been open.
+  const settle = () => { faces.forEach(f => (f.style.height = '')); if (!side) for (const k in backs) backs[k].hidden = true; };
+  if (instant) settle();
   else {
     const from = (was ? backs[was] : front).offsetHeight;
     faces.forEach(f => (f.style.height = ''));
@@ -3231,7 +3236,7 @@ function turnCard(flip, front, backs, was, side, instant, prepare) {
     faces.forEach(f => (f.style.height = from + 'px'));
     void flip.offsetWidth;
     faces.forEach(f => (f.style.height = to + 'px'));
-    flipTimers.set(flip, setTimeout(() => faces.forEach(f => (f.style.height = '')), 480));
+    flipTimers.set(flip, setTimeout(settle, 480));
   }
   flip.classList.toggle('on', !!side);
   front.inert = !!side; front.setAttribute('aria-hidden', String(!!side));
@@ -3246,7 +3251,7 @@ function setCard(side, instant) {
   turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack'), levi: $('leviBack') }, was, side, instant, () => {
     const ts = $('titleScreen');
     clearTimeout(readTimer);
-    if (side) ts.classList.toggle('levi', side === 'levi');
+    if (side) { ts.classList.toggle('levi', side === 'levi'); ts.classList.toggle('how', side === 'how'); }
     if (side || instant) ts.classList.toggle('reading', !!side);   // Settings too since version 84 (one more row)
     else readTimer = setTimeout(() => ts.classList.remove('reading'), 480);
   });
