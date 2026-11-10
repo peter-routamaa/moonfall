@@ -90,6 +90,18 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .card-nav { display: grid; gap: 10px; }
 .best.best-big b { font-size: 22px; color: var(--gold); letter-spacing: .03em; }
 #titleScreen { padding-block: 8px 22px; gap: 8px; }
+/* The news sticker (version 99): floats in the sky under the repair panel, tilted, bobbing and wiggling (a 45-degree
+   corner ribbon covered the end of the logo). Change its text in the markup (id newsTag), or delete it when the news is old. */
+#titleScreen .repair { position: relative; }
+.news { position: absolute; top: calc(100% + 30px); left: 4px; z-index: 2; padding: 6px 10px 5px; background: var(--gold); color: var(--ink); box-shadow: 3px 3px 0 var(--gold-dk); text-align: center; pointer-events: none; transform: rotate(-12deg); animation: newsBob 2.4s ease-in-out infinite; }
+.news b { display: block; font: 700 12px/1 var(--display); letter-spacing: .12em; color: var(--lava-dk); }
+.news span { display: block; margin-top: 2px; font: 400 15px/1 var(--body); letter-spacing: .02em; }
+@keyframes newsBob {
+  0%, 100% { transform: translateY(0) rotate(-12deg); }
+  25% { transform: translateY(-3px) rotate(-15deg); }
+  50% { transform: translateY(0) rotate(-12deg); }
+  75% { transform: translateY(2px) rotate(-9deg); }
+}
 .legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; font-size: 21px; line-height: 1; }
 .legend li { display: flex; align-items: center; gap: 10px; }
 .ico { width: 28px; height: 28px; flex: none; display: grid; place-items: center; }
@@ -303,6 +315,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
   .confirm.pop-in { animation: none; }
   .hp i.hit, .hp i.gain, .hp.low i:not(.empty), .pop, .streak-flash.on { animation-duration: .01s; }
   .btn.launch { animation: none; }
+  .news { animation: none; }
 }
 </style>
 
@@ -380,6 +393,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
       <div class="repair-head"><span id="repairTitle">SHIP REPAIR</span><b><span id="repairPct">0</span><svg class="pct" viewBox="0 0 9 10" width="9" height="10" shape-rendering="crispEdges" role="img" aria-label="%"><path fill="currentColor" d="M0 0h3v3h-3zM6 7h3v3h-3zM8 0h1v1h-1zM7 1h2v1h-2zM6 2h2v1h-2zM5 3h2v1h-2zM4 4h2v1h-2zM3 5h2v1h-2zM2 6h2v1h-2zM1 7h2v1h-2zM0 8h2v1h-2zM0 9h1v1h-1z"/></svg></b></div>
       <div class="repair-bar" id="repairBar"></div>
       <ul class="parts" id="partsList"></ul>
+      <div class="news" id="newsTag"><b>NEW!</b><span>Leviathan chases added</span></div>
     </section>
     <div class="flip" id="titleFlip">
      <div class="flip-inner">
@@ -568,7 +582,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 // ======================================================================================================================
 
 // Shown on the title card as v0.NN (VERSION / 100). Add one with every published version; 100 reads v1.00.
-const VERSION = 98;
+const VERSION = 99;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
