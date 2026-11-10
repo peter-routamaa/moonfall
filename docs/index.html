@@ -114,10 +114,22 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
    wiggling, and it hides while Instructions or Settings are open (they grow up over it). Change its text in the markup
    (id newsTag), or delete it when the news is old. */
 #titleScreen .repair { position: relative; }
-.news { position: absolute; top: calc(100% + 30px); left: 4px; z-index: 2; padding: 6px 10px 5px; background: var(--gold); color: var(--ink); box-shadow: 3px 3px 0 var(--gold-dk); text-align: center; pointer-events: none; transform: rotate(-12deg); animation: newsBob 2s ease-in-out infinite; }
+.news { position: absolute; top: calc(100% + 30px); left: 4px; z-index: 2; padding: 6px 10px 5px; border: 0; background: var(--gold); color: var(--ink); box-shadow: 3px 3px 0 var(--gold-dk); text-align: center; cursor: pointer; transform: rotate(-12deg); animation: newsBob 2s ease-in-out infinite; }
 .news b { display: block; font: 700 12px/1 var(--display); letter-spacing: .12em; color: var(--lava-dk); }
 .news span { display: block; margin-top: 2px; font: 400 15px/1 var(--body); letter-spacing: .02em; }
+.news small { display: block; margin-top: 1px; font: 400 13px/1 var(--body); color: color-mix(in srgb, var(--ink) 70%, var(--gold)); }
 #titleScreen.reading .news { display: none; }
+.news:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+/* The Leviathans card (version 102), on the back of the main menu's card: tap the NEW sticker. Two columns of portraits
+   (painted once, the first time it opens, with the fight art) on a dark-blue plate, each with its name and its trick. */
+#leviBack h2 { text-align: center; }
+#leviBack { gap: 10px; }
+#leviBack .hint { margin: 0; color: var(--dust); font-size: 18px; }
+.levi-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.levi-list li { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; text-align: center; }
+.levi-pic { display: block; width: 100%; height: 64px; padding: 4px; object-fit: contain; background: color-mix(in srgb, var(--blue) 24%, var(--ink)); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--blue) 40%, var(--ink)); }
+.levi-name { font: 700 11px/1 var(--display); letter-spacing: .1em; color: var(--gold); }
+.levi-line { font: 400 16px/.95 var(--body); color: var(--dust-dim); }
 @keyframes newsBob {
   0%, 100% { transform: rotate(-12deg) scale(1); box-shadow: 2px 2px 0 var(--gold-dk); }
   50% { transform: rotate(-12deg) scale(1.1) translateY(-2px); box-shadow: 6px 7px 0 color-mix(in srgb, var(--gold-dk) 70%, transparent); }
@@ -139,9 +151,18 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
   #howBack, #titleBack { gap: 9px; padding: 12px 14px; }
   #howBack .hint, #howBack .legend { font-size: 18px; }
   #howBack .legend { gap: 4px; }
+  #leviBack { gap: 9px; padding: 12px 14px; }
+  #leviBack .hint { font-size: 18px; }
+  .levi-list { gap: 7px 8px; }
+  .levi-pic { height: 50px; padding: 3px; }
+  .levi-line { font-size: 15px; }
 }
 /* On the shortest phones the ship repair panel steps aside while Instructions or Settings is open, so the card fits. */
 @media (max-height: 600px) { #titleScreen.reading .repair { display: none; } }
+/* The Leviathans card is taller: the panel steps aside for it on phones up to 760 px tall (version 102). */
+@media (max-height: 760px) { #titleScreen.reading.levi .repair { display: none; } }
+/* And for Instructions on phones up to 680 px tall (version 104: its Done button ran 8 px off a 627 px screen). */
+@media (max-height: 680px) { #titleScreen.reading.how .repair { display: none; } }
 .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .best { font: 400 12px/1 var(--display); letter-spacing: .05em; color: var(--dust-dim); }
 .best b { color: var(--dust); font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -414,7 +435,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
       <div class="repair-head"><span id="repairTitle">SHIP REPAIR</span><b><span id="repairPct">0</span><svg class="pct" viewBox="0 0 9 10" width="9" height="10" shape-rendering="crispEdges" role="img" aria-label="%"><path fill="currentColor" d="M0 0h3v3h-3zM6 7h3v3h-3zM8 0h1v1h-1zM7 1h2v1h-2zM6 2h2v1h-2zM5 3h2v1h-2zM4 4h2v1h-2zM3 5h2v1h-2zM2 6h2v1h-2zM1 7h2v1h-2zM0 8h2v1h-2zM0 9h1v1h-1z"/></svg></b></div>
       <div class="repair-bar" id="repairBar"></div>
       <ul class="parts" id="partsList"></ul>
-      <div class="news" id="newsTag"><b>NEW!</b><span>Leviathan chases added</span></div>
+      <button class="news" id="newsTag" type="button"><b>NEW!</b><span>Leviathan chases added</span><small>(tap to see)</small></button>
     </section>
     <div class="flip" id="titleFlip">
      <div class="flip-inner">
@@ -428,7 +449,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
         <button class="btn settings" id="settingsBtn" type="button"><svg viewBox="0 0 9 9" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM1 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM7 1h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM0 3h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM8 5h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM1 7h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM5 8h1v1h-1z"/></svg>Settings</button>
       </div>
      </div>
-     <div class="card face back" id="titleBack" inert aria-hidden="true">
+     <div class="card face back" id="titleBack" hidden inert aria-hidden="true">
       <h2>Settings</h2>
       <div class="set-list">
         <button class="set-tog" id="sndT" type="button" aria-pressed="true" aria-label="Sound FX"><span>Sound<br>FX</span></button>
@@ -452,6 +473,12 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
         <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Cafes from 1050 m, every 1000 m (1600 m after a Leviathan fight): coffee (+1 health) and bonus items. The fall gets 5% faster after each cafe, up to 25%</li>
       </ul>
       <button class="btn" id="howDone" type="button">Done</button>
+     </div>
+     <div class="card face back" id="leviBack" hidden inert aria-hidden="true">
+      <h2>Leviathans</h2>
+      <p class="hint">Six lurk in the shaft. One hunts you after every second cafe.</p>
+      <ul class="levi-list" id="leviList"></ul>
+      <button class="btn" id="leviDone" type="button">Done</button>
      </div>
      </div>
     </div>
@@ -604,7 +631,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 101;
+const VERSION = 104;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3218,7 +3245,10 @@ function turnCard(flip, front, backs, was, side, instant, prepare) {
   if (prepare) prepare();
   flip.classList.toggle('instant', instant);
   clearTimeout(flipTimers.get(flip));
-  if (instant) faces.forEach(f => (f.style.height = ''));
+  // Once it's back on its front, the back faces are hidden again (version 104): left showing, the tallest one kept the
+  // card that tall, which pushed the main menu's buttons off short screens after the Leviathans card had been open.
+  const settle = () => { faces.forEach(f => (f.style.height = '')); if (!side) for (const k in backs) backs[k].hidden = true; };
+  if (instant) settle();
   else {
     const from = (was ? backs[was] : front).offsetHeight;
     faces.forEach(f => (f.style.height = ''));
@@ -3226,7 +3256,7 @@ function turnCard(flip, front, backs, was, side, instant, prepare) {
     faces.forEach(f => (f.style.height = from + 'px'));
     void flip.offsetWidth;
     faces.forEach(f => (f.style.height = to + 'px'));
-    flipTimers.set(flip, setTimeout(() => faces.forEach(f => (f.style.height = '')), 480));
+    flipTimers.set(flip, setTimeout(settle, 480));
   }
   flip.classList.toggle('on', !!side);
   front.inert = !!side; front.setAttribute('aria-hidden', String(!!side));
@@ -3237,14 +3267,59 @@ function setCard(side, instant) {
   const was = cardSide;
   instant = !!instant || reduceMotion;
   cardSide = side;
-  turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack') }, was, side, instant, () => {
+  if (side === 'levi') fillLeviCard();
+  turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack'), levi: $('leviBack') }, was, side, instant, () => {
     const ts = $('titleScreen');
     clearTimeout(readTimer);
+    if (side) { ts.classList.toggle('levi', side === 'levi'); ts.classList.toggle('how', side === 'how'); }
     if (side || instant) ts.classList.toggle('reading', !!side);   // Settings too since version 84 (one more row)
     else readTimer = setTimeout(() => ts.classList.remove('reading'), 480);
   });
-  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $('sndT') : side === 'how' ? $('howDone') : $(was === 'how' ? 'howBtn' : 'settingsBtn')), 460);
+  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $('sndT') : side === 'how' ? $('howDone') : side === 'levi' ? $('leviDone') : $(was === 'how' ? 'howBtn' : was === 'levi' ? 'startBtn' : 'settingsBtn')), 460);
 }
+// -- the Leviathans card (version 102): the NEW sticker opens it. Each creature's name, its signature attack in a line,
+// and a portrait painted with its fight art (bossStage), facing right and looking down at the viewer.
+const LEVI_INFO = [
+  ['whale', 'Grimtide', 'Sonar pulses. Find the gap.'],
+  ['elder', 'Vespergaunt', 'Shrieking rings, two ways through'],
+  ['jelly', 'Netherveil', 'Drifting lanes of stingers'],
+  ['angler', 'Lanternmaw', 'Its lure pulls you in, then it bites'],
+  ['manta', 'Duskwraith', 'Sweeps one side, then the other'],
+  ['nautilus', 'Coilheart', 'Fire spirals out of the shell'],
+];
+function leviPortrait(kind) {
+  const buf = bossBuf(kind), keep = [bossTmp, bossTmpG, pilotNow];
+  bossTmp = document.createElement('canvas'); bossTmp.width = buf.w; bossTmp.height = buf.h; bossTmpG = bossTmp.getContext('2d');
+  // Coloured as if 1,500 m down; placed so the pilot is below and a little to the right of it (its eyes look there).
+  const y = 1500 * PX_PER_M - camY, b = { kind, k2: 3, dir: 1, rot: 0, turnT: -1, turnFrom: 1, t: 0, phase: 'fight', pt: 1, x: player.x - 40, y, wob: 0 };
+  pilotNow = y + 90 - PILOT_CY;
+  while (!bossStage(b, buf));
+  [bossTmp, bossTmpG, pilotNow] = keep;
+  // Trimmed to the creature's own pixels (its paint box leaves room for it to move), with a 2 px margin.
+  const d = buf.rg.getImageData(0, 0, buf.w, buf.h).data;
+  let x0 = buf.w, y0 = buf.h, x1 = 0, y1 = 0;
+  for (let y = 0; y < buf.h; y++) for (let x = 0; x < buf.w; x++) if (d[(y * buf.w + x) * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  if (x1 < x0) { x0 = y0 = 0; x1 = buf.w - 1; y1 = buf.h - 1; }
+  const out = document.createElement('canvas'); out.width = x1 - x0 + 5; out.height = y1 - y0 + 5;
+  const g = out.getContext('2d');
+  g.globalAlpha = 0.55; g.drawImage(buf.rim, 2 - x0, 2 - y0); g.globalAlpha = 1; g.drawImage(buf.cv, 2 - x0, 2 - y0);
+  return out;
+}
+let leviCardDone = false;
+function fillLeviCard() {
+  if (leviCardDone) return;
+  leviCardDone = true;
+  const list = $('leviList');
+  for (const [kind, name, line] of LEVI_INFO) {
+    const li = document.createElement('li'), pic = leviPortrait(kind);
+    pic.className = 'levi-pic'; pic.setAttribute('role', 'img'); pic.setAttribute('aria-label', name);
+    const n = document.createElement('span'); n.className = 'levi-name'; n.textContent = name.toUpperCase();
+    const l = document.createElement('span'); l.className = 'levi-line'; l.textContent = line;
+    li.append(pic, n, l); list.append(li);
+  }
+}
+$('newsTag').addEventListener('click', () => { if (state === 'title' && !cardSide) setCard('levi'); });
+$('leviDone').addEventListener('click', () => setCard(null));
 $('howBtn').addEventListener('click', () => setCard('how'));
 // Reset ship repair (Settings): two confirmations, the second sterner, before the parts are cleared.
 const confirmDlg = $('confirmDlg');
