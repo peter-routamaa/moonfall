@@ -99,6 +99,17 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .set-tog::after { content: 'OFF'; grid-column: 2; grid-row: 1; box-sizing: border-box; width: 3.6em; text-align: center; font-size: 9px; padding: 3px 0 2px; margin-top: -2px; background: var(--ink-soft); color: var(--dust-dim); }
 .set-tog[aria-pressed="true"] { border-color: var(--green); background: transparent; }
 .set-tog[aria-pressed="true"]::after { content: 'ON'; background: var(--green); color: var(--ink); }
+/* Version 112: Hard dive is locked until the ship has been fixed once. Suits: a row of swatches, one per suit. */
+.set-tog:disabled { opacity: .55; cursor: default; }
+.set-tog:disabled::after { content: 'LOCKED'; width: auto; padding: 3px 3px 2px; }
+.suit-row { display: flex; align-items: center; gap: 8px; }
+.suit-row > span { font: 700 10px/1 var(--display); letter-spacing: .08em; color: var(--dust); margin-right: auto; }
+.suit-sw { width: 34px; height: 34px; padding: 0; border: 2px solid var(--ink-soft); background: var(--sw); box-shadow: inset 0 -6px 0 var(--sh); cursor: pointer; position: relative; }
+.suit-sw[aria-pressed="true"] { border-color: var(--gold); outline: 2px solid var(--gold); outline-offset: 1px; }
+.suit-sw:disabled { background: var(--ink-soft); box-shadow: none; cursor: default; }
+.suit-sw:disabled::after { content: ''; position: absolute; left: 11px; top: 14px; width: 8px; height: 6px; background: var(--dust-dim); }
+.suit-sw:disabled::before { content: ''; position: absolute; left: 12px; top: 9px; width: 4px; height: 5px; border: 1px solid var(--dust-dim); border-bottom: 0; }
+.suit-note { margin: -4px 0 0; font-size: 17px; color: var(--dust-dim); text-align: right; }
 .set-tog:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 /* Each word of a toggle's name on its own line (user, version 84). */
 .set-tog > span { grid-column: 1; grid-row: 1; line-height: 1.3; text-align: left; }
@@ -317,6 +328,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .run-parts .none { font: 400 19px/1 var(--body); color: var(--dust-dim); background: none; padding: 0; }
 .repair-line { margin: 0; font-size: 20px; color: var(--dust-dim); }
 .repair-line b { color: var(--gold); font-weight: 400; }
+.repair-line.gold-line { color: var(--gold); }
 @keyframes pop { 0% { opacity: 0; translate: 0 8px; } 15% { opacity: 1; translate: 0 0; } 70% { opacity: 1; } 100% { opacity: 0; translate: 0 -36px; } }
 .coach { position: absolute; left: 50%; bottom: 14%; transform: translateX(-50%); font: 700 13px/1 var(--display); letter-spacing: .06em; background: var(--ink); color: var(--dust); padding: 9px 12px 8px; box-shadow: 4px 4px 0 var(--blue); pointer-events: none; white-space: nowrap; transition: opacity .5s steps(5); }
 .coach.gone { opacity: 0; }
@@ -432,7 +444,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
         <li>Spend spare crystals in the shop: one treat per cafe, lasting until the next cafe.</li>
         <li>Skim past rocks and mines for a streak: every 8 pays a crystal.</li>
         <li>Tombstones on the shaft walls mark where players died: pass them to beat their high scores.</li>
-        <li>The fall gets 5% faster after every cafe, whether you stop or not, up to 25%.</li>
+        <li>The fall gets 5% faster after every cafe, whether you stop or not, up to 35%.</li>
       </ul>
       <button class="btn" id="tipsDone" type="button">Done</button>
      </div>
@@ -482,7 +494,10 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
         <button class="set-tog" id="vibT" type="button" aria-pressed="true" aria-label="Vibration"><span>Vibration</span></button>
         <button class="set-tog" id="fpsT" type="button" aria-pressed="false" aria-label="Display FPS"><span>Display<br>FPS</span></button>
         <button class="set-tog" id="invT" type="button" aria-pressed="false" aria-label="Invert thruster controls"><span>Invert<br>thruster<br>controls</span></button>
+        <button class="set-tog" id="hardT" type="button" aria-pressed="false" aria-label="Hard dive"><span>Hard<br>dive</span></button>
       </div>
+      <div class="suit-row" id="suitRow" role="group" aria-label="Suit colour"><span>SUIT</span></div>
+      <p class="suit-note" id="suitNote"></p>
       <button class="btn quiet" id="introBtn" type="button">Watch the intro</button>
       <button class="btn quiet warn" id="resetBtn" type="button">Reset ship repair</button>
       <button class="btn" id="settingsDone" type="button">Done</button>
@@ -495,7 +510,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
         <li><span class="ico"><canvas id="icoOrb" width="14" height="14"></canvas></span>Crystal: +1 health</li>
         <li><span class="ico"><canvas id="icoShield" width="28" height="28"></canvas></span>Bubble: 8s shield, hits wear it down</li>
         <li><span class="ico"><canvas id="icoPart" class="wide" width="30" height="30"></canvas></span>Gold ring: ship part, collect&nbsp;these</li>
-        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Cafes from 1050 m, every 1000 m (1600 m after a Leviathan fight): coffee (+1 health) and bonus items. The fall gets 5% faster after each cafe, up to 25%</li>
+        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Cafes from 1050 m, every 1000 m (1600 m after a Leviathan fight): coffee (+1 health) and bonus items. The fall gets 5% faster after each cafe, up to 35%</li>
       </ul>
       <button class="btn" id="howDone" type="button">Done</button>
      </div>
@@ -610,6 +625,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
         <button class="btn" id="endTitleBtn" type="button">Main menu</button>
         <button class="btn quiet" id="newMissionBtn" type="button">New mission</button>
       </div>
+      <p class="repair-line gold-line" id="eUnlock" hidden></p>
       <p class="buzz-note">A new mission resets your ship parts. Your best depth stays.</p>
     </div>
   </section>
@@ -662,7 +678,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 110;
+const VERSION = 112;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -858,12 +874,25 @@ function drawFlame(nx, ny, dir, k) {
     if (u < 0.35) { c.fillStyle = P.dust; c.fillRect(x, ny, 1, 1); }
   }
 }
+// -- suits (version 112, idea 13): one more colour unlocks with each finished mission (save.missionsDone); picked in
+// Settings (save.suit). The suit is the w pixels (and their s shading) of the pilot's sprites.
+const SUITS = [
+  ['Moon dust', P.dust, P.shade], ['Signal red', '#E86A5C', mix(P.lava, P.ink, 0.35)], ['Gold', '#F2C14E', '#A9781B'],
+  ['Mint', '#A6EBB9', '#1F7F45'], ['Amethyst', '#CDB6F5', '#5B3AA8'],
+];
+const suitMaps = SUITS.map(([, w, sh]) => Object.assign(pmap(), { w, s: sh }));
+function missionsDone() {
+  if (save.missionsDone === undefined) { save.missionsDone = save.launches || 0; save.missionDone = save.missionsDone > 0 && canLaunch(); persist(); }
+  return save.missionsDone;
+}
+const suitsOpen = () => Math.min(SUITS.length, 1 + missionsDone());
+const suitMap = () => suitMaps[Math.min(save.suit || 0, suitsOpen() - 1)] || MAP;
 function drawMan(x, y, pose, t, thr) {
   const f = Math.floor(t * 6) % 2,
     rows = pose === 'stand' ? RUN[1] : pose === 'standL' ? RUNL[1] : pose === 'run' ? RUN[f] : pose === 'runL' ? RUNL[f] : pose === 'wave' ? WAVE[Math.floor(t * 4) % 2] : FALL[f];
   const x0 = Math.round(x - rows[0].length / 2), y0 = Math.round(y);
   drawPack(pose === 'wave' ? x0 + 2 : x0, y0, pose === 'wave' ? 'fall' : pose);
-  sprite(c, rows, x0, y0, MAP);
+  sprite(c, rows, x0, y0, suitMap());
   if (pose === 'fall' && thr && Math.abs(thr) > THR_SHOW) {
     const k = Math.min(1, Math.abs(thr) / THR_FULL);
     if (thr > 0) drawFlame(x0 - 5, y0 + 17, -1, k); else drawFlame(x0 + 31, y0 + 17, 1, k);
@@ -873,6 +902,30 @@ function drawMan(x, y, pose, t, thr) {
     c.fillStyle = P.blue; c.fillRect(x0 + 11, y0 + 14, 4, 2);
     c.fillStyle = P.dust; c.fillRect(x0 + 11, y0 + 14, 1, 1); c.fillRect(x0 + 14, y0 + 5, 2, 1);
   } else if (pose !== 'wave') { c.fillStyle = P.blue; c.fillRect(pose === 'runL' || pose === 'standL' ? x0 + 14 : x0 + 6, y0 + 15, 2, 2); }
+}
+// -- squash and stretch (idea 15): the pilot flattens when he lands or is hit, stretches when he grabs something, bonks a
+// wall or jumps, and stretches a little as the fall speeds up. `sq.q` > 0 squashes (wider, shorter), < 0 stretches; a
+// springy wobble (SQ_K, SQ_D) brings it back. Drawn by painting him into a small canvas and scaling that, pixel-sharp.
+// Off with reduced motion.
+const sq = { q: 0, v: 0 }, SQ_K = 420, SQ_D = 11;
+function squash(q) { if (!reduceMotion) { sq.q = q; sq.v = 0; } }
+function stepSquash(dt) {
+  dt = Math.min(dt, 1 / 30);
+  // the base stretch while falling: none at the starting speed, SQ_FAST at the top speed
+  const fast = state === 'play' && player.pose === 'fall' && !reduceMotion ? Math.max(0, Math.min(1, (player.v / FALL_SPEED - 1) / CAFE_SPEED_MAX)) : 0;
+  sq.v += (-SQ_K * (sq.q + SQ_FAST * fast) - SQ_D * sq.v) * dt; sq.q += sq.v * dt;
+}
+const SQ_FAST = 0.06, manCv = document.createElement('canvas'), manG = manCv.getContext('2d');
+manCv.width = 120; manCv.height = 56;
+// drawMan with the squash applied, about his feet when standing or running, about his middle when falling.
+function drawManSquashed(x, y, pose, t, thr) {
+  const sx = 1 + 0.7 * sq.q, sy = 1 - sq.q;
+  if (Math.abs(sx - 1) < 0.03 && Math.abs(sy - 1) < 0.03) { drawMan(x, y, pose, t, thr); return; }
+  const keep = c, ox = 60, oy = 14, ay = pose === 'fall' ? PILOT_CY : 28;
+  manG.clearRect(0, 0, manCv.width, manCv.height);
+  c = manG; drawMan(ox, oy, pose, t, thr); c = keep;
+  const w = Math.round(manCv.width * sx), h = Math.round(manCv.height * sy);
+  c.drawImage(manCv, Math.round(x - ox * sx), Math.round(y + ay - (oy + ay) * sy), w, h);
 }
 // Sea mine: dark riveted sphere with horned spikes and a slow-blinking warning light.
 const MINE = { body: '#2E3446', mid: '#454D66', hi: '#7D879F', tip: '#B9C0CF' };
@@ -2224,8 +2277,9 @@ function setState(next) {
 let state = 'title', prevState = 'play', clock = 0, introT = 0, dieT = 0, camY = -360, shake = 0, repair = 0, repairStart = 0, readyStart = false;
 const runParts = { plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 };
 // A fresh pilot for every run (resetRun). `touch` (a finger is on the screen) carries over between runs.
+let hardRun = false;   // this run is a Hard dive (version 112; see startRun)
 const playerStart = () => ({
-  x: 84, y: -30, v: 0, vx: 0, hp: 5, max: 5, inv: 0, blockT: 0, shield: 0, shieldMax: 8, orbs: 0, spare: 0, streak: 0,
+  x: 84, y: -30, v: 0, vx: 0, hp: hardRun ? 4 : 5, max: hardRun ? 4 : 5, inv: 0, blockT: 0, shield: 0, shieldMax: 8, orbs: 0, spare: 0, streak: 0,
   bestStreak: 0, perks: {}, perkCafe: 0, toughN: 0, bought: [], slowUntil: 0, flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false,
   fallRamp: 1,
   hits: 0, closest: Infinity, closestMine: false, leviRun: [], bossWon: false, newBadges: []   // version 108: run highlights and badges
@@ -2241,14 +2295,15 @@ const depthM = () => Math.max(0, Math.floor(player.y / PX_PER_M));
 // 3 km); the user found the game too hard and asked for it off for now (version 76). Set SPEED_RAMP back to 170 to bring
 // the speed-up back (the speed lines appear with it).
 // Since version 80 the fall gets faster for every cafe passed, landed at or not, eased in over the 400 px below each
-// ledge. Since version 85 it's CAFE_SPEEDUP (5%) of the starting speed per cafe, up to CAFE_SPEED_MAX (+25%, reached at
-// the fifth cafe): 262.5, 275, 287.5, 300, then 312.5 px/s. (Version 80-84 compounded 5% per cafe with no top.)
-const FALL_SPEED = 250, SPEED_RAMP = 0, CAFE_SPEEDUP = 0.05, CAFE_SPEED_MAX = 0.25;
+// ledge. Since version 85 it's CAFE_SPEEDUP (5%) of the starting speed per cafe, up to CAFE_SPEED_MAX: +35% since version
+// 111 (user asked; +25% before, reached at the fifth cafe), reached at the seventh: 262.5, 275, 287.5, 300, 312.5, 325, then
+// 337.5 px/s. (Version 80-84 compounded 5% per cafe with no top.)
+const FALL_SPEED = 250, SPEED_RAMP = 0, CAFE_SPEEDUP = 0.05, CAFE_SPEED_MAX = 0.35;
 const cafesPassed = d => { const k = cafeAbove(d - 40); return k < 1 ? 0 : k - 1 + Math.min(1, (d - cafeLedge(k)) / 400); };
 // How many cafe ledges lie above depth d, counted the moment he passes each one (pops and treats use this).
 const ledgesPassed = d => Math.max(0, cafeAbove(d - 40));
 function speedAt(d) {
-  const s = (FALL_SPEED + SPEED_RAMP * smoothstep(d / 26000)) * (1 + Math.min(CAFE_SPEED_MAX, CAFE_SPEEDUP * cafesPassed(d))), B = bossAt(d);
+  const s = (FALL_SPEED + SPEED_RAMP * smoothstep(d / 26000)) * (1 + Math.min(CAFE_SPEED_MAX, CAFE_SPEEDUP * cafesPassed(d))) * (hardRun ? HARD_SPEED : 1), B = bossAt(d);
   if (!B) return s;
   // Through a boss cavern (version 87) the fall eases to the speed that makes it last BOSS_TIME, then back after the neck.
   const u = d < B.A0 ? smoothstep((d - B.A0 + 240) / 240) : d < B.N1 ? 1 : 1 - smoothstep((d - B.N1) / BOSS_BACK);
@@ -3224,6 +3279,21 @@ function syncToggles() {
   for (const id of ['fpsT', 'fpsP']) $(id).setAttribute('aria-pressed', String(save.fps));
   $('fps').hidden = !save.fps;
   $('invT').setAttribute('aria-pressed', String(!!save.inv));
+  // Hard dive and suits (version 112): unlocked by finishing missions
+  const open = suitsOpen(), ht = $('hardT'), cur = Math.min(save.suit || 0, open - 1);
+  ht.disabled = !hardOpen(); ht.setAttribute('aria-pressed', String(!!save.hard && hardOpen()));
+  ht.setAttribute('aria-label', hardOpen() ? 'Hard dive' : 'Hard dive, locked until the ship is fixed');
+  const row = $('suitRow');
+  if (row.children.length < SUITS.length + 1) SUITS.forEach(([name, w, sh], i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'suit-sw'; b.style.setProperty('--sw', w); b.style.setProperty('--sh', sh);
+    b.addEventListener('click', () => { save.suit = i; persist(); syncToggles(); });
+    row.append(b);
+  });
+  [...row.querySelectorAll('.suit-sw')].forEach((b, i) => {
+    b.disabled = i >= open; b.setAttribute('aria-pressed', String(i === cur));
+    b.setAttribute('aria-label', SUITS[i][0] + (i >= open ? ', locked' : ''));
+  });
+  $('suitNote').textContent = SUITS[cur][0] + (open < SUITS.length ? ' \u00b7 fix the ship to unlock ' + (open === 1 ? 'more' : 'the next') : '');
   $('buzzNote').hidden = Buzz.canVibrate || !save.vib;
   $('bestTitle').textContent = fmtM(save.best) + ' m'; $('bestPause').textContent = fmtM(save.best) + ' m';
 }
@@ -3233,6 +3303,7 @@ for (const id of ['sndT', 'sndP']) $(id).addEventListener('click', toggleSound);
 for (const id of ['vibT', 'vibP']) $(id).addEventListener('click', toggleVib);
 for (const id of ['fpsT', 'fpsP']) $(id).addEventListener('click', () => { save.fps = !save.fps; persist(); syncToggles(); });
 $('invT').addEventListener('click', () => { save.inv = !save.inv; persist(); syncToggles(); });
+$('hardT').addEventListener('click', () => { if (!hardOpen()) return; save.hard = !save.hard; persist(); syncToggles(); });
 function toggleMusic() { save.mus = !save.mus; Sfx.init(); Music.setOn(); persist(); syncToggles(); }
 for (const id of ['musT', 'musP']) $(id).addEventListener('click', toggleMusic);
 function drawIcons() {
@@ -3252,7 +3323,7 @@ function drawIcons() {
 
 // ---------- flow ----------
 function resetRun() {
-  newSeed(); sayEl.style.visibility = '';
+  newSeed(); sayEl.style.visibility = ''; sq.q = sq.v = 0;
   rocks = []; items = []; particles = []; hazards = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; lastHazD = -9999; steerAcc = 0;
   for (const k in runParts) runParts[k] = 0;
   leviSeen.clear();
@@ -3400,7 +3471,7 @@ $('confirmYes').addEventListener('click', () => {
   if (confirmStep === 1) { askReset(2); return; }
   confirmDlg.close();
   for (const pt of PARTS) save.parts[pt.id] = 0;
-  save.dives = 0; save.nav = 0;
+  save.dives = 0; save.nav = 0; missionsDone(); save.missionDone = false;   // the next finished mission counts (version 112)
   persist(); renderRepair();
   const b = $('resetBtn'); b.textContent = 'Repair reset to 0%';
   clearTimeout(resetTimer); resetTimer = setTimeout(() => (b.textContent = 'Reset ship repair'), 2500);
@@ -3449,7 +3520,12 @@ function endRun(how) {
     intro: runId === introRun && introHow ? introHow : null });
   if (how !== 'left') runId = '';
 }
+// -- Hard dive (version 112, idea 13): unlocked once the ship has been fixed (a finished mission). The run starts with 4
+// health, falls HARD_SPEED faster all the way down, the Leviathans are enraged from the start, and there are 50% more
+// crystals to make up for it. Switched in Settings (save.hard); fixed for the whole run (hardRun).
+const HARD_SPEED = 1.15, hardOpen = () => missionsDone() > 0;
 function startRun(quick) {
+  hardRun = !!save.hard && hardOpen();
   Sfx.init(); Music.stop(0.4); setCard(null, true);
   resetRun(); countPlay();
   save.dives = (save.dives || 0) + 1; persist();   // dives this mission, shown when it's complete
@@ -3468,6 +3544,7 @@ function beginPlay() {
     renderTarget();
   } player.v = speedAt(player.y); player.aim = player.x; player.vx = 0; steerAcc = 0; tapBurst.l = tapBurst.r = 0;
   showCoach('TAP A SIDE, OR DRAG', 2600);
+  if (hardRun) pop('HARD DIVE', player.x, player.y - 30, 'bad');
 }
 function pause() {
   if (!['play', 'intro', 'landing', 'cafe', 'cafeJump'].includes(state)) return;
@@ -3512,6 +3589,7 @@ function gameOver() {
   // Run highlights (version 108), one per line, the rarest first; at most four, then the treats.
   const leviName = k => LEVI_INFO.find(x => x[0] === k)[1], nb = player.newBadges;
   const lines = [
+    hardRun ? '<b>Hard dive</b>' : '',
     nb.length ? 'New badge' + (nb.length > 1 ? 's' : '') + ': <b>' + nb.join(', ') + '</b>' : '',
     player.leviRun.length ? 'Beat <b>' + player.leviRun.map(leviName).join(', ') + '</b>' : '',
     cafesRun ? 'Cafes visited <b>' + cafesRun + '</b>' + (cafesRun && !player.hits ? ', no hits' : '') : '',
@@ -3710,7 +3788,7 @@ const cafeLedge = k => cafeD(k) + 40;   // the top of cafe k's ledge
 // frame, and reading the wall at a far cafe's ledge built a whole rock tile (128 rows of edges) that was thrown away
 // and built again the next frame. The ledge is 175 px long (version 91; 140 before: the user wanted it 25% wider, to be
 // easier to land on).
-const CAFE_LEDGE = 175, cafeInfos = new Map();
+const CAFE_LEDGE = 175, CAFE_W = 96, cafeInfos = new Map();
 function cafeInfo(k) {
   let C = cafeInfos.get(k);
   if (C && C.seed === SEED) return C;
@@ -3721,7 +3799,7 @@ function cafeInfo(k) {
     wall = side < 0 ? e.L : e.R,
     len = CAFE_LEDGE;
   const tip = wall - side * len;
-  C = { k, seed: SEED, Dc, Dl, side, wall, tip, padX: tip + side * 30, counterX: wall - side * 58, shopX: side < 0 ? wall + 4 : wall - 70 };
+  C = { k, seed: SEED, Dc, Dl, side, wall, tip, padX: tip + side * 30, counterX: wall - side * 58, shopX: side < 0 ? wall + 4 : wall - 4 - CAFE_W };
   cafeInfos.set(k, C);
   return C;
 }
@@ -3740,6 +3818,11 @@ const signWidth = (text, z) => [...text].reduce((w, ch) => w + ((SIGN_FONT[ch] ?
 // The cafe's still parts are drawn once per cafe into two images: everything behind the chimney smoke,
 // and the big sign in front of it. Pad lights, the arrow, the barista, smoke and the sign's bulbs stay live.
 const CAFE_Y = 92, cafeArt = new Map();
+// Where the cafe's parts are (version 112): X(u, w) turns cafe coordinates into screen x for something w wide.
+function cafeGeo(C) {
+  const s = C.side, x0 = Math.round(C.shopX), X = (u, w = 0) => s < 0 ? x0 + CAFE_W - u - w : x0 + u;
+  return { x0, X, winX: X(8, 44), baristaX: X(30), smokeX: X(87), lampX: X(58, 3), sgx: X(10, 72), sgv: -92 };
+}
 function cafeLayers(C) {
   let a = cafeArt.get(C.k);
   if (a) return a;
@@ -3766,34 +3849,60 @@ function cafeLayers(C) {
   g.fillStyle = P.ink; g.fillRect(poleX, by + bh, 2, y - 4 - by - bh); g.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
   g.fillStyle = '#3CB86A'; g.fillRect(bx, by, bw, bh); g.fillStyle = '#A6EBB9'; g.fillRect(bx, by, bw, 1);
   g.fillStyle = P.ink; signText('LAND', bx + 4, by + 3, 2, g);
-  // the cafe: walls, window, door, awning, chimney
-  const x0 = Math.round(C.shopX), top = y - 46;
-  g.fillStyle = P.ink; g.fillRect(x0 - 1, top + 9, 68, 38); g.fillStyle = P.rock2; g.fillRect(x0, top + 10, 66, 36);
-  g.fillStyle = P.shade; for (let yy = top + 16; yy < y; yy += 6) g.fillRect(x0, yy, 66, 1);
-  const wx = s < 0 ? x0 + 30 : x0 + 8;
-  g.fillStyle = P.ink; g.fillRect(wx - 1, top + 19, 28, 18); g.fillStyle = '#F2C14E'; g.fillRect(wx, top + 20, 26, 16);
-  const dx = s < 0 ? x0 + 6 : x0 + 46;
-  g.fillStyle = P.ink;
-  g.fillRect(dx - 1, top + 25, 14, 21);
-  g.fillStyle = P.deeper;
-  g.fillRect(dx, top + 26, 12, 20);
-  g.fillStyle = '#F2C14E';
-  g.fillRect(s < 0 ? dx + 9 : dx + 1, top + 36, 2, 2);
-  for (let i = 0; i < 72; i++) {
-    g.fillStyle = Math.floor(i / 6) % 2 ? P.dust : P.lava;
-    g.fillRect(x0 - 3 + i, top + 10, 1, 5 + (i % 6 < 3 ? 1 : 0));
+  // the cafe (redesigned in version 112, user: "a bit bigger ... or fancier. It just looks a bit dull"): a Paris-style
+  // front, CAFE_W wide, in the game's palette. Laid out in cafe coordinates (cafeGeo): u across from the end nearest the
+  // pad, v up from the ledge (negative), mirrored when the cafe is on the left wall so the window always faces the pad.
+  const G = cafeGeo(C), R = (u, v, w, hh, col, gg = g) => { gg.fillStyle = col; gg.fillRect(G.X(u, w), y + v, w, hh); };
+  const brown = '#8F4A1E', terra = mix(P.lava, P.ink, 0.35), gold = '#F2C14E', goldDk = '#C98A2E';
+  // outside table under a striped parasol, two stools and a mug
+  R(-13, -31, 2, 31, P.ink);
+  for (let r = 0; r < 6; r++) for (let i = 0; i < 4 + r * 4; i++) { const u = -12 - 2 - r * 2 + i; R(u, -37 + r, 1, 1, Math.floor((u + 40) / 4) % 2 ? P.dust : P.lava); }
+  R(-25, -32, 25, 1, P.ink);
+  R(-19, -11, 14, 2, P.ink); R(-18, -11, 12, 1, P.shade); R(-13, -9, 2, 9, P.ink); R(-16, -1, 8, 1, P.ink);
+  R(-15, -14, 3, 3, P.dust); R(-12, -13, 1, 2, P.dust);
+  for (const u of [-24, -4]) { R(u, -6, 4, 2, P.ink); R(u + 1, -4, 2, 4, P.ink); }
+  // slate mansard roof with a round window, and the chimney
+  for (let r = 0; r < 12; r++) { const i = Math.round(r * 0.5); R(-3 + i, -47 - r, 102 - 2 * i, 1, r === 11 ? P.ink : r % 3 === 0 ? P.deep : P.deeper); }
+  R(43, -56, 10, 8, P.ink); R(44, -55, 8, 6, gold); R(47, -55, 2, 6, P.ink); R(44, -53, 8, 1, P.ink);
+  R(83, -69, 9, 12, P.ink); R(84, -68, 7, 11, terra); R(82, -70, 11, 2, P.ink);
+  // the front: a cream fascia over a navy shopfront
+  R(-1, -47, 98, 47, P.ink);
+  R(0, -46, 96, 9, P.dust); R(0, -44, 96, 1, gold); R(0, -39, 96, 1, gold);
+  R(0, -37, 96, 37, P.deep); for (let u = 4; u < 96; u += 8) R(u, -36, 1, 36, mix(P.deep, P.blue, 0.35));
+  R(0, -3, 96, 3, P.deeper);
+  // the big window: three warm panes with pendant lamps, a cream frame and a flower box below
+  R(5, -28, 50, 23, P.ink); R(6, -27, 48, 21, P.dust); R(8, -25, 44, 17, gold);
+  R(8, -25, 44, 2, mix(gold, P.dust, 0.5));
+  for (const u of [20, 38]) R(u, -25, 2, 17, P.dust);
+  for (const u of [13, 46]) { R(u, -25, 1, 3, P.ink); R(u - 2, -22, 5, 2, P.ink); R(u - 1, -20, 3, 1, P.dust); }
+  R(5, -6, 50, 4, P.ink); R(6, -5, 48, 2, brown);
+  for (let u = 7; u < 54; u += 3) { R(u, -8, 2, 2, P.grn); R(u + (u % 2), -9, 1, 1, [P.lava, P.pur, P.dust, gold][(u >> 1) % 4]); }
+  // a wall lantern between window and door
+  R(58, -27, 1, 3, P.ink); R(57, -25, 5, 6, P.ink);
+  // the door: cream, with a glass panel and a gold knob, on a gold step
+  R(63, -30, 18, 30, P.ink); R(64, -29, 16, 29, P.dust); R(64, -29, 1, 29, P.shade);
+  R(67, -26, 10, 11, P.ink); R(68, -25, 8, 9, gold); R(71, -25, 2, 9, P.dust);
+  R(68, -11, 8, 4, P.shade); R(77, -15, 2, 2, goldDk); R(62, -1, 20, 1, gold);
+  // a potted plant by the wall
+  R(84, -8, 9, 8, P.ink); R(85, -7, 7, 7, terra); R(85, -7, 7, 1, mix(terra, P.dust, 0.3));
+  for (let i = 0; i < 9; i++) R(84 + (i * 5) % 9, -10 - (i * 7) % 13, 3, 3, i % 3 ? P.grn : P.grnD);
+  // the scalloped, striped awning over the window and door
+  for (let u = -3; u < 99; u++) {
+    const st = Math.floor((u + 3) / 6) % 2 ? P.dust : P.lava;
+    R(u, -38, 1, 7, st);
+    const k2 = (u + 3) % 6, drop = k2 === 0 || k2 === 5 ? 1 : 2;
+    R(u, -31, 1, drop, st);
   }
-  g.fillStyle = P.ink; g.fillRect(x0 - 3, top + 9, 72, 1);
-  const chx = s < 0 ? x0 + 56 : x0 + 4;
-  g.fillStyle = P.ink; g.fillRect(chx - 1, top + 1, 8, 9); g.fillStyle = P.shade; g.fillRect(chx, top + 2, 6, 8);
-  // big gold sign on tall posts (its bulbs chase live)
-  const sgW = 72, sgH = 23, sgx = x0 - 3, sgy = top - 34;
-  h.fillStyle = P.ink; h.fillRect(sgx + 10, sgy + sgH, 3, top + 9 - sgy - sgH); h.fillRect(sgx + sgW - 13, sgy + sgH, 3, top + 9 - sgy - sgH);
-  h.fillRect(sgx - 1, sgy - 1, sgW + 2, sgH + 2); h.fillStyle = '#F2C14E'; h.fillRect(sgx, sgy, sgW, sgH);
+  R(-3, -39, 102, 1, P.ink);
+  for (let u = -3; u < 99; u++) { const k2 = (u + 3) % 6; R(u, -31 + (k2 === 0 || k2 === 5 ? 1 : 2), 1, 1, P.ink); }
+  // the big gold sign on posts above the roof (its bulbs chase live)
+  const sgx = G.sgx, sgy = y + G.sgv, sgW = 72, sgH = 23;
+  h.fillStyle = P.ink; h.fillRect(sgx + 10, sgy + sgH, 3, y - 58 - sgy - sgH); h.fillRect(sgx + sgW - 13, sgy + sgH, 3, y - 58 - sgy - sgH);
+  h.fillRect(sgx - 1, sgy - 1, sgW + 2, sgH + 2); h.fillStyle = gold; h.fillRect(sgx, sgy, sgW, sgH);
   h.fillStyle = P.ink; signText('CAFE', sgx + 5, sgy + 4, 3, h);
   const mgx = sgx + 54, mgy = sgy + 6;
   h.fillStyle = P.dust; h.fillRect(mgx, mgy, 11, 11); h.fillStyle = P.blue; h.fillRect(mgx, mgy + 4, 11, 2);
-  h.fillStyle = P.ink; h.fillRect(mgx + 11, mgy + 2, 3, 6); h.fillStyle = '#F2C14E'; h.fillRect(mgx + 11, mgy + 4, 1, 2);
+  h.fillStyle = P.ink; h.fillRect(mgx + 11, mgy + 2, 3, 6); h.fillStyle = gold; h.fillRect(mgx + 11, mgy + 4, 1, 2);
   a = { base, sign }; cafeArt.set(C.k, a);
   return a;
 }
@@ -3814,16 +3923,21 @@ function drawCafe(cam) {
       c.fillRect(ax - 2, ay, 4, 6);
       for (let r = 0; r < 5; r++) c.fillRect(ax - 5 + r, ay + 6 + r, 10 - 2 * r, 1);
     }
-    const x0 = Math.round(C.shopX), top = y - 46, wx = s < 0 ? x0 + 30 : x0 + 8;
-    sprite(c, BLOB[Math.floor(clock * 2) % 2], wx + 6, top + 24 + Math.round(Math.sin(clock * 2) * 1), MAP);
-    c.fillStyle = '#C98A2E'; c.fillRect(wx, top + 33, 26, 3);
-    const chx = s < 0 ? x0 + 56 : x0 + 4;
+    const G = cafeGeo(C);
+    sprite(c, BLOB[Math.floor(clock * 2) % 2], G.baristaX - 7, y - 21 + Math.round(Math.sin(clock * 2) * 1), MAP);
+    c.fillStyle = '#C98A2E'; c.fillRect(G.winX, y - 10, 44, 2);
+    // the lantern flickers; the bulbs along the awning twinkle in turn
+    c.fillStyle = Math.sin(clock * 9) + Math.sin(clock * 23) > -0.6 ? '#F2C14E' : '#C98A2E'; c.fillRect(G.lampX, y - 24, 3, 4);
+    for (let u = -1, i = 0; u < 98; u += 7, i++) {
+      c.fillStyle = (i + Math.floor(clock * 2.5)) % 3 === 0 ? P.dust : i % 2 ? '#F2C14E' : P.hot;
+      c.fillRect(G.X(u, 2), y - 41 + (i % 2), 2, 2);
+    }
     for (let i = 0; i < 4; i++) {
       const ph = (clock * 0.4 + i / 4) % 1;
-      disc(chx + 3 + Math.sin(ph * 6 + i) * 3, top - ph * 40, Math.round(2 + ph * 4), i % 2 ? P.strata : P.hill);
+      disc(G.smokeX + Math.sin(ph * 6 + i) * 3, y - 70 - ph * 40, Math.round(2 + ph * 4), i % 2 ? P.strata : P.hill);
     }
     c.drawImage(art.sign, 0, y - CAFE_Y);
-    const sgW = 72, sgH = 23, sgx = x0 - 3, sgy = top - 34, chase = Math.floor(clock * 2) % 2;
+    const sgW = 72, sgH = 23, sgx = G.sgx, sgy = y + G.sgv, chase = Math.floor(clock * 2) % 2;
     for (let i = 0; i < 12; i++) {
       c.fillStyle = (i + chase) % 2 ? P.dust : '#C98A2E';
       c.fillRect(sgx + 2 + i * 6, sgy + 1, 2, 1);
@@ -3846,7 +3960,7 @@ function checkCafe() {
 }
 function leaveCafe() {
   sayEl.hidden = true;
-  setState('cafeJump'); cafeT = 0; shopEl.hidden = true; cafeCard(null, true); Sfx.jump();
+  setState('cafeJump'); cafeT = 0; shopEl.hidden = true; cafeCard(null, true); Sfx.jump(); squash(-0.22);
 }
 // -- landing, the counter and leaving: land on the pad, a cup at the counter, run and jump back in
 // -- the barista's greeting (version 108): a speech bubble over the cafe window while he's at the counter. The line
@@ -3880,7 +3994,7 @@ function baristaLine(C) {
 // Over the barista (the blob in the cafe window), kept on screen; the tail shifts to keep pointing at him.
 function placeSay(C) {
   if (sayEl.hidden) return;
-  const s = C.side, x0 = Math.round(C.shopX), bx = (s < 0 ? x0 + 30 : x0 + 8) + 13, by = C.Dl - 58;
+  const bx = cafeGeo(C).baristaX, by = C.Dl - 31;
   const half = Math.min(sayEl.offsetWidth / 2 + 6, W * sc / 2), want = bx * sc, x = Math.max(half, Math.min(W * sc - half, want));
   sayEl.style.left = Math.round(x) + 'px'; sayEl.style.top = Math.round((by - camY) * sc) + 'px';
   sayEl.style.setProperty('--tail', Math.round(Math.max(-half + 12, Math.min(half - 12, want - x))) + 'px');
@@ -3929,7 +4043,7 @@ function updateCafe(dt) {
       x: C.padX + (Math.random() - 0.5) * 40, d: C.Dl - 5, vx: (Math.random() - 0.5) * 90, vy: -20 - Math.random() * 40, t: 0,
       life: 0.5 + Math.random() * 0.4, col: Math.random() < 0.5 ? P.shade : P.strata, z: 2
     });
-    if (u >= 1) { setState('cafe'); cafeT = 0; Sfx.thrust(0); Sfx.land(); Buzz.orb(); Music.title(); cafeArrive(C); }
+    if (u >= 1) { setState('cafe'); cafeT = 0; Sfx.thrust(0); Sfx.land(); Buzz.orb(); Music.title(); cafeArrive(C); squash(0.32); }
   } else if (state === 'cafe') {
     if (t < 0.7) {
       player.x = lerp(C.padX, C.counterX, t / 0.7);
@@ -4299,7 +4413,7 @@ function updateOpening(dt) {
     player.y = -30;
     player.pose = 'stand';
     sparks(84, -2, [P.strata, P.shade], 8);
-    Sfx.land();
+    Sfx.land(); squash(0.3);
   }
   if (t < O.hit) {
     const x = W * 0.36 + Math.sin(t * 0.8) * 4, y = H * 0.42 + Math.sin(t * 1.3) * 6;
@@ -4777,7 +4891,7 @@ function repairScene(t, dt, crossed) {
   } else { player.x = 84; player.y = -30; player.pose = 'standL'; }
   // The jetpack hisses while he's off the ground.
   if (t - dt <= 0) Sfx.thrust(0.9);
-  if (crossed(R.arc)) { Sfx.thrust(0); Sfx.land(); Buzz.orb(); sparks(84, -2, [P.strata, P.shade, P.dust], 12); }
+  if (crossed(R.arc)) { Sfx.thrust(0); Sfx.land(); Buzz.orb(); squash(0.3); sparks(84, -2, [P.strata, P.shade, P.dust], 12); }
   if (crossed(R.toShip)) Sfx.thrust(0.5);
   if (crossed(R.drop)) Sfx.thrust(0);
   // Hammer blows: CLANG, sparks, a jolt.
@@ -4893,7 +5007,12 @@ function updateLaunch(dt) {
 }
 function showEnd() {
   setState('ended');
+  // A finished mission counts once (relaunching the same repaired ship doesn't): it unlocks a suit, and Hard dive.
+  const before = suitsOpen();
+  if (!save.missionDone) { save.missionsDone = missionsDone() + 1; save.missionDone = true; }
   save.launches = (save.launches || 0) + 1; persist();
+  $('eUnlock').textContent = suitsOpen() > before ? 'New suit: ' + SUITS[suitsOpen() - 1][0] + (save.missionsDone === 1 ? '. Hard dive unlocked too!' : '') + ' (Settings)' : '';
+  $('eUnlock').hidden = !$('eUnlock').textContent;
   $('eBest').innerHTML = save.best + '<small>m</small>';
   $('eParts').textContent = PARTS.reduce((n, pt) => n + pt.need, 0);
   $('eLaunch').textContent = save.launches;
@@ -4911,7 +5030,7 @@ $('newMissionBtn').addEventListener('click', e => {
   }
   clearTimeout(armTimer); delete b.dataset.armed; b.textContent = 'New mission';
   for (const pt of PARTS) save.parts[pt.id] = 0;
-  save.dives = 0; save.nav = 0;
+  save.dives = 0; save.nav = 0; missionsDone(); save.missionDone = false;   // the next finished mission counts (version 112)
   persist(); toTitle();
 });
 $('endTitleBtn').addEventListener('click', toTitle);
@@ -5132,7 +5251,7 @@ function genSeg(k) {
     }
   }
   // About 30% fewer crystals since version 81 (the user found too much health about): 0.16 + 0.03 per missing chunk before.
-  if (d0 > 760 && r() < (0.11 + (player.max - player.hp) * 0.02) * (player.perks.lucky ? 1.4 : 1)) {
+  if (d0 > 760 && r() < (0.11 + (player.max - player.hp) * 0.02) * (player.perks.lucky ? 1.4 : 1) * (hardRun ? 1.5 : 1)) {
     const d = d0 + 15 + r() * (SEG_LEN - 30);
     if (Math.abs(d - lastRockD) > 36) {
       const sp = spans(d), pick = sp[sp.length > 1 && r() < 0.5 ? 1 : 0];
@@ -5242,7 +5361,7 @@ function hurt(kind, x, d, size) {
       const cut = kind === 'mine' ? SHIELD_MINE_CUT : SHIELD_HIT_CUT;
       player.shield = Math.max(0, player.shield - cut * player.shieldMax);
       Buzz.block();
-      Sfx.block();
+      Sfx.block(); squash(0.12);
       if (player.shield > 0.05) pop('SHIELD -' + Math.round(cut * 100) + '%', player.x, player.y - 6, 'good');
       else { player.shield = 0; player.inv = HIT_INVULN_S; pop('SHIELD BROKEN', player.x, player.y - 6, 'bad'); }
       hitStop = 0.04;
@@ -5252,6 +5371,7 @@ function hurt(kind, x, d, size) {
   if (player.inv > 0) return;
   const dmg = kind === 'wall' ? WALL_DAMAGE : 1;
   player.hp = Math.max(0, player.hp - dmg); player.inv = HIT_INVULN_S; shake = Math.max(shake, 1); player.hits++;
+  squash(kind === 'wall' ? -0.24 : 0.28);   // a wall squeezes him thin and tall, anything else flattens him
   // Hit-stop: the world freezes for a beat so the hit lands, with a white flash on the pilot.
   hitStop = kind === 'mine' ? 0.12 : 0.07; player.flash = 0.14;
   player.streak = 0;
@@ -5266,6 +5386,7 @@ const SHIELD_S = 8, SHIELD_MINE_CUT = 0.5, SHIELD_HIT_CUT = 0.25, CLOSE_PX = 10;
 let orbChain = 0, lastOrbT = -9;
 function collect(it) {
   it.dead = true;
+  squash(-0.14);
   if (it.kind === 'orb') {
     player.orbs++;
     // Crystals caught close together chime a step higher each time.
@@ -5532,7 +5653,7 @@ function updateBoss(dt) {
         if (b.pt >= BOSS_ENTER) { b.phase = 'fight'; b.pt = 0; }
       } else {
         b.x = sx; b.y = sy;
-        if (!b.rage && b.pt >= BOSS_RAGE) { b.rage = true; Sfx.bossRoar(); shake = Math.max(shake, 1.2); }
+        if (!b.rage && b.pt >= (hardRun ? 0 : BOSS_RAGE)) { b.rage = true; Sfx.bossRoar(); shake = Math.max(shake, 1.2); }
         for (let i = b.queue.length - 1; i >= 0; i--) if (b.queue[i].at <= b.t) { const q = b.queue[i]; b.queue.splice(i, 1); q.fn(); }
         if (!b.queue.length && (b.next -= dt) <= 0) {
           const sig = BOSS_SIGNATURE[b.kind], pool = BOSS_PATTERNS[b.kind].concat(sig || []).filter(p => p !== b.last), hasSig = sig && sig !== b.last;
@@ -6209,6 +6330,7 @@ function prune(arr, keep) { let n = 0; for (let i = 0; i < arr.length; i++) { co
 const particleLive = p => p.t < p.life, thingLive = k => !k.dead && k.d > camY - 60;
 function update(dt) {
   updateFireworks(dt);
+  stepSquash(dt);
   for (const f of flyers) { f.t += dt; if (f.t >= f.life) { f.hit = true; bump(f.el); if (f.done) f.done(); } }
   if (flyers.length) flyers = flyers.filter(f => !f.hit);
   if (player.flash > 0) player.flash -= dt;
@@ -6239,7 +6361,7 @@ function update(dt) {
       player.pose = 'fall';
     }
     else { const u = t - 1.3; player.x = 160; player.y = u < 0.5 ? -30 + 250 * u * u : 32.5 + 250 * (u - 0.5); player.pose = 'fall'; }
-    if (t >= 0.95 && t - dt < 0.95) { Sfx.jump(); Music.leap(); }
+    if (t >= 0.95 && t - dt < 0.95) { Sfx.jump(); Music.leap(); squash(-0.22); }
     if (t >= 1.3 && t - dt < 1.3) Music.start();
     camY = lerp(camY0, player.y - pilotScreenY, easeInOut(seg(t, 0.9, 2.0)));
     Sfx.wind(seg(t, 1.3, 2.0) * 0.5);
@@ -6424,7 +6546,7 @@ function render() {
       disc(player.x, my + PILOT_CY, Math.round(10 + 8 * (1 - a)), P.dust);
       ring(player.x, my + PILOT_CY, Math.round(14 + 14 * (1 - a)), P.dust);
     }
-    drawMan(player.x + (state === 'dying' ? Math.round(Math.sin(clock * 40) * 2) : 0), my, player.pose, clock, player.thr);
+    drawManSquashed(player.x + (state === 'dying' ? Math.round(Math.sin(clock * 40) * 2) : 0), my, player.pose, clock, player.thr);
     if (state === 'launch' && launchT < REPAIR.done) drawRepairTools(my);
     c.globalAlpha = 1;
     if (state === 'landing') {
