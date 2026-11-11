@@ -125,12 +125,27 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
    wiggling, and it hides while Instructions or Settings are open (they grow up over it). Change its text in the markup
    (id newsTag), or delete it when the news is old. */
 #titleScreen .repair { position: relative; }
-.news { position: absolute; top: calc(100% + 30px); left: 4px; z-index: 2; padding: 6px 10px 5px; border: 0; background: var(--gold); color: var(--ink); box-shadow: 3px 3px 0 var(--gold-dk); text-align: center; cursor: pointer; transform: rotate(-12deg); animation: newsBob 2s ease-in-out infinite; }
+/* Version 122: on the right (on the left it sometimes covered the wrecked ship), tilted the other way. */
+.news { --tilt: 10deg; position: absolute; top: calc(100% + 30px); right: 4px; z-index: 2; padding: 6px 10px 5px; border: 0; background: var(--gold); color: var(--ink); box-shadow: 3px 3px 0 var(--gold-dk); text-align: center; cursor: pointer; transform: rotate(var(--tilt)); animation: newsBob 2s ease-in-out infinite; }
 .news b { display: block; font: 700 12px/1 var(--display); letter-spacing: .12em; color: var(--lava-dk); }
 .news span { display: block; margin-top: 2px; font: 400 15px/1 var(--body); letter-spacing: .02em; }
 .news small { display: block; margin-top: 1px; font: 400 13px/1 var(--body); color: color-mix(in srgb, var(--ink) 70%, var(--gold)); }
 #titleScreen.reading .news { display: none; }
 .news:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+/* Version 122: the New features card (back of the main menu card), opened by the sticker. */
+#newsBack h2 { text-align: center; }
+#newsBack { gap: 10px; }
+.news-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.news-item { display: grid; grid-template-columns: 34px 1fr; column-gap: 12px; align-items: center; width: 100%; padding: 10px 10px 9px; border: 2px solid var(--ink-soft);
+  background: color-mix(in srgb, var(--blue) 18%, var(--ink)); color: var(--dust); text-align: left; font: inherit; }
+button.news-item { cursor: pointer; box-shadow: 4px 4px 0 var(--blue); }
+button.news-item:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--blue); }
+button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+.news-ico { grid-row: span 2; display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; }
+.news-ico svg { width: 16px; height: 16px; }
+.news-ico.big svg { width: 32px; height: 32px; }
+.news-name { font: 700 12px/1.1 var(--display); letter-spacing: .08em; color: var(--gold); }
+.news-how { margin-top: 3px; font: 400 18px/.95 var(--body); color: var(--dust-dim); }
 /* The Leviathans card (version 102), on the back of the main menu's card: tap the NEW sticker. Two columns of portraits
    (painted once, the first time it opens, with the fight art) on a dark-blue plate, each with its name and its trick. */
 #leviBack h2 { text-align: center; }
@@ -165,8 +180,8 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .say.covered { visibility: hidden; }
 @keyframes sayIn { from { opacity: 0; transform: translate(-50%, 20%); } }
 @keyframes newsBob {
-  0%, 100% { transform: rotate(-12deg) scale(1); box-shadow: 2px 2px 0 var(--gold-dk); }
-  50% { transform: rotate(-12deg) scale(1.1) translateY(-2px); box-shadow: 6px 7px 0 color-mix(in srgb, var(--gold-dk) 70%, transparent); }
+  0%, 100% { transform: rotate(var(--tilt)) scale(1); box-shadow: 2px 2px 0 var(--gold-dk); }
+  50% { transform: rotate(var(--tilt)) scale(1.1) translateY(-2px); box-shadow: 6px 7px 0 color-mix(in srgb, var(--gold-dk) 70%, transparent); }
 }
 .legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; font-size: 21px; line-height: 1; }
 .legend li { display: flex; align-items: center; gap: 10px; }
@@ -520,7 +535,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
       <div class="repair-head"><span id="repairTitle">SHIP REPAIR</span><b><span id="repairPct">0</span><svg class="pct" viewBox="0 0 9 10" width="9" height="10" shape-rendering="crispEdges" role="img" aria-label="%"><path fill="currentColor" d="M0 0h3v3h-3zM6 7h3v3h-3zM8 0h1v1h-1zM7 1h2v1h-2zM6 2h2v1h-2zM5 3h2v1h-2zM4 4h2v1h-2zM3 5h2v1h-2zM2 6h2v1h-2zM1 7h2v1h-2zM0 8h2v1h-2zM0 9h1v1h-1z"/></svg></b></div>
       <div class="repair-bar" id="repairBar"></div>
       <ul class="parts" id="partsList"></ul>
-      <button class="news" id="newsTag" type="button"><b>NEW!</b><span>The Jungle moon</span><small>(tap to see)</small></button>
+      <button class="news" id="newsTag" type="button"><b>NEW FEATURES</b><small>(tap to see)</small></button>
     </section>
     <div class="flip" id="titleFlip">
      <div class="flip-inner">
@@ -569,6 +584,14 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
         <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Cafes from 1050 m, every 1000 m (1600 m after a Leviathan fight): coffee (+1 health) and bonus items. The fall gets 5% faster after each cafe, up to 35%</li>
       </ul>
       <button class="btn" id="howDone" type="button">Done</button>
+     </div>
+     <div class="card face back" id="newsBack" hidden inert aria-hidden="true">
+      <h2>New features</h2>
+      <ul class="news-list">
+        <li><div class="news-item"><span class="news-ico"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg></span><span class="news-name">The new moons</span><span class="news-how">Fall into the Dust moon or the Jungle moon. Swap any time on the menu.</span></div></li>
+        <li><button class="news-item" id="newsLevi" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#C64B3B" d="M2 0h4v1h-4zM1 1h6v1h-6zM0 2h8v3h-8zM1 5h6v1h-6zM2 6h4v1h-4z"/><path fill="#F2C14E" d="M3 2h2v3h-2z"/><path fill="#1A1E2C" d="M3 3h1v1h-1z"/></svg></span><span class="news-name">Leviathan chases</span><span class="news-how">Giant creatures hunt you after every second cafe. Tap to meet them.</span></button></li>
+      </ul>
+      <button class="btn" id="newsDone" type="button">Done</button>
      </div>
      <div class="card face back" id="leviBack" hidden inert aria-hidden="true">
       <h2>Leviathans</h2>
@@ -737,7 +760,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 119;
+const VERSION = 125;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3833,14 +3856,14 @@ function setCard(side, instant) {
   cardSide = side;
   if (side === 'levi') fillLeviCard();
   if (side === 'badges') fillBadges();
-  turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack'), levi: $('leviBack'), badges: $('badgeBack') }, was, side, instant, () => {
+  turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack'), levi: $('leviBack'), badges: $('badgeBack'), news: $('newsBack') }, was, side, instant, () => {
     const ts = $('titleScreen');
     clearTimeout(readTimer);
     if (side) { ts.classList.toggle('levi', side === 'levi'); ts.classList.toggle('how', side === 'how'); }
     if (side || instant) ts.classList.toggle('reading', !!side);   // Settings too since version 84 (one more row)
     else readTimer = setTimeout(() => ts.classList.remove('reading'), 480);
   });
-  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $('sndT') : side === 'how' ? $('howDone') : side === 'levi' ? $(was === 'badges' ? 'badgeBtn' : 'leviDone') : side === 'badges' ? $('badgeDone') : $(was === 'how' ? 'howBtn' : was === 'levi' || was === 'badges' ? 'startBtn' : 'settingsBtn')), 460);
+  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $('sndT') : side === 'how' ? $('howDone') : side === 'news' ? $('newsLevi') : side === 'levi' ? $(was === 'badges' ? 'badgeBtn' : 'leviDone') : side === 'badges' ? $('badgeDone') : $(was === 'how' ? 'howBtn' : was === 'levi' || was === 'badges' || was === 'news' ? 'startBtn' : 'settingsBtn')), 460);
 }
 // -- the Leviathans card (version 102): the NEW sticker opens it. Each creature's name, its signature attack in a line,
 // and a portrait painted with its fight art (bossStage), facing right and looking down at the viewer.
@@ -3911,8 +3934,10 @@ function fillLeviCard() {
   }
   $('leviHint').textContent = (isJungle() ? 'Jungle moon. ' : '') + 'One hunts you after every second cafe. Beaten: ' + beaten + ' of ' + set.length;
 }
-// Version 113: the sticker is about the Jungle moon: tapping it picks that moon and shows its Leviathans.
-$('newsTag').addEventListener('click', () => { if (state === 'title' && !cardSide) { setMoon('jungle'); setCard('levi'); } });
+// Version 122: the sticker opens the New features card; its Leviathan chases row opens the Leviathans card.
+$('newsTag').addEventListener('click', () => { if (state === 'title' && !cardSide) setCard('news'); });
+$('newsLevi').addEventListener('click', () => setCard('levi'));
+$('newsDone').addEventListener('click', () => setCard(null));
 // The moon pickers (main menu and Settings). Only on the main menu: a run always finishes on the moon it started on.
 function setMoon(m) {
   if (state !== 'title' || m === moon) return;
