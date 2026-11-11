@@ -32,7 +32,9 @@ Nothing in this repository is secret: the game file holds no keys or passwords, 
 
 ## Working on the game
 
-You need Python 3, Node 22.13 or newer (for the function test), and Google Chrome for screenshots (the screenshot script is written for a Mac).
+You need Python 3, Node 22.13 or newer (for the function test), and Google Chrome for screenshots and the Leviathan budget check (the screenshot script is written for a Mac).
+
+Once per clone, turn on the commit check: `git config core.hooksPath tools/hooks`. From then on a commit that changes `src/moonfall.html` runs `tools/levi_budget.py` on the version being committed and stops if a Leviathan is over the budgets in `PERFORMANCE.md`.
 
 1. Edit `src/moonfall.html`. Search for `// ---------- ` to jump between sections; the guide at the top of the script explains the states, units and canvases. When publishing a new version, add one to `VERSION` near the top (the title card shows it as v0.NN).
 2. Try it: `python3 tools/test_pages.py`, then `python3 -m http.server 8766 -d tools/out` and open http://localhost:8766/test-board.html (the game with a pretend online board, so nothing real is sent). In the browser console, `__mf` gives you the game's internals, for example `__mf.player` (the pilot) or `__mf.state`. The test pages are silent unless you add `?sound=1` to the address.
@@ -47,7 +49,7 @@ You need Python 3, Node 22.13 or newer (for the function test), and Google Chrom
 6. For anything heavy (a Leviathan, a moon, a hazard, a layer), follow `PERFORMANCE.md` and check its budgets. To measure: `python3 tools/prof.py` writes `tools/out/prof.html`, which plays a seeded run of the whole game (start screen, menu, intro, a fall landing at every café and fighting every Leviathan of the moon, a death, the ending) and reports per scene what a frame costs: time, rectangles, images, pixels covered, canvases created and by which function, page changes and forced layouts. Open `frame.html?w=390&h=844&page=prof.html` (`&moon=jungle`, `&real=1` for one frame per screen refresh); the result is in `window.__prof` inside the frame. With `&fp=3` it fingerprints the picture every third frame instead, to check two builds draw the same thing over the whole run (see the file's first lines).
 >>>>>>> f577b96 (v141: tools/levi_budget.py checks all twelve Leviathans against the budgets; Gnashbloom's small mouths lighter in the fight)
 7. If you changed the scoreboard function: `node tools/test_function.mjs` (runs it against a pretend database; it should say all checks passed). Deploy it in Supabase as described below.
-8. Build the website copy: `python3 tools/build_site.py`, then commit and push. GitHub Pages updates a minute or two later.
+8. Build the website copy: `python3 tools/build_site.py`, then commit and push. GitHub Pages updates a minute or two later. The build stops, before touching `docs/`, if `TEST_START_M` is not 0 or `tools/levi_budget.py` does not pass.
 
 The claude.ai artifact is published from `src/moonfall.html` by the owner, with Claude.
 

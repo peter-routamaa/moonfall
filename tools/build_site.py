@@ -6,8 +6,12 @@
 src/moonfall.html is the game exactly as published on claude.ai, where SCORES_URL is empty. This wraps it in a normal
 web page (doctype, head, the same base styles the claude.ai page adds), fills in SCORES_URL, and copies the voice clips
 (src/voices/*.wav) to docs/voices/.
+
+It refuses to build a game that should not go live, so a release cannot skip these checks whoever runs it:
+  - TEST_START_M must be 0 (a test copy that starts deep in the moon must never reach the website);
+  - tools/levi_budget.py must say OK (every Leviathan inside the drawing budgets in PERFORMANCE.md).
 """
-import os, re, shutil, sys
+import os, re, shutil, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCORES_URL = 'https://ukjajizsnowmdjziqkof.supabase.co/functions/v1/scores'   # public; it's in the built page anyway
@@ -15,6 +19,16 @@ SCORES_URL = 'https://ukjajizsnowmdjziqkof.supabase.co/functions/v1/scores'   # 
 SITE = 'https://peter-routamaa.github.io/moonfall/'   # where GitHub Pages serves it; link previews need full addresses
 url = '' if '--offline' in sys.argv else SCORES_URL
 game = open(os.path.join(ROOT, 'src', 'moonfall.html')).read()
+
+# The release gates (see the top of this file). Both stop the build before anything in docs/ is touched.
+if not re.search(r'^const TEST_START_M = 0;', game, re.M):
+    sys.exit('build_site: stopped. TEST_START_M is not 0 in src/moonfall.html; set it back to 0 before a release.')
+budget = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'levi_budget.py')], capture_output=True, text=True)
+if budget.returncode != 0:
+    print(budget.stdout + budget.stderr)
+    sys.exit('build_site: stopped. tools/levi_budget.py did not pass (above); bring the Leviathan back inside the '
+             'budgets in PERFORMANCE.md, or fix the check if it could not run, then build again.')
+print(budget.stdout.strip().splitlines()[-1])
 cut = game.index('</style>') + len('</style>')
 head, body = game[:cut], game[cut:].lstrip('\n')
 if url:

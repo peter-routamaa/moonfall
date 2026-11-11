@@ -75,6 +75,9 @@ def main():
     if game.count(anchor) != 1:
         sys.exit('levi_budget: could not find the start line in ' + src)
     page = game.replace(anchor, HOOK + '\n' + anchor) + PAGE
+    if not os.path.exists(CHROME):
+        print('levi_budget: Chrome not found at ' + CHROME + '; set CHROME to its path')
+        sys.exit(2)   # 2 = could not run (1 = over budget)
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, 'levi-budget.html')
         open(path, 'w', encoding='utf-8').write(page)

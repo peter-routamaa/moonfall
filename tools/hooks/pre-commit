@@ -1,0 +1,27 @@
+#!/bin/sh
+# Stops a commit that would put an over-budget Leviathan into the repo (see PERFORMANCE.md and tools/levi_budget.py).
+# Turned on once per clone with:  git config core.hooksPath tools/hooks
+# It runs only when src/moonfall.html is part of the commit, checks the version being committed (not the working
+# file), and takes about two seconds. If Chrome is missing it warns and lets the commit through; the build
+# (tools/build_site.py) runs the same check and never skips it.
+git diff --cached --name-only --diff-filter=AM | grep -qx 'src/moonfall.html' || exit 0
+root=$(git rev-parse --show-toplevel)
+[ -f "$root/tools/levi_budget.py" ] || exit 0
+tmp=$(mktemp -d) || exit 0
+trap 'rm -rf "$tmp"' EXIT
+git show :src/moonfall.html > "$tmp/staged.html" || exit 0
+out=$(python3 "$root/tools/levi_budget.py" "$tmp/staged.html" 2>&1)
+code=$?
+if [ "$code" -eq 0 ]; then
+  echo "pre-commit: $(printf '%s\n' "$out" | tail -1)"
+  exit 0
+fi
+if [ "$code" -eq 2 ]; then
+  echo "pre-commit: WARNING, the Leviathan budget check could not run, so this commit is unchecked:"
+  printf '%s\n' "$out" | tail -2
+  exit 0
+fi
+printf '%s\n' "$out"
+echo "pre-commit: commit stopped. A Leviathan is over the budgets in PERFORMANCE.md (or the check broke)."
+echo "Fix it, then commit again. Do not skip this with --no-verify."
+exit 1
