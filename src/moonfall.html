@@ -642,7 +642,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 108;
+const VERSION = 109;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -2362,16 +2362,6 @@ function makeVoice(ac, dest, noiseBuf) {
       v: [['i', 0], ['I', 0.05], ['U', 0.16], ['u', 0.3]], dur: 0.3, f0: [168, 160, 108], effort: 'soft', breath: [0.7, 1.1],
       rel: 0.18
     }],
-    // the cafe landing (version 107, user asked to swap the grunt for "oh yeah"): a relaxed "oh", then "yeah" sliding down, pleased
-    ohyeah: [{ v: [['o', 0], ['o', 0.13], ['U', 0.26]], dur: 0.28, f0: [142, 160, 136], breath: [0.18, 0.22], rel: 0.04 }, {
-      gap: 0.03, v: [['i', 0], ['E', 0.07], ['E', 0.24], ['ae', 0.38], ['uh', 0.52]], dur: 0.52, f0: [172, 196, 158, 108], att: 0.02,
-      vib: [5, 0.015], breath: [0.12, 0.4], rel: 0.16
-    }],
-    // version 108: "whoa!" at a near-miss streak reward, "yes!" when a Leviathan is beaten
-    whoa: [{ v: [['w', 0], ['o', 0.09], ['o', 0.3], ['U', 0.46]], dur: 0.48, f0: [168, 238, 226, 150], h: 0.04, vib: [5.5, 0.02], breath: [0.18, 0.3], rel: 0.12 }],
-    yes: [{ v: [['i', 0], ['E', 0.06], ['E', 0.2]], dur: 0.22, f0: [196, 252, 214], effort: 'pressed', breath: 0.12, rel: 0.03 }, {
-      fric: 1, freq: 5200, q: 1.2, vol: 0.24, att: 0.012, dur: 0.2
-    }],
     uhoh: [{ v: 'uh', dur: 0.15, f0: [168, 178, 172], h: 0.01, breath: 0.12, rel: 0.02 }, {
       gap: 0.08, v: [['o', 0], ['U', 0.2], ['u', 0.3]], dur: 0.3, f0: [158, 140, 104], breath: [0.12, 0.3], rel: 0.1
     }],
@@ -2606,9 +2596,7 @@ const Sfx = (() => {
     // A mug set down on the counter: a short ceramic clink.
     mug() { tone('sine', 2350, 2330, 0.16, 0.07); tone('sine', 3560, 3530, 0.08, 0.035); noise(0.02, 'highpass', 4000, 0.05); },
     whoosh() { noise(0.7, 'bandpass', 900, 0.35); },
-    // cafe: true at the cafe ledge, which says "oh yeah" (synth voice; the recorded pack has no words) instead of the grunt
-    voice(name, delay) { say(name, delay || 0); },
-    land(cafe) { noise(0.12, 'lowpass', 500, 0.5); tone('sine', 110, 60, 0.12, 0.3); if (cafe) say('ohyeah', 0.06); else story('land', 0.03, 'phew'); },
+    land() { noise(0.12, 'lowpass', 500, 0.5); tone('sine', 110, 60, 0.12, 0.3); story('land', 0.03, 'phew'); },
     whistle(d) {
       if (!ctx) return;
       const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
@@ -3921,7 +3909,7 @@ function updateCafe(dt) {
       x: C.padX + (Math.random() - 0.5) * 40, d: C.Dl - 5, vx: (Math.random() - 0.5) * 90, vy: -20 - Math.random() * 40, t: 0,
       life: 0.5 + Math.random() * 0.4, col: Math.random() < 0.5 ? P.shade : P.strata, z: 2
     });
-    if (u >= 1) { setState('cafe'); cafeT = 0; Sfx.thrust(0); Sfx.land(true); Buzz.orb(); Music.title(); cafeArrive(C); }
+    if (u >= 1) { setState('cafe'); cafeT = 0; Sfx.thrust(0); Sfx.land(); Buzz.orb(); Music.title(); cafeArrive(C); }
   } else if (state === 'cafe') {
     if (t < 0.7) {
       player.x = lerp(C.padX, C.counterX, t / 0.7);
@@ -5295,7 +5283,6 @@ function nearMiss(k) {
   const gap = Math.max(0, Math.round((k.minN - 1) * (k.rr + HIT_HALF_W)));
   if (gap < player.closest) { player.closest = gap; player.closestMine = !!k.isMine; }
   if (player.streak >= 24) award('streak');
-  if (player.streak % 8 === 0) Sfx.voice('whoa', 0.12);
   Sfx.close(player.streak);
   pop('CLOSE!', k.x, k.d - k.rr - 8, 'close');
   if (player.streak % 24 === 0) { giveShield(5); Sfx.streak(); Buzz.shield(); pop('STREAK SHIELD', player.x, player.y - 18, 'shield'); }
@@ -5577,8 +5564,7 @@ function crashBoss() {
   bossShots.length = 0;
   Sfx.crash(); Sfx.mine(); Buzz.death(); shake = 3;
   explode(b.x, hit, 30, true);
-  // Version 108: a trophy for the Leviathans card, a "yes!", and the badges
-  Sfx.voice('yes', 0.7);
+  // Version 108: a trophy for the Leviathans card, and the badges
   save.leviBeaten = save.leviBeaten || {}; save.leviBeaten[b.kind] = (save.leviBeaten[b.kind] || 0) + 1; persist();
   player.leviRun.push(b.kind); player.bossWon = true;
   award('levi');
