@@ -813,7 +813,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 140;
+const VERSION = 141;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -7427,9 +7427,8 @@ function artTrap(x, y, dir, k, p, step) {
       fillPoly(c, pts, p.belly);
     }
     for (let j = 0; j <= 60; j++) { const [sx, sy] = trapStalk(x, hy, sw, j / 60); bpx(sx - 2, sy, 3, 1, p.dark); }   // a groove down the stalk
-    for (const b of trapBuds(x, hy, sw, k)) for (const s of [-1, 1]) {   // the small mouths' insides (version 137)
-      const pts = []; for (let i = 0; i < 12; i++) { const t = i / 12 * Math.PI * 2; pts.push(budPt(b, s, -s * 8 + 14 * Math.cos(t), 44 + 30 * Math.sin(t))); }
-      fillPoly(c, pts, p.belly);
+    for (const b of trapBuds(x, hy, sw, k)) {   // the small mouths' red insides (version 137): one disc in each gape since version 140 (were six polygons, about 110 rectangles a paint)
+      const m = budPt(b, 0, 0, 30); disc(m[0], m[1], 6, p.belly);
     }
     return;
   }
