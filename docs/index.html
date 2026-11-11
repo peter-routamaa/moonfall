@@ -631,7 +631,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 105;
+const VERSION = 106;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3356,6 +3356,7 @@ $('howDone').addEventListener('click', () => setCard(null));
 $('settingsDone').addEventListener('click', () => setCard(null));
 // Private stats for the owner's Supabase dashboard: a random ID made once per device (no name, nothing personal),
 // one ping when a run starts and one when it ends with how long it lasted, how deep it got and how it ended.
+// Both pings carry the game's VERSION (version 106), so the stats can be split by version.
 // Only sent when the online board is on (SCORES_URL), so the claude.ai copy never counts.
 const hex16 = () => { const b = new Uint8Array(8); crypto.getRandomValues(b); return [...b].map(x => x.toString(16).padStart(2, '0')).join(''); };
 let runId = '', runSecs = 0, cafesRun = 0, lastHit = '', fasterN = 0;
@@ -3375,7 +3376,7 @@ function countPlay() {
   if (!/^[0-9a-f]{16}$/.test(save.playerId || '')) { save.playerId = hex16(); persist(); }
   runId = hex16(); runSecs = 0; cafesRun = 0; lastHit = ''; fasterN = 0; runFrames = 0; runRaw = 0; runWorst = 0;
   if (!introDone) { introDone = true; introRun = runId; }
-  statPing({ event: 'play', player: save.playerId, run: runId });
+  statPing({ event: 'play', player: save.playerId, run: runId, ver: VERSION });
 }
 // how: wall, rock, mine or lava (what took the last health), quit (Main menu from pause) or left (the game was hidden
 // mid-run; sent again with the real ending if they come back).
@@ -3385,7 +3386,7 @@ let lastEnd = null;
 function endRun(how) {
   if (!runId) return;
   const total = Object.values(runParts).reduce((n, v) => n + v, 0);
-  statPing(lastEnd = { event: 'end', player: save.playerId, run: runId, depth: depthM(), secs: Math.round(runSecs), how, orbs: player.orbs, parts: total, cafes: cafesRun,
+  statPing(lastEnd = { event: 'end', player: save.playerId, run: runId, ver: VERSION, depth: depthM(), secs: Math.round(runSecs), how, orbs: player.orbs, parts: total, cafes: cafesRun,
     initials: /^[A-Z]{3}$/.test(save.initials || '') ? save.initials : null,
     fps: runRaw > 0 ? Math.round(runFrames / runRaw * 10) / 10 : null, worst: Math.round(runWorst * 1000),
     device: DEVICE, os: OS, screen: screen.width + 'x' + screen.height + '@' + Math.round(devicePixelRatio * 100) / 100,
