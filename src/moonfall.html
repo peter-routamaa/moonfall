@@ -309,11 +309,16 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .intro-skip:active { transform: translate(2px, 2px); box-shadow: inset 0 0 0 2px var(--dust-dim), 2px 2px 0 var(--blue); }
 .intro-skip:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 #game:not([data-state="opening"]) .intro-skip { display: none; }
-.intro-cap { position: absolute; left: 50%; top: calc(64px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 4; pointer-events: none; white-space: nowrap; text-align: center;
-  font: 700 clamp(16px, 5.4vw, 22px)/1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--cap, var(--dust));
-  background: var(--ink); padding: 9px 14px 10px; box-shadow: inset 0 0 0 2px var(--dust-dim), 4px 4px 0 var(--blue);
-  opacity: 0; transition: opacity .6s steps(6); }
-.intro-cap small { display: block; margin-bottom: 6px; font: 400 clamp(17px, 4.8vw, 20px)/1 var(--body); letter-spacing: .12em; text-transform: none; color: var(--dust-dim); }
+/* Version 117: the cinematics' captions are typed into the bottom letterbox bar (--bar is its height, set in resize). */
+.intro-cap { position: absolute; left: 0; right: 0; bottom: 0; height: var(--bar, 46px); display: flex; flex-direction: column; justify-content: center; align-items: center;
+  z-index: 4; pointer-events: none; white-space: nowrap; text-align: center;
+  font: 700 clamp(13px, 4.2vw, 17px)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--cap, var(--dust));
+  opacity: 0; transition: opacity .4s steps(4); }
+.intro-cap small { display: block; margin-bottom: 5px; font: 400 clamp(15px, 4.3vw, 18px)/1 var(--body); letter-spacing: .14em; text-transform: none; color: var(--dust-dim); }
+.intro-cap .rest { visibility: hidden; }
+.intro-cap .cur { position: relative; display: inline-block; width: 0; }
+.intro-cap .cur::after { content: ''; position: absolute; left: 2px; bottom: -1px; width: .5em; height: .8em; background: currentColor; animation: capBlink .6s steps(1) infinite; }
+@keyframes capBlink { 50% { opacity: 0; } }
 .intro-cap.on { opacity: 1; }
 .studio { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 4px; }
 .flake { color: #A8DCF5; }
@@ -725,7 +730,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 116;
+const VERSION = 117;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -2283,7 +2288,9 @@ function drawSpace(u, off = 0) {
   if (off >= 1) return;
   const a = -Math.PI / 2 + 0.55 * e, go = off * off * (H * 0.12 + 40) / 0.85;
   const sx = lerp(92, W * 0.64, e) + Math.cos(a) * go, sy = lerp(H * 0.35, H * 0.12, e) + Math.sin(a) * go;
-  drawShipAt(sx, sy, a, 1, 0, lerp(1, 0.2, e));
+  const sk = lerp(1, 0.2, e);
+  drawShipAt(sx, sy, a, 1, 0, sk);
+  streak(c, sx - 54 * sk * Math.cos(a), sy - 54 * sk * Math.sin(a), 8 + 30 * sk + (Math.floor(clock * 24) % 2) * 3, '#F6D46A', 0.8);
 }
 function hillH(x, T) { return Math.round(24 + 14 * Math.sin((x + T * 12) * 0.0155) + 8 * Math.sin(x * 0.055 + 2)); }
 // The two lines of hills, each painted into an image SURFACE_HZ times a second and stamped every frame (version 91: they
@@ -2397,7 +2404,12 @@ function drawSky(cam) {
     const ph = (T * 0.32 + i / 9) % 1, r = Math.round(4 + ph * 13), sx = SHIP_X + 20 - ph * 34 + Math.sin(ph * 6 + i) * 6, syy = -36 - ph * 110;
     disc(sx, Y(syy), r, S.shade); disc(sx - 2, Y(syy - 2), Math.max(1, r - 3), i % 2 ? S.hill : S.strata);
   }
-  if (state === 'launch' && launchShip) drawShipAt(launchShip.x, Y(launchShip.y), launchShip.a, launchShip.f, launchShip.glow);
+  if (state === 'launch' && launchShip) {
+    const sh = launchShip;
+    drawShipAt(sh.x, Y(sh.y), sh.a, sh.f, sh.glow);
+    // Version 117: a lens streak off the engine, from the rumble's glow to the climb.
+    streak(c, sh.x - 54 * Math.cos(sh.a), Y(sh.y - 54 * Math.sin(sh.a)), 22 + sh.f * 18 + (Math.floor(clock * 24) % 2) * 4, '#F6D46A', sh.f ? 0.85 : sh.glow * 0.7);
+  }
   else if (!wrecked) { if (introShip) drawShipAt(introShip.x, Y(introShip.y), introShip.a, 0, 0, introShip.scale, true, introShip.empty); }
   else if (state !== 'ended') { c.drawImage(ship, SHIP_X, Y(-80)); if (dmg.shine >= 0) shipShine(SHIP_X, Y(-80), dmg.shine); }
   if (wrecked && dmg.fire > 0) {
@@ -2949,6 +2961,9 @@ const Sfx = (() => {
     // A mug set down on the counter: a short ceramic clink.
     mug() { tone('sine', 2350, 2330, 0.16, 0.07); tone('sine', 3560, 3530, 0.08, 0.035); noise(0.02, 'highpass', 4000, 0.05); },
     whoosh() { noise(0.7, 'bandpass', 900, 0.35); },
+    // Version 117: a deep trailer-style hit under the intro's impact and the lift-off, and a soft tick per typed caption letter.
+    boom(v = 1) { tone('sine', 62, 26, 2.8, 0.9 * v); tone('sawtooth', 49, 36, 2.2, 0.14 * v); tone('triangle', 98, 70, 1.6, 0.22 * v); noise(2.2, 'lowpass', 220, 0.6 * v); },
+    tick() { tone('square', 2200, 2100, 0.018, 0.022); },
     land() { noise(0.12, 'lowpass', 500, 0.5); tone('sine', 110, 60, 0.12, 0.3); story('land', 0.03, 'phew'); },
     whistle(d) {
       if (!ctx) return;
@@ -4820,9 +4835,7 @@ function startOpening() {
   Sfx.init(); resetRun();
   setState('opening'); openT = 0; introShip = null; introAst = null; introFx = []; introCrashed = false; introPilot = null; player.hidden = true;
   showScreen(null); hud.classList.add('off'); Music.stop(0.1); Sfx.wind(0); Music.intro();
-  const cap = $('introCap');   // version 115: the chosen moon's name, in its own colour, while it swells to fill the screen
-  cap.innerHTML = '<small>Crash site</small>The ' + MOON_NAMES[moon];
-  cap.style.setProperty('--cap', moon === 'jungle' ? '#7FD38C' : '#EEE8D8'); cap.classList.remove('on');
+  cineReset();   // version 117: captions, flashes and streaks (see the cinematic touches section)
 }
 function endOpening(how) {
   if (how) introHow = how;
@@ -4848,13 +4861,16 @@ function updateOpening(dt) {
   if (crossedA(0.7)) Sfx.bleep(990);
   if (crossedA(3.5)) Sfx.bleep(880);
   if (crossedA(O.coffee)) Sfx.whoosh();
-  $('introCap').classList.toggle('on', t >= O.hit + 1.2 && t < O.dive - 0.4);
   for (const p of introFx) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.spin) p.a += p.spin * dt; }
   introFx = introFx.filter(p => p.t < p.life);
   if (crossed(O.warn)) { Sfx.alarm(); Sfx.uhoh(); }
   if (crossed(O.hit)) {
-    Sfx.impact(); Music.cut(); Buzz.rock(); shake = 1.2;
+    Sfx.impact(); Sfx.boom(1); Music.cut(); Buzz.rock(); shake = 1.5;
     const s0 = introShip;
+    // Version 117: a white flash, two lens streaks across the blast and a moment of slow motion (introTimeScale).
+    cineFlashAt(0.35, '#FFF4D6');
+    cineStreaks.push({ x: s0.x + 14, y: s0.y - 8, t: 0, life: 0.9, len: 170, col: '#FFE9B0' },
+      { x: s0.x + 14, y: s0.y - 6, t: 0, life: 0.6, len: 70, col: P.hot });
     introBurst(s0.x + 14, s0.y - 8, [P.lava, P.hot, P.dust, P.shade], 40, 180, 0.9);
     for (let i = 0; i < 7; i++) {
       const an = -1.2 + i * 0.5;
@@ -4866,6 +4882,7 @@ function updateOpening(dt) {
     introAst = null;
   }
   if (crossed(O.hit + 0.6)) Sfx.whistle(O.crash - O.hit - 0.6);
+  if (crossed(O.dive)) { cineFlashAt(0.4, '#FFE9B0'); Sfx.whoosh(); }   // into the air: a hot flash covers the cut
   if (crossed(O.crash)) {
     Sfx.crash(); Buzz.launch(); shake = 1.4; introCrashed = true; introShip = null;
     for (let i = 0; i < 46; i++) particles.push({
@@ -4876,6 +4893,7 @@ function updateOpening(dt) {
   if (crossed(O.eject) && introShip) {
     introPilot = { x: introShip.x, y: introShip.y - 30, vx: -30, vy: -380, x0: 0, y0: 0 };
     sparks(introShip.x, introShip.y - 10, [P.dust, P.hot, P.lava], 14); Sfx.eject();
+    cineStreaks.push({ x: introShip.x, wy: introShip.y - 6, t: 0, life: 0.5, len: 80, col: '#F6D46A' });
   }
   if (crossed(O.chute) && introPilot) { introPilot.x0 = introPilot.x; introPilot.y0 = introPilot.y; Sfx.chute(); }
   if (crossed(O.land - 1)) Sfx.thrust(0.9);
@@ -5371,6 +5389,7 @@ function repairScene(t, dt, crossed) {
   for (let i = 0; i < REPAIR_HITS; i++) {
     if (!crossed(hammerHitAt(i))) continue;
     Sfx.clang(); Buzz.orb(); shake = Math.max(shake, 0.35);
+    hitStop = 0.05; cineStar = 0.1;   // version 117: impact frames, a held beat and a white star on each blow
     sparks(HAMMER_AT.x, HAMMER_AT.y, [P.dust, '#F6D46A', P.strata], 8);
   }
   if (crossed(R.back + 0.3)) { Sfx.repaired(); pop('SHIP REPAIRED!', 58, -64, 'good'); }
@@ -5394,6 +5413,12 @@ function drawRepairTools(my) {
     const r = 1 + Math.floor(Math.random() * 3);
     c.globalAlpha = 0.22 + Math.random() * 0.18; disc(hx - 6, hy, 9 + Math.floor(Math.random() * 4), '#8EEBF5'); c.globalAlpha = 1;
     ring(hx - 6, hy, r + 3, '#8EEBF5', 1); disc(hx - 6, hy, r, P.dust);
+    streak(c, hx - 6, hy, 14 + Math.random() * 16, '#8EEBF5', 0.6 + Math.random() * 0.4);   // version 117: lens streak off the arc
+  }
+  if (cineStar > 0) {
+    const sx = HAMMER_AT.x, sy = Math.round(my + HAMMER_AT.y - player.y), L = cineStar > 0.05 ? 6 : 4;
+    c.fillStyle = '#FFFFFF'; c.fillRect(sx - L, sy, L * 2 + 1, 1); c.fillRect(sx, sy - L, 1, L * 2 + 1); c.fillRect(sx - 1, sy - 1, 3, 3);
+    streak(c, sx, sy, 24, '#F6D46A', cineStar / 0.1);
   }
   if (t >= R.drop && t < R.hammer) {
     // Each blow: lift the hammer up behind, then bring it down fast onto the hull.
@@ -5414,7 +5439,7 @@ function drawRepairTools(my) {
 }
 const LAUNCH_ORIGINAL_START_X = 84;
 function startLaunch() {
-  Sfx.init(); resetRun();
+  Sfx.init(); resetRun(); cineReset();
   setState('launch'); launchT = 0; launchShip = null;
   showScreen(null); hud.classList.add('off'); Music.stop(0.2); Sfx.wind(0);
   showCoach('TAP TO SKIP', 1800);
@@ -5441,7 +5466,7 @@ function updateLaunch(dt) {
   if (crossed(L.wave + 0.25)) Sfx.bye();
   if (crossed(L.aboard)) { sparks(52, -14, [P.dust, P.strata, P.shade], 10); Sfx.hatch(); }
   if (crossed(L.rumble)) { Sfx.engine(); Buzz.launch(); }
-  if (crossed(L.lift)) { Music.fanfare(); Sfx.cheer(); }
+  if (crossed(L.lift)) { Music.fanfare(); Sfx.cheer(); Sfx.boom(0.6); }
   if (crossed(L.groove)) { Music.setZone(0, true); Music.setDepth(900); Music.start(); }
   if (crossed(L.space)) { Music.stop(0.1); Music.space(); }
   // The ship rumbles, tips upright, then climbs.
@@ -7132,6 +7157,7 @@ function collide(prevX) {
 function prune(arr, keep) { let n = 0; for (let i = 0; i < arr.length; i++) { const v = arr[i]; if (keep(v)) arr[n++] = v; } arr.length = n; }
 const particleLive = p => p.t < p.life, thingLive = k => !k.dead && k.d > camY - 60;
 function update(dt) {
+  cineTick(dt);
   updateFireworks(dt);
   stepSquash(dt);
   for (const f of flyers) { f.t += dt; if (f.t >= f.life) { f.hit = true; bump(f.el); if (f.done) f.done(); } }
@@ -7150,7 +7176,7 @@ function update(dt) {
   }
   prune(particles, particleLive);
   if (state === 'launch') { updateLaunch(dt); return; }
-  if (state === 'opening') { updateOpening(dt); return; }
+  if (state === 'opening') { updateOpening(dt * introTimeScale()); return; }
   if (state === 'title' || state === 'over' || state === 'ended' || state === 'splash') return;
   if (state === 'intro') {
     introT += dt;
@@ -7401,6 +7427,86 @@ function render() {
   c = wc;
 }
 
+// ---------- cinematic touches (version 117) ----------
+// For the intro film and the repair-and-launch ending: black letterbox bars that slide in and out, captions typed into
+// the bottom bar, a fade up from black, flashes at the intro's impact and the cut into the air, a moment of slow motion
+// after the impact, impact frames on the hammer blows, and horizontal lens streaks off bright lights (blast, ejection
+// seat, weld arc, engine). Drawn on the overlay canvas after render(), in screen pixels.
+const CINE_BAR = 0.075;   // each bar's height, as a share of the screen height
+let cineFlash = 0, cineFlashLen = 0.3, cineFlashCol = '#FFFFFF', cineStreaks = [], cineStar = 0, capKey = '';
+function cineReset() { cineFlash = 0; cineStar = 0; cineStreaks = []; capKey = ''; $('introCap').classList.remove('on'); }
+function cineFlashAt(len, col) { cineFlash = cineFlashLen = len; cineFlashCol = col; }
+function cineTick(dt) {
+  if (cineFlash > 0) cineFlash = Math.max(0, cineFlash - dt);
+  if (cineStar > 0) cineStar = Math.max(0, cineStar - dt);
+  for (const s of cineStreaks) s.t += dt;
+  if (cineStreaks.length) prune(cineStreaks, s => s.t < s.life);
+}
+// Slow motion just after the intro's impact: a quarter speed, easing back to full by 0.8 s of story time.
+function introTimeScale() {
+  const t = openT - OPEN.pre - OPEN.hit;
+  return t < 0 || t > 0.8 ? 1 : t < 0.12 ? 0.25 : lerp(0.25, 1, smoothstep((t - 0.12) / 0.68));
+}
+// How far the bars are in, 0 to 1. They leave as the pilot lands (intro) and as the ship flies off (ending).
+function cineBars() {
+  if (state === 'opening') return smoothstep(openT / 0.7) * (1 - smoothstep((openT - OPEN.pre - OPEN.land - 0.15) / 0.6));
+  if (state === 'launch') return smoothstep(launchT / 0.7) * (1 - smoothstep((launchT - LAUNCH.away) / 1.2));
+  return 0;
+}
+// A lens streak: a thin horizontal line of light through a bright point, brightest and whitest in the middle.
+function streak(g, x, y, len, col, a) {
+  x = Math.round(x); y = Math.round(y); len = Math.round(len);
+  if (len < 2 || a <= 0) return;
+  g.fillStyle = col;
+  g.globalAlpha = Math.min(1, a) * 0.5; g.fillRect(x - len, y, len * 2 + 1, 1);
+  g.globalAlpha = Math.min(1, a); g.fillRect(x - (len >> 2), y, (len >> 1) + 1, 1);
+  g.fillStyle = '#FFFFFF'; g.fillRect(x - (len >> 3), y, (len >> 2) + 1, 1);
+  if (len > 40) g.fillRect(x - (len >> 4), y - 1, (len >> 3) + 1, 3);
+  g.globalAlpha = 1;
+}
+function drawCinema() {
+  const film = state === 'opening' || state === 'launch';
+  if (!film) return;
+  const g = oc; g.setTransform(1, 0, 0, 1, 0, 0);
+  for (const s of cineStreaks) {
+    const k = 1 - s.t / s.life;
+    streak(g, s.x, s.wy !== undefined ? s.wy - camY : s.y, s.len * (0.4 + 0.6 * k), s.col, k);
+  }
+  // Flashes and fades step in quarters, like the game's other fades.
+  if (cineFlash > 0 && !reduceMotion) {
+    g.globalAlpha = Math.ceil(cineFlash / cineFlashLen * 4) / 4 * 0.9; g.fillStyle = cineFlashCol; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+  }
+  const fade = state === 'opening' ? 1 - openT / 0.6 : 1 - launchT / 0.5;
+  if (fade > 0) { g.globalAlpha = Math.ceil(fade * 4) / 4; g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.globalAlpha = 1; }
+  const b = Math.round(Math.round(H * CINE_BAR) * cineBars());
+  if (b > 0) { g.fillStyle = '#000'; g.fillRect(0, 0, W, b); g.fillRect(0, H - 1 - b, W, b + 1); }
+}
+// Captions, typed a letter at a time into the bottom bar with a blinking block cursor: [from, to, small line, big line,
+// in the moon's colour], in seconds of openT or launchT. The letters still to come hold their space, so nothing shifts.
+function cineCaps() {
+  const el = $('introCap');
+  let T = 0, list = null;
+  if (state === 'opening') {
+    T = openT;
+    list = [[0.7, 3.7, 'Deep space', 'Last leg home'], [OPEN.pre + OPEN.hit + 1.2, OPEN.pre + OPEN.dive - 0.4, 'Crash site', 'The ' + MOON_NAMES[moon], true]];
+  } else if (state === 'launch') {
+    T = launchT;
+    list = [[0.6, 3.1, 'The ' + MOON_NAMES[moon], 'All parts found'], [LAUNCH.space + 0.8, LAUNCH.away - 0.1, 'Leaving the ' + MOON_NAMES[moon], 'Homeward bound']];
+  }
+  const cap = list && list.find(q => T >= q[0] && T < q[1]);
+  if (!cap) { if (capKey) { el.classList.remove('on'); capKey = ''; } return; }
+  const [t0, , a, b, moonCol] = cap, all = a + b, k = Math.min(all.length, Math.floor((T - t0) * 24) + 1), key = t0 + ':' + k;
+  if (key === capKey) return;
+  const was = capKey.startsWith(t0 + ':') ? +capKey.split(':')[1] : 0;
+  if (k > was && all[k - 1] !== ' ') Sfx.tick();
+  capKey = key;
+  const ka = Math.min(k, a.length), kb = Math.max(0, k - a.length), cur = '<i class="cur"></i>';
+  el.style.setProperty('--cap', moonCol ? (moon === 'jungle' ? '#7FD38C' : '#EEE8D8') : 'var(--dust)');
+  el.innerHTML = '<small>' + a.slice(0, ka) + (k <= a.length ? cur : '') + '<span class="rest">' + a.slice(ka) + '</span></small>' +
+    '<span>' + b.slice(0, kb) + (k > a.length ? cur : '') + '<span class="rest">' + b.slice(kb) + '</span></span>';
+  el.classList.add('on');
+}
+
 // ---------- sizing and loop ----------
 function resize() {
   const r = game.getBoundingClientRect();
@@ -7418,6 +7524,7 @@ function resize() {
   pilotScreenY = Math.max(Math.round(H * 0.2), Math.round(HUD_LEFT_PX / sc) + 4);
   if (!boss) pilotNow = pilotScreenY;
   sizeHP();
+  game.style.setProperty('--bar', Math.round(H * CINE_BAR) * pxY + 'px');
   const was = camY0; camY0 = -Math.round(H * 0.56);
   if (state === 'title' || camY === was) camY = camY0;
   placeHorizon(); measureCafeCard();
@@ -7435,7 +7542,7 @@ function frame(now) {
     if (hitStop > 0) hitStop = Math.max(0, hitStop - dt); else update(dt);
     if (runId) runSecs += dt;
     if (runId && raw < 1) { runFrames++; runRaw += raw; if (runFrames > 5) runWorst = Math.max(runWorst, raw); }
-    updateFace(); prepaint(camY); render(); meter.cpu += performance.now() - t0;
+    updateFace(); prepaint(camY); render(); drawCinema(); cineCaps(); meter.cpu += performance.now() - t0;
   }
   if (save.fps) {
     meter.n++; meter.time += raw; meter.worst = Math.max(meter.worst, raw);
