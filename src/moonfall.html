@@ -93,8 +93,8 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .suit-note { margin: -4px 0 0; font-size: 17px; color: var(--dust-dim); text-align: right; }
 /* Version 113: the menu card is taller with the moon picker, so on short phones the NEW sticker would cover it. */
 @media (max-height: 600px) { .news { display: none; } }
-/* Version 113: the moon picker, on the main menu and in Settings. The picked moon has a gold border. */
-.moon-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* Version 113: the moon picker in Settings (the main menu pair was removed in version 123). The picked moon has a gold border. */
+
 .moon-btn { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; padding: 7px 6px 6px; border: 2px solid var(--ink-soft); background: transparent; color: var(--dust-dim);
   font: 700 10px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; cursor: pointer; }
 .moon-btn[aria-pressed="true"] { border-color: var(--gold); color: var(--dust); }
@@ -103,13 +103,6 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .moon-ico.dust { color: #EEE8D8; --spot: #B9B3A6; }
 .moon-ico.jungle { color: #58C26A; --spot: #2E7D44; }
 .moon-row .moon-btn { padding: 7px 8px 6px; }
-/* Version 118 (user: "make it bigger"): the main menu's pair are proper buttons, so swapping moons between runs is obvious. */
-#moonPick { gap: 10px; }
-#moonPick .moon-btn { flex-direction: column; gap: 6px; padding: 9px 4px 8px; border-width: 3px; background: var(--ink-soft); color: var(--dust-dim); font-size: 12px; box-shadow: 4px 4px 0 var(--ink); }
-#moonPick .moon-btn[aria-pressed="true"] { border-color: var(--gold); background: var(--ink); color: var(--dust); box-shadow: 4px 4px 0 var(--gold-dk); }
-#moonPick .moon-btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
-#moonPick .moon-ico { width: 21px; height: 21px; }
-@media (max-width: 340px) { #moonPick .moon-btn { font-size: 11px; } }
 .set-tog:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 /* Each word of a toggle's name on its own line (user, version 84). */
 .set-tog > span { grid-column: 1; grid-row: 1; line-height: 1.3; text-align: left; }
@@ -216,6 +209,8 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 @media (max-height: 760px) { #titleScreen.reading.levi .repair { display: none; } }
 /* And for Instructions on phones up to 680 px tall (version 104: its Done button ran 8 px off a 627 px screen). */
 @media (max-height: 680px) { #titleScreen.reading.how .repair { display: none; } }
+/* And for Settings on phones up to 720 px tall (version 123: Done ran 26 px off a 667 px screen). */
+@media (max-height: 720px) { #titleScreen.reading.settings .repair { display: none; } }
 .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .best { font: 400 12px/1 var(--display); letter-spacing: .05em; color: var(--dust-dim); }
 .best b { color: var(--dust); font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -543,10 +538,6 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <span class="ver" id="verTag"></span>
       <button class="best best-big best-btn" id="bestBtn" type="button">BEST <b id="bestTitle">0000 m</b><span class="best-more">TOP 10</span></button>
       <button class="btn launch" id="launchBtn" type="button" hidden>Launch the ship</button>
-      <div class="moon-pick" id="moonPick" role="group" aria-label="Moon">
-        <button class="moon-btn" type="button" data-moon="dust" aria-pressed="true"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Dust moon</span></button>
-        <button class="moon-btn" type="button" data-moon="jungle" aria-pressed="false"><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Jungle moon</span></button>
-      </div>
       <button class="btn" id="startBtn" type="button">Jump in</button>
       <div class="card-nav">
         <button class="btn settings" id="howBtn" type="button"><svg viewBox="0 0 9 9" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM6 2h1v1h-1zM7 2h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1z"/></svg>Instructions</button>
@@ -569,7 +560,6 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <button class="moon-btn" type="button" data-moon="dust" aria-pressed="true"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Dust</span></button>
         <button class="moon-btn" type="button" data-moon="jungle" aria-pressed="false"><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Jungle</span></button>
       </div>
-      <button class="btn quiet" id="introBtn" type="button">Watch the intro</button>
       <button class="btn quiet warn" id="resetBtn" type="button">Reset ship repair</button>
       <button class="btn" id="settingsDone" type="button">Done</button>
      </div>
@@ -3859,7 +3849,7 @@ function setCard(side, instant) {
   turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack'), levi: $('leviBack'), badges: $('badgeBack'), news: $('newsBack') }, was, side, instant, () => {
     const ts = $('titleScreen');
     clearTimeout(readTimer);
-    if (side) { ts.classList.toggle('levi', side === 'levi'); ts.classList.toggle('how', side === 'how'); }
+    if (side) { ts.classList.toggle('levi', side === 'levi'); ts.classList.toggle('how', side === 'how'); ts.classList.toggle('settings', side === 'settings'); }
     if (side || instant) ts.classList.toggle('reading', !!side);   // Settings too since version 84 (one more row)
     else readTimer = setTimeout(() => ts.classList.remove('reading'), 480);
   });
@@ -3938,7 +3928,7 @@ function fillLeviCard() {
 $('newsTag').addEventListener('click', () => { if (state === 'title' && !cardSide) setCard('news'); });
 $('newsLevi').addEventListener('click', () => setCard('levi'));
 $('newsDone').addEventListener('click', () => setCard(null));
-// The moon pickers (main menu and Settings). Only on the main menu: a run always finishes on the moon it started on.
+// The moon picker (Settings; the main menu pair was removed in version 123). Only on the main menu: a run always finishes on the moon it started on.
 function setMoon(m) {
   if (state !== 'title' || m === moon) return;
   applyMoon(m); save.moon = moon; persist(); syncMoon(); Sfx.bleep(m === 'jungle' ? 660 : 880);
@@ -4209,7 +4199,7 @@ function renderTable() {
     }
     // Version 113: the moon the score was set on, as a little moon of its colour; a dash for older scores.
     const mn = document.createElement('span'); mn.setAttribute('role', 'img');
-    if (MOON_NAMES[r.o]) { mn.className = 'mn'; mn.innerHTML = $('moonPick').querySelector('.moon-ico.' + r.o).outerHTML; mn.setAttribute('aria-label', MOON_NAMES[r.o]); }
+    if (MOON_NAMES[r.o]) { mn.className = 'mn'; mn.innerHTML = document.querySelector('.moon-row .moon-ico.' + r.o).outerHTML; mn.setAttribute('aria-label', MOON_NAMES[r.o]); }
     else { mn.className = 'mn unknown'; mn.textContent = '—'; mn.setAttribute('aria-label', 'moon not known'); }
     li.append(mn);
     const esc = document.createElement('span');
@@ -5585,7 +5575,7 @@ for (const b of document.querySelectorAll('.splash-moon')) b.addEventListener('c
 });
 $('splashBtn').addEventListener('click', () => { if (splashPicked) startOpening(); });
 $('introSkip').addEventListener('click', () => { if (state === 'opening') endOpening('skipped'); });
-$('introBtn').addEventListener('click', startOpening);
+// (Settings had a Watch the intro button until version 123; the user removed it to save space.)
 $('againBtn').addEventListener('click', () => startRun(true));
 $('menuBtn').addEventListener('click', toTitle);
 $('pauseBtn').addEventListener('click', pause);

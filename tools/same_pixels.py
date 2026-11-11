@@ -42,7 +42,7 @@ DRIVER = r"""<script>
   const shop = document.getElementById('shopBtn'); if (shop) shop.click(); await wait(800); run(10); fp('shop');
   document.getElementById('shopGo').click(); await wait(100); run(120, () => { P.inv = 1; P.hp = 5; }); fp('leftCafe');
   P.inv = 0; P.shield = 0; P.hp = 1; M.rocks.length = 0; mine(); run(200); out.push('over:' + M.state); fp('dead');
-  await wait(400); document.getElementById('introBtn').click(); await wait(100); run(60 * 9); fp('opening');
+  await wait(400); (document.getElementById('introBtn') ? document.getElementById('introBtn').click() : M.startOpening()); await wait(100); run(60 * 9); fp('opening');
   run(60 * 12); out.push('afterOpening:' + M.state);
   M.startLaunch(); run(60 * 6); fp('launch1'); run(60 * 12); fp('launch2'); out.push('end:' + M.state);
   const pre = document.createElement('pre'); pre.id = 'out'; pre.textContent = JSON.stringify(out); document.body.appendChild(pre);
