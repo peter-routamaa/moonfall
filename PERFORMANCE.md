@@ -120,7 +120,8 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
 ### 6. Rectangles
 
 - Merge. If a loop draws one row or one pixel at a time, keep the run going while the next one is the same and draw it
-  once (`drawMoonAt`'s `rows`, the vines in `drawJungleHazard`). End the run wherever something else must be drawn in
+  once (`drawMoonAt`'s `rows`, the vines in `drawJungleHazard`, Gnashbloom's stalk in `trapStalkStrip`: 61 overlapping
+  discs became about 16 rectangles, version 140). End the run wherever something else must be drawn in
   between, so the overlap order stays the same.
 - Set `fillStyle` when the colour changes, not for every rectangle.
 - Something that doesn't change from frame to frame (or changes a few times a second) is painted into an image and
