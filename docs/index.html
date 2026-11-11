@@ -110,6 +110,18 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .suit-sw:disabled::after { content: ''; position: absolute; left: 11px; top: 14px; width: 8px; height: 6px; background: var(--dust-dim); }
 .suit-sw:disabled::before { content: ''; position: absolute; left: 12px; top: 9px; width: 4px; height: 5px; border: 1px solid var(--dust-dim); border-bottom: 0; }
 .suit-note { margin: -4px 0 0; font-size: 17px; color: var(--dust-dim); text-align: right; }
+/* Version 113: the menu card is taller with the moon picker, so on short phones the NEW sticker would cover it. */
+@media (max-height: 600px) { .news { display: none; } }
+/* Version 113: the moon picker, on the main menu and in Settings. The picked moon has a gold border. */
+.moon-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.moon-btn { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; padding: 7px 6px 6px; border: 2px solid var(--ink-soft); background: transparent; color: var(--dust-dim);
+  font: 700 10px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; cursor: pointer; }
+.moon-btn[aria-pressed="true"] { border-color: var(--gold); color: var(--dust); }
+.moon-btn:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+.moon-ico { flex: none; }
+.moon-ico.dust { color: #EEE8D8; --spot: #B9B3A6; }
+.moon-ico.jungle { color: #58C26A; --spot: #2E7D44; }
+.moon-row .moon-btn { padding: 7px 8px 6px; }
 .set-tog:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 /* Each word of a toggle's name on its own line (user, version 84). */
 .set-tog > span { grid-column: 1; grid-row: 1; line-height: 1.3; text-align: left; }
@@ -158,10 +170,12 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .badge-how { font: 400 18px/.95 var(--body); color: var(--dust-dim); }
 /* Run highlights on the game over card (version 108), one per line. */
 #runExtra span { display: block; }
-/* The barista's greeting at a cafe (version 108): a speech bubble over the cafe window, its tail pointing at the barista. */
-.say { position: absolute; z-index: 3; transform: translate(-50%, -100%); max-width: 172px; width: max-content; padding: 6px 8px 5px; background: var(--dust); color: var(--ink); font: 400 17px/.95 var(--body); text-align: center; box-shadow: 3px 3px 0 var(--ink); pointer-events: none; animation: sayIn .25s steps(4) both; }
-.say::after { content: ''; position: absolute; top: 100%; left: calc(50% + var(--tail, 0px) - 5px); border: 5px solid transparent; border-top-color: var(--dust); border-bottom: 0; }
-@keyframes sayIn { from { opacity: 0; transform: translate(-50%, -80%); } }
+/* The barista's greeting at a cafe (version 108): a speech bubble, since version 114 on the ledge below the pilot, its
+   tail pointing up at the barista. */
+.say { position: absolute; z-index: 3; transform: translate(-50%, 0); max-width: 172px; width: max-content; padding: 6px 8px 5px; background: var(--dust); color: var(--ink); font: 400 17px/.95 var(--body); text-align: center; box-shadow: 3px 3px 0 var(--ink); pointer-events: none; animation: sayIn .25s steps(4) both; }
+.say::after { content: ''; position: absolute; bottom: 100%; left: calc(50% + var(--tail, 0px) - 5px); border: 5px solid transparent; border-bottom-color: var(--dust); border-top: 0; }
+.say.covered { visibility: hidden; }
+@keyframes sayIn { from { opacity: 0; transform: translate(-50%, 20%); } }
 @keyframes newsBob {
   0%, 100% { transform: rotate(-12deg) scale(1); box-shadow: 2px 2px 0 var(--gold-dk); }
   50% { transform: rotate(-12deg) scale(1.1) translateY(-2px); box-shadow: 6px 7px 0 color-mix(in srgb, var(--gold-dk) 70%, transparent); }
@@ -235,7 +249,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .slot .letter { width: 56px; height: 56px; display: grid; place-items: center; font: 700 36px/1 var(--display); background: color-mix(in srgb, var(--dust) 7%, var(--ink)); box-shadow: inset 0 -4px 0 var(--ink-soft); }
 .slot.on .letter { color: var(--gold); box-shadow: inset 0 0 0 2px var(--gold); }
 .hs-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; font: 700 14px/1 var(--display); letter-spacing: .06em; font-variant-numeric: tabular-nums; }
-.hs-list li { display: grid; grid-template-columns: 2.2em repeat(3, minmax(0, 1fr)); column-gap: 6px; align-items: baseline; justify-items: center; text-align: left; padding: 6px 8px 5px; background: color-mix(in srgb, var(--dust) 7%, var(--ink)); }
+.hs-list li { display: grid; grid-template-columns: 1.9em minmax(3.3em, 1fr) minmax(4.6em, 1.3fr) 2.3em minmax(3.6em, 1fr); column-gap: 4px; align-items: baseline; justify-items: center; text-align: left; padding: 6px 8px 5px; background: color-mix(in srgb, var(--dust) 7%, var(--ink)); }
 .hs-list li span:first-child { color: var(--dust-dim); }
 .hs-list li.you { background: var(--gold); color: var(--ink); }
 .hs-list li.you span:first-child { color: var(--ink); }
@@ -244,11 +258,16 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 /* The escaped column: a gold rocket if the player had repaired the ship when they set the score, a dash if nobody knows (older scores). */
 .hs-list li span:first-child { justify-self: start; }   /* rank on the left; name, depth and escaped evenly spaced (version 86) */
 .hs-list li.head { background: transparent; padding: 0 8px; color: var(--dust-dim); }
-.hs-list li.head span { font-size: 9px; }
+.hs-list li.head span { font-size: 8px; letter-spacing: .02em; }
 .hs-list .esc { justify-self: center; color: var(--gold); }
 .hs-list .esc.unknown { color: var(--dust-dim); }
 .hs-list li.you .esc { color: var(--ink); }
 .hs-list .esc svg { display: block; margin: -3px 0 -1px; }
+/* Version 113: the moon column, a small moon of the moon's colour (a dash for scores from before). */
+.hs-list .mn { justify-self: center; }
+.hs-list .mn.unknown { color: var(--dust-dim); }
+.hs-list .mn svg { display: block; margin: -2px 0 0; }
+.hs-list li.you .mn svg { outline: 1px solid var(--ink); }
 .hs-where { line-height: 1.5; }
 .hs-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .hs-tab { font: 700 11px/1 var(--display); letter-spacing: .05em; padding: 9px 6px 8px; border: 2px solid var(--ink-soft); background: transparent; color: var(--dust-dim); cursor: pointer; }
@@ -472,7 +491,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
       <div class="repair-head"><span id="repairTitle">SHIP REPAIR</span><b><span id="repairPct">0</span><svg class="pct" viewBox="0 0 9 10" width="9" height="10" shape-rendering="crispEdges" role="img" aria-label="%"><path fill="currentColor" d="M0 0h3v3h-3zM6 7h3v3h-3zM8 0h1v1h-1zM7 1h2v1h-2zM6 2h2v1h-2zM5 3h2v1h-2zM4 4h2v1h-2zM3 5h2v1h-2zM2 6h2v1h-2zM1 7h2v1h-2zM0 8h2v1h-2zM0 9h1v1h-1z"/></svg></b></div>
       <div class="repair-bar" id="repairBar"></div>
       <ul class="parts" id="partsList"></ul>
-      <button class="news" id="newsTag" type="button"><b>NEW!</b><span>Trophies and badges</span><small>(tap to see)</small></button>
+      <button class="news" id="newsTag" type="button"><b>NEW!</b><span>The Jungle moon</span><small>(tap to see)</small></button>
     </section>
     <div class="flip" id="titleFlip">
      <div class="flip-inner">
@@ -480,6 +499,10 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
       <span class="ver" id="verTag"></span>
       <button class="best best-big best-btn" id="bestBtn" type="button">BEST <b id="bestTitle">0000 m</b><span class="best-more">TOP 10</span></button>
       <button class="btn launch" id="launchBtn" type="button" hidden>Launch the ship</button>
+      <div class="moon-pick" id="moonPick" role="group" aria-label="Moon">
+        <button class="moon-btn" type="button" data-moon="dust" aria-pressed="true"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Dust moon</span></button>
+        <button class="moon-btn" type="button" data-moon="jungle" aria-pressed="false"><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Jungle moon</span></button>
+      </div>
       <button class="btn" id="startBtn" type="button">Jump in</button>
       <div class="card-nav">
         <button class="btn settings" id="howBtn" type="button"><svg viewBox="0 0 9 9" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM6 2h1v1h-1zM7 2h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1z"/></svg>Instructions</button>
@@ -498,6 +521,10 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
       </div>
       <div class="suit-row" id="suitRow" role="group" aria-label="Suit colour"><span>SUIT</span></div>
       <p class="suit-note" id="suitNote"></p>
+      <div class="suit-row moon-row" role="group" aria-label="Moon"><span>MOON</span>
+        <button class="moon-btn" type="button" data-moon="dust" aria-pressed="true"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Dust</span></button>
+        <button class="moon-btn" type="button" data-moon="jungle" aria-pressed="false"><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Jungle</span></button>
+      </div>
       <button class="btn quiet" id="introBtn" type="button">Watch the intro</button>
       <button class="btn quiet warn" id="resetBtn" type="button">Reset ship repair</button>
       <button class="btn" id="settingsDone" type="button">Done</button>
@@ -674,11 +701,14 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 //   the shaft, alien life, the moon surface, game state, saved settings, sound and his voice, music, haptics, DOM, flow,
 //   high scores, coffee stop (cafes: drawing, landing, the shop, the signs), board flags, the opening film, the launch,
 //   input, signature hazards (glazed ice, crumbling ledges), level generation, damage and pickups, update, render, sizing and loop.
+// TWO MOONS (version 113): `moon` is 'dust' (the original) or 'jungle'. applyMoon() swaps the rock layers (MATS), the
+//   scenery palette S (P's colours, overridden for the Jungle), the hazards (HAZ_KINDS), the Leviathans (LEVI_SETS) and
+//   the music's key and instruments. It's picked on the main menu or in Settings and saved as save.moon.
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 112;
+const VERSION = 114;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -706,6 +736,21 @@ const P = (() => {
     grn: '#3CB86A', grnD: '#1F7F45', grnL: '#A6EBB9', grnXL: mix('#A6EBB9', g, 0.5),
     pur: '#9B6BE8', purD: '#5B3AA8', purL: '#CDB6F5', purXL: mix('#CDB6F5', g, 0.5) };
 })();
+// Version 113: two moons. The original Dust moon and the Jungle moon (user, 2026-11-11), picked on the main menu or in
+// Settings. S is the scenery palette for the moon being played: the sky, hills and plants of the surface, the planet in
+// the sky, the moon seen from space, and the life on the shaft walls. On the Dust moon it is exactly P; the Jungle moon
+// overrides some colours (MOON_SURF). The rock layers change too (MOON_MATS), and the hazards, Leviathans and music.
+// applyMoon() switches everything over; `moon` is 'dust' or 'jungle'.
+let moon = 'dust';
+const isJungle = () => moon === 'jungle';
+const S = Object.assign({}, P);
+const MOON_SURF = {
+  dust: { pl: P.blue, plL: P.lite, plD: P.deep },
+  jungle: { dust: '#E2F1D6', ink: '#13201A', strata: '#9FCB8E', hill: '#6FAE6A', shade: '#3F7A4E', rock: '#C9E2BC', rock2: '#B2D3A4',
+    lite: '#F4A8C8', blue: '#D9528E', deep: '#24584A', deeper: '#183C34', moss: '#58C26A', mossDk: '#2E7D44', bio: '#E8F58A',
+    pl: '#E8924A', plL: '#F7C88A', plD: '#9A4E2C' },
+};
+Object.assign(S, MOON_SURF.dust);
 
 // ---------- helpers ----------
 const smoothstep = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
@@ -1139,6 +1184,19 @@ const MATS = [
   { label: 'Magma', b0: '#4E2B29', b1: '#3E2321', b2: '#5A302D', shade: '#2A1715', ink: '#120A09', hi: '#FF9A5C', cryL: '#FFB86B', cryD: '#E0483A', sO: '#1A0D0E', sI: '#2A1416' },
   { label: 'Amethyst', b0: '#C6B6E8', b1: '#B5A2DE', b2: '#A48FD2', shade: '#7B65B2', ink: '#2E2150', hi: '#F3EEFF', cryL: '#EADBFF', cryD: '#9B6BE8', sO: '#1F1538', sI: '#2E2154' },
 ];
+// The Jungle moon's five layers (version 113): Moss, Roots, Spore, Amber and Orchid. MATS always holds the layers of the
+// moon being played (applyMoon swaps them in place); each index plays the same part on both moons (index 3 has more
+// lava pockets, see lavaSide; the hazards are in HAZ_KINDS).
+const MOON_MATS = {
+  dust: MATS.slice(),
+  jungle: [
+    { label: 'Moss', b0: '#9CCB7E', b1: '#8DBE70', b2: '#7FB163', shade: '#5E8F47', ink: '#1F3418', hi: '#D9F2B8', cryL: '#C8F07A', cryD: '#6FA82E', sO: '#18301C', sI: '#22412A' },
+    { label: 'Roots', b0: '#B08A62', b1: '#A07A55', b2: '#906B49', shade: '#6E4F33', ink: '#2A1C10', hi: '#E3C9A0', cryL: '#F0B45A', cryD: '#B8732A', sO: '#22180F', sI: '#33241A' },
+    { label: 'Spore', b0: '#7E9A6A', b1: '#718D5E', b2: '#647F53', shade: '#46603C', ink: '#141F14', hi: '#DDEFA2', cryL: '#E8F07A', cryD: '#A8B83A', sO: '#0F1A12', sI: '#17261A' },
+    { label: 'Amber', b0: '#C9853F', b1: '#B87634', b2: '#A6682C', shade: '#7E4A1E', ink: '#2E1608', hi: '#FFD58A', cryL: '#FFC85C', cryD: '#E0702A', sO: '#24120A', sI: '#361C10' },
+    { label: 'Orchid', b0: '#D59AC4', b1: '#C788B6', b2: '#B877A8', shade: '#8E5482', ink: '#3A1A36', hi: '#FBE3F4', cryL: '#FFD0EE', cryD: '#E05AB8', sO: '#2A1028', sI: '#3C1838' },
+  ],
+};
 const MKEYS = ['b0', 'b1', 'b2', 'shade', 'ink', 'hi', 'cryL', 'cryD', 'sO', 'sI'];
 const matI = k => k < MATS.length ? k : 1 + (k - 1) % (MATS.length - 1);
 const palCache = new Map();
@@ -1202,7 +1260,7 @@ function drawRow(g, d, y, e) {
     g.fillStyle = Q.cryL; g.fillRect(xc - w, y, w + 1, 1);
     g.fillStyle = Q.cryD; g.fillRect(xc + 1, y, w, 1);
   }
-  if (d < 4) { g.fillStyle = d < 2 ? P.dust : P.shade; g.fillRect(0, y, W, 1); }
+  if (d < 4) { g.fillStyle = d < 2 ? S.dust : S.shade; g.fillRect(0, y, W, 1); }
   g.fillStyle = Q.shade; g.fillRect(L - 6, y, R - L + 12, 1);
   const q2 = Math.floor(d / 180), ls = lavaSide(q2), ld = d - q2 * 180;
   if (ls && ld >= 40 && ld <= 88) {
@@ -1223,10 +1281,10 @@ function drawRow(g, d, y, e) {
   if (ms && ms !== ls && md > 16 && md < 116 && d > 60) {
     let len = Math.round((2 + hash(d * 1.9) * 8) * Math.sin(Math.PI * (md - 16) / 100)) + 1;
     if (hash(Math.floor(d / 2) * 0.7 + q3) < 0.08) len += 14;
-    g.fillStyle = P.mossDk; g.fillRect(ms < 0 ? L : R - len, y, len, 1);
-    g.fillStyle = P.moss; g.fillRect(ms < 0 ? L + Math.max(0, len - 2) : R - len, y, 2, 1);
+    g.fillStyle = S.mossDk; g.fillRect(ms < 0 ? L : R - len, y, len, 1);
+    g.fillStyle = S.moss; g.fillRect(ms < 0 ? L + Math.max(0, len - 2) : R - len, y, 2, 1);
     if (hash(d * 4.3) < 0.5) g.fillRect(ms < 0 ? L - 6 - Math.floor(hash(d) * 14) : R + 4 + Math.floor(hash(d) * 14), y, 2, 1);
-    if (hash(d * 9.1) < 0.06) { g.fillStyle = P.lite; g.fillRect(ms < 0 ? L + len + 3 : R - len - 4, y, 2, 2); }
+    if (hash(d * 9.1) < 0.06) { g.fillStyle = S.lite; g.fillRect(ms < 0 ? L + len + 3 : R - len - 4, y, 2, 2); }
   }
   if (e.iR) {
     g.fillStyle = Q.ink; g.fillRect(e.iL - 2, y, e.iR - e.iL + 4, 1);
@@ -1492,22 +1550,120 @@ function drawNautilus(x, y, dir, k, col) {
   c.fillStyle = P.crust; c.fillRect(Math.round(X(22)) - 3, Math.round(Y(-10)) - 2, 6, 5);
   c.fillStyle = P.lava; c.fillRect(Math.round(X(22)) - 2, Math.round(Y(-10)) - 1, 3, 3);
 }
+// -- the Jungle moon's three (version 113). Like the others, each is one flat shape here; the fights add the rest.
+// Skitterfang, a giant centipede seen side on like the whale: a long jointed body rippling as it crawls, a row of legs
+// paddling in waves under it (and the far row just showing over its back), hooked fangs, long antennae swept back, and
+// two spines at the tail. centiAt(t) is a point down its body, from the head (0) to the tail (1), with its radius there.
+const CENTI_N = 17;
+function centiAt(x, y, dir, k, t) {
+  const len = 220, ph = clock * 2.2 + k;
+  return [x + dir * (len / 2 - t * len), y + Math.sin(ph - t * 7) * 6 * (0.3 + t), t < 0.05 ? 15 : Math.max(6, 13 - Math.max(0, t - 0.7) * 22)];
+}
+// Where its parts are (the art repeats this maths): each leg's hip, knee and foot, a fang's three bezier points, the antennae.
+function centiLeg(x, y, dir, k, i) {
+  const [bx, by, r] = centiAt(x, y, dir, k, i / CENTI_N), sw = Math.sin((clock * 2.2 + k) * 2 - i * 0.9) * 5;
+  return [bx, by + r - 2, bx + dir * sw * 0.6, by + r + 7, bx + dir * sw - dir * 3, by + r + 17, bx - dir * sw * 0.5, by - r - 7, by - r + 2];
+}
+function centiFangs(x, y, dir, k) {
+  const [hx, hy] = centiAt(x, y, dir, k, 0), o = Math.sin(clock * 5 + k) * 3;
+  return [[[hx + dir * 9, hy + 7], [hx + dir * 30, hy + 18 + o], [hx + dir * 32, hy + 3]], [[hx + dir * 9, hy - 3], [hx + dir * 31, hy - 11 - o], [hx + dir * 34, hy + 4]]];
+}
+const bez = (P0, P1, P2, t) => { const u = 1 - t; return [u * u * P0[0] + 2 * u * t * P1[0] + t * t * P2[0], u * u * P0[1] + 2 * u * t * P1[1] + t * t * P2[1]]; };
+function drawCenti(x, y, dir, k, col) {
+  for (let i = 1; i < CENTI_N; i++) {
+    const [hx, hy, kx, ky, fx, fy, ux, uy, ty] = centiLeg(x, y, dir, k, i);
+    bline(hx, hy, kx, ky, col, 2); bline(kx, ky, fx, fy, col, 2); bline(hx, ty, ux, uy, col, 2);
+  }
+  for (let i = 2 * CENTI_N; i >= 0; i--) { const [bx, by, r] = centiAt(x, y, dir, k, i / (2 * CENTI_N)); disc(bx, by, r, col); }
+  for (const F of centiFangs(x, y, dir, k)) for (let j = 0; j <= 14; j++) { const [fx, fy] = bez(F[0], F[1], F[2], j / 14); disc(fx, fy, Math.max(1, Math.round(3.4 - j * 0.2)), col); }
+  const [hx, hy] = centiAt(x, y, dir, k, 0);
+  for (const s of [0, 1]) for (let j = 0; j <= 26; j++) {   // antennae, swept back over the body
+    const [ax, ay] = bez([hx + dir * 6, hy - 9], [hx - dir * (6 + s * 10), hy - 52 + s * 8], [hx - dir * (64 + s * 18), hy - 40 + s * 10 + Math.sin(clock * 1.7 + k + s) * 6], j / 26);
+    c.fillStyle = col; c.fillRect(Math.round(ax), Math.round(ay), 2, 2);
+  }
+  const [tx, ty] = centiAt(x, y, dir, k, 1);
+  for (const s of [-1, 1]) bline(tx, ty, tx - dir * 30, ty + s * 11 + Math.sin(clock * 2 + k) * 3, col, 2);
+}
+// Gnashbloom, a flytrap the size of a house, hanging head down on a thick stalk out of the dark: two spiked jaws that
+// open and close slowly, two broad leaves on the stalk, and root threads dangling from the hinge. trapLobe(s, ...) gives
+// the points round one jaw (s = -1 left, 1 right), so the art can follow it.
+function trapPose(x, y, k) {
+  return { y: y + Math.sin(clock * 0.5 + k) * 4, a: 0.42 + 0.16 * Math.sin(clock * 1.3 + k), sw: Math.sin(clock * 0.6 + k) * 8 };
+}
+function trapPt(x, hy, s, a, u, v) { const th = s * a; return [x + u * Math.cos(th) + v * Math.sin(th), hy - u * Math.sin(th) + v * Math.cos(th)]; }
+function trapLobe(x, hy, s, a, n) {
+  const pts = [];
+  for (let i = 0; i < n; i++) { const t = i / n * Math.PI * 2; pts.push(trapPt(x, hy, s, a, 24 * Math.cos(t), 38 + 40 * Math.sin(t))); }
+  return pts;
+}
+// The jaws' teeth: points along each jaw's inner rim, with the way each tooth points.
+function trapTeeth(x, hy, s, a) {
+  const out = [];
+  for (let i = 0; i < 9; i++) {
+    const ph = -0.25 + i * 0.22, base = trapPt(x, hy, s, a, -s * 24 * Math.cos(ph), 38 + 40 * Math.sin(ph)), L = i % 2 ? 9 : 13;
+    const tip = trapPt(x, hy, s, a, -s * 24 * Math.cos(ph) - s * L * 0.8, 38 + 40 * Math.sin(ph) + L * 0.6);
+    out.push([base, tip]);
+  }
+  return out;
+}
+function trapStalk(x, hy, sw, t) { return [lerp(x + sw, x, t) + Math.sin(t * 3 + clock * 0.4) * 6 * (1 - t), lerp(hy - 260, hy - 4, t)]; }
+function drawTrap(x, y, dir, k, col) {
+  const { y: yy, a, sw } = trapPose(x, y, k), hy = yy - 30;
+  for (let j = 0; j <= 60; j++) { const [sx, sy] = trapStalk(x, hy, sw, j / 60); disc(sx, sy, Math.round(8 + 4 * j / 60), col); }
+  for (const s of [-1, 1]) {   // two leaves off the stalk, drooping outwards
+    const [bx, by] = trapStalk(x, hy, sw, 0.62 + (s > 0 ? 0.08 : 0)), fl = Math.sin(clock * 0.9 + k + s) * 5;
+    fillPoly(c, [[bx, by - 4], [bx + s * 34, by - 22 + fl * 0.4], [bx + s * 78, by - 8 + fl], [bx + s * 44, by + 10 + fl * 0.5], [bx + s * 6, by + 8]], col);
+  }
+  for (const s of [-1, 1]) fillPoly(c, trapLobe(x, hy, s, a, 28), col);
+  disc(x, hy + 2, 14, col);
+  for (const s of [-1, 1]) for (const [b, t] of trapTeeth(x, hy, s, a)) fillPoly(c, [[b[0] - 2, b[1] - 1], [b[0] + 2, b[1] + 1], t], col);
+  for (const s of [-1, 1]) for (let i = 0; i < 3; i++) {   // root threads from the hinge
+    const ox = x + s * (12 + i * 5), oy = hy + 4;
+    for (let j = 0; j < 22; j++) { c.fillStyle = col; c.fillRect(Math.round(ox + s * j * 0.5 + Math.sin(clock * 1.4 + i + j * 0.3) * j * 0.15), Math.round(oy + j * 2.2), 1, 2); }
+  }
+}
+// Gloomwing, a moth wider than the shaft, head down and coming at him: big forewings beating slowly, rounded hindwings,
+// a furry body, and feathered antennae reaching down. Drawn head up in its own coordinates (u across, v up the body),
+// then turned head down (mothPt). f: how far the wings are spread as they beat.
+const MOTH_FORE = [[4, -8], [30, -40], [84, -58], [122, -50], [127, -34], [98, -4], [46, 10], [8, 6]];
+const MOTH_HIND = [[6, 4], [50, 14], [92, 30], [97, 54], [70, 74], [34, 66], [10, 36]];
+const mothF = k => 0.8 + 0.2 * Math.sin(clock * 2.1 + k);
+const mothPt = (x, y, s, f, u, v) => [x + s * u * f, y - v];
+function drawMoth(x, y, dir, k, col) {
+  y += Math.sin(clock * 0.7 + k) * 5;
+  const f = mothF(k);
+  for (const s of [-1, 1]) {
+    fillPoly(c, MOTH_HIND.map(([u, v]) => mothPt(x, y, s, f, u, v)), col);
+    fillPoly(c, MOTH_FORE.map(([u, v]) => mothPt(x, y, s, f, u, v)), col);
+  }
+  fillEllipse(c, x, y, 10, 15, col); fillEllipse(c, x, y - 28, 8, 22, col); disc(x, y + 19, 7, col);
+  for (const s of [-1, 1]) for (let j = 0; j <= 20; j++) {   // feathered antennae, curling down and out
+    const [ax, ay] = bez([x + s * 3, y + 24], [x + s * 10, y + 50], [x + s * 30 + Math.sin(clock * 1.5 + k) * 3, y + 60], j / 20);
+    c.fillStyle = col; c.fillRect(Math.round(ax), Math.round(ay), 2, 1);
+    if (j % 2 === 0 && j > 3) { c.fillRect(Math.round(ax) + s * 2, Math.round(ay) - 2, 1, 2); c.fillRect(Math.round(ax) - s, Math.round(ay) + 1, 1, 2); }
+  }
+}
 // Six kinds in a fresh random order every run (version 80; it was a fixed cycle). Each differs from the two before it
 // (version 94), so two cafes (and two boss fights) in a row never have the same one, nor the one passing between them.
 // The even-numbered ones wait at the cafes (creature 2n at cafe n), hovering in place; the odd ones drift past.
+// The Jungle moon has its own three (version 113), which then simply take turns in an order picked by the first two.
 const LEVI_KINDS = ['nautilus', 'whale', 'elder', 'jelly', 'angler', 'manta'];
+const LEVI_SETS = { dust: LEVI_KINDS, jungle: ['centipede', 'flytrap', 'moth'] };
+const leviSet = () => LEVI_SETS[moon];
 let leviOrder = [], leviFor = -1;
 function leviKind(k) {
   if (leviFor !== SEED) { leviFor = SEED; leviOrder = []; }
+  const set = leviSet(), n = set.length;
   while (leviOrder.length <= k) {
     const prev = leviOrder[leviOrder.length - 1], prev2 = leviOrder[leviOrder.length - 2];
-    let r = Math.floor(hash(leviOrder.length * 7.31 + SEED * 1.37) * 6);
-    while (r === prev || r === prev2) r = (r + 1) % 6;
+    let r = Math.floor(hash(leviOrder.length * 7.31 + SEED * 1.37) * n);
+    while (r === prev || r === prev2) r = (r + 1) % n;
     leviOrder.push(r);
   }
-  return LEVI_KINDS[leviOrder[k]];
+  return set[leviOrder[k]];
 }
-const LEVI_DRAW = { nautilus: drawNautilus, whale: drawLeviathan, elder: drawElder, jelly: drawJelly, angler: drawAngler, manta: drawManta };
+const LEVI_DRAW = { nautilus: drawNautilus, whale: drawLeviathan, elder: drawElder, jelly: drawJelly, angler: drawAngler, manta: drawManta,
+  centipede: drawCenti, flytrap: drawTrap, moth: drawMoth };
 const leviSeen = new Set();
 // The depth each creature belongs to (its colour comes from the rock there). Creature 2n is cafe n's, 50 m above its
 // cavern. The odd ones pass in the normal shaft 550 m above the next cafe: 500 m down for the first, as it always was,
@@ -1519,13 +1675,23 @@ const leviMark = k => k % 2 ? cafeD((k + 1) / 2) - 550 * PX_PER_M : cafeD(k / 2)
 // drifts into place with the layer as he falls and lands, with no move of its own.
 function leviDepth(k) {
   if (k % 2) return leviMark(k);
-  const camAt = cafeLedge(k / 2) - 28 - pilotScreenY, ledge = pilotScreenY + 28 + 46;
+  const camAt = cafeLedge(k / 2) - 28 - pilotScreenY - cafeLift, ledge = pilotScreenY + cafeLift + 28 + 46;
   return camAt + H / 2 + ((ledge + (cafeCardTop || H * 0.55)) / 2 - 7 - H / 2) / LEVI_PARALLAX;
 }
 // The cafe card's top edge in game px, measured with the card laid out but invisible (on resize, and once the fonts
 // have loaded), so the creature's place is known before the card shows.
 let cafeCardTop = 0;
+// Version 114 (user: "I can't see the cafe sign"): while he stands at a cafe the camera sits cafeLift px higher than in
+// the fall, so the top of the CAFE sign (93 px above the ledge) clears the bottom of the HUD's right column (PARTS) by
+// 4 px. Measured with offsets, so the HUD's slide-away transform doesn't count.
+let cafeLift = 0;
+function measureCafeLift() {
+  let el = $('partsHud'), y = el.offsetHeight + 4;
+  while (el && el !== game) { y += el.offsetTop; el = el.offsetParent; }
+  cafeLift = Math.max(0, Math.ceil(y / sc + 4 - (pilotScreenY + 28 - 93)));
+}
 function measureCafeCard() {
+  measureCafeLift();
   if (!shopEl.hidden) return;
   shopEl.style.visibility = 'hidden'; shopEl.hidden = false;
   const r = $('cafeFront').getBoundingClientRect();
@@ -1732,20 +1898,20 @@ function life(cam) {
       for (let i = 0; i < 3; i++) {
         const dd = da - 14 + i * 12, ed = edgeAt(dd), e2 = side < 0 ? ed.L : ed.R, yy = Math.round(dd - cam);
         const len = 4 + Math.floor(hash(q * 3 + i) * 10), r = 3 + Math.floor(hash(q * 5 + i) * 3), sx = e2 + side * len;
-        c.fillStyle = P.rock2; c.fillRect(Math.min(e2, sx), yy, len, 2);
-        ring(sx, yy, r + 3 + Math.round(Math.sin(clock * 2 + i + q)), P.bio, 1);
-        disc(sx, yy, r + 1, P.ink); disc(sx, yy, r, i % 2 ? P.moss : P.lite);
-        c.fillStyle = P.dust; c.fillRect(sx - 1, yy - r + 1, 2, 1); c.fillRect(sx + side, yy + 1, 1, 1);
+        c.fillStyle = S.rock2; c.fillRect(Math.min(e2, sx), yy, len, 2);
+        ring(sx, yy, r + 3 + Math.round(Math.sin(clock * 2 + i + q)), S.bio, 1);
+        disc(sx, yy, r + 1, S.ink); disc(sx, yy, r, i % 2 ? S.moss : S.lite);
+        c.fillStyle = S.dust; c.fillRect(sx - 1, yy - r + 1, 2, 1); c.fillRect(sx + side, yy + 1, 1, 1);
       }
     } else if (type === 1) {
       for (let j = -30; j <= 30; j++) {
         const vx = ex + side * Math.round(3 + 2 * Math.sin(j / 6 + clock * 1.5));
-        c.fillStyle = P.mossDk; c.fillRect(vx, y + j, 2, 1);
+        c.fillStyle = S.mossDk; c.fillRect(vx, y + j, 2, 1);
         if ((j + 30) % 10 === 5) {
           const r = 2 + Math.round((Math.sin(clock * 2.5 + j) + 1) * 0.6);
-          ring(vx + side * 2, y + j, r + 3, P.bio, 1);
-          disc(vx + side * 2, y + j, r, P.lite);
-          c.fillStyle = P.dust;
+          ring(vx + side * 2, y + j, r + 3, S.bio, 1);
+          disc(vx + side * 2, y + j, r, S.lite);
+          c.fillStyle = S.dust;
           c.fillRect(vx + side * 2, y + j, 1, 1);
         }
       }
@@ -1753,26 +1919,33 @@ function life(cam) {
       const ox = ex - side * 18;
       for (let j = -4; j <= 4; j++) {
         const w = Math.round(9 * Math.sqrt(1 - (j / 5) ** 2));
-        c.fillStyle = P.ink;
+        c.fillStyle = S.ink;
         c.fillRect(ox - w, y + j, w * 2, 1);
       }
       const shut = ((clock * 0.5 + hash(q)) % 1) < 0.07, look = player.x > ox ? 1 : -1, up = player.y + PILOT_CY < da - 20 ? -1 : 0;
       for (const k of [-4, 3]) {
-        if (shut) { c.fillStyle = P.shade; c.fillRect(ox + k - 1, y, 4, 1); }
-        else { c.fillStyle = P.dust; c.fillRect(ox + k - 1, y - 1, 3, 3); c.fillStyle = P.ink; c.fillRect(ox + k + look, y + up, 1, 1); }
+        if (shut) { c.fillStyle = S.shade; c.fillRect(ox + k - 1, y, 4, 1); }
+        else { c.fillStyle = S.dust; c.fillRect(ox + k - 1, y - 1, 3, 3); c.fillStyle = S.ink; c.fillRect(ox + k + look, y + up, 1, 1); }
       }
     } else if (type === 3) {
       for (let i = 0; i < 3; i++) {
         const y0 = y - 12 + i * 12; let tx = ex, ty = y0;
         for (let k = 0; k < 13; k++) {
           tx = ex + side * k * 1.6; ty = y0 + Math.sin(clock * 2 + k * 0.45 + i * 2) * k * 0.55;
-          c.fillStyle = k < 8 ? P.mossDk : P.moss; c.fillRect(Math.round(tx), Math.round(ty), 2, 2);
+          c.fillStyle = k < 8 ? S.mossDk : S.moss; c.fillRect(Math.round(tx), Math.round(ty), 2, 2);
         }
-        disc(tx, ty, 2, P.lite); c.fillStyle = P.dust; c.fillRect(Math.round(tx), Math.round(ty), 1, 1);
+        disc(tx, ty, 2, S.lite); c.fillStyle = S.dust; c.fillRect(Math.round(tx), Math.round(ty), 1, 1);
       }
     } else if (type === 4) {
       const bd = da + 24 * Math.sin(clock * 0.9 + q), eb = edgeAt(bd), f = Math.floor(clock * 8) % 2;
       sprite(c, side < 0 ? BUG[f] : BUGR[f], side < 0 ? eb.L : eb.R - 12, bd - cam - 9, MAP);
+    } else if (type === 5 && moon === 'jungle') {
+      // Version 113: a big flower on a curling stem, its petals opening and closing slowly.
+      const op = 0.6 + 0.4 * Math.sin(clock * 0.8 + q), fx = ex + side * 12, fy = y - 6;
+      for (let j = 0; j < 12; j++) { c.fillStyle = S.mossDk; c.fillRect(Math.round(ex + side * j), Math.round(y + 4 - Math.sin(j / 4) * 6), 2, 2); }
+      for (let i = 0; i < 5; i++) { const an = i / 5 * Math.PI * 2 + clock * 0.2; disc(fx + Math.cos(an) * 4 * op, fy + Math.sin(an) * 4 * op, 3, i % 2 ? S.lite : S.blue); }
+      disc(fx, fy, 2, S.bio); c.fillStyle = P.dust; c.fillRect(Math.round(fx) - 1, Math.round(fy) - 1, 1, 1);
+      c.fillStyle = S.moss; c.fillRect(Math.round(ex + side * 4), y + 1, side * 5, 2);
     }
   }
 }
@@ -1785,8 +1958,8 @@ function critters(cam) {
       const d = q * 150 + 75, e = edgeAt(d), wx = side < 0 ? e.L - 16 : e.R + 16;
       if (wx < 10 || wx > W - 10 || lavaSide(Math.floor(d / 180)) === side) continue;
       const yy = Math.round(d - cam + Math.sin(clock * 1.6 + q) * 2);
-      disc(wx, yy - 1, 10, P.ink); disc(wx, yy - 1, 9, palAt(d).sO);
-      ring(wx, yy - 3, 8 + Math.round(Math.sin(clock * 3 + q)), P.bio, 1);
+      disc(wx, yy - 1, 10, S.ink); disc(wx, yy - 1, 9, palAt(d).sO);
+      ring(wx, yy - 3, 8 + Math.round(Math.sin(clock * 3 + q)), S.bio, 1);
       sprite(c, JELLY[Math.floor(clock * 3 + q) % 2], wx - 7, yy - 7, MAP);
     } else if (kind < 0.8) {
       const d = q * 150 + 75 + Math.sin(clock * 2.2 + q) * 10, x = laneX(d, side * 0.5 + Math.sin(clock * 1.7 + q) * 0.18);
@@ -1806,6 +1979,15 @@ function motes(cam) {
     const x = Math.round(laneX(d, (hash(k + 300) * 2 - 1) * 0.75) + Math.sin(clock * 2 + k) * 4), yy = Math.round(y);
     const kind = matI(Math.floor(d / PX_PER_M / ZONE_M)), M = MATS[kind], z = k % 3 ? 1 : 2;
     let star = false;
+    if (moon === 'jungle') {   // version 113: pollen, root dust, glowing spores, embers, and orchid petals drifting by
+      if (kind === 0) c.fillStyle = k % 2 ? '#F2F0A0' : M.hi;
+      else if (kind === 1) c.fillStyle = k % 2 ? M.b0 : M.hi;
+      else if (kind === 2) { star = (clock * 1.3 + k * 0.29) % 1 < 0.1; c.fillStyle = (Math.floor(clock * 3) + k) % 3 ? M.cryL : M.hi; }
+      else if (kind === 3) { const f = (Math.floor(clock * 10) + k) % 3; c.fillStyle = f === 0 ? P.hot : f === 1 ? M.cryL : P.lava; }
+      else { c.fillStyle = k % 2 ? M.cryL : M.hi; c.fillRect(x, yy, 2, 1); c.fillRect(x + (k % 3 ? 1 : 0), yy + 1, 1, 1); continue; }
+      if (star) { c.fillRect(x - 1, yy, 3, 1); c.fillRect(x, yy - 1, 1, 3); } else c.fillRect(x, yy, z, z);
+      continue;
+    }
     if (kind === 0) { c.fillStyle = '#FFFFFF'; star = k % 4 === 0; }
     else if (kind === 1) c.fillStyle = k % 2 ? M.b0 : M.cryL;
     else if (kind === 2) c.fillStyle = k % 2 ? M.b1 : M.hi;
@@ -1940,25 +2122,25 @@ function planetRing(x, y, front, light) {
   for (let i = 0; i < 300; i++) {
     const an = i / 300 * Math.PI * 2;
     if ((Math.sin(an) > 0) !== front || (i % 38) < 3) continue;
-    c.fillStyle = i % 9 ? (light ? P.strata : P.ink) : (light ? P.lite : P.shade);
+    c.fillStyle = i % 9 ? (light ? S.strata : S.ink) : (light ? S.plL : S.shade);
     c.fillRect(Math.round(x + Math.cos(an) * 66), Math.round(y + Math.sin(an) * 14 - Math.cos(an) * 12), 3, 2);
   }
 }
 // On the start screen the planet turns (rot, in radians): storms and streaks at fixed latitudes slide across its face
 // and round the back. The lit bands, the shadow side and the ring stay put, as they would on a real planet.
-const PLANET_STORMS = [[0.32, -0.46, 5, 'deep'], [-0.5, 2.5, 4, 'deep'], [0.05, 4.2, 3, 'lite']];
-const PLANET_STREAKS = [[-0.75, 0.6, 0.9, 'deep'], [0.16, 2.0, 1.2, 'deep'], [0.6, -2.4, 0.8, 'lite'], [-0.22, 3.4, 0.7, 'lite'], [0.42, 1.0, 0.6, 'lite']];
+const PLANET_STORMS = [[0.32, -0.46, 5, 'plD'], [-0.5, 2.5, 4, 'plD'], [0.05, 4.2, 3, 'plL']];
+const PLANET_STREAKS = [[-0.75, 0.6, 0.9, 'plD'], [0.16, 2.0, 1.2, 'plD'], [0.6, -2.4, 0.8, 'plL'], [-0.22, 3.4, 0.7, 'plL'], [0.42, 1.0, 0.6, 'plL']];
 function drawPlanet(px, py, light, rot) {
   const R = 38;
   planetRing(px, py, false, light);
-  disc(px, py, R + 1, P.ink); disc(px, py, R, P.blue);
+  disc(px, py, R + 1, S.ink); disc(px, py, R, S.pl);
   if (rot !== undefined) {
     for (let j = -R; j <= R; j++) {
       const w = Math.floor(Math.sqrt(R * R - j * j));
-      if (((j + 50) % 13) < 3) { c.fillStyle = P.lite; c.fillRect(px - w, py + j, Math.round(w * 1.1), 1); }
+      if (((j + 50) % 13) < 3) { c.fillStyle = S.plL; c.fillRect(px - w, py + j, Math.round(w * 1.1), 1); }
     }
     for (const [lat, lon, len, col] of PLANET_STREAKS) {
-      const y = Math.round(py + Math.sin(lat) * R), cw = Math.cos(lat) * R; c.fillStyle = P[col];
+      const y = Math.round(py + Math.sin(lat) * R), cw = Math.cos(lat) * R; c.fillStyle = S[col];
       for (let a = lon; a < lon + len; a += 0.07) {
         const t = a + rot;
         if (Math.cos(t) > 0.05) c.fillRect(Math.round(px + cw * Math.sin(t)), y, 2, 2);
@@ -1968,13 +2150,13 @@ function drawPlanet(px, py, light, rot) {
       const t = lon + rot, f = Math.cos(t);
       if (f > 0.1) {
         const x = px + Math.cos(lat) * R * Math.sin(t), y = py + Math.sin(lat) * R;
-        ellipseIn(x, y, r * f, r, P[col], px, py, R);
-        if (col === 'deep') ellipseIn(x - f, y - 1, (r - 2) * f, r - 2, P.lite, px, py, R);
+        ellipseIn(x, y, r * f, r, S[col], px, py, R);
+        if (col === 'plD') ellipseIn(x - f, y - 1, (r - 2) * f, r - 2, S.plL, px, py, R);
       }
     }
     for (let j = -R; j <= R; j++) {
       const w = Math.floor(Math.sqrt(R * R - j * j)), s0 = px + Math.round(w * 0.25) + 7;
-      c.fillStyle = P.deep;
+      c.fillStyle = S.plD;
       c.fillRect(s0, py + j, Math.max(0, px + w + 1 - s0), 1);
     }
     planetRing(px, py, true, light);
@@ -1982,14 +2164,16 @@ function drawPlanet(px, py, light, rot) {
   }
   for (let j = -R; j <= R; j++) {
     const w = Math.floor(Math.sqrt(R * R - j * j));
-    if (((j + 50) % 13) < 3) { c.fillStyle = P.lite; c.fillRect(px - w, py + j, Math.round(w * 1.1), 1); }
-    const s0 = px + Math.round(w * 0.25) + 7; c.fillStyle = P.deep; c.fillRect(s0, py + j, Math.max(0, px + w + 1 - s0), 1);
+    if (((j + 50) % 13) < 3) { c.fillStyle = S.plL; c.fillRect(px - w, py + j, Math.round(w * 1.1), 1); }
+    const s0 = px + Math.round(w * 0.25) + 7; c.fillStyle = S.plD; c.fillRect(s0, py + j, Math.max(0, px + w + 1 - s0), 1);
   }
-  disc(px - 16, py + 12, 5, P.deep); disc(px - 17, py + 11, 3, P.lite);
+  disc(px - 16, py + 12, 5, S.plD); disc(px - 17, py + 11, 3, S.plL);
   planetRing(px, py, true, light);
 }
 // The sky darkens to space as the ship climbs, with stars fading in.
-const SKYMIX = Array.from({ length: 13 }, (_, i) => mix(P.dust, P.ink, i / 12));
+let SKYMIX = [];   // rebuilt for each moon's sky (applyMoon)
+const skyMix = () => { SKYMIX = Array.from({ length: 13 }, (_, i) => mix(S.dust, S.ink, i / 12)); };
+skyMix();
 function skyDark(cam, top) {
   for (let y = 0; y < top; y++) {
     const k = smoothstep((-(cam + y) - 500) / 2600);
@@ -2000,7 +2184,7 @@ function skyDark(cam, top) {
   for (let i = 0; i < 90; i++) {
     const sy = ((hash(i + 3.3) * H * 4 - cam * 0.08) % H + H) % H, k = smoothstep((-(cam + sy) - 900) / 2400);
     if (hash(i + 9.1) > k) continue;
-    c.fillStyle = i % 4 ? P.strata : P.dust; const z = i % 9 ? 1 : 2; c.fillRect(Math.floor(hash(i + 1.7) * W), Math.round(sy), z, z);
+    c.fillStyle = i % 4 ? S.strata : S.dust; const z = i % 9 ? 1 : 2; c.fillRect(Math.floor(hash(i + 1.7) * W), Math.round(sy), z, z);
   }
 }
 // The pull-out: the moon shrinks below as the ship heads for the stars.
@@ -2025,8 +2209,8 @@ function drawMoonAt(mx, my, R, rot) {
   for (let y = top; y <= bot; y++) {
     const dy = (y - my) / R; if (Math.abs(dy) > 1) continue;
     const w = Math.sqrt(1 - dy * dy) * R, x0 = Math.round(mx - w), x1 = Math.round(mx + w);
-    c.fillStyle = P.shade; c.fillRect(x0 - 1, y, x1 - x0 + 2, 1);
-    c.fillStyle = P.dust; c.fillRect(x0, y, x1 - x0, 1);
+    c.fillStyle = S.shade; c.fillRect(x0 - 1, y, x1 - x0 + 2, 1);
+    c.fillStyle = S.dust; c.fillRect(x0, y, x1 - x0, 1);
   }
   const blob = (ux, uy, ur, col) => {
     const r = Math.round(ur * R), x = mx + ux * R, y = my + uy * R;
@@ -2034,22 +2218,22 @@ function drawMoonAt(mx, my, R, rot) {
     disc(x, y, r, col);
   };
   if (rot === undefined) {
-    for (const [ux, uy, ur] of MOON_MARIA) blob(ux, uy, ur, P.rock2);
-    for (const [ux, uy, ur] of MOON_CRATERS) { blob(ux, uy, ur, P.shade); blob(ux + ur * 0.12, uy + ur * 0.12, ur * 0.82, P.hill); }
+    for (const [ux, uy, ur] of MOON_MARIA) blob(ux, uy, ur, S.rock2);
+    for (const [ux, uy, ur] of MOON_CRATERS) { blob(ux, uy, ur, S.shade); blob(ux + ur * 0.12, uy + ur * 0.12, ur * 0.82, S.hill); }
   } else for (const kind of [0, 1]) for (const [lat, lon, ur, k] of MOON_FEATS) {
     // Turning: each feature slides sideways and narrows towards the edge.
     const t = lon + rot, f = Math.cos(t);
     if (k !== kind || f < 0.08) continue;
     const x = mx + Math.cos(lat) * R * Math.sin(t), y = my + Math.sin(lat) * R, r = ur * R;
-    if (kind === 0) ellipseIn(x, y, r * f, r, P.rock2, mx, my, R);
-    else { ellipseIn(x, y, r * f, r, P.shade, mx, my, R); ellipseIn(x + r * 0.12 * f, y + r * 0.12, r * 0.82 * f, r * 0.82, P.hill, mx, my, R); }
+    if (kind === 0) ellipseIn(x, y, r * f, r, S.rock2, mx, my, R);
+    else { ellipseIn(x, y, r * f, r, S.shade, mx, my, R); ellipseIn(x + r * 0.12 * f, y + r * 0.12, r * 0.82 * f, r * 0.82, S.hill, mx, my, R); }
   }
   const csx = mx, csy = my - 0.985 * R;
   if (csy > -10 && csy < H + 10) {
-    disc(csx, csy, Math.max(1, Math.round(0.014 * R)), P.ink);
-    if (R > 300) disc(csx, csy, Math.round(0.009 * R), P.deep);
+    disc(csx, csy, Math.max(1, Math.round(0.014 * R)), S.ink);
+    if (R > 300) disc(csx, csy, Math.round(0.009 * R), S.deep);
   }
-  c.globalAlpha = 0.35; c.fillStyle = P.deep;
+  c.globalAlpha = 0.35; c.fillStyle = S.deep;
   for (let y = top; y <= bot; y++) {
     const dy = (y - my) / R;
     if (Math.abs(dy) > 1) continue;
@@ -2070,10 +2254,10 @@ function drawMoonAt(mx, my, R, rot) {
 function drawSpace(u, off = 0) {
   const e = easeInOut(Math.max(0, Math.min(1, u))), Z = Math.pow(46 / 2400, e), R = 2400 * Z, fx = W / 2, fy = H * 0.72;
   const mx = fx, my = fy + (H * 1.05 + 2400 - fy) * Z;
-  c.fillStyle = P.ink; c.fillRect(0, 0, W, H);
+  c.fillStyle = S.ink; c.fillRect(0, 0, W, H);
   for (let i = 0; i < 150; i++) {
     const k = 0.9 + 0.1 * Math.pow(Z, 0.3), sx = fx + (hash(i * 1.37) * W - fx) * k, sy = fy + (hash(i * 2.11 + 5) * H - fy) * k;
-    c.fillStyle = i % 5 ? P.strata : (Math.floor(clock * 0.8 + hash(i) * 4) % 4 ? P.dust : P.lite);
+    c.fillStyle = i % 5 ? S.strata : (Math.floor(clock * 0.8 + hash(i) * 4) % 4 ? S.dust : S.lite);
     const z = i % 11 ? 1 : 2; c.fillRect(Math.round(sx), Math.round(sy), z, z);
   }
   drawPlanet(Math.round(W * 0.8), Math.round(H * 0.24 + 30 * (1 - e)), true, clock * Math.PI / 12);
@@ -2106,51 +2290,85 @@ function paintHills(T) {
     let h = 44 + 16 * Math.sin((x + Tq * 6) * 0.011 + 1) + 9 * Math.sin(x * 0.035);
     if (hash(k) < 0.4) h -= 10 * Math.max(0, 1 - Math.abs(2 * u - 1) * 1.4);
     h = Math.round(h);
-    g.fillStyle = P.hill; g.fillRect(x, HILL_FAR_H - h - 1, 2, 1);
-    g.fillStyle = P.strata; g.fillRect(x, HILL_FAR_H - h, 2, h);
+    g.fillStyle = S.hill; g.fillRect(x, HILL_FAR_H - h - 1, 2, 1);
+    g.fillStyle = S.strata; g.fillRect(x, HILL_FAR_H - h, 2, h);
   }
   g = hillNear.getContext('2d');
   g.clearRect(0, 0, W, HILL_NEAR_H + HILL_NEAR_LOW);
   for (let x = 0; x < W; x += 2) {
     const h = hillH(x, Tq);
-    g.fillStyle = P.ink; g.fillRect(x, HILL_NEAR_H - h - 2, 2, 2);
-    g.fillStyle = P.hill; g.fillRect(x, HILL_NEAR_H - h, 2, h + HILL_NEAR_LOW);
-    if (hash(x * 1.3) < 0.3) { g.fillStyle = P.shade; g.fillRect(x, HILL_NEAR_H - h + 4 + Math.floor(hash(x) * 16), 2, 2); }
+    g.fillStyle = S.ink; g.fillRect(x, HILL_NEAR_H - h - 2, 2, 2);
+    g.fillStyle = S.hill; g.fillRect(x, HILL_NEAR_H - h, 2, h + HILL_NEAR_LOW);
+    if (hash(x * 1.3) < 0.3) { g.fillStyle = S.shade; g.fillRect(x, HILL_NEAR_H - h + 4 + Math.floor(hash(x) * 16), 2, 2); }
   }
   return Tq;
 }
+// Version 113: the Jungle moon's skyline. Far off, tall trees with round crowns stand on the far hills; nearer, palms
+// lean over the near hills. Each moves with its hills (they drift left), standing on the hill's height at its place.
+const JT_FAR = [[14, 30, 11], [62, 24, 9], [118, 34, 12], [170, 22, 8], [226, 30, 10], [282, 26, 9], [330, 32, 11]];
+const JT_NEAR = [[40, 30], [150, 24], [262, 34]];
+function jungleTrees(base, T, near) {
+  const span = W + 60;
+  if (!near) {
+    const trunk = mix(S.strata, S.shade, 0.3), crown = mix(S.strata, S.hill, 0.55), lit = mix(S.strata, S.dust, 0.35);
+    for (const [u, h, r] of JT_FAR) {
+      const x = Math.round((((u - T * 6) % span) + span) % span - 30);
+      let g = 44 + 16 * Math.sin((x + T * 6) * 0.011 + 1) + 9 * Math.sin(x * 0.035);
+      const gy = Math.round(base - g + 2);
+      c.fillStyle = trunk; c.fillRect(x - 1, gy - h, 3, h);
+      disc(x - r * 0.6, gy - h + 2, Math.round(r * 0.75), crown); disc(x + r * 0.6, gy - h + 3, Math.round(r * 0.7), crown); disc(x, gy - h - r * 0.45, r, crown);
+      disc(x - r * 0.3, gy - h - r * 0.7, Math.round(r * 0.45), lit);
+    }
+    return;
+  }
+  for (const [u, h] of JT_NEAR) {
+    const x0 = Math.round((((u - T * 12) % span) + span) % span - 30), gy = base - hillH(x0, T), lean = x0 < W / 2 ? 1 : -1;
+    let tx = x0, ty = gy;
+    for (let j = 0; j < h; j++) { tx = x0 + lean * j * j / (h * 3.2); ty = gy - j; c.fillStyle = j % 4 ? S.shade : S.ink; c.fillRect(Math.round(tx) - 1, Math.round(ty), 3, 1); }
+    for (let f = 0; f < 6; f++) {   // fronds drooping from the top
+      const an = -Math.PI / 2 + (f - 2.5) * 0.55 + Math.sin(T * 1.4 + f + u) * 0.06;
+      for (let i = 0; i < 16; i++) {
+        const d = i * 1.3, px = tx + Math.cos(an) * d, py = ty + Math.sin(an) * d + i * i * 0.05;
+        c.fillStyle = i < 3 ? S.mossDk : S.moss; c.fillRect(Math.round(px), Math.round(py), 2, i % 3 ? 2 : 3);
+      }
+    }
+    disc(tx, ty, 2, S.mossDk);
+  }
+}
 function drawSky(cam) {
   const T = clock, ys0 = -camY0, sk = cam - camY0, Y = v => Math.round(v - cam);
-  c.fillStyle = P.dust; c.fillRect(0, 0, W, Math.min(H, Y(0) + 6));
+  c.fillStyle = S.dust; c.fillRect(0, 0, W, Math.min(H, Y(0) + 6));
   if (state === 'launch' || state === 'opening') skyDark(cam, Math.min(H, Y(0) + 6));
   const wrecked = !(state === 'opening' && !introCrashed);
   for (let k = 0; k < 44; k++) {
-    c.fillStyle = k % 5 ? P.strata : P.shade;
+    c.fillStyle = k % 5 ? S.strata : S.shade;
     const z = k % 7 ? 1 : 2;
     c.fillRect(Math.floor(hash(k) * W), Math.round(hash(k + 50) * ys0 * 0.78 - sk * 0.1), z, z);
   }
   const mp = (T % 7) / 0.9;
   if (mp < 1) for (let i = 0; i < 12; i++) {
-    c.fillStyle = i ? P.lite : P.dust;
+    c.fillStyle = i ? S.lite : S.dust;
     c.fillRect(Math.round(lerp(30, 200, mp) - i * 3), Math.round(ys0 * 0.16 + mp * 36 - i - sk * 0.15), 2, 1);
   }
   const my = Math.round(ys0 * 0.3 - sk * 0.2);
-  disc(52, my, 11, P.ink); disc(52, my, 10, P.hill); disc(48, my - 3, 3, P.strata); disc(56, my + 4, 2, P.shade);
+  disc(52, my, 11, S.ink); disc(52, my, 10, S.hill); disc(48, my - 3, 3, S.strata); disc(56, my + 4, 2, S.shade);
   drawPlanet(Math.round(232 + Math.sin(T * 0.05) * 6), Math.round(ys0 * 0.52 - sk * 0.3), false, clock * Math.PI / 12);
   const hf = Math.round(ys0 - sk * 0.4), hb = Math.round(ys0 - sk * 0.55), Th = paintHills(T);
+  if (moon === 'jungle') jungleTrees(hf, Th, false);
   c.drawImage(hillFar, 0, hf - HILL_FAR_H);
-  if (hf < H) { c.fillStyle = P.strata; c.fillRect(0, hf, W, H - hf); }
+  if (hf < H) { c.fillStyle = S.strata; c.fillRect(0, hf, W, H - hf); }
+  if (moon === 'jungle') jungleTrees(hb, Th, true);
   c.drawImage(hillNear, 0, hb - HILL_NEAR_H);
-  if (hb + HILL_NEAR_LOW < H) { c.fillStyle = P.hill; c.fillRect(0, hb + HILL_NEAR_LOW, W, H - hb - HILL_NEAR_LOW); }
+  if (hb + HILL_NEAR_LOW < H) { c.fillStyle = S.hill; c.fillRect(0, hb + HILL_NEAR_LOW, W, H - hb - HILL_NEAR_LOW); }
   const wx = Math.round(W + 30 - ((T * 10) % (W + 70))), gy = hb - hillH(wx, Th);
-  c.fillStyle = P.shade;
+  c.fillStyle = S.shade;
   for (let k = 0; k < 4; k++) {
     const fx = wx - 9 + k * 6 + Math.round(Math.sin(T * 4 + k * Math.PI) * 5);
     for (let j = 0; j < 26; j++) c.fillRect(Math.round(lerp(wx - 3 + k * 2, fx, j / 26)), gy - 26 + j, 1, 1);
   }
-  disc(wx, gy - 28, 6, P.shade); c.fillRect(wx - 9, gy - 34, 6, 2); disc(wx - 11, gy - 35, 3, P.shade);
-  c.fillStyle = P.dust; c.fillRect(wx - 12, gy - 36, 1, 1);
-  c.fillStyle = P.shade;
+  disc(wx, gy - 28, 6, S.shade); c.fillRect(wx - 9, gy - 34, 6, 2); disc(wx - 11, gy - 35, 3, S.shade);
+  c.fillStyle = S.dust; c.fillRect(wx - 12, gy - 36, 1, 1);
+  c.fillStyle = S.shade;
   for (let k = 0; k < 5; k++) {
     const gx = Math.round(-40 + ((T * 30) % (W + 120)) + k * 15),
       gyy = Math.round(ys0 * 0.66 + (k % 2) * 7 - sk * 0.15 + Math.sin(T * 5 + k) * 2),
@@ -2160,22 +2378,22 @@ function drawSky(cam) {
   const dmg = shipDamage(), smokeN = wrecked ? Math.round(9 * dmg.smoke) : 0;
   for (let i = 0; i < smokeN; i++) {
     const ph = (T * 0.32 + i / 9) % 1, r = Math.round(4 + ph * 13), sx = SHIP_X + 20 - ph * 34 + Math.sin(ph * 6 + i) * 6, syy = -36 - ph * 110;
-    disc(sx, Y(syy), r, P.shade); disc(sx - 2, Y(syy - 2), Math.max(1, r - 3), i % 2 ? P.hill : P.strata);
+    disc(sx, Y(syy), r, S.shade); disc(sx - 2, Y(syy - 2), Math.max(1, r - 3), i % 2 ? S.hill : S.strata);
   }
   if (state === 'launch' && launchShip) drawShipAt(launchShip.x, Y(launchShip.y), launchShip.a, launchShip.f, launchShip.glow);
   else if (!wrecked) { if (introShip) drawShipAt(introShip.x, Y(introShip.y), introShip.a, 0, 0, introShip.scale, true, introShip.empty); }
   else if (state !== 'ended') { c.drawImage(ship, SHIP_X, Y(-80)); if (dmg.shine >= 0) shipShine(SHIP_X, Y(-80), dmg.shine); }
   if (wrecked && dmg.fire > 0) {
     const fs = dmg.fire;
-    disc(SHIP_X + 20, Y(-33), Math.max(1, Math.round((5 + 2 * Math.sin(T * 9)) * fs)), P.lava);
-    disc(SHIP_X + 19, Y(-34), Math.max(1, Math.round((2 + Math.sin(T * 7)) * fs)), P.hot);
+    disc(SHIP_X + 20, Y(-33), Math.max(1, Math.round((5 + 2 * Math.sin(T * 9)) * fs)), S.lava);
+    disc(SHIP_X + 19, Y(-34), Math.max(1, Math.round((2 + Math.sin(T * 7)) * fs)), S.hot);
   }
   if (wrecked && dmg.sparks) for (let i = 0; i < 6; i++) {
     const ph = (T * 1.1 + i * 0.19) % 1;
-    c.fillStyle = ph < 0.2 ? P.hot : P.lava;
+    c.fillStyle = ph < 0.2 ? S.hot : S.lava;
     c.fillRect(Math.round(SHIP_X + 20 + ph * 30 * (i % 2 ? 1 : -0.7)), Y(-34 - 36 * ph + 60 * ph * ph), 2, 2);
   }
-  if (wrecked) { disc(SHIP_X + 116, Y(1), 15, P.ink); disc(SHIP_X + 116, Y(2), 14, P.rock); disc(SHIP_X + 112, Y(-6), 4, P.shade); }
+  if (wrecked) { disc(SHIP_X + 116, Y(1), 15, S.ink); disc(SHIP_X + 116, Y(2), 14, S.rock); disc(SHIP_X + 112, Y(-6), 4, S.shade); }
 }
 // The things standing on the surface (rocks, plants, the blob, the ground by the ship) are painted into one image
 // SURFACE_HZ times a second and stamped every frame (version 91; about 700 rectangles a frame before). The image covers
@@ -2195,61 +2413,61 @@ function drawProps(cam) {
   c.drawImage(propsCv, 0, -PROPS_UP - cam);
   if (state === 'intro' && introT > 0.95 && introT < 1.4) {
     const a = introT - 0.95, y = Math.round(-2 - cam);
-    ring(128, y, a * 44, P.shade);
-    ring(128, y, a * 26, P.rock);
+    ring(128, y, a * 44, S.shade);
+    ring(128, y, a * 26, S.rock);
   }
 }
 function paintProps(cam, T) {
   const Y = v => Math.round(v - cam);
   if (!(state === 'opening' && !introCrashed)) {
-    c.fillStyle = P.shade;
+    c.fillStyle = S.shade;
     c.fillRect(0, Y(0), SHIP_X + 66, 5);
-    c.fillStyle = P.ink;
+    c.fillStyle = S.ink;
     c.fillRect(0, Y(4), SHIP_X + 60, 1);
   }
   for (const [x0, w] of [[252, 18], [302, 11]]) {
     for (let j = 0; j < 6; j++) {
       const s = Math.round(w * Math.sqrt(1 - (j / 6) ** 2));
-      c.fillStyle = j ? P.shade : P.ink;
+      c.fillStyle = j ? S.shade : S.ink;
       c.fillRect(x0 - s, Y(j), s * 2, 1);
     }
-    for (const e of [-1, 1]) { disc(x0 + e * w, Y(0), 4, P.ink); disc(x0 + e * w, Y(1), 3, P.rock); }
+    for (const e of [-1, 1]) { disc(x0 + e * w, Y(0), 4, S.ink); disc(x0 + e * w, Y(1), 3, S.rock); }
   }
   for (const [x, y0, w, h] of [[64, -3, 6, 3], [112, -4, 8, 4]]) {
-    c.fillStyle = P.ink;
+    c.fillStyle = S.ink;
     c.fillRect(x - 1, Y(y0) - 1, w + 2, h + 2);
-    c.fillStyle = P.dust;
+    c.fillStyle = S.dust;
     c.fillRect(x, Y(y0), w, h);
-    c.fillStyle = P.blue;
+    c.fillStyle = S.blue;
     c.fillRect(x, Y(y0) + h - 1, w, 1);
   }
   for (const [x, s] of [[192, 0], [268, 1], [316, 2], [6, 1]]) drawRock(x, Y(-[5, 8, 12][s] - 1), s);
   for (const [x, h] of [[214, 18], [221, 10], [230, 14], [284, 9]]) for (let j = 0; j < h; j++) {
     const w = Math.round(3 * (1 - j / h)) + 1, yy = Y(-1 - j);
-    c.fillStyle = P.ink; c.fillRect(x - w - 1, yy, w * 2 + 3, 1);
-    c.fillStyle = P.lite; c.fillRect(x - w, yy, w, 1); c.fillStyle = P.blue; c.fillRect(x, yy, w + 1, 1);
+    c.fillStyle = S.ink; c.fillRect(x - w - 1, yy, w * 2 + 3, 1);
+    c.fillStyle = S.lite; c.fillRect(x - w, yy, w, 1); c.fillStyle = S.blue; c.fillRect(x, yy, w + 1, 1);
   }
-  for (let x = 236; x < W; x += 3) { const h = 2 + Math.floor(hash(x) * 5); c.fillStyle = x % 2 ? P.moss : P.mossDk; c.fillRect(x, Y(-h), 1, h); }
+  for (let x = 236; x < W; x += 3) { const h = 2 + Math.floor(hash(x) * 5); c.fillStyle = x % 2 ? S.moss : S.mossDk; c.fillRect(x, Y(-h), 1, h); }
   for (const [x, h, i] of [[258, 26, 0], [274, 18, 1], [306, 30, 2]]) {
     let bx = x;
-    for (let j = 0; j < h; j++) { bx = x + Math.round(Math.sin(T * 2 + i) * j / 9); c.fillStyle = P.mossDk; c.fillRect(bx, Y(-1 - j), 2, 1); }
-    disc(bx + 1, Y(-h - 3), 4, P.ink); disc(bx + 1, Y(-h - 3), 3, P.lite); c.fillStyle = P.dust; c.fillRect(bx, Y(-h - 5), 2, 2);
+    for (let j = 0; j < h; j++) { bx = x + Math.round(Math.sin(T * 2 + i) * j / 9); c.fillStyle = S.mossDk; c.fillRect(bx, Y(-1 - j), 2, 1); }
+    disc(bx + 1, Y(-h - 3), 4, S.ink); disc(bx + 1, Y(-h - 3), 3, S.lite); c.fillStyle = S.dust; c.fillRect(bx, Y(-h - 5), 2, 2);
   }
   for (const x of [40, 294]) for (let b = 0; b < 5; b++) {
     const an = -1 + b * 0.5 + Math.sin(T * 1.5 + x) * 0.1, L = 12 + Math.floor(hash(x + b) * 7);
     for (let s = 0; s < L; s++) {
-      c.fillStyle = s < L * 0.6 ? P.mossDk : P.moss;
+      c.fillStyle = s < L * 0.6 ? S.mossDk : S.moss;
       c.fillRect(Math.round(x + Math.sin(an) * s), Y(-1 - Math.cos(an) * s), 2, 2);
     }
-    c.fillStyle = P.lite; c.fillRect(Math.round(x + Math.sin(an) * L), Y(-1 - Math.cos(an) * L), 2, 2);
+    c.fillStyle = S.lite; c.fillRect(Math.round(x + Math.sin(an) * L), Y(-1 - Math.cos(an) * L), 2, 2);
   }
   for (const [x, h, i] of [[204, 22, 0], [318, 18, 2]]) {
     const sw = Math.sin(T * 1.8 + i) * 3;
-    for (let j = 0; j < h; j++) { c.fillStyle = P.mossDk; c.fillRect(Math.round(x + sw * j / h), Y(-1 - j), 2, 1); }
+    for (let j = 0; j < h; j++) { c.fillStyle = S.mossDk; c.fillRect(Math.round(x + sw * j / h), Y(-1 - j), 2, 1); }
     const tx = x + sw, ty = -1 - h;
     for (let an = 0; an < 5; an += 0.3) {
       const r = 5 * (1 - an / 6);
-      c.fillStyle = an > 4 ? P.lite : P.moss;
+      c.fillStyle = an > 4 ? S.lite : S.moss;
       c.fillRect(Math.round(tx + 5 - Math.cos(an) * r), Y(ty - 5 - Math.sin(an) * r), 2, 2);
     }
   }
@@ -2258,10 +2476,27 @@ function paintProps(cam, T) {
     for (let k = 0; k < 14; k++) {
       tx = x + s * k * 0.9;
       ty = -1 - k * 1.4 + Math.sin(T * 2.4 + k * 0.4 + i) * k * 0.25;
-      c.fillStyle = k < 9 ? P.mossDk : P.moss;
+      c.fillStyle = k < 9 ? S.mossDk : S.moss;
       c.fillRect(Math.round(tx), Y(ty), 2, 2);
     }
-    disc(tx, Y(ty), 2, P.lite);
+    disc(tx, Y(ty), 2, S.lite);
+  }
+  if (moon === 'jungle') {
+    // Version 113: broad leaves and flowers round the crash site (kept clear of the ship, the shaft and his run-up).
+    for (const [x, s, L, i] of [[246, -1, 20, 0], [250, 1, 24, 1], [300, -1, 26, 2], [304, 1, 18, 3], [170, 1, 16, 4]]) {
+      const sw = Math.sin(T * 1.3 + i) * 0.08, an = -Math.PI / 2 + s * (0.7 + sw);
+      for (let j = 0; j < L; j++) {
+        const px = x + Math.cos(an) * j + s * j * j * 0.012, py = -1 + Math.sin(an) * j + j * j * 0.022, w = Math.round(3.5 * Math.sin(Math.PI * j / L)) + 1;
+        c.fillStyle = S.mossDk; c.fillRect(Math.round(px) - w, Y(py), 2 * w, 1);
+        c.fillStyle = S.moss; c.fillRect(Math.round(px) - w + 1, Y(py), Math.max(1, w - 1), 1);
+      }
+    }
+    for (const [x, h, i] of [[226, 14, 0], [288, 20, 1], [314, 12, 2], [180, 10, 3]]) {
+      const sw = Math.round(Math.sin(T * 1.6 + i) * 2);
+      c.fillStyle = S.mossDk; c.fillRect(x, Y(-h), 1, h);
+      for (let a = 0; a < 5; a++) { const an = a / 5 * Math.PI * 2 + i; disc(x + sw + Math.cos(an) * 3, Y(-h - 2 + Math.sin(an) * 3), 2, a % 2 ? S.lite : S.blue); }
+      disc(x + sw, Y(-h - 2), 1, S.bio);
+    }
   }
   const n = Math.floor(T / 0.55), ph = (T / 0.55) % 1, bx = Math.round(252 + 24 * Math.sin((n + ph) * 0.3));
   sprite(c, BLOB[ph < 0.15 ? 1 : 0], bx - 7, Y(-13 - Math.round(Math.sin(Math.PI * ph) * 10)), MAP);
@@ -2281,7 +2516,7 @@ let hardRun = false;   // this run is a Hard dive (version 112; see startRun)
 const playerStart = () => ({
   x: 84, y: -30, v: 0, vx: 0, hp: hardRun ? 4 : 5, max: hardRun ? 4 : 5, inv: 0, blockT: 0, shield: 0, shieldMax: 8, orbs: 0, spare: 0, streak: 0,
   bestStreak: 0, perks: {}, perkCafe: 0, toughN: 0, bought: [], slowUntil: 0, flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false,
-  fallRamp: 1,
+  fallRamp: 1, tangle: 0,
   hits: 0, closest: Infinity, closestMine: false, leviRun: [], bossWon: false, newBadges: []   // version 108: run highlights and badges
 });
 const player = { touch: false, ...playerStart() };
@@ -2322,6 +2557,22 @@ if (!Number.isFinite(save.nav)) save.nav = 0;
 const navDone = () => save.nav >= NAV_PRICE;
 const canLaunch = () => repairFrac() >= 1 && navDone();
 function persist() { try { localStorage.setItem('moonfall.v1', JSON.stringify(save)); } catch (e) {} }
+// Switches the game over to a moon (version 113): its rock layers and scenery colours, and everything painted from them
+// is thrown away to be painted again (the shaft's tiles and back layers, the hills and the surface props). The hazards,
+// Leviathans and music read `moon` as they go. Only called on the menus, never during a run.
+function applyMoon(m) {
+  moon = m === 'jungle' ? 'jungle' : 'dust';
+  MATS.splice(0, MATS.length, ...MOON_MATS[moon]);
+  Object.assign(S, P, MOON_SURF[moon]); skyMix();
+  palCache.clear(); leviFor = -1;
+  for (const t of tiles.values()) retireTile(t);
+  tiles.clear();
+  for (const b of [BACK_FAR, BACK_MID]) { for (const p of b.tiles.values()) if (b.pool.length < 12) b.pool.push(p); b.tiles.clear(); }
+  hillQ = NaN; propsKey = NaN;
+  document.documentElement.dataset.moon = moon;
+  syncMoon();
+}
+const MOON_NAMES = { dust: 'Dust moon', jungle: 'Jungle moon' };
 
 // ---------- sound ----------
 // ---------- his voice: a glottal pulse with breath, jitter and shimmer through four formants, plus real consonants ----------
@@ -2661,6 +2912,15 @@ const Sfx = (() => {
         } else if (kind === 'angler') {   // a croak in three bubbly pulses, then a little blip
           for (let i = 0; i < 3; i++) { swell('sawtooth', 52, 40, 0.6, 0.09, 0.15, 320, i * 0.5); noise(0.3, 'lowpass', 500, 0.06, i * 0.5 + 0.1); }
           tone('sine', 880, 1320, 0.09, 0.02, 1.8);
+        } else if (kind === 'centipede') {   // a dry, fast chitter of clicks over a low rasp
+          for (let i = 0; i < 14; i++) noise(0.03, 'bandpass', 2400 + (i % 3) * 700, 0.09, i * 0.07 + (i > 7 ? 0.3 : 0));
+          swell('sawtooth', 70, 52, 2.0, 0.06, 0.4, 500, 0.2);
+        } else if (kind === 'flytrap') {   // a wet gulp sliding down, and a creak of the stalk
+          swell('sine', 150, 48, 1.6, 0.14, 0.2, 600); noise(0.5, 'lowpass', 400, 0.12, 0.1);
+          swell('sawtooth', 210, 160, 1.4, 0.025, 0.5, 900, 1.0); noise(0.25, 'bandpass', 1100, 0.05, 1.4);
+        } else if (kind === 'moth') {   // wings beating in soft thuds, over a thin, eerie whine
+          for (let i = 0; i < 7; i++) noise(0.14, 'lowpass', 350, 0.13, i * 0.32);
+          swell('sine', 1240, 1180, 2.6, 0.012, 1.0, 4000, 0.2); swell('sine', 1860, 1800, 2.2, 0.006, 1.0, 4000, 0.4);
         } else {   // nautilus: a hollow, shell-like chord
           swell('triangle', 98, 92, 3.4, 0.1, 1.0, 900); swell('sine', 147, 140, 3.0, 0.05, 1.1, 900, 0.15);
           swell('sine', 196, 190, 2.6, 0.025, 1.0, 900, 0.35); noise(2.8, 'bandpass', 700, 0.03, 0.3);
@@ -2707,6 +2967,10 @@ const Sfx = (() => {
     bossPing() { tone('sine', 1250, 420, 0.55, 0.07); tone('sine', 620, 300, 0.7, 0.04); },
     bossShriek() { tone('sawtooth', 1900, 700, 0.5, 0.05); tone('square', 2600, 1200, 0.35, 0.025); noise(0.45, 'bandpass', 3200, 0.07); },
     crumble() { noise(0.5, 'lowpass', 600, 0.55); noise(0.12, 'bandpass', 1400, 0.3); tone('sine', 90, 50, 0.4, 0.3); },
+    // The Jungle hazards (version 113): leaves rustling, a branch creaking out of the rock, a pod bursting.
+    rustle() { noise(0.18, 'bandpass', 3200, 0.14); noise(0.22, 'highpass', 5000, 0.07, 0.06); },
+    thorns() { tone('sawtooth', 120, 70, 0.35, 0.06); noise(0.3, 'bandpass', 900, 0.22); tone('square', 300, 180, 0.08, 0.05, 0.12); },
+    spores() { noise(0.45, 'lowpass', 900, 0.5); noise(0.3, 'bandpass', 2400, 0.12, 0.05); tone('sine', 220, 90, 0.25, 0.18); },
     weld() { noise(0.1, 'highpass', 3800, 0.22); noise(0.07, 'bandpass', 1700, 0.16, 0.04); tone('square', 118, 108, 0.1, 0.04); },
     clang() { tone('triangle', 1180, 1150, 0.4, 0.28); tone('sine', 2650, 2580, 0.28, 0.12); tone('square', 560, 530, 0.07, 0.07); noise(0.04, 'highpass', 5000, 0.35); },
     firework() { noise(0.25, 'lowpass', 900, 0.3); noise(0.6, 'highpass', 5000, 0.06, 0.12); },
@@ -2761,7 +3025,10 @@ const Music = (() => {
   let lead = 0, leadNext = 0;
   // When each recent bar starts and which chord it is, so pickups can match the chord being heard right now.
   const bars = [];
-  const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+  // The Jungle moon's music (version 113) is the same tune a fourth higher (D minor), with its own lead instruments and
+  // hand drums; the boss tracks keep their own keys.
+  const key = () => moon === 'jungle' && mode !== 'boss' ? 5 : 0;
+  const mtof = m => 440 * Math.pow(2, (m + key() - 69) / 12);
   function setup() {
     if (bus) return true;
     A = Sfx.audio(); if (!A) return false;
@@ -2840,6 +3107,22 @@ const Music = (() => {
     (m, t) => { osc('sawtooth', mtof(m - 12), t, 0.12, 0.05, 0.002, 1800, true); osc('sawtooth', mtof(m - 12) * 1.012, t, 0.12, 0.04, 0.002, 1800, false); },  // Magma: a gritty, detuned buzz
     (m, t) => { osc('sine', mtof(m + 12), t, 0.4, 0.032, 0.002, 0, true); osc('sine', mtof(m + 12) * 3.01, t, 0.12, 0.0085, 0.001, 0, false); },  // Amethyst: glass bells
   ];
+  // The Jungle moon's leads, one per layer: Moss a marimba, Roots a woody pluck, Spore a breathy flute, Amber a steel
+  // drum, Orchid high chimes.
+  const JLEADS = [
+    (m, t) => { osc('sine', mtof(m), t, 0.22, 0.06, 0.002, 0, true); osc('sine', mtof(m) * 4, t, 0.04, 0.012, 0.001, 0, false); },
+    (m, t) => { osc('triangle', mtof(m), t, 0.12, 0.06, 0.001, 1400, true); osc('square', mtof(m) * 2, t, 0.03, 0.008, 0.001, 1200, false); },
+    (m, t) => { osc('sine', mtof(m), t, 0.3, 0.045, 0.03, 0, true); hit(t, 0.08, 'bandpass', mtof(m) * 3, 0.02); },
+    (m, t) => { osc('sine', mtof(m), t, 0.3, 0.045, 0.003, 0, true); osc('sine', mtof(m) * 2.01, t, 0.18, 0.02, 0.003, 0, false); osc('sine', mtof(m) * 3.98, t, 0.08, 0.008, 0.002, 0, false); },
+    (m, t) => { osc('sine', mtof(m + 12), t, 0.5, 0.03, 0.002, 0, true); osc('sine', mtof(m + 12) * 2.76, t, 0.15, 0.008, 0.001, 0, false); },
+  ];
+  // A hand drum: a pitched thump that drops a little, quieter than the toms.
+  function bongo(t, f, vol) {
+    const { ctx } = A, o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 0.8, t + 0.12);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+    o.connect(g); g.connect(muff); o.start(t); o.stop(t + 0.18);
+  }
   // Title loop: the same chords, softer and slower, with no drums.
   function titleStep(bar, i, s, t) {
     if (i === 0) pad(CH[bar], t, 240 / bpm);
@@ -2847,6 +3130,7 @@ const Music = (() => {
     if (i % 2 === 0) osc('triangle', mtof(ARP[bar][(i / 2) % 4]), t, 0.3, 0.035, 0.004, 0, true);
     if (i % 4 === 2) hit(t, 0.03, 'highpass', 8000, 0.02);
     if (Math.floor(s / 64) % 2 === 1 && MEL[bar][i]) glock(MEL[bar][i], t, 0.06);
+    if (moon === 'jungle') { if (i % 2 === 1) hit(t, 0.025, 'highpass', 7000, 0.015); if (i === 6 || i === 14) bongo(t, 330, 0.06); }   // a soft shaker and hand drum
   }
   // Boss fights (version 87): three tracks, one picked at random for each fight, each four bars of 16 steps.
   //   hunt  (D minor, 150 BPM): a driving octave bass, four on the floor, a climbing square arpeggio, a saw lead on repeats
@@ -2910,7 +3194,12 @@ const Music = (() => {
       osc('square', mtof(BASS[bar]), t, 0.18, 0.05, 0.005, 500, false);
     }
     if (i === 0 || i === 8) kick(t);
-    if (layer >= 1) LEADS[lead](ARP[bar][i % 4], t);
+    if (layer >= 1) (moon === 'jungle' ? JLEADS : LEADS)[lead](ARP[bar][i % 4], t);
+    // Jungle: a shaker on every off-beat 16th, and hand drums once the depth brings the backbeat in.
+    if (moon === 'jungle') {
+      if (i % 2 === 1) hit(t, 0.03, 'highpass', 6500, 0.03);
+      if (layer >= 2 && [3, 6, 10, 11, 14].includes(i)) bongo(t, i === 10 || i === 11 ? 262 : 392, 0.12);
+    }
     if (layer >= 2) {
       if (i === 4 || i === 12) { hit(t, 0.13, 'bandpass', 1800, 0.22); osc('triangle', 190, t, 0.08, 0.1, 0.002, 0, false); }
       if (i % 2 === 0) hit(t, i % 4 === 2 ? 0.12 : 0.035, 'highpass', 7000, 0.07);
@@ -3391,6 +3680,10 @@ const LEVI_INFO = [
   ['angler', 'Lanternmaw', 'Its lure pulls you in, then it bites'],
   ['manta', 'Duskwraith', 'Sweeps one side, then the other'],
   ['nautilus', 'Coilheart', 'Fire spirals out of the shell'],
+  // The Jungle moon's (version 113)
+  ['centipede', 'Skitterfang', 'Its legs rake in from both walls'],
+  ['flytrap', 'Gnashbloom', 'Jaws snap shut. Find the gap'],
+  ['moth', 'Gloomwing', 'Scales from both wings, one gap'],
 ];
 function leviPortrait(kind) {
   const buf = bossBuf(kind), keep = [bossTmp, bossTmpG, pilotNow];
@@ -3405,6 +3698,7 @@ function leviPortrait(kind) {
   let x0 = buf.w, y0 = buf.h, x1 = 0, y1 = 0;
   for (let y = 0; y < buf.h; y++) for (let x = 0; x < buf.w; x++) if (d[(y * buf.w + x) * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   if (x1 < x0) { x0 = y0 = 0; x1 = buf.w - 1; y1 = buf.h - 1; }
+  if (kind === 'flytrap') y0 = Math.max(y0, buf.oy - 105);   // only the top of its long stalk, so the card shows its head big enough
   const out = document.createElement('canvas'); out.width = x1 - x0 + 5; out.height = y1 - y0 + 5;
   const g = out.getContext('2d');
   g.globalAlpha = 0.55; g.drawImage(buf.rim, 2 - x0, 2 - y0); g.globalAlpha = 1; g.drawImage(buf.cv, 2 - x0, 2 - y0);
@@ -3431,18 +3725,32 @@ function fillLeviCard() {
       li.append(document.createElement('canvas'), n, l); list.append(li);
     }
   }
+  // Only the moon being played's Leviathans show (version 113).
   let beaten = 0;
+  const set = leviSet();
   for (const li of list.children) {
     const kind = li.dataset.kind, w = !!won[kind], name = LEVI_INFO.find(x => x[0] === kind)[1];
+    li.hidden = !set.includes(kind);
+    if (li.hidden) continue;
     if (w) beaten++;
     const pic = leviPics[kind][w ? 'color' : 'dark'];
     pic.className = 'levi-pic'; pic.setAttribute('role', 'img'); pic.setAttribute('aria-label', name + (w ? ', beaten' : ', not beaten yet'));
     if (li.firstChild !== pic) li.replaceChild(pic, li.firstChild);
     li.classList.toggle('won', w);
   }
-  $('leviHint').textContent = 'One hunts you after every second cafe. Beaten: ' + beaten + ' of 6';
+  $('leviHint').textContent = (isJungle() ? 'Jungle moon. ' : '') + 'One hunts you after every second cafe. Beaten: ' + beaten + ' of ' + set.length;
 }
-$('newsTag').addEventListener('click', () => { if (state === 'title' && !cardSide) setCard('levi'); });
+// Version 113: the sticker is about the Jungle moon: tapping it picks that moon and shows its Leviathans.
+$('newsTag').addEventListener('click', () => { if (state === 'title' && !cardSide) { setMoon('jungle'); setCard('levi'); } });
+// The moon pickers (main menu and Settings). Only on the main menu: a run always finishes on the moon it started on.
+function setMoon(m) {
+  if (state !== 'title' || m === moon) return;
+  applyMoon(m); save.moon = moon; persist(); syncMoon(); Sfx.bleep(m === 'jungle' ? 660 : 880);
+}
+function syncMoon() {
+  for (const b of document.querySelectorAll('.moon-btn')) b.setAttribute('aria-pressed', String(b.dataset.moon === moon));
+}
+for (const b of document.querySelectorAll('.moon-btn')) b.addEventListener('click', () => setMoon(b.dataset.moon));
 $('leviDone').addEventListener('click', () => setCard(null));
 $('badgeBtn').addEventListener('click', () => setCard('badges'));
 $('badgeDone').addEventListener('click', () => setCard('levi'));
@@ -3502,7 +3810,7 @@ function countPlay() {
   if (!/^[0-9a-f]{16}$/.test(save.playerId || '')) { save.playerId = hex16(); persist(); }
   runId = hex16(); runSecs = 0; cafesRun = 0; lastHit = ''; fasterN = 0; runFrames = 0; runRaw = 0; runWorst = 0;
   if (!introDone) { introDone = true; introRun = runId; }
-  statPing({ event: 'play', player: save.playerId, run: runId, ver: VERSION });
+  statPing({ event: 'play', player: save.playerId, run: runId, ver: VERSION, moon });
 }
 // how: wall, rock, mine or lava (what took the last health), quit (Main menu from pause) or left (the game was hidden
 // mid-run; sent again with the real ending if they come back).
@@ -3512,7 +3820,7 @@ let lastEnd = null;
 function endRun(how) {
   if (!runId) return;
   const total = Object.values(runParts).reduce((n, v) => n + v, 0);
-  statPing(lastEnd = { event: 'end', player: save.playerId, run: runId, ver: VERSION, depth: depthM(), secs: Math.round(runSecs), how, orbs: player.orbs, parts: total, cafes: cafesRun,
+  statPing(lastEnd = { event: 'end', player: save.playerId, run: runId, ver: VERSION, moon, depth: depthM(), secs: Math.round(runSecs), how, orbs: player.orbs, parts: total, cafes: cafesRun,
     initials: /^[A-Z]{3}$/.test(save.initials || '') ? save.initials : null,
     fps: runRaw > 0 ? Math.round(runFrames / runRaw * 10) / 10 : null, worst: Math.round(runWorst * 1000),
     device: DEVICE, os: OS, screen: screen.width + 'x' + screen.height + '@' + Math.round(devicePixelRatio * 100) / 100,
@@ -3654,11 +3962,11 @@ function saveScore() {
     box.classList.remove('no'); void box.offsetWidth; box.classList.add('no'); Sfx.block();
     return;
   }
-  const entry = { i: hsInit.join(''), m: hsPending, t: Date.now(), e: escapedNow() };
+  const entry = { i: hsInit.join(''), m: hsPending, t: Date.now(), e: escapedNow(), o: moon };
   save.initials = entry.i;
   save.scores.splice(hsRankOf(entry.m) - 1, 0, entry); save.scores.length = Math.min(save.scores.length, HS_MAX);
   hsNew = save.scores.indexOf(entry);
-  if (SCORES_URL) { save.outbox.push({ i: entry.i, m: entry.m, e: entry.e }); hsOnline = null; }
+  if (SCORES_URL) { save.outbox.push({ i: entry.i, m: entry.m, e: entry.e, o: entry.o }); hsOnline = null; }
   if (lastEnd && lastEnd.depth === entry.m) { lastEnd.initials = entry.i; statPing(lastEnd); }   // this run's stats row gets these initials
   lastEnd = null;
   persist(); Sfx.orb();
@@ -3679,19 +3987,19 @@ function renderTable() {
   $('hsTabOnline').setAttribute('aria-pressed', hsTab === 'online'); $('hsTabLocal').setAttribute('aria-pressed', hsTab === 'local');
   let rows = [], note;
   if (hsTab === 'local') {
-    rows = save.scores.map((s, k) => ({ n: k + 1, i: showName(s.i), m: s.m, e: s.e, you: k === hsNew }));
+    rows = save.scores.map((s, k) => ({ n: k + 1, i: showName(s.i), m: s.m, e: s.e, o: s.o, you: k === hsNew }));
     note = hsErr || (rows.length ? 'Saved on this device' : 'No runs yet');
   } else if (!hsOnline) note = 'Loading the online board…';
   else {
-    rows = hsOnline.top.map((s, k) => ({ n: k + 1, i: showName(String(s.initials)), m: s.depth, e: s.escaped, you: s.id === hsOnline.id }));
-    if (hsOnline.rank > HS_MAX) rows.push(null, { n: hsOnline.rank, i: hsOnline.me.i, m: hsOnline.me.m, e: hsOnline.me.e, you: true });
+    rows = hsOnline.top.map((s, k) => ({ n: k + 1, i: showName(String(s.initials)), m: s.depth, e: s.escaped, o: s.moon, you: s.id === hsOnline.id }));
+    if (hsOnline.rank > HS_MAX) rows.push(null, { n: hsOnline.rank, i: hsOnline.me.i, m: hsOnline.me.m, e: hsOnline.me.e, o: hsOnline.me.o, you: true });
     note = rows.length ? 'Everyone with the link' : 'No scores yet. Be the first!';
   }
   $('hsList').innerHTML = '';
   if (rows.length) {
     const head = document.createElement('li'); head.className = 'head'; head.setAttribute('aria-hidden', 'true');
-    for (const txt of ['', 'NAME', 'DEPTH', 'ESCAPED']) { const sp = document.createElement('span'); sp.textContent = txt; head.append(sp); }
-    head.lastChild.className = 'esc unknown';
+    for (const txt of ['', 'NAME', 'DEPTH', 'MOON', 'ESCAPED']) { const sp = document.createElement('span'); sp.textContent = txt; head.append(sp); }
+    head.lastChild.className = 'esc unknown'; head.children[3].className = 'mn unknown';
     $('hsList').append(head);
   }
   for (const r of rows) {
@@ -3703,6 +4011,11 @@ function renderTable() {
       if (unit) { const smoothstep = document.createElement('small'); smoothstep.textContent = unit; sp.append(smoothstep); }
       li.append(sp);
     }
+    // Version 113: the moon the score was set on, as a little moon of its colour; a dash for older scores.
+    const mn = document.createElement('span'); mn.setAttribute('role', 'img');
+    if (MOON_NAMES[r.o]) { mn.className = 'mn'; mn.innerHTML = $('moonPick').querySelector('.moon-ico.' + r.o).outerHTML; mn.setAttribute('aria-label', MOON_NAMES[r.o]); }
+    else { mn.className = 'mn unknown'; mn.textContent = '—'; mn.setAttribute('aria-label', 'moon not known'); }
+    li.append(mn);
     const esc = document.createElement('span');
     esc.className = 'esc' + (typeof r.e === 'boolean' ? '' : ' unknown'); esc.setAttribute('role', 'img');
     if (r.e === true) { esc.innerHTML = ROCKET_SVG; esc.setAttribute('aria-label', 'escaped the moon'); }
@@ -3730,7 +4043,7 @@ async function syncOnline() {
     while (save.outbox.length) {
       const s = save.outbox[0];
       try {
-        got = await scoresFetch({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initials: s.i, depth: s.m, escaped: typeof s.e === 'boolean' ? s.e : null }) });
+        got = await scoresFetch({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initials: s.i, depth: s.m, escaped: typeof s.e === 'boolean' ? s.e : null, moon: MOON_NAMES[s.o] ? s.o : null }) });
         got.me = s;
       }
       catch (e) { if (e.status !== 400) throw e; got = null; }
@@ -3991,13 +4304,17 @@ function baristaLine(C) {
     'Mind the walls out there.',
   ]);
 }
-// Over the barista (the blob in the cafe window), kept on screen; the tail shifts to keep pointing at him.
+// Version 114 (user: it blocked the cafe art): on the ledge's face below him and a little to his right, kept on screen,
+// with its tail pointing up at the barista in the window (it sat over the window until then).
 function placeSay(C) {
   if (sayEl.hidden) return;
-  const bx = cafeGeo(C).baristaX, by = C.Dl - 31;
-  const half = Math.min(sayEl.offsetWidth / 2 + 6, W * sc / 2), want = bx * sc, x = Math.max(half, Math.min(W * sc - half, want));
+  const bx = cafeGeo(C).baristaX, by = C.Dl + 6;
+  const half = Math.min(sayEl.offsetWidth / 2 + 6, W * sc / 2), want = (C.counterX + 30) * sc, x = Math.max(half, Math.min(W * sc - half, want));
   sayEl.style.left = Math.round(x) + 'px'; sayEl.style.top = Math.round((by - camY) * sc) + 'px';
-  sayEl.style.setProperty('--tail', Math.round(Math.max(-half + 12, Math.min(half - 12, want - x))) + 'px');
+  sayEl.style.setProperty('--tail', Math.round(Math.max(-half + 12, Math.min(half - 12, bx * sc - x))) + 'px');
+  // On short phones the cafe card (the shop above all) can reach up to the ledge: then the bubble steps aside.
+  const top = (by - camY) * sc, card = shopEl.hidden ? Infinity : $('cafeFlip').getBoundingClientRect().top - game.getBoundingClientRect().top;
+  sayEl.classList.toggle('covered', top + sayEl.offsetHeight + 4 > card);
 }
 
 // ---------- badges (version 108): saved on the phone in save.badges (id: when earned) ----------
@@ -4008,6 +4325,7 @@ const BADGES = [
   ['streak', 'Streak 24', 'Skim 24 rocks or mines in a row'],
   ['levi', 'Monster down', 'Beat a Leviathan'],
   ['all6', 'All six', 'Beat every Leviathan'],
+  ['jungle3', 'Jungle hunter', 'Beat all three Jungle Leviathans'],   // version 113
 ];
 if (!save.badges || typeof save.badges !== 'object') save.badges = {};
 function award(id) {
@@ -4079,7 +4397,9 @@ function updateCafe(dt) {
       Music.start();
     }
   }
-  camY = player.y - pilotScreenY;
+  // Eased in as he lands and out as he leaves, so the fall picks up where it was (version 114).
+  const lift = cafeLift * (state === 'landing' ? easeInOut(Math.min(1, t / 1.1)) : state === 'cafeJump' ? 1 - easeInOut(Math.min(1, t / 0.5)) : 1);
+  camY = player.y - pilotScreenY - lift;
 }
 // -- the shop: spend spare crystals on one perk per cafe
 const PERKS = [
@@ -5121,8 +5441,18 @@ addEventListener('keyup', e => {
 // drop a tumbling boulder (an ordinary rock that moves). Each shows or warns before it can hurt, timed by how soon he'll
 // reach it (its distance over his fall speed). Basalt, magma and amethyst had ice spikes, lava geysers and crystal
 // gates poking out of the walls; the user found them unfair, so they went in version 75.
-const HAZ_KIND = ['glaze', 'crumble', null, null, null];   // by MATS index
-const HAZ_HINT = { glaze: 'GLAZED ICE BOUNCES YOU', crumble: 'LEDGES CRUMBLE INTO BOULDERS' };
+// Version 113, the Jungle moon: Moss has hanging vines that tangle his steering for a moment (no damage), Roots has thorny
+// branches that grow out of the wall as he nears (they hurt), and Spore has pods that swell and burst into a cloud of
+// spores (it hurts). Each reaches less than half way across, and grows or bursts in good time, like the crumbling ledges.
+const HAZ_KINDS = { dust: ['glaze', 'crumble', null, null, null], jungle: ['vines', 'thorns', 'spores', null, null] };   // by MATS index
+const hazKind = i => HAZ_KINDS[moon][i];
+const HAZ_HINT = { glaze: 'GLAZED ICE BOUNCES YOU', crumble: 'LEDGES CRUMBLE INTO BOULDERS', vines: 'VINES TANGLE YOUR STEERING',
+  thorns: 'THORNS GROW OUT OF THE WALL', spores: 'SPORE PODS BURST. STEER CLEAR' };
+const THORN_WARN = 2.1, THORN_GROW = 1.7, THORN_OUT = 1.0;   // s before he reaches it: rustle, start growing, fully out
+const SPORE_SWELL = 1.9, SPORE_BURST = 1.0, SPORE_LIFE = 1.9, SPORE_HURT = 1.6;   // s before: swell, burst; s the cloud lasts, and hurts
+const VINE_TANGLE = 0.55;                                        // s his steering stays weak after touching vines
+const JH = { vine: '#2E7D44', vineL: '#58C26A', leaf: '#8FD86A', flower: '#F4A8C8', branch: '#4A2E1A', bark: '#7A4E2C', thorn: '#EDE0BC',
+  pod: '#B39A2A', podL: '#E2CD5A', podD: '#5A4A12', cloud: '#C9B23A', cloudL: '#EBDC7A', speck: '#4A3A10' };
 const HAZ_GAP = 520;                                    // at least this many pixels between hazards
 const CRUMBLE_WARN = 1.6, CRUMBLE_GO = 1.1;             // seconds before he reaches it: start shaking, let go
 const ICE_GLAZE = '#BFE6F7';
@@ -5130,7 +5460,7 @@ let hazards = [], lastHazD = -9999;
 // Maybe give this segment its layer's hazard; true if it did (the segment then gets no rock). It draws from its own
 // random stream, so the rest of the shaft is laid out as it would be anyway.
 function placeHazard(k, d0) {
-  const m = d0 / PX_PER_M, z = Math.floor(m / ZONE_M), into = m - z * ZONE_M, kind = HAZ_KIND[matI(z)];
+  const m = d0 / PX_PER_M, z = Math.floor(m / ZONE_M), into = m - z * ZONE_M, kind = hazKind(matI(z));
   if (!kind || m < 120 || into < 40 || into > ZONE_M - 30 || d0 - lastHazD < HAZ_GAP) return false;
   const r = rng32(Math.floor(SEED * 1000) + k * 7919 + 4243);
   if (r() > 0.5) return false;
@@ -5139,7 +5469,15 @@ function placeHazard(k, d0) {
   if (cavernAt(d - 300) > 0.02 || cavernAt(d) > 0.02 || cavernAt(d + 300) > 0.02) return false;
   if (voidAt(d - 300) || voidAt(d) || voidAt(d + 300)) return false;
   const h = { kind, d, side: r() < 0.5 ? -1 : 1 };
-  if (kind === 'glaze') h.len = Math.round(70 + r() * 70);
+  if (kind === 'glaze' || kind === 'vines') h.len = Math.round(70 + r() * 70);
+  if (kind === 'thorns' || kind === 'spores' || kind === 'vines') {
+    // How far it reaches in from the wall: under half the shaft, always leaving him a wide way past.
+    let w = 999;
+    for (let dd = d - 30; dd <= d + (h.len || 0) + 30; dd += 10) { const e = edgeAt(dd); w = Math.min(w, e.R - e.L); }
+    h.reach = Math.min(Math.round(w * (kind === 'vines' ? 0.36 : 0.42)), w - 2 * HIT_HALF_W - 34);
+    if (h.reach < 22) return false;
+    if (kind === 'spores') h.r = Math.min(46, Math.round(h.reach * 0.62));
+  }
   // Not where the shaft splits around an island.
   for (let dd = d - 80; dd <= d + (h.len || 0) + 80; dd += 40) if (spans(dd).length > 1) return false;
   if (kind === 'crumble') h.size = r() < 0.5 ? 1 : 2;
@@ -5163,9 +5501,25 @@ function updateHazards(dt) {
         particles.push({ x: h.side < 0 ? L + 1 : R - 2, d: h.d + 6, vx: -h.side * 12 * Math.random(), vy: 70, t: 0, life: 0.5, col: palAt(h.d).b0, z: 1 });
       }
       if (!h.gone && soon < CRUMBLE_GO) dropBoulder(h, seen);
+    } else if (h.kind === 'thorns') {
+      if (!h.rustled && soon < THORN_WARN) { h.rustled = true; if (seen) Sfx.rustle(); }
+      const g = smoothstep((THORN_GROW - soon) / (THORN_GROW - THORN_OUT));
+      if (g > 0 && !h.creaked) { h.creaked = true; if (seen) Sfx.thorns(); }
+      h.grow = g;
+      if (h.rustled && g < 1 && Math.random() < dt * 10) {
+        const { L, R } = edgeAt(h.d);
+        particles.push({ x: h.side < 0 ? L + 2 : R - 3, d: h.d - 4, vx: -h.side * 20 * Math.random(), vy: 50, t: 0, life: 0.6, col: Math.random() < 0.5 ? JH.leaf : JH.bark, z: 1 });
+      }
+    } else if (h.kind === 'spores') {
+      h.swell = smoothstep((SPORE_SWELL - soon) / (SPORE_SWELL - SPORE_BURST));
+      if (!h.burstAt && soon < SPORE_BURST) {
+        h.burstAt = clock;
+        if (seen) { Sfx.spores(); const c0 = sporeCentre(h); sparks(c0[0], h.d, [JH.cloudL, JH.cloud, JH.podL], 12, 10); }
+      }
     }
   }
-  prune(hazards, h => h.d + (h.len || 0) > camY - 80);
+  prune(hazards, h => h.d + (h.len || 0) + (h.r || 0) > camY - 80);
+  if (player.tangle > 0) player.tangle -= dt;
 }
 // A crumbling ledge lets go: its boulder joins the rocks, falling slower than he does and drifting in from the wall.
 function dropBoulder(h, seen) {
@@ -5189,11 +5543,101 @@ function bounceOff(side, edge, cd, fresh) {
   player.vx = -side * 330; player.aim = player.x - side * 80; player.touch = true;
   if (fresh) { sparks(edge, cd, ['#FFFFFF', ICE_GLAZE, P.lite], 9); Sfx.ice(); Buzz.orb(); }
 }
+// The middle of a spore pod's cloud: out from the wall by a little over its radius.
+function sporeCentre(h) { const { L, R } = edgeAt(h.d); return [h.side < 0 ? L + h.r * 0.75 : R - h.r * 0.75, h.d]; }
+function sporeR(h) { const a = clock - h.burstAt; return h.r * (0.35 + 0.65 * smoothstep(a / 0.25)); }
+// The Jungle hazards touching him (called from collide): vines tangle, thorns and spore clouds hurt.
+function jungleHits(cd) {
+  for (const h of hazards) {
+    if (h.kind === 'vines') {
+      if (cd < h.d - 4 || cd > h.d + h.len + 8) continue;
+      // As drawn: hanging from the overhang at the top, each vine shorter the further it is from the wall.
+      const { L, R } = edgeAt(h.d), dist = Math.max(0, h.side < 0 ? player.x - HIT_HALF_W - L : R - player.x - HIT_HALF_W);
+      if (dist < h.reach && cd - h.d < h.len * (1 - 0.55 * dist / h.reach) * 0.85 + 4) {
+        if (!(player.tangle > 0)) { Sfx.rustle(); sparks(player.x, cd, [JH.leaf, JH.vineL, JH.vine], 6); }
+        player.tangle = VINE_TANGLE; player.vx *= 0.9;
+      }
+    } else if (h.kind === 'thorns') {
+      if (!(h.grow > 0.4) || Math.abs(cd - h.d) > 3 + 11) continue;
+      const { L, R } = edgeAt(h.d), tip = Math.round(h.reach * h.grow);
+      if (h.side < 0 ? player.x - HIT_HALF_W + 2 < L + tip : player.x + HIT_HALF_W - 2 > R - tip) {
+        if (player.inv <= 0 && player.shield <= 0) { player.vx = -h.side * 150; sparks(player.x, cd, [JH.thorn, JH.bark, JH.leaf], 8); }
+        hurt('thorn');
+      }
+    } else if (h.kind === 'spores' && h.burstAt) {
+      const a = clock - h.burstAt;
+      if (a > SPORE_HURT) continue;
+      const [cx, cy] = sporeCentre(h), r = sporeR(h), dx = (player.x - cx) / (r + HIT_HALF_W - 4), dy = (cd - cy) / (r * 0.8 + 8);
+      if (dx * dx + dy * dy < 1) hurt('spore');
+    }
+  }
+}
+// Jungle hazards on the screen (drawn with the others in drawHazards).
+function drawJungleHazard(h, cam, y, L, R) {
+  const s = h.side;
+  if (h.kind === 'vines') {
+    // An overhang of tangled roots at the top, and vines hanging from it, longer near the wall, swaying, with leaves.
+    const w = h.reach, top = y;
+    for (let x = 0; x < w; x += 2) { c.fillStyle = x % 6 < 3 ? JH.branch : JH.bark; c.fillRect(s < 0 ? L - 2 + x : R + 2 - x - 2, top - 2 + Math.round(Math.sin(x * 0.4) * 1.5), 2, 4); }
+    for (let i = 0; i * 5 < w; i++) {
+      const x0 = i * 5 + 2, len = Math.round(h.len * (1 - 0.55 * x0 / w) * (0.75 + 0.25 * hash(i + h.d)));
+      let px = 0;
+      for (let j = 0; j < len; j++) {
+        const sw = Math.sin(clock * 1.6 + i * 0.9 + j * 0.05) * j * 0.05, xx = Math.round((s < 0 ? L + x0 : R - x0) + sw), yy = top + j;
+        if (yy < -2 || yy > H + 2) continue;
+        c.fillStyle = JH.vine; c.fillRect(xx, yy, 1, 1);
+        if ((j + i * 3) % 7 === 0) { c.fillStyle = JH.leaf; c.fillRect(xx - (j % 2 ? 2 : -1), yy, 2, 2); }
+        if ((j + i * 11) % 31 === 0 && j > 6) { c.fillStyle = JH.flower; c.fillRect(xx - 1, yy, 3, 2); }
+        px = xx;
+      }
+      c.fillStyle = JH.vineL; c.fillRect(px - 1, top + len - 1, 2, 2);
+    }
+  } else if (h.kind === 'thorns') {
+    // Before: a split in the rock with a few leaves, shaking once it rustles. Then a thorny branch pushing out of it.
+    const sh = h.rustled && h.grow < 1 ? (Math.floor(clock * 22) % 2 ? 1 : -1) : 0, base = s < 0 ? L : R;
+    c.fillStyle = JH.branch; c.fillRect(s < 0 ? base - 6 : base, y - 4 + sh, 6, 8);
+    c.fillStyle = JH.leaf; c.fillRect(s < 0 ? base + 1 : base - 3, y - 6 + sh, 2, 2); c.fillRect(s < 0 ? base + 2 : base - 4, y + 4 + sh, 2, 2);
+    const tip = Math.round(h.reach * (h.grow || 0));
+    for (let x = 0; x < tip; x++) {
+      const th = Math.max(1, Math.round(4.5 - 3.5 * x / h.reach)), xx = s < 0 ? base + x : base - x - 1, wob = Math.round(Math.sin(x * 0.2 + h.d) * 1.5);
+      c.fillStyle = P.ink; c.fillRect(xx, y - th - 1 + wob, 1, th * 2 + 3);
+      c.fillStyle = JH.branch; c.fillRect(xx, y - th + wob, 1, th * 2 + 1);
+      c.fillStyle = JH.bark; c.fillRect(xx, y - th + wob, 1, Math.max(1, th - 1));
+      if (x % 5 === 2 && x < tip - 2) {   // thorns, pale with dark tips, alternately up and down, raked toward the tip
+        const up = Math.floor(x / 5) % 2 === 0, y0 = up ? y - th - 1 + wob : y + th + 1 + wob, dy = up ? -1 : 1;
+        for (let j = 0; j < 5; j++) { c.fillStyle = j > 3 ? P.ink : JH.thorn; c.fillRect(xx - s * Math.floor(j / 2), y0 + dy * j, j < 2 ? 2 : 1, 1); }
+      }
+    }
+    if (tip > 3) { const tx = s < 0 ? base + tip : base - tip - 4; c.fillStyle = P.ink; c.fillRect(tx - 1, y - 2, 6, 4); c.fillStyle = JH.thorn; c.fillRect(tx, y - 1, 4, 2); }
+  } else if (h.kind === 'spores') {
+    const [cx, cy] = sporeCentre(h), base = s < 0 ? L : R, yy = Math.round(cy - cam);
+    if (!h.burstAt) {
+      // A pod half sunk in the wall, swelling and pulsing faster as he nears.
+      const pr = Math.round(6 + 5 * (h.swell || 0) + (h.swell > 0 ? Math.sin(clock * (8 + 14 * h.swell)) * 1.2 : 0)), px = base - s * Math.round(pr * 0.4);
+      disc(px, yy, pr + 1, JH.podD); disc(px, yy, pr, JH.pod); disc(px - s, yy - 2, Math.max(1, pr - 3), JH.podL);
+      c.fillStyle = JH.podD; for (const [ox, oy] of [[-2, 2], [2, -1], [0, 3], [3, 2]]) c.fillRect(px + ox, yy + oy, 1, 1);
+    } else {
+      const a = clock - h.burstAt;
+      if (a > SPORE_LIFE) return;
+      const r = sporeR(h), fade = 1 - smoothstep((a - SPORE_HURT + 0.25) / (SPORE_LIFE - SPORE_HURT + 0.25));
+      c.globalAlpha = 0.85 * fade;
+      for (let i = 0; i < 9; i++) {
+        const an = i / 9 * Math.PI * 2 + a * 0.6, rr = r * (0.45 + 0.2 * hash(i + h.d)), px = cx + Math.cos(an) * r * 0.5, py = yy + Math.sin(an) * r * 0.4;
+        disc(px, py, Math.round(rr), i % 2 ? JH.cloud : JH.cloudL);
+      }
+      disc(cx, yy, Math.round(r * 0.55), JH.cloudL);
+      c.globalAlpha = fade; c.fillStyle = JH.speck;
+      for (let i = 0; i < 22; i++) { const an = hash(i * 3.1 + h.d) * 6.28, rr = r * Math.sqrt(hash(i * 7.7)) * 0.95; c.fillRect(Math.round(cx + Math.cos(an + a * 0.8) * rr), Math.round(yy + Math.sin(an + a * 0.8) * rr * 0.8), 1, 1); }
+      c.globalAlpha = 1;
+      disc(base - s * 2, yy, 4, JH.podD);   // the burst pod's husk
+    }
+  }
+}
 const CRACKS = [[2, -10, 5], [4, 8, 6], [1, -4, 3], [6, 2, 4], [3, 12, 3]];   // [in from the edge, rows from the middle, length]
 function drawHazards(cam) {
   for (const h of hazards) {
     const y = Math.round(h.d - cam);
-    if (y < -30 - (h.len || 0) || y > H + 30) continue;
+    if (y < -30 - (h.len || 0) - (h.r || 0) || y > H + 30 + (h.r || 0)) continue;
     const Q = palAt(h.d), { L, R } = edgeAt(h.d);
     if (h.kind === 'glaze') {
       // A frosty crust over the wall's edge, jagged with little ice spikes, with glints sliding along it.
@@ -5214,7 +5658,7 @@ function drawHazards(cam) {
       c.fillStyle = Q.ink;
       for (const [dx, dy, l] of CRACKS) c.fillRect(h.side < 0 ? L - dx - l : R + dx, y + dy, l, 1);
       drawRock((h.side < 0 ? L + rr - 5 : R - rr + 5) + j, y, h.size);
-    }
+    } else if (h.kind !== 'crumble') drawJungleHazard(h, cam, y, L, R);
   }
 }
 
@@ -5375,12 +5819,15 @@ function hurt(kind, x, d, size) {
   // Hit-stop: the world freezes for a beat so the hit lands, with a white flash on the pilot.
   hitStop = kind === 'mine' ? 0.12 : 0.07; player.flash = 0.14;
   player.streak = 0;
-  Buzz[kind](); Sfx[kind]();
+  const as = HURT_AS[kind] || kind;
+  Buzz[as](); Sfx[as]();
   setHP('hit', dmg);
   pop(dmg === 0.5 ? '-½' : '-' + dmg, player.x, player.y - 6, 'bad');
-  // The stats only know wall, rock, mine and lava, so a boss shot counts as lava (version 87).
-  if (player.hp <= 0) { lastHit = kind === 'boss' ? 'lava' : kind; die(); } else Sfx.hurtVoice(kind);
+  // The stats only know wall, rock, mine and lava, so a boss shot counts as lava (version 87), a Jungle thorn as rock and
+  // a spore cloud as lava (version 113; the run's moon is in its stats too).
+  if (player.hp <= 0) { lastHit = kind === 'boss' ? 'lava' : as; die(); } else Sfx.hurtVoice(as);
 }
+const HURT_AS = { thorn: 'rock', spore: 'lava' };
 // A shield lasts SHIELD_S (8 s since version 80, was 10); a mine takes half of it, any other hit a quarter.
 const SHIELD_S = 8, SHIELD_MINE_CUT = 0.5, SHIELD_HIT_CUT = 0.25, CLOSE_PX = 10;
 let orbChain = 0, lastOrbT = -9;
@@ -5441,6 +5888,7 @@ function nearMiss(k) {
 const BOSS_PATTERNS = {
   whale: ['aimed', 'curtain', 'ring', 'fan'], elder: ['beam', 'aimed', 'fan', 'ring'], jelly: ['wave', 'ring', 'curtain', 'bomb'],
   angler: ['bomb', 'aimed', 'fan', 'beam'], manta: ['curtain', 'wave', 'fan', 'aimed'], nautilus: ['ring', 'bomb', 'wave', 'beam'],
+  centipede: ['aimed', 'curtain', 'fan', 'wave'], flytrap: ['bomb', 'ring', 'aimed', 'beam'], moth: ['wave', 'ring', 'fan', 'curtain'],
 };
 // Version 93 (user: more variety): each creature also has an attack of its own, which only it does. It opens the fight
 // and comes round more often than the others (SIG_CHANCE).
@@ -5452,23 +5900,29 @@ const BOSS_PATTERNS = {
 //   manta, sweep: a wing sweeps a wide band down one side of the cavern, then the other; the split moves each time
 //   nautilus, spiral: two arms of shots winding out of its shell as it spins
 // Each is one new kind of shot at most (drawn with a handful of rectangles), or plain globs.
-const BOSS_SIGNATURE = { whale: 'sonar', elder: 'shriek', jelly: 'sting', angler: 'lure', manta: 'sweep', nautilus: 'spiral' };
+// The Jungle moon's (version 113):
+//   centipede, pincer: legs of shots rake in from both walls toward his row, leaving one gap that moves each time
+//   flytrap, snap: jaws close across the cavern at his height, all but one gap; they show first, then slam shut
+//   moth, scales: each wing beat throws an arc of scales from both wings, with one gap that goes through both
+const BOSS_SIGNATURE = { whale: 'sonar', elder: 'shriek', jelly: 'sting', angler: 'lure', manta: 'sweep', nautilus: 'spiral',
+  centipede: 'pincer', flytrap: 'snap', moth: 'scales' };
 const SIG_CHANCE = 0.35;
 // Patterns that close off part of the cavern: two of them at once (enraged) could leave nowhere to go, so never paired.
-const BOSS_ZONE = { curtain: true, beam: true, lure: true, sweep: true, shriek: true };
+const BOSS_ZONE = { curtain: true, beam: true, lure: true, sweep: true, shriek: true, snap: true, pincer: true };
 // Where its shots come from, relative to its middle (x flips with the way it faces), and how far it sways either side.
-const BOSS_MOUTH = { whale: [100, 4], elder: [0, -14], jelly: [0, -22], angler: [76, -56], manta: [44, 0], nautilus: [54, 22] };
+const BOSS_MOUTH = { whale: [100, 4], elder: [0, -14], jelly: [0, -22], angler: [76, -56], manta: [44, 0], nautilus: [54, 22], centipede: [136, 4], flytrap: [0, 44], moth: [0, 28] };
 // Version 89 (user): the side-on ones (whale, angler, manta, nautilus) turn a quarter turn as they come forward, to
 // dive head first down the shaft with their mouths chasing him; the elder thing and the jellyfish already face down.
 // BOSS_MOUTH stays in the creature's own drawing (x along the way it faces); bossMouth() turns it onto the screen.
 // BOSS_HALF: half its width on screen, for wedging in the funnel.
-const BOSS_DIVES = { whale: true, angler: true, manta: true, nautilus: true };
-const BOSS_SWAY = { whale: 80, elder: 60, jelly: 70, angler: 60, manta: 50, nautilus: 60 };
-const BOSS_HALF = { whale: 30, elder: 110, jelly: 55, angler: 60, manta: 100, nautilus: 70 };
+const BOSS_DIVES = { whale: true, angler: true, manta: true, nautilus: true, centipede: true };
+const BOSS_SWAY = { whale: 80, elder: 60, jelly: 70, angler: 60, manta: 50, nautilus: 60, centipede: 80, flytrap: 55, moth: 45 };
+const BOSS_HALF = { whale: 30, elder: 110, jelly: 55, angler: 60, manta: 100, nautilus: 70, centipede: 34, flytrap: 62, moth: 118 };
 // Its shots' colours: outline, body, hot core. All in the reds, so they read as danger (green is health, purple shields).
 const BOSS_SHOT = {
   whale: [P.ink, P.lava, P.hot], elder: [P.ink, P.lava, '#F6D46A'], jelly: ['#2A1030', '#E0489A', '#F7B3D8'],
   angler: [P.ink, '#F08A3C', '#FFE2A8'], manta: [P.ink, '#C83A6A', '#F2A0BE'], nautilus: [P.ink, '#D85A2A', '#F6C08A'],
+  centipede: [P.ink, '#E0642A', '#FFD08A'], flytrap: [P.ink, '#C83A5A', '#F7A8C0'], moth: [P.ink, '#D89A30', '#FFF0B0'],
 };
 const BOSS_ENTER = 1.8, BOSS_LIFT = 1.6;   // s to come forward (and turn to dive); s of fall before the funnel when it stops firing
 const BOSS_ORBS = [4.5, 9.5, 14];                              // s into the fight when a crystal rises past
@@ -5611,6 +6065,50 @@ function bossFire(kind) {
     for (let i = 0; i < n; i++) later(0.4 + i * 0.07, () => { for (let arm = 0; arm < 2; arm++) glob(b.x, b.y + 10, a0 + arm * Math.PI + i * turn, 125 * sp, 3); if (i % 4 === 0) Sfx.bossShot(); });
     return 0.4 + n * 0.07 + 0.3;
   }
+  if (kind === 'pincer') {   // centipede: from both walls at once, shots aimed along his row, one gap left; the gap moves
+    const n = lv >= 3 ? 3 : 2, py = pilotNow + PILOT_CY;
+    let gx = player.x + (Math.random() < 0.5 ? -1 : 1) * (35 + Math.random() * 45);
+    for (let w = 0; w < n; w++) later(0.45 + w * 0.9, () => {
+      if (w) gx = gx + (gx < W / 2 ? 1 : -1) * (60 + Math.random() * 50);
+      gx = Math.max(36, Math.min(W - 36, gx));
+      const y0 = Math.max(30, py - 300);
+      for (let tx = 12; tx < W - 8; tx += 15) {
+        if (Math.abs(tx - gx) < 24) continue;
+        const x0 = tx < W / 2 ? 6 : W - 6, d = Math.hypot(tx - x0, py - y0);
+        glob(x0, y0, Math.atan2(py - y0, tx - x0), Math.max(150, d / 2.1) * sp, 3);
+      }
+      Sfx.bossShot(true);
+    });
+    return 0.45 + n * 0.9 + 0.5;
+  }
+  if (kind === 'snap') {   // flytrap: jaws closing across his row, all but a gap; they show for a moment, then slam
+    const n = lv >= 3 ? 2 : 1;
+    for (let i = 0; i < n; i++) later(0.35 + i * 1.9, () => {
+      let dx = (Math.random() < 0.5 ? -1 : 1) * (45 + Math.random() * 45);
+      if (player.x + dx < 40 || player.x + dx > W - 40) dx = -dx;
+      bossShots.push({ type: 'snap', x: Math.max(40, Math.min(W - 40, player.x + dx)), y: pilotNow + PILOT_CY, t: 0, warn: 1.25, dur: 0.32, w: 52 });
+      Sfx.bossCharge();
+    });
+    return 0.35 + n * 1.9 + 0.4;
+  }
+  if (kind === 'scales') {   // moth: an arc of scales from each wing, both leaving the same gap at his row
+    const n = lv >= 3 ? 3 : 2, py = pilotNow + PILOT_CY;
+    let gx = player.x + (Math.random() < 0.5 ? -1 : 1) * (40 + Math.random() * 40);
+    for (let w = 0; w < n; w++) later(0.45 + w * 0.75, () => {
+      if (w) gx = W - gx + (Math.random() - 0.5) * 50;
+      gx = Math.max(36, Math.min(W - 36, gx));
+      for (const s of [-1, 1]) {
+        const ox = b.x + s * 70, oy = b.y - 10;
+        for (let i = 0; i < 21; i++) {
+          const a = Math.PI / 2 + (i - 10) * 0.1, xr = ox + (py - oy) * Math.cos(a) / Math.sin(a);
+          if (Math.abs(xr - gx) < 26) continue;
+          glob(ox, oy, a, 140 * sp, 3);
+        }
+      }
+      Sfx.bossPing();
+    });
+    return 0.45 + n * 0.75 + 0.4;
+  }
   // bomb: slow, big shots lobbed toward him that burst into a ring of small ones
   const N = 3 + (lv >= 3 ? 1 : 0);
   for (let i = 0; i < N; i++) later(0.45 + i * 0.45, () => { const [x, y] = mouth(); bossShots.push({ type: 'bomb', x, y, vx: (player.x - x) * 0.45, vy: 120 * sp, r: 7, t: 0, fuse: 1.35 + Math.random() * 0.25 }); Sfx.bossShot(true); });
@@ -5710,6 +6208,7 @@ function crashBoss() {
   player.leviRun.push(b.kind); player.bossWon = true;
   award('levi');
   if (LEVI_KINDS.every(k => save.leviBeaten[k])) award('all6');
+  if (LEVI_SETS.jungle.every(k => save.leviBeaten[k])) award('jungle3');
   const e = edgeAt(hit), Q = palAt(hit);
   for (const x of [e.L + 3, e.R - 3]) sparks(x, hit, [Q.b0, Q.shade, Q.ink, P.dust], 18, 8);
 }
@@ -5743,6 +6242,12 @@ function updateBossShots(dt, live) {
         if (s.t > s.warn + s.dur) s.dead = true;
         else if (live && Math.abs(player.x - s.x) < s.w / 2 + HIT_HALF_W - 2) bossHit(s, false);
       }
+      continue;
+    }
+    if (s.type === 'snap') {   // the flytrap's jaws: harmless while they show, then they slam: everywhere but the gap hurts
+      if (s.t >= s.warn && s.t - dt < s.warn) { Sfx.bossBeam(); Sfx.crumble(); shake = Math.max(shake, 1.4); if (boss) boss.kick = 1; }
+      if (s.t > s.warn + s.dur) s.dead = true;
+      else if (live && s.t > s.warn && (player.x - HIT_HALF_W + 2 < s.x - s.w / 2 || player.x + HIT_HALF_W - 2 > s.x + s.w / 2)) bossHit(s, false);
       continue;
     }
     if (s.type === 'sweep') {   // a band 12 px tall across his half of the cavern
@@ -5793,6 +6298,11 @@ const BOSS_PALS = {
   // Version 96 (user: too light, make it more sinister): a dark, scorched shell with dried-blood stripes, a glowing red
   // coil and a hot red eye (it was cream and white).
   nautilus: { base: '#4A3D35', dark: '#2B221C', deep: '#120C09', light: '#6F5A4A', hi: '#A8906F', belly: '#6A1A16', mark: '#B8332A', eye: '#FF3A26' },
+  // Version 113, the Jungle moon: a maroon-black centipede with amber legs, a bottle-green flytrap with a blood-red
+  // mouth and bone teeth, and a dusky violet moth with gold eyespots.
+  centipede: { base: '#3A2420', dark: '#21130F', deep: '#0C0605', light: '#5E3A2E', hi: '#9A6A4E', belly: '#4A2C22', mark: '#E0A040', eye: '#FF3A26' },
+  flytrap: { base: '#23402A', dark: '#122216', deep: '#060D08', light: '#3E6A44', hi: '#7FA870', belly: '#6A1A2A', mark: '#E8D8B0', eye: '#FF3A26' },
+  moth: { base: '#3A3446', dark: '#211D2A', deep: '#0B0A10', light: '#5C5470', hi: '#9A90AE', belly: '#4A3F3A', mark: '#E8C070', eye: '#FF3A26' },
 };
 // A boss's colours, tinted a little toward the rock layer it's in, so it belongs there.
 function bossPal(kind, Q) {
@@ -5934,7 +6444,37 @@ function geoNautilus(x, y, dir, k, p) {
   }
   bossCut(() => fillPoly(c, [pt(-0.16, R0 + 1), pt(0.04, R0 + 1), pt(-0.07, R0 - 12)], '#000'));   // a chunk broken out of the shell
 }
-const BOSS_GEO = { whale: geoWhale, elder: geoElder, jelly: geoJelly, angler: geoAngler, manta: geoManta, nautilus: geoNautilus };
+// The Jungle three's extra shape (version 113): spines down the centipede's back (two snapped), a ragged bite out of a
+// flytrap leaf and a hole in a jaw, and the moth's torn wing edges.
+function geoCenti(x, y, dir, k, p) {
+  for (let i = 2; i < CENTI_N; i += 1) {
+    const [bx, by, r] = centiAt(x, y, dir, k, i / CENTI_N), h = i === 7 || i === 12 ? 2 : 6 + (i % 2) * 2;
+    fillPoly(c, [[bx + dir * 3, by - r + 3], [bx - dir * 3, by - r + 3], [bx - dir * 5, by - r - h]], p.base);
+  }
+  const [tx, ty, tr] = centiAt(x, y, dir, k, 0.86);
+  bossCut(() => bossCutBox(tx, ty + tr - 6));   // a bite out of the body near the tail
+}
+function geoTrap(x, y, dir, k, p) {
+  const { y: yy, a, sw } = trapPose(x, y, k), hy = yy - 30;
+  for (const s of [-1, 1]) for (let i = 0; i < 6; i++) {   // spines along each jaw's outer edge
+    const ph = Math.PI * (0.62 + i * 0.12), b = trapPt(x, hy, s, a, s * 24 * Math.cos(ph) * -1, 38 + 40 * Math.sin(ph));
+    const t = trapPt(x, hy, s, a, s * 24 * Math.cos(ph) * -1 + s * 9, 38 + 40 * Math.sin(ph) - 4);
+    fillPoly(c, [[b[0], b[1] - 2], [b[0], b[1] + 2], t], p.base);
+  }
+  const [bx, by] = trapStalk(x, hy, sw, 0.62), fl = Math.sin(clock * 0.9 + k - 1) * 5;
+  bossCut(() => { disc(bx - 60, by - 6 + fl * 0.8, 7, '#000'); disc(bx - 52, by - 12 + fl * 0.7, 4, '#000');   // a bite out of the left leaf
+    const h = trapPt(x, hy, 1, a, 10, 52); disc(h[0], h[1], 3, '#000'); });   // a hole through the right jaw
+}
+function geoMoth(x, y, dir, k, p) {
+  y += Math.sin(clock * 0.7 + k) * 5;
+  const f = mothF(k);
+  bossCut(() => {
+    for (const [s, u, v, r] of [[-1, 118, -44, 6], [-1, 104, -16, 5], [1, 92, 62, 6], [1, 126, -38, 4], [-1, 60, 70, 5]]) { const [px, py] = mothPt(x, y, s, f, u, v); disc(px, py, r, '#000'); }
+    const [hx, hy] = mothPt(x, y, 1, f, 50, 16); fillPoly(c, [[hx - 3, hy], [hx + 4, hy + 2], [hx + 1, hy - 9]], '#000');   // a hole through the right wing
+  });
+}
+const BOSS_GEO = { whale: geoWhale, elder: geoElder, jelly: geoJelly, angler: geoAngler, manta: geoManta, nautilus: geoNautilus,
+  centipede: geoCenti, flytrap: geoTrap, moth: geoMoth };
 function artWhale(x, y, dir, k, p, step) {
   const S = 1.25, len = 190 * S, ph = clock * 1.3 + k;
   const at = t => [x + dir * (len / 2 - t * len), y + Math.sin(ph - t * 4.2) * 7 * S * t, Math.max(2, 22 * S * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.1 + 0.08)), 0.9) * (1 - t * 0.6))];
@@ -6091,13 +6631,91 @@ function artNautilus(x, y, dir, k, p, step) {
     bpx(bx + dir * j * 2.6 * S * 0.85 * Math.cos(a) - 1, by + j * 2.6 * S * 0.85 * Math.sin(a) - 1, 2, 2, p.hi);
   }
 }
-const BOSS_ART = { whale: artWhale, elder: artElder, jelly: artJelly, angler: artAngler, manta: artManta, nautilus: artNautilus };
+// The Jungle three's art (version 113).
+function artCenti(x, y, dir, k, p, step) {
+  if (!step) {
+    for (let t = 0; t <= 1; t += 0.004) { const [bx, by, r] = centiAt(x, y, dir, k, t); bpx(bx, by + r * 0.25, 2, Math.max(1, Math.round(r * 0.7)), p.belly); }   // paler underside
+    for (let t = 0.03; t <= 1; t += 0.004) { const [bx, by, r] = centiAt(x, y, dir, k, t); bpx(bx, by - r, 2, Math.max(1, Math.round(r * 0.45)), p.dark); }   // dark back
+    return;
+  }
+  for (let i = 1; i < CENTI_N; i++) {   // the joints between the plates, and a shine on each plate
+    const [bx, by, r] = centiAt(x, y, dir, k, (i + 0.5) / CENTI_N);
+    bline(bx, by - r + 1, bx + dir * 2, by + r - 2, p.deep, 1);
+    const [cx, cy, cr] = centiAt(x, y, dir, k, i / CENTI_N); bpx(cx - 2, cy - cr * 0.55, 4, 1, p.hi);
+  }
+  for (let i = 1; i < CENTI_N; i++) {   // amber leg tips and knees
+    const [, , kx, ky, fx, fy] = centiLeg(x, y, dir, k, i);
+    bpx(kx - 1, ky - 1, 2, 2, p.light); bline(lerp(kx, fx, 0.6), lerp(ky, fy, 0.6), fx, fy, p.mark, 2);
+  }
+  for (const F of centiFangs(x, y, dir, k)) for (let j = 6; j <= 14; j++) { const [fx, fy] = bez(F[0], F[1], F[2], j / 14); bpx(fx, fy, 2, 2, j > 12 ? p.deep : p.mark); }   // bone fangs
+  const [hx, hy] = centiAt(x, y, dir, k, 0);
+  for (let i = 0; i < 4; i++) bscar(...(() => { const [bx, by, r] = centiAt(x, y, dir, k, 0.25 + i * 0.13); return [bx + dir * 3, by - r * 0.6, bx - dir * 5, by + r * 0.4]; })(), p, i * 7 + 3, i === 1 ? mix(p.eye, p.deep, 0.4) : 0);
+  bossEye(hx + dir * 5, hy - 5, 3, p);
+  bpx(hx + dir * 10, hy - 7, 2, 2, p.eye); bpx(hx + dir * 1, hy - 9, 2, 2, p.eye);   // a cluster of small eyes round the big one
+  for (let i = 0; i < 9; i++) { const [bx, by] = centiAt(x, y, dir, k, 0.15 + i * 0.09); if ((Math.floor(clock * 4) + i) % 4) bpx(bx, by + 2, 2, 1, p.mark); }   // glowing spiracles
+}
+function artTrap(x, y, dir, k, p, step) {
+  const { y: yy, a, sw } = trapPose(x, y, k), hy = yy - 30;
+  if (!step) {
+    for (const s of [-1, 1]) {   // the inside of each jaw, blood red, seen through the gape
+      const pts = []; for (let i = 0; i < 20; i++) { const t = i / 20 * Math.PI * 2; pts.push(trapPt(x, hy, s, a, -s * 8 + 14 * Math.cos(t), 44 + 30 * Math.sin(t))); }
+      fillPoly(c, pts, p.belly);
+    }
+    for (let j = 0; j <= 60; j++) { const [sx, sy] = trapStalk(x, hy, sw, j / 60); bpx(sx - 2, sy, 3, 1, p.dark); }   // a groove down the stalk
+    return;
+  }
+  for (const s of [-1, 1]) for (const [b, t] of trapTeeth(x, hy, s, a)) bline(lerp(b[0], t[0], 0.3), lerp(b[1], t[1], 0.3), t[0], t[1], p.mark, 1);   // bone teeth
+  for (const s of [-1, 1]) for (let i = 0; i < 5; i++) {   // veins over each jaw
+    const b = trapPt(x, hy, s, a, 0, 14), e = trapPt(x, hy, s, a, s * (20 - i * 2) * Math.cos(0.4 + i * 0.5), 38 + 34 * Math.sin(0.4 + i * 0.5));
+    bline(b[0], b[1], e[0], e[1], p.light, 1);
+  }
+  for (const s of [-1, 1]) {   // leaf ribs
+    const [bx, by] = trapStalk(x, hy, sw, 0.62 + (s > 0 ? 0.08 : 0)), fl = Math.sin(clock * 0.9 + k + s) * 5;
+    bline(bx + s * 4, by, bx + s * 74, by - 8 + fl, p.light, 1);
+    for (let i = 1; i < 5; i++) bline(bx + s * i * 15, by - 2 + fl * i * 0.15, bx + s * (i * 15 + 10), by - 14 + fl * i * 0.15, p.light, 1);
+  }
+  bscar(x - 30, hy + 20, x - 12, hy + 46, p, 5, mix(p.eye, p.deep, 0.45));
+  bscar(x + 16, hy + 54, x + 34, hy + 40, p, 17);
+  // Nectar glands along the rims, glowing, and a red eye-like gland on the hinge that watches him.
+  for (const s of [-1, 1]) for (let i = 0; i < 5; i++) { const g = trapPt(x, hy, s, a, -s * 18, 30 + i * 11); if ((Math.floor(clock * 3) + i) % 3) bpx(g[0], g[1], 2, 2, p.eye); }
+  bossEye(x, hy + 4, 4, p);
+}
+function artMoth(x, y, dir, k, p, step) {
+  y += Math.sin(clock * 0.7 + k) * 5;
+  const f = mothF(k), P2 = (s, u, v) => mothPt(x, y, s, f, u, v);
+  if (!step) {
+    for (const s of [-1, 1]) {   // a pale band across each forewing, and the hindwings darker
+      fillPoly(c, [[46, -18], [92, -40], [104, -30], [58, -6]].map(([u, v]) => P2(s, u, v)), p.belly);
+      fillPoly(c, MOTH_HIND.map(([u, v]) => P2(s, u * 0.85 + 4, v * 0.85 + 6)), p.dark);
+    }
+    return;
+  }
+  for (const s of [-1, 1]) {   // wing veins
+    for (const [u, v] of [MOTH_FORE[2], MOTH_FORE[3], MOTH_FORE[4], MOTH_FORE[5]]) { const a0 = P2(s, 8, -2), b0 = P2(s, u * 0.94, v * 0.94); bline(a0[0], a0[1], b0[0], b0[1], p.deep, 1); }
+    for (const [u, v] of [MOTH_HIND[2], MOTH_HIND[3], MOTH_HIND[4]]) { const a0 = P2(s, 10, 8), b0 = P2(s, u * 0.92, v * 0.92); bline(a0[0], a0[1], b0[0], b0[1], p.deep, 1); }
+  }
+  for (const s of [-1, 1]) {   // gold-ringed eyespots on the hindwings, and on the forewings two that watch him
+    const [hx, hy] = P2(s, 64, 46); ring(hx, hy, 10, p.mark, 2); disc(hx, hy, 7, p.deep); disc(hx - 2, hy - 2, 2, p.hi);
+    const [ex, ey] = P2(s, 86, -36); ring(ex, ey, 9, p.mark, 2); bossEye(ex, ey, 5, p);
+  }
+  for (let i = 0; i < 40; i++) {   // fur on the body
+    const u = (hash(i * 3.3 + k) - 0.5) * 16, v = (hash(i * 7.1 + k) - 0.5) * 28;
+    bpx(x + u, y - v, 1, 1, i % 3 ? p.light : p.hi);
+  }
+  for (let i = 0; i < 5; i++) bpx(x - 6, y - 14 - i * 8, 12, 1, p.deep);   // bands on the abdomen
+  bscar(...P2(-1, 30, -20), ...P2(-1, 70, -44), p, 13, mix(p.eye, p.deep, 0.4));
+  bscar(...P2(1, 40, 30), ...P2(1, 76, 52), p, 21);
+  for (const s of [-1, 1]) { const [ex, ey] = P2(s, 4, -19); bpx(ex - 1, ey - 1, 3, 3, p.eye); }   // its real eyes, small and red
+}
+const BOSS_ART = { whale: artWhale, elder: artElder, jelly: artJelly, angler: artAngler, manta: artManta, nautilus: artNautilus,
+  centipede: artCenti, flytrap: artTrap, moth: artMoth };
 // -- drawing the boss quickly (version 90). Version 89 repainted and shaded the boss on a 480 px canvas with about 35
 // full-canvas compositing passes every frame, which took a 120 Hz phone down to about 10 fps in the fight. Now it's
 // painted into a canvas only as big as the creature (BOSS_BOX: its extent around its middle, facing right), in three
 // steps spread over three frames, into the back one of two buffers, which then swaps to the front: so the creature
 // animates at a third of the frame rate (40 fps on a 120 Hz phone) and every frame just stamps the front buffer.
-const BOSS_BOX = { whale: [-132, -44, 132, 50], elder: [-124, -94, 124, 100], jelly: [-76, -110, 76, 110], angler: [-134, -110, 94, 94], manta: [-220, -120, 64, 120], nautilus: [-94, -84, 120, 120] };
+const BOSS_BOX = { whale: [-132, -44, 132, 50], elder: [-124, -94, 124, 100], jelly: [-76, -110, 76, 110], angler: [-134, -110, 94, 94], manta: [-220, -120, 64, 120], nautilus: [-94, -84, 120, 120],
+  centipede: [-150, -62, 152, 46], flytrap: [-104, -200, 104, 104], moth: [-136, -88, 136, 74] };
 function bossBuf(kind) {
   const [L, T, R, B] = BOSS_BOX[kind], w = R - L + 12, h = B - T + 12;
   const mk = () => { const v = document.createElement('canvas'); v.width = w; v.height = h; return v; };
@@ -6229,6 +6847,24 @@ function drawBossShots(sy) {
       }
       continue;
     }
+    if (s.type === 'snap') {   // two rows of teeth from the walls at his height, the gap between them lit; then they slam shut
+      const l = Math.round(s.x - s.w / 2), r = Math.round(s.x + s.w / 2);
+      if (s.t < s.warn) {
+        const q = s.t / s.warn, on = Math.floor(s.t * (5 + 16 * q)) % 2, gap = Math.round(16 + 12 * (1 - q));
+        c.globalAlpha = 0.45 + 0.45 * q; c.fillStyle = m; c.fillRect(0, y - gap, l, 3); c.fillRect(r, y - gap, W - r, 3); c.fillRect(0, y + gap - 2, l, 3); c.fillRect(r, y + gap - 2, W - r, 3); c.globalAlpha = 1;
+        if (on) { c.fillStyle = h; for (let xx = 4; xx < W; xx += 10) if (xx < l - 3 || xx > r + 1) { c.fillRect(xx, y - gap + 3, 2, 4); c.fillRect(xx + 5, y + gap - 6, 2, 4); } }
+        c.fillStyle = h; c.fillRect(l - 3, y - gap, 3, 2 * gap + 1); c.fillRect(r, y - gap, 3, 2 * gap + 1);   // the jaws' ends: the way through is between them
+      } else {
+        const bump = s.t - s.warn < 0.06 ? 3 : 0;
+        for (const [a, b] of [[0, l], [r, W]]) {
+          c.fillStyle = o; c.fillRect(a, y - 13 - bump, b - a, 26 + 2 * bump);
+          c.fillStyle = m; c.fillRect(a, y - 12 - bump, b - a, 24 + 2 * bump);
+          c.fillStyle = h; c.fillRect(a, y - 1, b - a, 2);
+          c.fillStyle = P.dust; for (let xx = a + 3; xx < b - 3; xx += 7) { c.fillRect(xx, y - 3, 2, 3); c.fillRect(xx + 3, y + 1, 2, 3); }
+        }
+      }
+      continue;
+    }
     if (s.type === 'sweep') {   // a wing's edge: a band across one side with a feathered trailing edge and a rounded tip
       if (y < -12 || y > H + 12) continue;
       const a = s.side < 0 ? 0 : s.split, w = s.side < 0 ? s.split : W - s.split, tip = s.side < 0 ? s.split : s.split - 6;
@@ -6321,6 +6957,7 @@ function collide(prevX) {
       break;
     }
   }
+  if (isJungle()) jungleHits(cd);
   for (const it of items) {
     if (!it.dead && Math.abs(it.d - cd) < 18 && Math.abs(it.x - player.x) < 17) collect(it);
   }
@@ -6394,6 +7031,7 @@ function update(dt) {
       thrust = Math.max(-TMAX * tb, Math.min(TMAX * tb, STEER_KP * tb * (player.aim - player.x) - STEER_KD * player.vx));
     }
     steerAcc = 0;
+    if (player.tangle > 0) { thrust *= 0.3; player.vx *= Math.exp(-2.5 * dt); }   // tangled in Jungle vines (version 113)
     player.vx = Math.max(-VMAX * tb, Math.min(VMAX * tb, player.vx + (thrust - DRAG * player.vx) * dt));
     player.x += player.vx * dt;
     player.thr += (thrust - player.thr) * Math.min(1, dt * 20);
@@ -6651,7 +7289,8 @@ function start(data) {
   setState('splash'); showScreen('splash');
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { placeHorizon(); measureCafeCard(); });
   window.claude?.hot?.snapshot?.(() => ({ best: save.best, parts: save.parts }));
-  requestAnimationFrame(t => { last = t; frame(t); });
+  applyMoon(save.moon);
+requestAnimationFrame(t => { last = t; frame(t); });
 }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
 })();
