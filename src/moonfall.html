@@ -737,7 +737,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 119;
+const VERSION = 120;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3067,7 +3067,8 @@ const Music = (() => {
   const bars = [];
   // The Jungle moon's music (version 113) is the same tune a fourth higher (D minor), with its own lead instruments and
   // hand drums; the boss tracks keep their own keys.
-  const key = () => moon === 'jungle' && mode !== 'boss' ? 5 : 0;
+  // On the start screen it follows the moon the player has picked (skey, changed on a bar), not the saved one.
+  const key = () => mode === 'splash' ? skey : moon === 'jungle' && mode !== 'boss' ? 5 : 0;
   const mtof = m => 440 * Math.pow(2, (m + key() - 69) / 12);
   function setup() {
     if (bus) return true;
@@ -3096,7 +3097,7 @@ const Music = (() => {
     src.connect(g); g.connect(muff); if (echo) g.connect(send);
     o.start(t); o.stop(t + dur + 0.05);
   }
-  function pad(notes, t, dur) {
+  function pad(notes, t, dur, keep) {
     const { ctx } = A;
     for (const n of notes) for (const det of [-7, 7]) {
       const o = ctx.createOscillator(), fl = ctx.createBiquadFilter(), g = ctx.createGain();
@@ -3106,7 +3107,7 @@ const Music = (() => {
       g.gain.linearRampToValueAtTime(0.02, t + 0.35);
       g.gain.setValueAtTime(0.02, t + dur - 0.05);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.45);
-      o.connect(fl); fl.connect(g); g.connect(muff); o.start(t); o.stop(t + dur + 0.5);
+      o.connect(fl); fl.connect(g); g.connect(muff); o.start(t); o.stop(t + dur + 0.5); if (keep) keep.push(g);
     }
   }
   function hit(t, dur, type, freq, vol) {
@@ -3177,6 +3178,44 @@ const Music = (() => {
     if (i % 4 === 2) hit(t, 0.03, 'highpass', 8000, 0.02);
     if (Math.floor(s / 64) % 2 === 1 && MEL[bar][i]) glock(MEL[bar][i], t, 0.06);
     if (moon === 'jungle') { if (i % 2 === 1) hit(t, 0.025, 'highpass', 7000, 0.015); if (i === 6 || i === 14) bongo(t, 330, 0.06); }   // a soft shaker and hand drum
+  }
+  // Start screen (version 120, user: "when I'm picking between Dust Moon and Jungle Moon, there's no music"): a slow,
+  // spacey theme (80 BPM; A minor 9, F major 7, C over G, E minor 7) that starts on the first tap (browsers allow no
+  // sound before one) and changes with the moon picked. Before a pick: a pad, a soft sub bass and a slow triangle
+  // arpeggio. Dust: cold glass bells, an icy square tune and gusts of wind. Jungle: the same a fourth up (D minor), a
+  // marimba, a breathy flute tune, a shaker and hand drums. A pick restarts the bar in its moon with a little run up.
+  const SPL_CH = [[57, 60, 64, 71], [53, 57, 60, 64], [55, 60, 64, 67], [52, 55, 59, 62]], SPL_BASS = [45, 41, 43, 40];
+  const SPL_MEL = [{ 0: 76, 6: 74, 8: 72, 12: 71 }, { 0: 72, 8: 69 }, { 0: 67, 4: 72, 8: 76, 12: 79 }, { 0: 74, 8: 71 }];
+  let pick = '', skey = 0, sflash = false;
+  const held = [];   // the bar's pad and bass, cut short when a pick restarts the bar
+  function splashStep(bar, i, s, t) {
+    const ch = SPL_CH[bar], sx = 15 / bpm;
+    if (i === 0) {
+      skey = pick === 'jungle' ? 5 : 0; held.length = 0;
+      pad(ch, t, 16 * sx, held);
+      const { ctx } = A, o = ctx.createOscillator(), g = ctx.createGain();   // sub bass, held for the bar
+      o.type = 'triangle'; o.frequency.value = mtof(SPL_BASS[bar]);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.07, t + 0.6); g.gain.setValueAtTime(0.07, t + 16 * sx - 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + 16 * sx + 0.3);
+      o.connect(g); g.connect(muff); o.start(t); o.stop(t + 16 * sx + 0.35); held.push(g);
+      if (sflash) {   // just picked: a cymbal swell and a quick run up the chord
+        sflash = false; hit(t, 1.8, 'highpass', 4500, 0.07);
+        ch.forEach((n, k) => pick === 'jungle' ? JLEADS[0](n + 12, t + k * 0.07) : osc('sine', mtof(n + 24), t + k * 0.07, 0.8, 0.04, 0.003, 0, true));
+      }
+    }
+    const n = ch[[0, 1, 2, 3, 2, 1, 0, 2][(i >> 1) % 8]] + 12, mel = SPL_MEL[bar][i];
+    if (!pick) {
+      if (i % 2 === 0) osc('triangle', mtof(n), t, 0.6, 0.035, 0.01, 0, true);
+      if (i === 8 && bar % 2 === 1) glock(ch[3] + 12, t, 0.035);
+    } else if (pick === 'dust') {
+      if (i % 2 === 0) { osc('sine', mtof(n + 12), t, 0.7, 0.03, 0.002, 0, true); osc('sine', mtof(n + 12) * 3.01, t, 0.15, 0.007, 0.001, 0, false); }
+      if (mel) osc('square', mtof(mel), t, 0.5, 0.03, 0.01, 2000, true);
+      if (i === 0 && bar % 2 === 0) hit(t, 3.2, 'bandpass', 900, 0.03);   // wind
+    } else {
+      if (i % 2 === 0) JLEADS[0](n, t);
+      if (mel) { osc('sine', mtof(mel), t, 0.7, 0.045, 0.06, 0, true); hit(t, 0.1, 'bandpass', mtof(mel) * 3, 0.012); }
+      if (i % 2 === 1) hit(t, 0.025, 'highpass', 7000, 0.016);
+      if (i === 6 || i === 14 || (i === 11 && bar % 2)) bongo(t, i === 11 ? 262 : 330, 0.07);
+    }
   }
   // Boss fights. Version 116 (user: "that music needs to be more sinister or dangerous"): three new tracks built on
   // dissonance instead of the old bright minor chords: semitone and tritone movement, a distorted bass (grit), low
@@ -3341,6 +3380,7 @@ const Music = (() => {
     const bar = Math.floor(s / 16) % 4, i = s % 16;
     if (i === 0) { bars.push({ t, bar }); if (bars.length > 3) bars.shift(); }
     if (mode === 'title') { titleStep(bar, i, s, t); return; }
+    if (mode === 'splash') { splashStep(bar, i, s, t); return; }
     if (mode === 'boss') { bossStep(s, t); return; }
     if (i === 0) {
       if (lead !== leadNext) { lead = leadNext; crash = true; }   // a new rock layer's instrument comes in on the bar, with a cymbal
@@ -3434,13 +3474,23 @@ const Music = (() => {
       taiko(t, 0.8); gbass(r, t, 1.2, 0.3); brass([r + 12, r + 19, r + 24], t, 2.4, 0.04, false); toll(r + 24, t, 0.07);
     },
     title() { this.begin('title'); },
+    // The start screen's theme, for the moon picked so far ('' before a pick).
+    splash(m) { if (mode !== 'splash' || !playing) pick = m || ''; this.begin('splash'); },
+    // A moon picked on the start screen: the bar restarts in that moon's sound.
+    pick(m) {
+      if (mode !== 'splash' || !playing || m === pick) return;
+      pick = m; sflash = true; step = 0;
+      const t = A.ctx.currentTime;
+      for (const g of held) { g.gain.cancelScheduledValues(t); g.gain.setTargetAtTime(0, t, 0.08); }
+    },
     begin(m) {
       if (!setup() || (playing && mode === m)) return;
       if (timer) clearInterval(timer);
       mode = m; playing = true; step = 0; nextT = A.ctx.currentTime + 0.06;
       if (m === 'title') { bpm = 96; calm(); }
+      if (m === 'splash') { bpm = 80; calm(); }
       if (m === 'boss') { bpm = BOSS_TRACKS[track].bpm * (heat >= 3 ? HEAT_FAST : 1); creature(false); }
-      level(true, m === 'title' ? 0.4 : 0.05); tick(); timer = setInterval(tick, 25);
+      level(true, m === 'splash' ? 0.8 : m === 'title' ? 0.4 : 0.05); tick(); timer = setInterval(tick, 25);
     },
     stop(fade) {
       if (!playing) return;
@@ -5554,11 +5604,15 @@ for (const b of document.querySelectorAll('.splash-moon')) b.addEventListener('c
   if (state !== 'splash') return;
   const m = b.dataset.moon;
   if (m !== moon) applyMoon(m);
-  save.moon = moon; persist(); syncMoon(); splashPicked = true; Sfx.bleep(m === 'jungle' ? 660 : 880);
+  save.moon = moon; persist(); syncMoon(); splashPicked = true; Sfx.bleep(m === 'jungle' ? 660 : 880); Music.pick(moon);
   for (const o of document.querySelectorAll('.splash-moon')) o.setAttribute('aria-pressed', String(o === b));
   $('splashBtn').disabled = false;
 });
 $('splashBtn').addEventListener('click', () => { if (splashPicked) startOpening(); });
+// The start screen's music (version 120) starts on the first tap or key anywhere on it (sound needs a tap first).
+const splashMusic = () => { if (state === 'splash') { Sfx.init(); Music.splash(splashPicked ? moon : ''); } };
+document.addEventListener('click', splashMusic, true);
+document.addEventListener('keydown', splashMusic, true);
 $('introSkip').addEventListener('click', () => { if (state === 'opening') endOpening('skipped'); });
 $('introBtn').addEventListener('click', startOpening);
 $('againBtn').addEventListener('click', () => startRun(true));
@@ -5567,8 +5621,9 @@ $('pauseBtn').addEventListener('click', pause);
 $('resumeBtn').addEventListener('click', resume);
 $('quitBtn').addEventListener('click', toTitle);
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { pause(); if (state === 'title') Music.stop(0.1); if (runId && state !== 'over') endRun('left'); }
+  if (document.hidden) { pause(); if (state === 'title' || state === 'splash') Music.stop(0.1); if (runId && state !== 'over') endRun('left'); }
   else if (state === 'title') Music.title();
+  else if (state === 'splash' && Sfx.audio()) Music.splash(splashPicked ? moon : '');
 });
 
 // ---------- input ----------
