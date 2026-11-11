@@ -66,7 +66,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
       for (let i = 0; i < 150; i++) M.update(1 / 60);
       M.render(); document.title = 'ready:' + M.fireworks.length; return;
     }
-    if (q.get('card')) { document.getElementById({ how: 'howBtn', news: 'newsTag' }[q.get('card')] || 'settingsBtn').click(); await wait(800); }
+    if (q.get('card')) { document.getElementById({ how: 'howBtn', news: 'newsTag', badges: 'badgesBtn', unlocks: 'unlocksBtn' }[q.get('card')] || 'settingsBtn').click(); await wait(800); }
     M.render(); document.title = 'ready'; return;
   }
   document.getElementById('startBtn').click(); await wait(300);
