@@ -760,7 +760,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 122;
+const VERSION = 123;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3472,6 +3472,44 @@ const Music = (() => {
       drone = null;
     }
   }
+  // Smooth hand-overs into and out of the Leviathan fights (version 123, user: "fade a bit better between regular music
+  // and Leviathan Chase"). Going in, the music playing keeps playing but sinks under a closing filter and a drop in level
+  // (sink), then the boss track starts and the filter opens again (rise). Coming out after the crash, the run's music
+  // starts muffled and quiet and opens up over a few seconds. swapT is the pending change (cancelled by any other start
+  // or a stop, which put the filter and level back).
+  let swapT = 0;
+  const SINK_HZ = 320, SINK_LEVEL = 0.22;
+  function rest() { return { f: low && mode === 'game' ? LOW_HZ : OPEN_HZ, d: lurk ? 0.1 : 1 }; }
+  function sink(out) {
+    const t = A.ctx.currentTime;
+    muff.frequency.cancelScheduledValues(t); muff.frequency.setValueAtTime(Math.max(SINK_HZ, muff.frequency.value), t); muff.frequency.exponentialRampToValueAtTime(SINK_HZ, t + out);
+    duck.gain.cancelScheduledValues(t); duck.gain.setValueAtTime(duck.gain.value, t); duck.gain.linearRampToValueAtTime(SINK_LEVEL, t + out);
+  }
+  function rise(inn, f0, d0) {
+    const t = A.ctx.currentTime, n = rest();
+    muff.frequency.cancelScheduledValues(t); muff.frequency.setValueAtTime(Math.max(SINK_HZ, f0 || muff.frequency.value), t); muff.frequency.exponentialRampToValueAtTime(n.f, t + inn);
+    duck.gain.cancelScheduledValues(t); duck.gain.setValueAtTime(d0 == null ? duck.gain.value : d0, t); duck.gain.linearRampToValueAtTime(n.d, t + inn);
+  }
+  // Ends a pending hand-over; true if there was one (the filter and level are then left part-way).
+  function unswap() { if (!swapT) return false; clearTimeout(swapT); swapT = 0; return true; }
+  // Starts mode m: from music playing, after sinking it for `out` s; from silence, muffled and quiet; either way it then
+  // opens up over `inn` s.
+  function fadeTo(m, out, inn) {
+    if (!setup() || (playing && mode === m && !swapT)) return;
+    unswap();
+    if (playing && out > 0) {
+      sink(out);
+      swapT = setTimeout(() => { swapT = 0; if (!playing) return; run(m); rise(inn); }, out * 1000);
+    } else { run(m); rise(inn, SINK_HZ * 1.5, SINK_LEVEL); }
+  }
+  function run(m) {
+    if (timer) clearInterval(timer);
+    mode = m; playing = true; step = 0; nextT = A.ctx.currentTime + 0.06;
+    if (m === 'title') { bpm = 96; calm(); }
+    if (m === 'splash') { bpm = 80; calm(); }
+    if (m === 'boss') { bpm = BOSS_TRACKS[track].bpm * (heat >= 3 ? HEAT_FAST : 1); creature(false); }
+    level(true, m === 'splash' ? 0.8 : m === 'title' ? 0.4 : 0.05); tick(); timer = setInterval(tick, 25);
+  }
   // Back to plain music: filter open, no sparkle, no streak drums, no creature.
   function calm() {
     shine = false; drive = 0;
@@ -3479,13 +3517,16 @@ const Music = (() => {
     creature(false);
   }
   return {
-    start() { this.begin('game'); },
+    // The run's music; with `inn`, faded up from muffled and quiet over that many seconds (after a Leviathan's crash).
+    start(inn) { if (inn) fadeTo('game', 0, inn); else this.begin('game'); },
     // A boss fight's track (0-2); Music.start() goes back to the run's own music.
-    boss(v) { track = v; this.begin('boss'); },
+    // With `out`, the music playing sinks away over that many seconds first (version 123).
+    boss(v, out) { track = v; if (out) fadeTo('boss', out, 1.2); else this.begin('boss'); },
     // How far the fight has got (0 approach, 1 fight, 2 enraged, 3 last lunge; see bossStep). Its first entrance restarts
     // the riff on a downbeat with a hit.
     heat(v) {
-      if (v >= 1 && heat === 0 && mode === 'boss' && playing) { step = 0; boom = true; }
+      if (v === 0) boom = false;
+      if (v >= 1 && heat === 0) { boom = true; if (mode === 'boss' && playing) step = 0; }   // also if still sinking into it
       if (v >= 3 && heat < 3 && mode === 'boss') bpm = BOSS_TRACKS[track].bpm * HEAT_FAST;
       heat = v;
     },
@@ -3507,15 +3548,14 @@ const Music = (() => {
       for (const g of held) { g.gain.cancelScheduledValues(t); g.gain.setTargetAtTime(0, t, 0.08); }
     },
     begin(m) {
-      if (!setup() || (playing && mode === m)) return;
-      if (timer) clearInterval(timer);
-      mode = m; playing = true; step = 0; nextT = A.ctx.currentTime + 0.06;
-      if (m === 'title') { bpm = 96; calm(); }
-      if (m === 'splash') { bpm = 80; calm(); }
-      if (m === 'boss') { bpm = BOSS_TRACKS[track].bpm * (heat >= 3 ? HEAT_FAST : 1); creature(false); }
-      level(true, m === 'splash' ? 0.8 : m === 'title' ? 0.4 : 0.05); tick(); timer = setInterval(tick, 25);
+      if (!setup()) return;
+      const was = unswap();
+      if (was) rise(0.3);
+      if (playing && mode === m) return;
+      run(m);
     },
     stop(fade) {
+      if (unswap()) rise(0.1);
       if (!playing) return;
       playing = false; clearInterval(timer); timer = null;
       level(false, (fade || 0.3) / 3);
@@ -4640,7 +4680,10 @@ function updateCafe(dt) {
       player.aim = player.x - C.side * 50;
       player.inv = 0.6;
       player.y = standY - 6;
-      Music.start();
+      // Version 123: leaving a cafe with a Leviathan below, the cafe music sinks straight into the fight's approach
+      // (before, the run's music played for a second or so in between); otherwise the run's music as before.
+      const B = bossAt(player.y + 300);
+      if (B && !bossGone.has(B.k)) bossMusic(B, 1.2); else Music.start();
     }
   }
   // Eased in as he lands and out as he leaves, so the fall picks up where it was (version 114).
@@ -6211,10 +6254,10 @@ let bossTune = -1, bossTrack = 0, bossTuneOn = false;
 const bossShots = [], bossGone = new Set();
 let bossFront = null, bossBack = null, bossTmp = null, bossTmpG = null;   // the boss's paint buffers (see drawBoss)
 const BOSS_PAINT_EVERY = 0.05; let bossPaintAt = 0;
-function bossMusic(B) {
+function bossMusic(B, out) {
   if (bossTune === B.k) return;
   bossTune = B.k; bossTrack = Math.floor(Math.random() * 3); bossTuneOn = true;
-  Music.boss(bossTrack); Music.heat(0);
+  Music.heat(0); Music.boss(bossTrack, out);
 }
 function startBoss(B) {
   const k2 = 2 * B.k, kind = leviKind(k2), mid = camY + H / 2, A = leviDepth(k2), dir = hash(k2 * 4.3 + SEED) < 0.5 ? 1 : -1;
@@ -6398,7 +6441,7 @@ function updateBoss(dt) {
   if (!boss) {
     const B = bossAt(cd);
     if (B && !bossGone.has(B.k)) {
-      if (cd >= B.T0) bossMusic(B);
+      if (cd >= B.T0) bossMusic(B, 0.8);
       if (cd >= B.A0 - 24 && cd < B.F0) startBoss(B);
     }
   }
@@ -6460,7 +6503,7 @@ function updateBoss(dt) {
       const booms = [0.12, 0.26, 0.4, 0.55];
       for (let i = 0; i < booms.length; i++) if (b.pt >= booms[i] && b.pt - dt < booms[i]) explode(b.x + (i % 2 ? 1 : -1) * (20 + i * 14), b.d + md * 0.6 + (Math.random() - 0.5) * 30, 20, true);
       shake = Math.max(shake, 2.4 * (1 - b.pt / 1.6));
-      if (b.pt >= 1 && b.pt - dt < 1) { hud.classList.remove('boss'); bossTuneOn = false; Music.start(); }
+      if (b.pt >= 1 && b.pt - dt < 1) { hud.classList.remove('boss'); bossTuneOn = false; Music.start(3.5); }
       target = b.pt < 0.8 ? Math.round(H * 0.42) : pilotScreenY;
       if (b.pt >= 2) boss = null;
     }
