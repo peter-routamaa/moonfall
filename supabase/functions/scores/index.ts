@@ -2,9 +2,10 @@
 //   GET  -> { top }                 the 10 deepest runs
 //   POST -> { top, rank, id }       body { initials: "ABC", depth: 812, escaped: true }; saves the run
 //                                   (escaped: the player had repaired the ship; optional, stored as null if missing)
-//   POST -> { ok }                  body { event: "play", player: "<16 hex>", run: "<16 hex>" }; a run started (owner's stats)
+//   POST -> { ok }                  body { event: "play", player: "<16 hex>", run: "<16 hex>", ver }; a run started (owner's stats)
 //   POST -> { ok }                  body { event: "end", player, run, depth, secs, how, orbs, parts, cafes, initials,
-//                                         fps, worst, device, os, screen, treats, streak, sound, music, repair, intro }; how it went
+//                                         fps, worst, device, os, screen, treats, streak, sound, music, repair, intro, ver }; how it went
+//                                   (ver: the game's version number, e.g. 106; optional)
 // The game only knows this function's URL. The secret key comes from the function's own
 // environment (Supabase provides SUPABASE_URL plus SUPABASE_SECRET_KEYS on newer projects and
 // SUPABASE_SERVICE_ROLE_KEY on all), so no key is ever in the game file.
@@ -75,6 +76,8 @@ async function update(table: string, filter: string, row: unknown) {
 }
 
 const whole = (v: unknown, max: number) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= max;
+// The game's version number, sent with both pings since version 106; empty from older copies.
+const version = (v: unknown) => (whole(v, 100000) && (v as number) >= 1 ? v : null);
 
 // The extra run stats are optional (older copies of the game don't send them); anything missing or malformed is stored as empty.
 function extras(b: Record<string, unknown>) {
@@ -87,6 +90,7 @@ function extras(b: Record<string, unknown>) {
     treats, streak: whole(b.streak, 100000) ? b.streak : null,
     sound: typeof b.sound === 'boolean' ? b.sound : null, music: typeof b.music === 'boolean' ? b.music : null,
     repair: whole(b.repair, 100) ? b.repair : null, intro: b.intro === 'watched' || b.intro === 'skipped' ? b.intro : null,
+    ver: version(b.ver),
   };
 }
 
@@ -109,7 +113,7 @@ Deno.serve(async req => {
       if (!HEX16.test(player)) return reply({ error: 'bad player id' }, 400);
       const run = typeof body.run === 'string' && HEX16.test(body.run) ? body.run : null;
       const since = new Date(Date.now() - PLAY_GAP_MS).toISOString();
-      if (await count('plays', `player=eq.${player}&created_at=gt.${encodeURIComponent(since)}`) === 0) await insert('plays', { player, run }, false);
+      if (await count('plays', `player=eq.${player}&created_at=gt.${encodeURIComponent(since)}`) === 0) await insert('plays', { player, run, ver: version(body.ver) }, false);
       return reply({ ok: true });
     }
 

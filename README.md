@@ -18,6 +18,7 @@ Play it at **https://peter-routamaa.github.io/moonfall/**. The `docs` folder is 
 | `supabase/migrations/20261031180000_run_stats.sql` | Adds run stats (length, depth, how it ended) and the monthly, yearly and per-player views. |
 | `supabase/migrations/20261031200000_more_stats.sql` | Adds frame rate, device, treats, streak, sound, repair and intro stats, and the device, treat, depth band and returning-player views. |
 | `supabase/migrations/20261102000000_scores_escaped.sql` | Adds the `escaped` column to `scores`: whether the player had repaired the ship when they set the score (empty for older scores). |
+| `supabase/migrations/20261111000000_run_version.sql` | Adds the `ver` column to `plays` (the game version that sent the run; empty for runs before version 106) and the `play_by_version` view. |
 | `supabase/functions/scores/index.ts` | The small server function: saves runs, returns the top 10, and counts plays. |
 
 The game works on its own: each device keeps its own top 10. When `SCORES_URL` is set (the build fills it in for the website), the high score table also shows an online board shared by everyone who plays.
@@ -55,7 +56,7 @@ Anyone can read this repository, but only people you add can change it. To let a
 
 To set it up from scratch:
 
-1. In the project's **SQL Editor**, run `supabase/migrations/20261031000000_scores.sql`, then `supabase/migrations/20261031130000_plays.sql`, then `supabase/migrations/20261031180000_run_stats.sql`, then `supabase/migrations/20261031200000_more_stats.sql`, then `supabase/migrations/20261102000000_scores_escaped.sql`. They create the `scores` and `plays` tables, which only the function can read or write, and the stats views.
+1. In the project's **SQL Editor**, run `supabase/migrations/20261031000000_scores.sql`, then `supabase/migrations/20261031130000_plays.sql`, then `supabase/migrations/20261031180000_run_stats.sql`, then `supabase/migrations/20261031200000_more_stats.sql`, then `supabase/migrations/20261102000000_scores_escaped.sql`, then `supabase/migrations/20261111000000_run_version.sql`. They create the `scores` and `plays` tables, which only the function can read or write, and the stats views.
 2. In **Edge Functions**, create a function named exactly `scores` with the code from `supabase/functions/scores/index.ts`, deploy it, and turn **off** JWT verification in its settings.
 3. Open the function URL in a browser. You should see `{"top":[...]}`. An error about a missing authorization header means JWT verification is still on.
 4. Put the function URL in `docs/index.html`:
