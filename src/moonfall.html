@@ -424,6 +424,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
    a big banner over the shaft as he drops past the ledge, with the running total under it, while the speed lines rush. */
 .speed-flash { position: absolute; left: 0; right: 0; top: 50%; text-align: center; pointer-events: none; opacity: 0; }
 .speed-flash b { display: block; font: 700 30px/1 var(--display); letter-spacing: .05em; color: var(--lava); text-shadow: 3px 3px 0 var(--ink); }
+.speed-flash b .pct { width: .72em; height: .8em; margin-left: .08em; vertical-align: -.02em; filter: drop-shadow(3px 3px 0 var(--ink)); }
 .speed-flash small { display: block; margin-top: 6px; font: 400 20px/1 var(--body); color: var(--dust); text-shadow: 2px 2px 0 var(--ink), -1px -1px 0 var(--ink); }   /* text only, mid-screen below the pilot: rocks stay visible through it */
 .speed-flash.on { animation: speedflash 1.5s steps(15); }
 @keyframes speedflash { 0% { opacity: 0; transform: scale(1.7); } 12% { opacity: 1; transform: none; } 78% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-26px); } }
@@ -803,7 +804,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 143;
+const VERSION = 144;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -4069,10 +4070,12 @@ const streakFlash = $('streakFlash'), spareHud = $('spareHud'), shopEl = $('shop
 // Version 142: the fall gets faster as he drops past a cafe ledge. A banner says so ("SPEED +5%" and the running total,
 // or "TOP SPEED!" at the last step), the speed lines rush for a moment (speedRush, read in speedLines) and the wind
 // whooshes. The page is touched once per speed-up, not every frame.
-const speedFlash = $('speedFlash');
+const speedFlash = $('speedFlash'), PCT_ICON = document.querySelector('.repair-head .pct').outerHTML;
 let speedRush = 0;
 function speedUp(top, total) {
-  speedFlash.firstChild.textContent = top ? 'TOP SPEED!' : 'SPEED +' + Math.round(CAFE_SPEEDUP * 100) + '%';
+  // The pixel font's % looks like a 2 at this size (user, version 144), so the banner uses the drawn percent sign
+  // from the ship repair panel.
+  speedFlash.firstChild.innerHTML = top ? 'TOP SPEED!' : 'SPEED +' + Math.round(CAFE_SPEEDUP * 100) + PCT_ICON;
   speedFlash.lastChild.textContent = 'Fall speed +' + Math.round(total * 100) + '%';
   speedFlash.classList.remove('on'); void speedFlash.offsetWidth; speedFlash.classList.add('on');
   speedRush = reduceMotion ? 0 : 1.2; Sfx.whoosh(); Buzz.part();
