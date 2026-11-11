@@ -103,6 +103,13 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .moon-ico.dust { color: #EEE8D8; --spot: #B9B3A6; }
 .moon-ico.jungle { color: #58C26A; --spot: #2E7D44; }
 .moon-row .moon-btn { padding: 7px 8px 6px; }
+/* Version 118 (user: "make it bigger"): the main menu's pair are proper buttons, so swapping moons between runs is obvious. */
+#moonPick { gap: 10px; }
+#moonPick .moon-btn { flex-direction: column; gap: 6px; padding: 9px 4px 8px; border-width: 3px; background: var(--ink-soft); color: var(--dust-dim); font-size: 12px; box-shadow: 4px 4px 0 var(--ink); }
+#moonPick .moon-btn[aria-pressed="true"] { border-color: var(--gold); background: var(--ink); color: var(--dust); box-shadow: 4px 4px 0 var(--gold-dk); }
+#moonPick .moon-btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
+#moonPick .moon-ico { width: 21px; height: 21px; }
+@media (max-width: 340px) { #moonPick .moon-btn { font-size: 11px; } }
 .set-tog:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 /* Each word of a toggle's name on its own line (user, version 84). */
 .set-tog > span { grid-column: 1; grid-row: 1; line-height: 1.3; text-align: left; }
@@ -725,7 +732,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 116;
+const VERSION = 118;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
