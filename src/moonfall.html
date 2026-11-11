@@ -420,6 +420,14 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .streak-flash { position: absolute; left: 14px; top: 34%; font: 700 26px/1 var(--display); letter-spacing: .04em; color: var(--dust); text-shadow: 3px 3px 0 var(--blue); pointer-events: none; opacity: 0; }
 .streak-flash.on { animation: streakflash .9s steps(9); }
 @keyframes streakflash { 0% { opacity: 0; transform: scale(1.6); } 15% { opacity: 1; transform: none; } 70% { opacity: 1; } 100% { opacity: 0; } }
+/* Version 142 (user: "make it more clear, as the player jumps off the cafe ledge, that the speed has increased by 5%"):
+   a big banner over the shaft as he drops past the ledge, with the running total under it, while the speed lines rush. */
+.speed-flash { position: absolute; left: 0; right: 0; top: 50%; text-align: center; pointer-events: none; opacity: 0; }
+.speed-flash b { display: block; font: 700 30px/1 var(--display); letter-spacing: .05em; color: var(--lava); text-shadow: 3px 3px 0 var(--ink); }
+.speed-flash small { display: block; margin-top: 6px; font: 400 20px/1 var(--body); color: var(--dust); text-shadow: 2px 2px 0 var(--ink), -1px -1px 0 var(--ink); }   /* text only, mid-screen below the pilot: rocks stay visible through it */
+.speed-flash.on { animation: speedflash 1.5s steps(15); }
+@keyframes speedflash { 0% { opacity: 0; transform: scale(1.7); } 12% { opacity: 1; transform: none; } 78% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-26px); } }
+@keyframes speedfade { 0% { opacity: 0; } 10%, 80% { opacity: 1; } 100% { opacity: 0; } }
 .spare-hud { display: flex; align-items: center; gap: 4px; padding: 4px 6px 4px 5px; font: 700 8px/1 var(--display); letter-spacing: .06em; box-shadow: 4px 4px 0 var(--green-dk); }
 .perk-cost canvas { width: 14px; height: 14px; image-rendering: pixelated; }
 .spare-hud canvas { width: 12px; height: 12px; image-rendering: pixelated; }
@@ -476,6 +484,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   .hud, .coach, .flip-inner, .flip .face { transition: none; }
   .confirm.pop-in { animation: none; }
   .hp i.hit, .hp i.gain, .hp.low i:not(.empty), .pop, .streak-flash.on { animation-duration: .01s; }
+  .speed-flash.on { animation-name: speedfade; }   /* still shown, without the zoom */
   .btn.launch { animation: none; }
   .news { animation: none; }
   .btn.bob { animation: none; }
@@ -541,6 +550,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   <button class="intro-skip" id="introSkip" type="button">Skip intro</button>
   <div class="intro-cap" id="introCap" aria-hidden="true"></div>
   <div class="streak-flash" id="streakFlash" aria-hidden="true"></div>
+  <div class="speed-flash" id="speedFlash" role="status"><b></b><small></small></div>
 
   <section class="screen splash" id="splashScreen" hidden>
     <div class="studio">
@@ -793,7 +803,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 141;
+const VERSION = 142;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -1947,24 +1957,57 @@ function drawMantis(x, y, dir, k, col) {
     }
   }
 }
-// Six kinds in a fresh random order every run (version 80; it was a fixed cycle). Each differs from the two before it
-// (version 94), so two cafes (and two boss fights) in a row never have the same one, nor the one passing between them.
+// Six kinds per moon (version 80 made the order random; version 142 below makes the cafe ones a bag across runs).
 // The even-numbered ones wait at the cafes (creature 2n at cafe n), hovering in place; the odd ones drift past.
 // The Jungle moon has its own six (three in version 113, three more in version 130), in the same kind of order.
 const LEVI_KINDS = ['nautilus', 'whale', 'elder', 'jelly', 'angler', 'manta'];
 const LEVI_SETS = { dust: LEVI_KINDS, jungle: ['centipede', 'flytrap', 'moth', 'spider', 'frog', 'mantis'] };
 const leviSet = () => LEVI_SETS[moon];
-let leviOrder = [], leviFor = -1;
+// Version 142 (user: "I don't want to see the same Leviathan again before I've been through all six"): the cafe ones
+// (even k) come out of a shuffled bag of the moon's six that lasts across runs. save.leviMet[moon] lists the ones met at
+// a cafe since the bag was last full; a run's cafes take the rest in a random order, then fresh shuffles of all six
+// (never the same one twice across the join). The passing ones (odd k) stay random, each differing from the cafe one
+// either side and the passer before.
+let leviOrder = [], leviCafes = [], leviFor = -1;
+function leviShuffle(list, salt) {
+  for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(hash(salt + i * 3.17 + SEED * 1.37) * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+  return list;
+}
 function leviKind(k) {
-  if (leviFor !== SEED) { leviFor = SEED; leviOrder = []; }
   const set = leviSet(), n = set.length;
+  if (leviFor !== SEED) {
+    leviFor = SEED; leviOrder = [];
+    const met = (save.leviMet && save.leviMet[moon]) || [];
+    leviCafes = leviShuffle(set.map((_, i) => i).filter(i => !met.includes(set[i])), 0.5);
+    const last = set.indexOf(save.leviLast && save.leviLast[moon]);   // the last one met, in an earlier run
+    if (leviCafes.length > 1 && leviCafes[0] === last) leviCafes.push(leviCafes.shift());
+  }
+  const cafe = j => {   // cafe j's creature, j = 1, 2 ...
+    for (let b = 1; leviCafes.length < j; b++) {
+      const next = leviShuffle(set.map((_, i) => i), b * 11.9);
+      if (next[0] === leviCafes[leviCafes.length - 1]) next.push(next.shift());
+      leviCafes.push(...next);
+    }
+    return leviCafes[j - 1];
+  };
   while (leviOrder.length <= k) {
-    const prev = leviOrder[leviOrder.length - 1], prev2 = leviOrder[leviOrder.length - 2];
-    let r = Math.floor(hash(leviOrder.length * 7.31 + SEED * 1.37) * n);
-    while (r === prev || r === prev2) r = (r + 1) % n;
+    const i = leviOrder.length;
+    if (i % 2 === 0) { leviOrder.push(i ? cafe(i / 2) : 0); continue; }
+    const avoid = [i > 1 ? leviOrder[i - 1] : -1, i > 2 ? leviOrder[i - 2] : -1, cafe((i + 1) / 2)];
+    let r = Math.floor(hash(i * 7.31 + SEED * 1.37) * n);
+    while (avoid.includes(r)) r = (r + 1) % n;
     leviOrder.push(r);
   }
   return set[leviOrder[k]];
+}
+// A cafe's creature has been seen in a run: it leaves the bag until all six have been met.
+function leviMeet(k) {
+  if (k % 2 || !k) return;
+  const kind = leviKind(k), m = (save.leviMet = save.leviMet || {}), met = m[moon] || (m[moon] = []);
+  if (met.includes(kind)) return;
+  met.push(kind); (save.leviLast = save.leviLast || {})[moon] = kind;
+  if (met.length >= leviSet().length) met.length = 0;
+  persist();
 }
 const LEVI_DRAW = { nautilus: drawNautilus, whale: drawLeviathan, elder: drawElder, jelly: drawJelly, angler: drawAngler, manta: drawManta,
   centipede: drawCenti, flytrap: drawTrap, moth: drawMoth, spider: drawSpider, frog: drawFrog, mantis: drawMantis };
@@ -2010,7 +2053,7 @@ function leviathans(cam) {
     const D = leviMark(k), A = leviDepth(k), sy = H / 2 + (A - mid) * LEVI_PARALLAX, dir = hash(k * 4.3 + SEED) < 0.5 ? 1 : -1, sx = W / 2 + dir * (mid - A) * 0.14;
     if (bossHides(k)) continue;
     const kind = leviKind(k);
-    if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(kind); }
+    if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(kind); leviMeet(k); }
     if (state === 'play' && sy > -40 && sy < H + 40) near = true;
     if (cam < -H || sy < -220 || sy > H + 220) continue;
     const Q = palAt(D);   // its colour is worked out once per palette (version 129), not every frame
@@ -2315,14 +2358,14 @@ function motes(cam) {
 // at the starting speed; they build from about 1000 m to 3000 m as the fall speeds up. They move up faster than the
 // walls, so they never look like they're falling with him.
 function speedLines(cam) {
-  const s = smoothstep((player.v - 255) / 57.5);   // full at the top cafe speed, 312.5 px/s (version 85)
+  const r = Math.min(1, speedRush), s = Math.max(smoothstep((player.v - 255) / 57.5), r);   // full at the top cafe speed, 312.5 px/s (version 85); r: the rush after a speed-up (version 142)
   if (s <= 0) return;
   c.globalAlpha = 0.25 + 0.35 * s; c.fillStyle = P.lite;
-  for (let k = 0, n = Math.round(10 * s); k < n; k++) {
+  for (let k = 0, n = Math.round(10 * s + 12 * r); k < n; k++) {
     const y = H + 40 - ((((cam * 1.8 + k * 97 + hash(k + 60) * 700) % (H + 80)) + H + 80) % (H + 80)), d = cam + y;
     if (d < 8) continue;
     const x = Math.round(laneX(d, (hash(k + 90) < 0.5 ? -1 : 1) * (0.62 + hash(k + 120) * 0.33)));
-    c.fillRect(x, Math.round(y), 1, 14 + Math.round(hash(k + 40) * 22 * (0.5 + s)));
+    c.fillRect(x, Math.round(y), 1, 14 + Math.round(hash(k + 40) * 22 * (0.5 + s + r)));
   }
   c.globalAlpha = 1;
 }
@@ -4023,6 +4066,17 @@ function sizeHP() {
   hpBox.style.setProperty('--hpw', Math.floor((row - (player.max - 1) * 4) / player.max) + 'px');
 }
 const streakFlash = $('streakFlash'), spareHud = $('spareHud'), shopEl = $('shop');
+// Version 142: the fall gets faster as he drops past a cafe ledge. A banner says so ("SPEED +5%" and the running total,
+// or "TOP SPEED!" at the last step), the speed lines rush for a moment (speedRush, read in speedLines) and the wind
+// whooshes. The page is touched once per speed-up, not every frame.
+const speedFlash = $('speedFlash');
+let speedRush = 0;
+function speedUp(top, total) {
+  speedFlash.firstChild.textContent = top ? 'TOP SPEED!' : 'SPEED +' + Math.round(CAFE_SPEEDUP * 100) + '%';
+  speedFlash.lastChild.textContent = 'Fall speed +' + Math.round(total * 100) + '%';
+  speedFlash.classList.remove('on'); void speedFlash.offsetWidth; speedFlash.classList.add('on');
+  speedRush = reduceMotion ? 0 : 1.2; Sfx.whoosh(); Buzz.part();
+}
 function bump(el) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
 // Each near miss from the second in a row flashes the streak ("x2", "x3"...) on the left of the screen.
 function flashStreak() {
@@ -4181,7 +4235,7 @@ function resetRun() {
   $('partsRun').textContent = '0'; repair = repairFrac(); repairStart = repair; readyStart = canLaunch();
   Object.assign(player, playerStart());
   cafeVisited.clear(); cafeArt.clear(); signArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
-  buildHP(); $('spareRun').textContent = '0'; spareHud.hidden = true; streakFlash.classList.remove('on'); buildFlags(); refreshBoard();
+  buildHP(); $('spareRun').textContent = '0'; spareHud.hidden = true; streakFlash.classList.remove('on'); speedFlash.classList.remove('on'); speedRush = 0; buildFlags(); refreshBoard();
   Music.reset();
   sayEl.hidden = true;
   boss = null; bossShots.length = 0; bossGone.clear(); pilotNow = pilotScreenY; hud.classList.remove('boss'); bossTune = -1; bossTuneOn = false;
@@ -7949,10 +8003,11 @@ function update(dt) {
     collide(prevX);
     if (bossShots.length) updateBossShots(dt, state === 'play');
     passFlags();
+    if (speedRush > 0) speedRush = Math.max(0, speedRush - dt);
     if (ledgesPassed(player.y + PILOT_CY) > fasterN) {
       fasterN++; expireTreats(fasterN);
       const top = Math.round(CAFE_SPEED_MAX / CAFE_SPEEDUP);
-      if (fasterN <= top) pop(fasterN === top ? 'TOP SPEED' : 'FALL +5%', player.x, player.y - 22, 'bad');
+      if (fasterN <= top) speedUp(fasterN === top, fasterN * CAFE_SPEEDUP);   // version 142: banner, rush and whoosh (was a small 'FALL +5%' pop)
     }
     if (state === 'play') checkCafe();
     Sfx.wind(0.5 + 0.5 * smoothstep((player.v - 250) / 200));
