@@ -168,9 +168,8 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .levi-pic { display: block; width: 100%; height: 64px; padding: 4px; object-fit: contain; background: color-mix(in srgb, var(--blue) 24%, var(--ink)); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--blue) 40%, var(--ink)); }
 .levi-name { font: 700 11px/1 var(--display); letter-spacing: .1em; color: var(--gold); }
 .levi-line { font: 400 16px/.95 var(--body); color: var(--dust-dim); }
-/* Version 108: Leviathan trophies. A beaten creature gets a gold frame and name; one not beaten yet is a dark silhouette. */
-.levi-list li.won .levi-pic { box-shadow: inset 0 0 0 2px var(--gold); }
-.levi-list li:not(.won) .levi-name { color: var(--dust-dim); }
+/* Version 132 (user): every Leviathan shows in full colour, all alike; the hint line keeps the beaten count. (Versions
+   108-131 showed beaten ones with a gold frame and name and the rest as dark silhouettes.) */
 #leviBack .row .btn { flex: 1; }
 /* Badges (version 108): their own face, opened from the Leviathans card. */
 #badgeBack h2 { text-align: center; }
@@ -770,7 +769,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 129;
+const VERSION = 132;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -1757,12 +1756,134 @@ function drawMoth(x, y, dir, k, col) {
     if (j % 2 === 0 && j > 3) { c.fillRect(Math.round(ax) + s * 2, Math.round(ay) - 2, 1, 2); c.fillRect(Math.round(ax) - s, Math.round(ay) + 1, 1, 2); }
   }
 }
+// -- three more for the Jungle moon (version 130, user: "the same number of Leviathans on both moons"), so it has six
+// like the Dust moon. Built to the version 129 performance pass's rules: nothing is made per colour or per frame, and
+// as few rectangles and stamps as the picture needs. Their legs (limb) are one tapering quad from r0 to r1 each, filled
+// along its short axis (a row per pixel down a shallow limb, a column per pixel across a steep one) with a disc for a
+// round end: a 60 px leg is about 30 rectangles and one stamp. (Drawn first as rows of discs, a leg was 40 stamps, or
+// 300 rectangles while the boss fades in; the spider then cost 580 stamps a frame against the old Leviathans' 0-170.)
+const LQ = [0, 0, 0, 0, 0, 0, 0, 0];
+function limb(x0, y0, x1, y1, r0, r1, col) {
+  const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+  LQ[0] = x0 + nx * r0; LQ[1] = y0 + ny * r0; LQ[2] = x1 + nx * r1; LQ[3] = y1 + ny * r1;
+  LQ[4] = x1 - nx * r1; LQ[5] = y1 - ny * r1; LQ[6] = x0 - nx * r0; LQ[7] = y0 - ny * r0;
+  const rows = Math.abs(dx) >= Math.abs(dy), a = rows ? 1 : 0, b = 1 - a;   // a: the axis stepped along
+  let lo = Infinity, hi = -Infinity;
+  for (let i = a; i < 8; i += 2) { if (LQ[i] < lo) lo = LQ[i]; if (LQ[i] > hi) hi = LQ[i]; }
+  c.fillStyle = col;
+  for (let s = Math.ceil(lo); s <= Math.floor(hi); s++) {
+    let e0 = Infinity, e1 = -Infinity;
+    for (let i = 0; i < 8; i += 2) {
+      const j = (i + 2) % 8, p = LQ[i + a], q = LQ[j + a];
+      if ((p <= s && q > s) || (q <= s && p > s)) { const v = LQ[i + b] + (s - p) * (LQ[j + b] - LQ[i + b]) / (q - p); if (v < e0) e0 = v; if (v > e1) e1 = v; }
+    }
+    if (e1 >= e0) { const u = Math.round(e0), w = Math.max(1, Math.round(e1) - u); if (rows) c.fillRect(u, s, w, 1); else c.fillRect(s, u, 1, w); }
+  }
+  if (r1 >= 1) disc(x1, y1, r1, col);   // r 0.5: a 1 px line (wing veins), no end
+}
+// Widowloom, a spider as big as the cafe, hanging head down on its thread out of the dark: a swollen abdomen above,
+// eight long jointed legs splayed round it and twitching, palps and fangs below. spiderLeg gives a leg's hip, knee and
+// foot (s = -1 left, 1 right; leg 0 is the back pair, reaching up beside the abdomen, leg 3 the front pair).
+const SPIDER_LEGS = [[14, -8, 54, -70, 100, -56], [17, -3, 70, -42, 118, -6], [17, 4, 66, -10, 110, 40], [13, 10, 48, 22, 74, 84]];
+const spiderY = (y, k) => y + Math.sin(clock * 0.5 + k) * 6;
+function spiderLeg(x, y, s, i, k) {
+  const [hu, hv, ku, kv, fu, fv] = SPIDER_LEGS[i], tw = Math.sin(clock * 1.4 + i * 1.1 + s * 0.7 + k), cy = y + 2;
+  return [x + s * hu, cy + hv, x + s * ku, cy + kv + tw * 2, x + s * (fu + tw * 2), cy + fv + tw * 4];
+}
+const spiderFang = (x, y, s, k) => { const o = Math.sin(clock * 3 + k) * 2; return [x + s * 8, y + 24, x + s * (4 - o), y + 37]; };
+function drawSpider(x, y, dir, k, col) {
+  y = spiderY(y, k);
+  c.fillStyle = col; c.fillRect(Math.round(x) - 1, Math.round(y) - 270, 2, 194);   // its thread
+  for (const s of [-1, 1]) for (let i = 0; i < 4; i++) {
+    const [hx, hy, kx, ky, fx, fy] = spiderLeg(x, y, s, i, k);
+    limb(hx, hy, kx, ky, 4, 3, col); limb(kx, ky, fx, fy, 3, 1, col);
+  }
+  fillEllipse(c, x, y - 44, 30, 36, col);   // abdomen
+  disc(x, y - 14, 9, col);   // waist
+  fillEllipse(c, x, y + 2, 20, 17, col);   // head and thorax
+  for (const s of [-1, 1]) {
+    disc(x + s * 7, y + 19, 7, col);   // the fangs' bases, and the fangs
+    const [ax, ay, bx, by] = spiderFang(x, y, s, k); limb(ax, ay, bx, by, 3, 1, col);
+    limb(x + s * 13, y + 13, x + s * 25, y + 25, 3, 2, col); limb(x + s * 25, y + 25, x + s * 21, y + 37, 2, 1, col);   // palps
+  }
+}
+// Croakmaw, a poison frog wider than the shaft, seen from the front: a broad head, bulging eyes on top, a wide mouth,
+// a throat that swells as it breathes (th, 0 to 1), front legs splayed with sticky toe pads, and its long back legs
+// folded either side.
+const frogPose = (y, k) => [y + Math.sin(clock * 0.6 + k) * 4, Math.max(0, Math.sin(clock * 1.8 + k))];
+// A foot of four toes fanning out from (fx, fy), turned a0 from straight down, each L long with a round pad.
+function frogFoot(fx, fy, s, a0, L, col, pad) {
+  for (let i = 0; i < 4; i++) {
+    const a = s * (a0 + i * 0.42), tx = fx + Math.sin(a) * L, ty = fy + Math.cos(a) * L;
+    if (!pad) limb(fx, fy, tx, ty, 3, 2, col);
+    disc(tx, ty, pad ? 2 : 4, pad || col);
+  }
+}
+const FROG_THIGH = [[40, -6], [98, -30], [112, -14], [84, 22], [52, 26]];
+function drawFrog(x, y, dir, k, col) {
+  const [yy, th] = frogPose(y, k); y = yy;
+  for (const s of [-1, 1]) {
+    fillPoly(c, FROG_THIGH.map(([u, v]) => [x + s * u, y + v]), col);   // thigh, folded up
+    limb(x + s * 104, y - 22, x + s * 100, y + 40, 8, 5, col); frogFoot(x + s * 100, y + 42, s, -0.2, 22, col);   // shin and foot
+    limb(x + s * 44, y + 16, x + s * 80, y + 30, 9, 7, col); limb(x + s * 80, y + 30, x + s * 60, y + 56, 7, 5, col);   // arm, elbow out
+    frogFoot(x + s * 60, y + 58, s, -0.6, 15, col);
+    disc(x + s * 34, y - 30, 18, col);   // eye domes
+  }
+  fillEllipse(c, x, y, 62, 38, col);   // head and body
+  fillEllipse(c, x, y + 24, 46, Math.round(16 + th * 6), col);   // throat
+  for (const a of FROG_BUMPS) disc(x + Math.cos(a) * 60, y + Math.sin(a) * 36, 4, col);   // warty bumps along the head
+}
+const FROG_BUMPS = [-2.85, -2.55, -2.2, -1.75, -1.39, -0.94, -0.59, -0.29];
+// Sicklethorn, a mantis like a giant dark orchid, upright and facing him with its wings flared in threat: a
+// triangular head with huge eyes, a long neck, raptorial forelegs raised with hooked blades that open and close, petal
+// lobes on its legs and a leaf-shaped abdomen. mantisArm gives a foreleg's shoulder, elbow, wrist and blade tip.
+const mantisOpen = k => 0.5 + 0.5 * Math.sin(clock * 1.2 + k);
+const mantisY = (y, k) => y + Math.sin(clock * 0.8 + k) * 4;
+function mantisArm(x, y, s, k) {
+  const o = mantisOpen(k);
+  return [x + s * 5, y - 20, x + s * 20, y - 2, x + s * 44, y - 58, x + s * (26 + o * 26), y - 18 - o * 10];
+}
+const MANTIS_FORE = [[8, 2], [60, -30], [118, -46], [112, -30], [56, -8], [10, 10]];
+const MANTIS_HIND = [[8, 8], [70, 4], [114, 18], [100, 46], [56, 44], [12, 22]];
+const mantisWing = (x, y, s, k, pts) => { const fl = Math.sin(clock * 2.4 + k) * 4; return pts.map(([u, v]) => [x + s * u, y + v + fl * u / 118]); };
+function mantisBelly(x, y) {   // the abdomen's outline: a long leaf, with lobes
+  const L = [], R = [];
+  for (let i = 0; i <= 16; i++) {
+    const t = i / 16, w = 24 * Math.pow(Math.sin(Math.PI * (0.15 + 0.85 * t)), 0.8) + 3 * Math.sin(t * Math.PI * 6), v = y + 16 + t * 80;
+    L.push([x - w, v]); R.unshift([x + w, v]);
+  }
+  return L.concat(R);
+}
+function drawMantis(x, y, dir, k, col) {
+  y = mantisY(y, k);
+  for (const s of [-1, 1]) { fillPoly(c, mantisWing(x, y, s, k, MANTIS_HIND), col); fillPoly(c, mantisWing(x, y, s, k, MANTIS_FORE), col); }
+  fillPoly(c, mantisBelly(x, y), col);
+  for (const s of [-1, 1]) {
+    limb(x + s * 10, y + 12, x + s * 54, y + 20, 3, 3, col); limb(x + s * 54, y + 20, x + s * 66, y + 56, 3, 1, col);   // middle leg
+    limb(x + s * 10, y + 20, x + s * 46, y + 46, 3, 3, col); limb(x + s * 46, y + 46, x + s * 52, y + 92, 3, 1, col);   // back leg
+    fillEllipse(c, x + s * 34, y + 14, 9, 5, col); fillEllipse(c, x + s * 30, y + 34, 8, 5, col);   // petal lobes
+    const [ax, ay, ex, ey, wx, wy, tx, ty] = mantisArm(x, y, s, k);
+    limb(ax, ay, ex, ey, 4, 4, col); limb(ex, ey, wx, wy, 6, 4, col); limb(wx, wy, tx, ty, 4, 2, col);   // foreleg and blade
+    limb(tx, ty, tx - s * 6, ty + 5, 2, 1, col);   // the blade's hook
+  }
+  fillEllipse(c, x, y + 10, 15, 12, col);   // thorax
+  fillPoly(c, [[x - 5, y - 34], [x + 5, y - 34], [x + 8, y + 2], [x - 8, y + 2]], col);   // neck
+  fillPoly(c, [[x - 25, y - 62], [x + 25, y - 62], [x + 4, y - 28], [x - 4, y - 28]], col);   // head
+  for (const s of [-1, 1]) {
+    disc(x + s * 20, y - 62, 9, col);   // eyes
+    c.fillStyle = col;
+    for (let j = 0; j <= 12; j++) {   // antennae
+      const [ax, ay] = bez([x + s * 5, y - 68], [x + s * 10, y - 92], [x + s * 36 + Math.sin(clock * 1.3 + k + s) * 4, y - 100], j / 12);
+      c.fillRect(Math.round(ax), Math.round(ay), 2, 2);
+    }
+  }
+}
 // Six kinds in a fresh random order every run (version 80; it was a fixed cycle). Each differs from the two before it
 // (version 94), so two cafes (and two boss fights) in a row never have the same one, nor the one passing between them.
 // The even-numbered ones wait at the cafes (creature 2n at cafe n), hovering in place; the odd ones drift past.
-// The Jungle moon has its own three (version 113), which then simply take turns in an order picked by the first two.
+// The Jungle moon has its own six (three in version 113, three more in version 130), in the same kind of order.
 const LEVI_KINDS = ['nautilus', 'whale', 'elder', 'jelly', 'angler', 'manta'];
-const LEVI_SETS = { dust: LEVI_KINDS, jungle: ['centipede', 'flytrap', 'moth'] };
+const LEVI_SETS = { dust: LEVI_KINDS, jungle: ['centipede', 'flytrap', 'moth', 'spider', 'frog', 'mantis'] };
 const leviSet = () => LEVI_SETS[moon];
 let leviOrder = [], leviFor = -1;
 function leviKind(k) {
@@ -1777,7 +1898,7 @@ function leviKind(k) {
   return set[leviOrder[k]];
 }
 const LEVI_DRAW = { nautilus: drawNautilus, whale: drawLeviathan, elder: drawElder, jelly: drawJelly, angler: drawAngler, manta: drawManta,
-  centipede: drawCenti, flytrap: drawTrap, moth: drawMoth };
+  centipede: drawCenti, flytrap: drawTrap, moth: drawMoth, spider: drawSpider, frog: drawFrog, mantis: drawMantis };
 const leviSeen = new Set();
 // The depth each creature belongs to (its colour comes from the rock there). Creature 2n is cafe n's, 50 m above its
 // cavern. The odd ones pass in the normal shaft 550 m above the next cafe: 500 m down for the first, as it always was,
@@ -3054,6 +3175,20 @@ const Sfx = (() => {
         } else if (kind === 'moth') {   // wings beating in soft thuds, over a thin, eerie whine
           for (let i = 0; i < 7; i++) noise(0.14, 'lowpass', 350, 0.13, i * 0.32);
           swell('sine', 1240, 1180, 2.6, 0.012, 1.0, 4000, 0.2); swell('sine', 1860, 1800, 2.2, 0.006, 1.0, 4000, 0.4);
+        } else if (kind === 'spider') {   // a dry, creeping hiss, its fangs clicking, over a low drone (version 130)
+          noise(2.4, 'bandpass', 3200, 0.05, 0.1); noise(1.6, 'highpass', 5000, 0.02, 0.5);
+          for (let i = 0; i < 6; i++) noise(0.025, 'bandpass', 1800 + (i % 2) * 900, 0.1, 0.4 + i * 0.13 + (i > 2 ? 0.35 : 0));
+          swell('sawtooth', 58, 46, 2.4, 0.05, 0.6, 420, 0.1);
+        } else if (kind === 'frog') {   // a deep, rolling croak in two swells, then a wet smack of the lips
+          for (let i = 0; i < 2; i++) {
+            swell('sawtooth', 62, 48, 0.9, 0.11, 0.2, 360, i * 0.8); swell('square', 31, 26, 0.9, 0.04, 0.2, 200, i * 0.8);
+            for (let j = 0; j < 5; j++) noise(0.06, 'lowpass', 600, 0.05, i * 0.8 + 0.1 + j * 0.12);
+          }
+          noise(0.08, 'bandpass', 1400, 0.09, 1.75); tone('sine', 420, 140, 0.12, 0.04, 1.75);
+        } else if (kind === 'mantis') {   // a rasping rattle of wings, and a long scrape of blade on blade
+          for (let i = 0; i < 12; i++) noise(0.05, 'bandpass', 3800 + (i % 3) * 600, 0.07, i * 0.06);
+          swell('triangle', 1650, 2300, 1.0, 0.018, 0.5, 5000, 0.9); noise(0.9, 'highpass', 6000, 0.03, 0.9);
+          swell('sawtooth', 82, 64, 1.8, 0.04, 0.5, 380, 0.2);
         } else {   // nautilus: a hollow, shell-like chord
           swell('triangle', 98, 92, 3.4, 0.1, 1.0, 900); swell('sine', 147, 140, 3.0, 0.05, 1.1, 900, 0.15);
           swell('sine', 196, 190, 2.6, 0.025, 1.0, 900, 0.35); noise(2.8, 'bandpass', 700, 0.03, 0.3);
@@ -4041,6 +4176,9 @@ const LEVI_INFO = [
   ['centipede', 'Skitterfang', 'Its legs rake in from both walls'],
   ['flytrap', 'Gnashbloom', 'Jaws snap shut. Find the gap'],
   ['moth', 'Gloomwing', 'Scales from both wings, one gap'],
+  ['spider', 'Widowloom', 'A web falls. Slip through the hole'],   // version 130
+  ['frog', 'Croakmaw', 'Its tongue lashes where you are'],
+  ['mantis', 'Sicklethorn', 'Blades curve in and cross on you'],
 ];
 function leviPortrait(kind) {
   const buf = bossBuf(kind), keep = [bossTmp, bossTmpG, pilotNow];
@@ -4055,7 +4193,7 @@ function leviPortrait(kind) {
   let x0 = buf.w, y0 = buf.h, x1 = 0, y1 = 0;
   for (let y = 0; y < buf.h; y++) for (let x = 0; x < buf.w; x++) if (d[(y * buf.w + x) * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   if (x1 < x0) { x0 = y0 = 0; x1 = buf.w - 1; y1 = buf.h - 1; }
-  if (kind === 'flytrap') y0 = Math.max(y0, buf.oy - 105);   // only the top of its long stalk, so the card shows its head big enough
+  if (kind === 'flytrap' || kind === 'spider') y0 = Math.max(y0, buf.oy - 105);   // only the top of its long stalk (or thread), so the card shows it big enough
   const out = document.createElement('canvas'); out.width = x1 - x0 + 5; out.height = y1 - y0 + 5;
   const g = out.getContext('2d');
   g.globalAlpha = 0.55; g.drawImage(buf.rim, 2 - x0, 2 - y0); g.globalAlpha = 1; g.drawImage(buf.cv, 2 - x0, 2 - y0);
@@ -4063,19 +4201,13 @@ function leviPortrait(kind) {
 }
 let leviCardDone = false;
 const leviPics = {};
-// A dark silhouette of a portrait, for a Leviathan not beaten yet (version 108).
-function silhouette(src) {
-  const out = document.createElement('canvas'); out.width = src.width; out.height = src.height;
-  const g = out.getContext('2d'); g.drawImage(src, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#4A5675'; g.fillRect(0, 0, out.width, out.height);
-  return out;
-}
 function fillLeviCard() {
   const won = save.leviBeaten || {}, list = $('leviList');
   if (!leviCardDone) {
     leviCardDone = true;
     for (const [kind, name, line] of LEVI_INFO) {
       const li = document.createElement('li'), pic = leviPortrait(kind);
-      leviPics[kind] = { color: pic, dark: silhouette(pic) };
+      leviPics[kind] = pic;
       li.dataset.kind = kind;
       const n = document.createElement('span'); n.className = 'levi-name'; n.textContent = name.toUpperCase();
       const l = document.createElement('span'); l.className = 'levi-line'; l.textContent = line;
@@ -4090,10 +4222,9 @@ function fillLeviCard() {
     li.hidden = !set.includes(kind);
     if (li.hidden) continue;
     if (w) beaten++;
-    const pic = leviPics[kind][w ? 'color' : 'dark'];
+    const pic = leviPics[kind];   // full colour whether beaten or not (version 132)
     pic.className = 'levi-pic'; pic.setAttribute('role', 'img'); pic.setAttribute('aria-label', name + (w ? ', beaten' : ', not beaten yet'));
     if (li.firstChild !== pic) li.replaceChild(pic, li.firstChild);
-    li.classList.toggle('won', w);
   }
   $('leviHint').textContent = (isJungle() ? 'Jungle moon. ' : '') + 'One hunts you after every second cafe. Beaten: ' + beaten + ' of ' + set.length;
 }
@@ -4684,7 +4815,7 @@ const BADGES = [
   ['streak', 'Streak 24', 'Skim 24 rocks or mines in a row'],
   ['levi', 'Monster down', 'Beat a Leviathan'],
   ['all6', 'All six', 'Beat every Leviathan'],
-  ['jungle3', 'Jungle hunter', 'Beat all three Jungle Leviathans'],   // version 113
+  ['jungle3', 'Jungle hunter', 'Beat all six Jungle Leviathans'],   // version 113 (three then); six since version 130, and anyone who had it keeps it
 ];
 if (!save.badges || typeof save.badges !== 'object') save.badges = {};
 function award(id) {
@@ -6291,6 +6422,7 @@ const BOSS_PATTERNS = {
   whale: ['aimed', 'curtain', 'ring', 'fan'], elder: ['beam', 'aimed', 'fan', 'ring'], jelly: ['wave', 'ring', 'curtain', 'bomb'],
   angler: ['bomb', 'aimed', 'fan', 'beam'], manta: ['curtain', 'wave', 'fan', 'aimed'], nautilus: ['ring', 'bomb', 'wave', 'beam'],
   centipede: ['aimed', 'curtain', 'fan', 'wave'], flytrap: ['bomb', 'ring', 'aimed', 'beam'], moth: ['wave', 'ring', 'fan', 'curtain'],
+  spider: ['aimed', 'wave', 'ring', 'beam'], frog: ['bomb', 'fan', 'wave', 'aimed'], mantis: ['aimed', 'fan', 'curtain', 'ring'],
 };
 // Version 93 (user: more variety): each creature also has an attack of its own, which only it does. It opens the fight
 // and comes round more often than the others (SIG_CHANCE).
@@ -6306,25 +6438,30 @@ const BOSS_PATTERNS = {
 //   centipede, pincer: legs of shots rake in from both walls toward his row, leaving one gap that moves each time
 //   flytrap, snap: jaws close across the cavern at his height, all but one gap; they show first, then slam shut
 //   moth, scales: each wing beat throws an arc of scales from both wings, with one gap that goes through both
+// And version 130's:
+//   spider, web: a sheet of web drifts down the cavern with one hole in it, and the hole slides from side to side
+//   frog, tongue: a line from its mouth shows where, then the tongue lashes out along it and back, two or three times
+//   mantis, sickle: a spinning blade from each arm curves out and back in, the two crossing where he is; then again
 const BOSS_SIGNATURE = { whale: 'sonar', elder: 'shriek', jelly: 'sting', angler: 'lure', manta: 'sweep', nautilus: 'spiral',
-  centipede: 'pincer', flytrap: 'snap', moth: 'scales' };
+  centipede: 'pincer', flytrap: 'snap', moth: 'scales', spider: 'web', frog: 'tongue', mantis: 'sickle' };
 const SIG_CHANCE = 0.35;
 // Patterns that close off part of the cavern: two of them at once (enraged) could leave nowhere to go, so never paired.
-const BOSS_ZONE = { curtain: true, beam: true, lure: true, sweep: true, shriek: true, snap: true, pincer: true };
+const BOSS_ZONE = { curtain: true, beam: true, lure: true, sweep: true, shriek: true, snap: true, pincer: true, web: true };
 // Where its shots come from, relative to its middle (x flips with the way it faces), and how far it sways either side.
-const BOSS_MOUTH = { whale: [100, 4], elder: [0, -14], jelly: [0, -22], angler: [76, -56], manta: [44, 0], nautilus: [54, 22], centipede: [136, 4], flytrap: [0, 44], moth: [0, 28] };
+const BOSS_MOUTH = { whale: [100, 4], elder: [0, -14], jelly: [0, -22], angler: [76, -56], manta: [44, 0], nautilus: [54, 22], centipede: [136, 4], flytrap: [0, 44], moth: [0, 28], spider: [0, 34], frog: [0, 14], mantis: [0, -30] };
 // Version 89 (user): the side-on ones (whale, angler, manta, nautilus) turn a quarter turn as they come forward, to
 // dive head first down the shaft with their mouths chasing him; the elder thing and the jellyfish already face down.
 // BOSS_MOUTH stays in the creature's own drawing (x along the way it faces); bossMouth() turns it onto the screen.
 // BOSS_HALF: half its width on screen, for wedging in the funnel.
 const BOSS_DIVES = { whale: true, angler: true, manta: true, nautilus: true, centipede: true };
-const BOSS_SWAY = { whale: 80, elder: 60, jelly: 70, angler: 60, manta: 50, nautilus: 60, centipede: 80, flytrap: 55, moth: 45 };
-const BOSS_HALF = { whale: 30, elder: 110, jelly: 55, angler: 60, manta: 100, nautilus: 70, centipede: 34, flytrap: 62, moth: 118 };
+const BOSS_SWAY = { whale: 80, elder: 60, jelly: 70, angler: 60, manta: 50, nautilus: 60, centipede: 80, flytrap: 55, moth: 45, spider: 50, frog: 50, mantis: 50 };
+const BOSS_HALF = { whale: 30, elder: 110, jelly: 55, angler: 60, manta: 100, nautilus: 70, centipede: 34, flytrap: 62, moth: 118, spider: 112, frog: 118, mantis: 112 };
 // Its shots' colours: outline, body, hot core. All in the reds, so they read as danger (green is health, purple shields).
 const BOSS_SHOT = {
   whale: [P.ink, P.lava, P.hot], elder: [P.ink, P.lava, '#F6D46A'], jelly: ['#2A1030', '#E0489A', '#F7B3D8'],
   angler: [P.ink, '#F08A3C', '#FFE2A8'], manta: [P.ink, '#C83A6A', '#F2A0BE'], nautilus: [P.ink, '#D85A2A', '#F6C08A'],
   centipede: [P.ink, '#E0642A', '#FFD08A'], flytrap: [P.ink, '#C83A5A', '#F7A8C0'], moth: [P.ink, '#D89A30', '#FFF0B0'],
+  spider: [P.ink, '#C02A40', '#FFA0A8'], frog: [P.ink, '#E89A1C', '#FFF0A0'], mantis: [P.ink, '#D0388A', '#FFC4E4'],
 };
 const BOSS_ENTER = 1.8, BOSS_LIFT = 1.6;   // s to come forward (and turn to dive); s of fall before the funnel when it stops firing
 const BOSS_ORBS = [4.5, 9.5, 14];                              // s into the fight when a crystal rises past
@@ -6518,6 +6655,36 @@ function bossFire(kind) {
     });
     return 0.45 + n * 0.75 + 0.4;
   }
+  if (kind === 'web') {   // spider: a sheet of web drifting down the cavern, with one hole that slides from side to side
+    const n = lv >= 3 ? 2 : 1;
+    for (let i = 0; i < n; i++) later(0.4 + i * 1.5, () => {
+      const hx = 60 + Math.random() * (W - 120);
+      bossShots.push({ type: 'web', x: hx, hx, y: mouth()[1] + 14, vy: 105 * sp, amp: 34 + Math.random() * 22, f: 1.1 + Math.random() * 0.5, ph: Math.random() * 6.28, R: 27, t: 0 });
+      Sfx.bossShot(true);
+    });
+    return 0.4 + n * 1.5 + 0.8;
+  }
+  if (kind === 'tongue') {   // frog: a line from its mouth to where he is (and a little where he's heading); then the lash
+    const n = lv >= 3 ? 3 : 2;
+    for (let i = 0; i < n; i++) later(0.35 + i * 0.85, () => {
+      const [x, y] = mouth(), tx = Math.max(12, Math.min(W - 12, player.x + player.vx * 0.2)), ty = pilotNow + PILOT_CY;
+      bossShots.push({ type: 'tongue', x: tx, y: ty, mx: x, my: y, a: Math.atan2(ty - y, tx - x), L: Math.hypot(tx - x, ty - y) + 70, t: 0, warn: 0.6, out: 0.12, hold: 0.14, back: 0.16 });
+      Sfx.bossCharge();
+    });
+    return 0.35 + n * 0.85 + 0.6;
+  }
+  if (kind === 'sickle') {   // mantis: a blade from each arm, curving out and back in to cross where he is (a quadratic curve)
+    const n = lv >= 3 ? 4 : 3;
+    for (let w = 0; w < n; w++) later(0.4 + w * 0.6, () => {
+      const T = [Math.max(24, Math.min(W - 24, player.x + player.vx * 0.3)), pilotNow + PILOT_CY];
+      for (const side of [-1, 1]) {
+        const O = [b.x + side * 54, b.y - 20], C = [Math.max(8, Math.min(W - 8, O[0] + side * (90 + Math.random() * 30))), lerp(O[1], T[1], 0.45)];
+        bossShots.push({ type: 'sickle', O, C, T, dur: 1.5 / sp, x: O[0], y: O[1], r: 8, t: 0, spin: side });
+      }
+      Sfx.bossShot();
+    });
+    return 0.4 + n * 0.6 + 0.6;
+  }
   // bomb: slow, big shots lobbed toward him that burst into a ring of small ones
   const N = 3 + (lv >= 3 ? 1 : 0);
   for (let i = 0; i < N; i++) later(0.45 + i * 0.45, () => { const [x, y] = mouth(); bossShots.push({ type: 'bomb', x, y, vx: (player.x - x) * 0.45, vy: 120 * sp, r: 7, t: 0, fuse: 1.35 + Math.random() * 0.25 }); Sfx.bossShot(true); });
@@ -6666,7 +6833,29 @@ function updateBossShots(dt, live) {
       if (live && Math.abs(s.y - py) < 6 + 10 && (s.side < 0 ? player.x - HIT_HALF_W + 2 < s.split : player.x + HIT_HALF_W - 2 > s.split)) bossHit(s, false);
       continue;
     }
+    if (s.type === 'web') {   // the spider's web: it hurts where it crosses him, unless he's in its hole
+      s.y += s.vy * dt; s.x = webHole(s);
+      if (s.y > H + 20) { s.dead = true; continue; }
+      if (live && Math.abs(s.y - py) < 9 + 9 && Math.abs(player.x - s.x) > s.R - HIT_HALF_W + 3) bossHit(s, false);
+      continue;
+    }
+    if (s.type === 'tongue') {   // the frog's tongue: harmless while the line shows; then out along it, a moment there, and back
+      const T = s.t - s.warn;
+      if (T >= 0 && T - dt < 0) { Sfx.bossBeam(); shake = Math.max(shake, 0.9); if (boss) boss.kick = 1; }
+      if (T > s.out + s.hold + s.back) { s.dead = true; continue; }
+      const [mx, my] = tongueFrom(s), len = tongueLen(s), ca = Math.cos(s.a), sa = Math.sin(s.a);
+      if (len <= 0) continue;
+      s.x = mx + ca * len; s.y = my + sa * len;   // its tip
+      const u = Math.max(0, Math.min(len, (player.x - mx) * ca + (py - my) * sa));
+      if (live && Math.hypot(player.x - mx - ca * u, py - my - sa * u) < 5 + HIT_HALF_W - 1) bossHit(s, false);
+      continue;
+    }
     if (s.type === 'wave') { s.y += s.vy * dt; s.x = s.x0 + s.amp * Math.sin(s.t * s.f + s.ph); }
+    else if (s.type === 'sickle') {   // along its curve to where he was, then on in a straight line
+      const u = s.t / s.dur;
+      if (u <= 1) [s.x, s.y] = bez(s.O, s.C, s.T, u);
+      else { s.x = s.T[0] + (u - 1) * 2 * (s.T[0] - s.C[0]); s.y = s.T[1] + (u - 1) * 2 * (s.T[1] - s.C[1]); }
+    }
     else if (s.type === 'sting') {   // fans out from the mouth to its lane in 0.6 s, then drifts down swaying
       const u = Math.min(1, s.t / 0.6), e = 1 - (1 - u) * (1 - u);
       s.y += s.vy * dt * (0.4 + 0.6 * u); s.x = s.sx + (s.lx - s.sx) * e + s.amp * u * Math.sin(s.t * 1.7 + s.ph);
@@ -6681,6 +6870,17 @@ function updateBossShots(dt, live) {
     if (live && Math.abs(s.x - player.x) < HIT_HALF_W - 1 + s.r && Math.abs(s.y - py) < 10 + s.r) bossHit(s, true);
   }
   prune(bossShots, s => !s.dead);
+}
+// Version 130's shots. The web's hole, kept off the walls; the tongue's root (the frog's mouth as it sways, or where
+// it was if the fight has ended) and how far out it is.
+const webHole = s => Math.max(s.R + 6, Math.min(W - s.R - 6, s.hx + s.amp * Math.sin(s.t * s.f + s.ph)));
+function tongueFrom(s) {
+  if (boss) { const [dx, dy] = bossMouth(boss); s.mx = boss.x + dx; s.my = boss.y + dy - 5 * boss.kick; }
+  return [s.mx, s.my];
+}
+function tongueLen(s) {
+  const T = s.t - s.warn;
+  return T < 0 ? 0 : T < s.out ? s.L * T / s.out : T < s.out + s.hold ? s.L : s.L * Math.max(0, 1 - (T - s.out - s.hold) / s.back);
 }
 // A shot reaching him: it hurts like anything else (the shield blocks it); while he blinks after a hit, shots pass through.
 function bossHit(s, pops) {
@@ -6713,6 +6913,11 @@ const BOSS_PALS = {
   centipede: { base: '#3A2420', dark: '#21130F', deep: '#0C0605', light: '#5E3A2E', hi: '#9A6A4E', belly: '#4A2C22', mark: '#E0A040', eye: '#FF3A26' },
   flytrap: { base: '#23402A', dark: '#122216', deep: '#060D08', light: '#3E6A44', hi: '#7FA870', belly: '#6A1A2A', mark: '#E8D8B0', eye: '#FF3A26' },
   moth: { base: '#3A3446', dark: '#211D2A', deep: '#0B0A10', light: '#5C5470', hi: '#9A90AE', belly: '#4A3F3A', mark: '#E8C070', eye: '#FF3A26' },
+  // Version 130: a purple-black spider with a blood-red hourglass, a blue-black poison frog with toxic yellow blotches,
+  // and a dark plum mantis with petal-pink wings and glowing blade edges.
+  spider: { base: '#2C2232', dark: '#18121C', deep: '#09060B', light: '#4C3C56', hi: '#8C7A9C', belly: '#3A2028', mark: '#D8283C', eye: '#FF3A26' },
+  frog: { base: '#1E2C3E', dark: '#111A26', deep: '#060A10', light: '#34506E', hi: '#7AA6CC', belly: '#3C4E5C', mark: '#E8A818', eye: '#FF3A26' },
+  mantis: { base: '#3C2838', dark: '#22151F', deep: '#0D070B', light: '#6E4A64', hi: '#B58CAA', belly: '#74325E', mark: '#F2A2D2', eye: '#FF3A26' },
 };
 // A boss's colours, tinted a little toward the rock layer it's in, so it belongs there.
 function bossPal(kind, Q) {
@@ -6885,8 +7090,46 @@ function geoMoth(x, y, dir, k, p) {
     const [hx, hy] = mothPt(x, y, 1, f, 50, 16); fillPoly(c, [[hx - 3, hy], [hx + 4, hy + 2], [hx + 1, hy - 9]], '#000');   // a hole through the right wing
   });
 }
+// Version 130's three: bristles along the spider's abdomen (one snapped), a bite out of it and a foot lost; warty
+// ridges over the frog's eyes, a toe pad gone and a notch torn from a thigh; spines down the mantis's forelegs, a crest on its head,
+// a tear in a forewing and a hole through a hindwing.
+function geoSpider(x, y, dir, k, p) {
+  y = spiderY(y, k);
+  for (let i = 0; i < 9; i++) {
+    const a = Math.PI * (1.12 + i * 0.095), ca = Math.cos(a), sa = Math.sin(a), bx = x + ca * 28, by = y - 44 + sa * 34, L = i === 6 ? 2 : 6 + (i % 2) * 3;
+    fillPoly(c, [[bx - sa * 3, by + ca * 3], [bx + sa * 3, by - ca * 3], [bx + ca * (L + 3), by + sa * (L + 3)]], p.base);
+  }
+  const [, , , , fx, fy] = spiderLeg(x, y, 1, 2, k);
+  bossCut(() => { disc(x - 27, y - 30, 6, '#000'); disc(fx, fy, 6, '#000'); });
+}
+function geoFrog(x, y, dir, k, p) {
+  y = frogPose(y, k)[0];
+  for (const s of [-1, 1]) for (let i = 0; i < 4; i++) {   // a ridge of warts over each eye
+    const a = -Math.PI / 2 + s * (0.5 + i * 0.32); disc(x + s * 34 + Math.cos(a) * 17, y - 30 + Math.sin(a) * 17, 2 + (i % 2), p.base);
+  }
+  bossCut(() => {
+    const a = -(-0.6 + 3 * 0.42); disc(x - 60 + Math.sin(a) * 15, y + 58 + Math.cos(a) * 15, 5, '#000');   // the left hand's outer toe pad
+    fillPoly(c, [[x + 96, y - 26], [x + 106, y - 24], [x + 100, y - 14]], '#000');   // a notch out of the right thigh
+  });
+}
+function geoMantis(x, y, dir, k, p) {
+  y = mantisY(y, k);
+  for (const s of [-1, 1]) {
+    const [, , ex, ey, wx, wy] = mantisArm(x, y, s, k);
+    for (let i = 1; i < 6; i++) {   // spines down the inside of each raised forearm
+      const t = i / 6, bx = lerp(ex, wx, t), by = lerp(ey, wy, t);
+      fillPoly(c, [[bx, by - 2], [bx, by + 2], [bx - s * (5 + (i % 2) * 3), by + 2]], p.base);
+    }
+    fillPoly(c, [[x + s * 12, y - 68], [x + s * 18, y - 70], [x + s * 14, y - 78]], p.base);   // a crest over each eye
+  }
+  bossCut(() => {
+    const W0 = mantisWing(x, y, -1, k, MANTIS_FORE), W1 = mantisWing(x, y, 1, k, MANTIS_HIND);
+    fillPoly(c, [[lerp(W0[2][0], W0[3][0], 0.5) + 2, lerp(W0[2][1], W0[3][1], 0.5)], [W0[3][0] + 14, W0[3][1] + 4], [W0[3][0] + 6, W0[3][1] - 8]], '#000');   // a tear in the left forewing
+    disc(lerp(W1[3][0], W1[4][0], 0.4), lerp(W1[3][1], W1[4][1], 0.4) - 9, 5, '#000');   // a hole through the right hindwing
+  });
+}
 const BOSS_GEO = { whale: geoWhale, elder: geoElder, jelly: geoJelly, angler: geoAngler, manta: geoManta, nautilus: geoNautilus,
-  centipede: geoCenti, flytrap: geoTrap, moth: geoMoth };
+  centipede: geoCenti, flytrap: geoTrap, moth: geoMoth, spider: geoSpider, frog: geoFrog, mantis: geoMantis };
 function artWhale(x, y, dir, k, p, step) {
   const S = 1.25, len = 190 * S, ph = clock * 1.3 + k;
   const at = t => [x + dir * (len / 2 - t * len), y + Math.sin(ph - t * 4.2) * 7 * S * t, Math.max(2, 22 * S * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.1 + 0.08)), 0.9) * (1 - t * 0.6))];
@@ -7119,15 +7362,111 @@ function artMoth(x, y, dir, k, p, step) {
   bscar(...P2(1, 40, 30), ...P2(1, 76, 52), p, 21);
   for (const s of [-1, 1]) { const [ex, ey] = P2(s, 4, -19); bpx(ex - 1, ey - 1, 3, 3, p.eye); }   // its real eyes, small and red
 }
+// Version 130's three.
+function artSpider(x, y, dir, k, p, step) {
+  y = spiderY(y, k);
+  if (!step) {
+    fillEllipse(c, x, y - 46, 22, 27, p.belly);   // the abdomen's darker red middle
+    fillPoly(c, [[x - 10, y - 60], [x + 10, y - 60], [x, y - 45]], p.mark); fillPoly(c, [[x, y - 45], [x - 10, y - 30], [x + 10, y - 30]], p.mark);   // a blood-red hourglass
+    for (const s of [-1, 1]) for (let i = 0; i < 4; i++) { const [, , kx, ky] = spiderLeg(x, y, s, i, k); disc(kx, ky, 4, p.light); }   // pale knees
+    fillEllipse(c, x, y - 2, 13, 9, p.dark);   // the head's dark cap
+    return;
+  }
+  for (const s of [-1, 1]) for (let i = 0; i < 4; i++) {   // bristles on the legs, and dark claws
+    const [hx, hy, kx, ky, fx, fy] = spiderLeg(x, y, s, i, k);
+    for (let j = 1; j < 5; j++) { const t = j / 5; bpx(lerp(hx, kx, t), lerp(hy, ky, t) - 3, 1, 2, p.hi); bpx(lerp(kx, fx, t) + s, lerp(ky, fy, t) - 2, 1, 2, p.light); }
+    bpx(fx - 1, fy, 2, 3, p.deep);
+  }
+  for (let a = 3.6; a < 5.2; a += 0.06) bpx(x + Math.cos(a) * 24, y - 46 + Math.sin(a) * 29, 2, 1, p.hi);   // shine on the abdomen
+  bscar(x - 22, y - 62, x - 6, y - 34, p, 3, mix(p.eye, p.deep, 0.45));   // a gash through the hourglass
+  bscar(x + 8, y - 70, x + 22, y - 54, p, 11);
+  bscar(x + 6, y - 4, x + 15, y + 9, p, 19);
+  for (const s of [-1, 1]) {   // fangs, bone with dark tips; a drop of venom gathering
+    const [ax, ay, bx, by] = spiderFang(x, y, s, k);
+    bline(lerp(ax, bx, 0.3), lerp(ay, by, 0.3), bx, by, p.mark, 1); bpx(bx, by, 1, 1, p.deep);
+    if ((Math.floor(clock * 1.5 + s) % 3) === 0) bpx(bx - 1, by + 2, 2, 3, p.mark);
+  }
+  // Eight eyes: two big ones that watch him, and six small ones round them.
+  bossEye(x - 5, y + 5, 3, p); bossEye(x + 5, y + 5, 3, p);
+  for (const [u, v] of [[-12, 1], [12, 1], [-9, -4], [9, -4], [-3, -6], [3, -6]]) { bpx(x + u - 1, y + v - 1, 3, 3, p.deep); bpx(x + u - 1, y + v - 1, 2, 2, p.eye); }
+  bpx(x, y - 90 - (clock * 60) % 120, 1, 4, p.hi);   // light running down its thread
+}
+function artFrog(x, y, dir, k, p, step) {
+  const [yy, th] = frogPose(y, k); y = yy;
+  if (!step) {
+    fillEllipse(c, x, y + 25, 38, Math.round(11 + th * 6), p.belly);   // the paler throat
+    for (const s of [-1, 1]) {
+      for (let j = 0; j <= 24; j++) { const [bx, by] = bez([x + s * 12, y - 18], [x + s * 46, y - 24], [x + s * 56, y + 4], j / 24); disc(bx, by, j < 4 || j > 20 ? 3 : 4, p.mark); }   // toxic stripes
+      for (const [u, v, r] of [[22, -2, 4], [30, 6, 3], [98, -20, 4], [92, -4, 3], [102, 14, 3], [66, 32, 3], [78, 28, 2]]) disc(x + s * u, y + v, r, p.mark);   // and spots
+      fillPoly(c, FROG_THIGH.map(([u, v]) => [x + s * (u * 0.7 + 22), y + v * 0.5 + 4]), p.dark);   // shadow where the thigh folds
+    }
+    disc(x, y - 24, 4, p.mark); disc(x, y - 14, 3, p.mark);
+    return;
+  }
+  for (let j = -56; j <= 56; j++) {   // the wide mouth, a little open in the middle, turning down at the ends
+    const q = (j / 56) ** 2, v = y + 12 + Math.round(q * 7), t = Math.round(1 + 3 * (1 - q));
+    bpx(x + j, v, 1, t, p.deep); bpx(x + j, v - 1, 1, 1, p.light);
+    if (Math.abs(j) < 14) bpx(x + j, v + t - 1, 1, 1, '#9A2E4A');   // its tongue, waiting
+  }
+  for (const s of [-1, 1]) bpx(x + s * 8 - 1, y - 6, 3, 2, p.deep);   // nostrils
+  if (th > 0.3) for (let i = 0; i < 4; i++) bpx(x - 24 + i * 15, y + 27 + Math.round(th * 4), 6, 1, p.light);   // the throat stretching
+  for (let i = 0; i < 30; i++) {   // warts
+    const a = hash(i * 7.3 + 9) * 6.28, r = Math.sqrt(hash(i * 1.9 + 4)) * 0.92, wx = x + Math.cos(a) * 58 * r, wy = y - 4 + Math.sin(a) * 32 * r;
+    if (wy < y + 8 && Math.abs(Math.abs(wx - x) - 34) + Math.abs(wy - y + 30) > 22) { bpx(wx, wy, 2, 1, p.light); bpx(wx, wy + 1, 2, 1, p.deep); }
+  }
+  for (let i = 0; i < 3; i++) bscar(x - 50 + i * 8, y - 12, x - 32 + i * 8, y + 7, p, i * 5 + 2, i === 1 ? mix(p.eye, p.deep, 0.45) : 0);   // claw marks
+  bscar(x + 16, y - 10, x + 38, y - 2, p, 23);
+  const lx = Math.round(bossLook[0] * 3), ly = Math.round(bossLook[1] * 2), g = (boss && boss.rage ? 0.5 : 0.28) * (0.6 + 0.4 * Math.sin(clock * 6));
+  for (const s of [-1, 1]) {
+    frogFoot(x + s * 100, y + 42, s, -0.2, 22, 0, p.hi); frogFoot(x + s * 60, y + 58, s, -0.6, 15, 0, p.hi);   // shine on the toe pads
+    const ex = x + s * 34, ey = y - 30;   // big eyes with a slit pupil that watches him
+    c.globalAlpha = g; disc(ex, ey, 15, p.eye); c.globalAlpha = 1;
+    disc(ex, ey, 13, p.deep); disc(ex, ey, 11, p.eye); ring(ex, ey, 11, mix(p.eye, p.deep, 0.35), 1);
+    bpx(ex - 6 + lx, ey - 2 + ly, 13, 4, P.ink); bpx(ex - 6, ey - 7, 3, 2, P.dust);
+  }
+}
+function artMantis(x, y, dir, k, p, step) {
+  y = mantisY(y, k);
+  if (!step) {
+    for (const s of [-1, 1]) {
+      const F = mantisWing(x, y, s, k, MANTIS_FORE), Hw = mantisWing(x, y, s, k, MANTIS_HIND);
+      fillPoly(c, [F[0], F[1], F[2], F[3], F[4]].map(([u, v]) => [lerp(x, u, 0.94), lerp(y - 6, v, 0.8) + 2]), p.belly);   // petal-pink forewings
+      fillPoly(c, Hw.map(([u, v]) => [lerp(x, u, 0.86), lerp(y + 24, v, 0.86)]), p.dark);   // dusky hindwings
+      fillEllipse(c, x + s * 34, y + 14, 6, 3, p.belly); fillEllipse(c, x + s * 30, y + 34, 5, 3, p.belly);   // the petal lobes' pink
+    }
+    fillPoly(c, mantisBelly(x, y).map(([u, v]) => [lerp(x, u, 0.6), v]), p.belly);   // a pink stripe down the abdomen
+    for (const s of [-1, 1]) {   // the raised forelegs paler, so they stand out from the wings behind
+      const [, , ex, ey, wx, wy, tx, ty] = mantisArm(x, y, s, k);
+      limb(ex, ey, wx, wy, 4, 3, p.light); limb(wx, wy, tx, ty, 3, 1, p.light);
+    }
+    return;
+  }
+  for (const s of [-1, 1]) {
+    const F = mantisWing(x, y, s, k, MANTIS_FORE), Hw = mantisWing(x, y, s, k, MANTIS_HIND);
+    for (const q of [F[2], F[3]]) limb(x + s * 10, y + 4, lerp(x + s * 10, q[0], 0.95), lerp(y + 4, q[1], 0.95), 0.5, 0.5, p.deep);   // wing veins
+    for (const q of [Hw[2], Hw[3], Hw[4]]) limb(x + s * 10, y + 14, lerp(x + s * 10, q[0], 0.9), lerp(y + 14, q[1], 0.9), 0.5, 0.5, p.deep);
+    const [hx, hy] = [lerp(Hw[2][0], Hw[3][0], 0.5) - s * 14, lerp(Hw[2][1], Hw[3][1], 0.5)]; ring(hx, hy, 6, p.mark, 1); disc(hx, hy, 3, p.deep);   // an eyespot on each hindwing
+    const [, , ex, ey, wx, wy, tx, ty] = mantisArm(x, y, s, k);
+    for (let i = 0; i <= 12; i++) bpx(lerp(wx, tx, i / 12) - s * 2, lerp(wy, ty, i / 12), 1, 1, p.mark);   // the blades' bright edges
+    bpx(tx - s * 6 - 1, ty + 4, 2, 2, p.mark);
+    for (let i = 1; i < 6; i++) bpx(lerp(ex, wx, i / 6) - s * 3, lerp(ey, wy, i / 6), 1, 1, p.hi);   // spine tips
+  }
+  for (let i = 1; i < 9; i++) { const v = y + 18 + i * 9; bpx(x - 12 + Math.abs(i - 4), v, 24 - 2 * Math.abs(i - 4), 1, p.deep); }   // the abdomen's segments
+  bscar(x - 14, y + 30, x + 6, y + 62, p, 7, mix(p.eye, p.deep, 0.45));
+  bscar(x - 70, y - 30, x - 46, y - 18, p, 15);
+  bpx(x - 3, y - 32, 6, 2, p.deep);   // mouthparts
+  for (const s of [-1, 1]) { disc(x + s * 20, y - 62, 7, p.deep); bossEye(x + s * 20, y - 62, 5, p); }   // its great eyes, the pupils tracking him
+}
 const BOSS_ART = { whale: artWhale, elder: artElder, jelly: artJelly, angler: artAngler, manta: artManta, nautilus: artNautilus,
-  centipede: artCenti, flytrap: artTrap, moth: artMoth };
+  centipede: artCenti, flytrap: artTrap, moth: artMoth, spider: artSpider, frog: artFrog, mantis: artMantis };
 // -- drawing the boss quickly (version 90). Version 89 repainted and shaded the boss on a 480 px canvas with about 35
 // full-canvas compositing passes every frame, which took a 120 Hz phone down to about 10 fps in the fight. Now it's
 // painted into a canvas only as big as the creature (BOSS_BOX: its extent around its middle, facing right), in three
 // steps spread over three frames, into the back one of two buffers, which then swaps to the front: so the creature
 // animates at a third of the frame rate (40 fps on a 120 Hz phone) and every frame just stamps the front buffer.
 const BOSS_BOX = { whale: [-132, -44, 132, 50], elder: [-124, -94, 124, 100], jelly: [-76, -110, 76, 110], angler: [-134, -110, 94, 94], manta: [-220, -120, 64, 120], nautilus: [-94, -84, 120, 120],
-  centipede: [-150, -62, 152, 46], flytrap: [-104, -200, 104, 104], moth: [-136, -88, 136, 74] };
+  centipede: [-150, -62, 152, 46], flytrap: [-104, -200, 104, 104], moth: [-136, -88, 136, 74],
+  spider: [-128, -200, 128, 100], frog: [-130, -68, 130, 96], mantis: [-128, -110, 128, 104] };
 function bossBuf(kind) {
   const [L, T, R, B] = BOSS_BOX[kind], w = R - L + 12, h = B - T + 12;
   const mk = () => { const v = document.createElement('canvas'); v.width = w; v.height = h; return v; };
@@ -7285,6 +7624,46 @@ function drawBossShots(sy) {
       c.fillStyle = h; c.fillRect(a, y - 1, w, 2);
       c.fillStyle = o; for (let xx = a + 4; xx < a + w - 6; xx += 12) c.fillRect(xx, y - 10, 6, 3);   // feathers trailing above
       c.fillStyle = m; c.fillRect(tip, y - 4, 6, 8);
+      continue;
+    }
+    if (s.type === 'web') {   // a sheet of web: three long strands with threads zigzagging between, knots, and the hole ringed
+      if (y < -16 || y > H + 16) continue;
+      const hx = s.x, R = s.R;
+      for (const [dy, th] of [[-9, 1], [0, 2], [9, 1]]) {   // the strands, broken at the hole
+        const w = Math.round(Math.sqrt(R * R - dy * dy));
+        for (const [a, e] of [[0, Math.round(hx) - w], [Math.round(hx) + w, W]]) if (e > a) { c.fillStyle = o; c.fillRect(a, y + dy - 1, e - a, th + 2); c.fillStyle = h; c.fillRect(a, y + dy, e - a, th); }
+      }
+      c.beginPath();
+      for (let xx = -4; xx < W + 8; xx += 16) {
+        if (Math.abs(xx + 8 - hx) < R + 6) continue;
+        c.moveTo(xx, y - 9); c.lineTo(xx + 8, y + 9); c.lineTo(xx + 16, y - 9);
+      }
+      c.lineWidth = 3; c.strokeStyle = o; c.stroke(); c.lineWidth = 1; c.strokeStyle = h; c.stroke();
+      c.fillStyle = m; for (let xx = 4; xx < W; xx += 16) if (Math.abs(xx - hx) > R + 2) { c.fillRect(xx - 1, y - 1, 3, 3); c.fillRect(xx + 7, y + 8, 3, 3); }
+      c.lineWidth = 3; c.strokeStyle = o; c.beginPath(); c.arc(hx, y, R, 0, 2 * Math.PI); c.stroke();
+      c.lineWidth = 1; c.strokeStyle = m; c.stroke();
+      continue;
+    }
+    if (s.type === 'tongue') {   // a dotted line from the mouth where it will strike, blinking faster; then the tongue itself
+      const [mx, my0] = tongueFrom(s), my = my0 - sy, ca = Math.cos(s.a), sa = Math.sin(s.a);
+      if (s.t < s.warn) {
+        const q = s.t / s.warn;
+        if (Math.floor(s.t * (6 + 18 * q)) % 2) { c.fillStyle = m; for (let d = 18; d < s.L; d += 9) c.fillRect(Math.round(mx + ca * d) - 1, Math.round(my + sa * d) - 1, 3, 3); }
+      } else {
+        const len = tongueLen(s), tx = mx + ca * len, ty = my + sa * len;
+        c.lineCap = 'round';
+        for (const [lw, col] of [[12, o], [9, m], [3, h]]) { c.lineWidth = lw; c.strokeStyle = col; c.beginPath(); c.moveTo(mx, my); c.lineTo(tx, ty); c.stroke(); }
+        c.lineCap = 'butt'; c.lineWidth = 1;
+        disc(tx, ty, 8, o); disc(tx, ty, 7, m); disc(tx - 2, ty - 2, 2, h);   // the sticky tip
+      }
+      continue;
+    }
+    if (s.type === 'sickle') {   // a spinning crescent blade, dark edged so it shows on any rock
+      if (y < -16 || y > H + 16) continue;
+      const th = s.t * 12 * s.spin;
+      c.lineCap = 'round';
+      for (const [lw, col] of [[7, o], [4, m], [1, h]]) { c.lineWidth = lw; c.strokeStyle = col; c.beginPath(); c.arc(s.x, s.y - sy, 9, th - 1.25, th + 1.25); c.stroke(); }
+      c.lineCap = 'butt'; c.lineWidth = 1;
       continue;
     }
     if (s.type === 'sting') {   // a little bell with three trailing threads
