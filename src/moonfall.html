@@ -567,11 +567,11 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <h2>Instructions</h2>
       <p class="hint">Tap or hold either side of the screen to steer, OR drag with one finger</p>
       <ul class="legend">
-        <li><span class="ico"><i></i></span>Rocks, mines and lava cost one health; walls cost half</li>
+        <li><span class="ico"><i></i></span>Impacts cost health</li>
         <li><span class="ico"><canvas id="icoOrb" width="14" height="14"></canvas></span>Crystal: +1 health</li>
         <li><span class="ico"><canvas id="icoShield" width="28" height="28"></canvas></span>Bubble: 8s shield, hits wear it down</li>
         <li><span class="ico"><canvas id="icoPart" class="wide" width="30" height="30"></canvas></span>Gold ring: ship part, collect&nbsp;these</li>
-        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Cafes from 1050 m, every 1000 m (1600 m after a Leviathan fight): coffee (+1 health) and bonus items. The fall gets 5% faster after each cafe, up to 35%</li>
+        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Stop at a cafe for +1 health and to visit the shop. The fall gets 5% faster after each cafe, up to 35%</li>
       </ul>
       <button class="btn" id="howDone" type="button">Done</button>
      </div>
@@ -750,7 +750,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 124;
+const VERSION = 125;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
