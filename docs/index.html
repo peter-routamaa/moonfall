@@ -149,6 +149,28 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
    wiggling, and it hides while Instructions or Settings are open (they grow up over it). Change its text in the markup
    (id newsTag), or delete it when the news is old. */
 #titleScreen .repair { position: relative; }
+/* Version 138 (user: "I want to be able to see the nice art before starting the game"): after the intro the main menu
+   opens clear, just the logo, the tagline and one START over the art; START brings the ship repair panel down and the
+   menu card up. It stays in the layout while hidden, so the horizon (placeHorizon) doesn't move when it arrives. */
+#menuStart { display: none; position: absolute; left: 0; right: 0; margin-inline: auto; width: max-content; min-width: 190px;
+  bottom: calc(20% + env(safe-area-inset-bottom, 0px)); z-index: 3; font-size: 24px; padding: 16px 30px 14px; }
+#titleScreen.clean #menuStart { display: block; }
+#titleScreen.clean .repair, #titleScreen.clean .flip { visibility: hidden; }
+#titleScreen.clean .news { display: none; }
+/* Version 139 (user: "flip in each UI section of the main menu, one at a time from the top"): after START each section
+   turns down into place like a card on a hinge along its top edge, 0.15 s after the one above it: the ship repair panel,
+   the NEW FEATURES sticker, the menu card, then the card's rows (BEST, Jump in, Instructions and Settings, Badges and
+   Unlocks). `backwards` keeps each one turned away until its turn. */
+@keyframes flipDown { from { transform: perspective(520px) rotateX(-92deg); opacity: 0; } 30% { opacity: 1; } to { transform: perspective(520px) rotateX(0); opacity: 1; } }
+#titleScreen.arriving :is(.repair, .news, .flip, #bestBtn, #launchBtn, #startBtn, #howBtn, #settingsBtn, #badgesBtn, #unlocksBtn, #verTag) {
+  transform-origin: 50% 0; animation: flipDown .34s steps(7) var(--d, 0s) backwards; }
+@keyframes flipDownTilt { from { transform: rotate(var(--tilt)) perspective(520px) rotateX(-92deg); opacity: 0; } 30% { opacity: 1; } to { transform: rotate(var(--tilt)) perspective(520px) rotateX(0); opacity: 1; } }
+#titleScreen.arriving .news { --d: .15s; animation-name: flipDownTilt; }   /* keeps its tilt */
+#titleScreen.arriving .flip { --d: .3s; }
+#titleScreen.arriving :is(#bestBtn, #verTag) { --d: .45s; }
+#titleScreen.arriving :is(#launchBtn, #startBtn) { --d: .6s; }
+#titleScreen.arriving :is(#howBtn, #settingsBtn) { --d: .75s; }
+#titleScreen.arriving :is(#badgesBtn, #unlocksBtn) { --d: .9s; }
 /* Version 122: on the right (on the left it sometimes covered the wrecked ship), tilted the other way. */
 .news { --tilt: 10deg; position: absolute; top: calc(100% + 30px); right: 4px; z-index: 2; padding: 6px 10px 5px; border: 0; background: var(--gold); color: var(--ink); box-shadow: 3px 3px 0 var(--gold-dk); text-align: center; cursor: pointer; transform: rotate(var(--tilt)); animation: newsBob 2s ease-in-out infinite; }
 .news b { display: block; font: 700 12px/1 var(--display); letter-spacing: .12em; color: var(--lava-dk); }
@@ -476,6 +498,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   .btn.launch { animation: none; }
   .news { animation: none; }
   .btn.bob { animation: none; }
+  #titleScreen.arriving * { animation: none !important; }
   .intro-cap { transition: none; }
 }
 </style>
@@ -565,6 +588,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <ul class="parts" id="partsList"></ul>
       <button class="news" id="newsTag" type="button"><b>NEW FEATURES</b><small>(tap to see)</small></button>
     </section>
+    <button class="btn bob" id="menuStart" type="button">Start</button>
     <div class="flip" id="titleFlip">
      <div class="flip-inner">
      <div class="card face front" id="titleFront">
@@ -789,7 +813,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 136;
+const VERSION = 139;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -1721,7 +1745,9 @@ function drawCenti(x, y, dir, k, col) {
 // open and close slowly, two broad leaves on the stalk, and root threads dangling from the hinge. trapLobe(s, ...) gives
 // the points round one jaw (s = -1 left, 1 right), so the art can follow it.
 function trapPose(x, y, k) {
-  return { y: y + Math.sin(clock * 0.5 + k) * 4, a: 0.42 + 0.16 * Math.sin(clock * 1.3 + k), sw: Math.sin(clock * 0.6 + k) * 8 };
+  // Version 137: the jaws hang wide open (55-68 degrees each side, a clear V with the teeth inside; they were 15-35, nearly
+  // shut, which read as one rude oval).
+  return { y: y + Math.sin(clock * 0.5 + k) * 4, a: 1.06 + 0.11 * Math.sin(clock * 1.3 + k), sw: Math.sin(clock * 0.6 + k) * 8 };
 }
 function trapPt(x, hy, s, a, u, v) { const th = s * a; return [x + u * Math.cos(th) + v * Math.sin(th), hy - u * Math.sin(th) + v * Math.cos(th)]; }
 function trapLobe(x, hy, s, a, n) {
@@ -1740,9 +1766,37 @@ function trapTeeth(x, hy, s, a) {
   return out;
 }
 function trapStalk(x, hy, sw, t) { return [lerp(x + sw, x, t) + Math.sin(t * 3 + clock * 0.4) * 6 * (1 - t), lerp(hy - 260, hy - 4, t)]; }
+// Version 137 (user: "additional, small mouths on the stalks"): three little flytraps budding off the stalk on short stems,
+// pointing down and outwards, snapping open and shut faster than the big one. Each: where its stem leaves the stalk
+// (sx, sy), its hinge (hx, hy), which way it points (rot, 0 = straight down), how open (a) and its size (sc).
+const TRAP_BUDS = [[0.5, -1], [0.76, 1], [0.87, -1]];   // low on the stalk, so they show below a cafe ledge
+function trapBuds(x, hy, sw, k) {
+  return TRAP_BUDS.map(([t, s], i) => {
+    const [sx, sy] = trapStalk(x, hy, sw, t), sway = Math.sin(clock * 0.8 + k + i * 2) * 0.12;
+    return { s, sx, sy, hx: sx + s * 18, hy: sy + 6, rot: s * (0.75 + sway), a: 0.62 + 0.38 * Math.max(0, Math.sin(clock * 2.3 + k * 1.7 + i * 2.1)), sc: 0.4 };
+  });
+}
+// A point on a bud's jaw (s = -1/1), in the same jaw coordinates as trapPt, scaled and turned to point along rot.
+function budPt(b, s, u, v) { const th = b.rot + s * b.a; u *= b.sc; v *= b.sc; return [b.hx + u * Math.cos(th) + v * Math.sin(th), b.hy - u * Math.sin(th) + v * Math.cos(th)]; }
+function drawTrapBuds(x, hy, sw, k, col) {
+  for (const b of trapBuds(x, hy, sw, k)) {
+    for (let j = 0; j <= 8; j++) disc(lerp(b.sx, b.hx, j / 8), lerp(b.sy, b.hy, j / 8) + Math.sin(j / 8 * Math.PI) * -4, 4, col);   // its stem
+    for (const s of [-1, 1]) {
+      const pts = []; for (let i = 0; i < 16; i++) { const t = i / 16 * Math.PI * 2; pts.push(budPt(b, s, 24 * Math.cos(t), 38 + 40 * Math.sin(t))); }
+      fillPoly(c, pts, col);
+      for (let i = 0; i < 5; i++) {   // teeth along the inner rim
+        const ph = -0.2 + i * 0.36, bu = -s * 24 * Math.cos(ph), bv = 38 + 40 * Math.sin(ph), L = i % 2 ? 12 : 17;
+        const p0 = budPt(b, s, bu, bv), t = budPt(b, s, bu - s * L * 0.8, bv + L * 0.6);
+        fillPoly(c, [[p0[0] - 1, p0[1] - 1], [p0[0] + 1, p0[1] + 1], t], col);
+      }
+    }
+    disc(b.hx, b.hy, 5, col);
+  }
+}
 function drawTrap(x, y, dir, k, col) {
   const { y: yy, a, sw } = trapPose(x, y, k), hy = yy - 30;
   for (let j = 0; j <= 60; j++) { const [sx, sy] = trapStalk(x, hy, sw, j / 60); disc(sx, sy, Math.round(8 + 4 * j / 60), col); }
+  drawTrapBuds(x, hy, sw, k, col);
   for (const s of [-1, 1]) {   // two leaves off the stalk, drooping outwards
     const [bx, by] = trapStalk(x, hy, sw, 0.62 + (s > 0 ? 0.08 : 0)), fl = Math.sin(clock * 0.9 + k + s) * 5;
     fillPoly(c, [[bx, by - 4], [bx + s * 34, by - 22 + fl * 0.4], [bx + s * 78, by - 8 + fl], [bx + s * 44, by + 10 + fl * 0.5], [bx + s * 6, by + 8]], col);
@@ -4251,6 +4305,15 @@ function fillLeviCard() {
 }
 // Version 122: the sticker opens the New features card; its Leviathan chases row opens the Leviathans card.
 $('newsTag').addEventListener('click', () => { if (state === 'title' && !cardSide) setCard('news'); });
+// Version 138: START on the clear main menu brings in the ship repair panel and the menu card.
+function openMenu() {
+  if (!screens.title.classList.contains('clean')) return;
+  const ts = screens.title;
+  Sfx.bleep(880); ts.classList.add('arriving'); ts.classList.remove('clean');   // version 139: the sections flip in one by one
+  clearTimeout(openMenu.t); openMenu.t = setTimeout(() => ts.classList.remove('arriving'), 1400);
+  setTimeout(() => kbFocus($('startBtn')), 1000);
+}
+$('menuStart').addEventListener('click', openMenu);
 $('newsLevi').addEventListener('click', () => setCard('levi'));
 $('newsDone').addEventListener('click', () => setCard(null));
 // The moon picker (Settings; the main menu pair was removed in version 123). Only on the main menu: a run always finishes on the moon it started on.
@@ -4387,6 +4450,7 @@ function toTitle() {
   endRun('quit');
   resetRun();
   setState('title');
+  screens.title.classList.remove('clean');   // between runs the menu shows straight away (version 138)
   hud.classList.add('off');
   syncToggles();
   renderRepair();
@@ -5201,6 +5265,7 @@ function endOpening(how) {
   $('introCap').classList.remove('on');
   Sfx.stopIntro(); Music.cut(); shake = 0; introCrashed = true; introShip = null; introPilot = null;
   resetRun(); setState('title'); renderRepair(); syncToggles(); Sfx.thrust(0); Music.title();
+  screens.title.classList.add('clean');   // version 138: the art first, with one START
   screens.title.classList.remove('fade-in'); void screens.title.offsetWidth; screens.title.classList.add('fade-in');
   showScreen('title'); placeHorizon();
 }
@@ -5980,7 +6045,7 @@ addEventListener('keydown', e => {
   }
   else if (k === 'Escape' && state === 'title' && cardSide) setCard(null);
   else if (k === 'Escape' || k === 'p' || k === 'P') { if (state === 'paused') resume(); else pause(); }
-  else if ((k === ' ' || k === 'Enter') && state === 'title' && document.activeElement === document.body) { e.preventDefault(); startRun(false); }
+  else if ((k === ' ' || k === 'Enter') && state === 'title' && document.activeElement === document.body) { e.preventDefault(); if (screens.title.classList.contains('clean')) openMenu(); else startRun(false); }
   else return;
   if (k.startsWith('Arrow')) e.preventDefault();
 });
@@ -7347,6 +7412,10 @@ function artTrap(x, y, dir, k, p, step) {
       fillPoly(c, pts, p.belly);
     }
     for (let j = 0; j <= 60; j++) { const [sx, sy] = trapStalk(x, hy, sw, j / 60); bpx(sx - 2, sy, 3, 1, p.dark); }   // a groove down the stalk
+    for (const b of trapBuds(x, hy, sw, k)) for (const s of [-1, 1]) {   // the small mouths' insides (version 137)
+      const pts = []; for (let i = 0; i < 12; i++) { const t = i / 12 * Math.PI * 2; pts.push(budPt(b, s, -s * 8 + 14 * Math.cos(t), 44 + 30 * Math.sin(t))); }
+      fillPoly(c, pts, p.belly);
+    }
     return;
   }
   for (const s of [-1, 1]) for (const [b, t] of trapTeeth(x, hy, s, a)) bline(lerp(b[0], t[0], 0.3), lerp(b[1], t[1], 0.3), t[0], t[1], p.mark, 1);   // bone teeth
