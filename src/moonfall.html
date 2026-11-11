@@ -750,7 +750,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 128;
+const VERSION = 129;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -767,9 +767,12 @@ let c = wc;
 let H = 600, pilotScreenY = 180, camY0 = -360, sc = 1, pxY = 1, shownShift = null;
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// Mixes two '#RRGGBB' colours. Version 121: worked out on the numbers (it used to build six small arrays a call).
+const HEX2 = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, '0'));
 function mix(a, b, p) {
-  const A = [1, 3, 5].map(i => parseInt(a.substr(i, 2), 16)), B = [1, 3, 5].map(i => parseInt(b.substr(i, 2), 16));
-  return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * p).toString(16).padStart(2, '0')).join('');
+  const A = parseInt(a.slice(1, 7), 16), B = parseInt(b.slice(1, 7), 16);
+  const ch = sh => { const v = A >> sh & 255; return HEX2[Math.round(v + ((B >> sh & 255) - v) * p)]; };
+  return '#' + ch(16) + ch(8) + ch(0);
 }
 const P = (() => {
   const g = '#EEE8D8', m = '#2F7BD8', s = '#1A1E2C', a = '#E0483A', deep = mix(m, s, 0.5);
@@ -810,14 +813,30 @@ function rng32(a) {
   };
 }
 // Discs, rings and sprites are drawn once into small images and then stamped, which is far cheaper than many tiny rectangles.
+// Not while `stampDirect` is set (version 129): a Leviathan's colours change with every paint while it fades in and
+// through a layer blend, so an image per colour was a new canvas every few frames of a fight (300 to 850 a fight). Its
+// paints then draw the same rows straight in, pixel for pixel the same, and make nothing. (A see-through disc and
+// the elder's body still go through an image, one scratch canvas each that is drawn over every time: stamping an
+// image and filling rows don't round a see-through colour, or a shape's edge, quite the same way.)
 const discCache = new Map(), ringCache = new Map(), sprCache = new WeakMap();
+let stampDirect = false, scratchCv = null, scratchG = null;
+function scratch(w, h) {
+  if (!scratchCv) { scratchCv = document.createElement('canvas'); scratchCv.width = 240; scratchCv.height = 160; scratchG = scratchCv.getContext('2d'); }
+  scratchG.clearRect(0, 0, w, h);
+  return scratchG;
+}
 function discRows(g, cx, cy, r, col) {
   g.fillStyle = col;
   for (let j = -r; j <= r; j++) { const w = Math.floor(Math.sqrt(r * r - j * j)); g.fillRect(cx - w, cy + j, w * 2 + 1, 1); }
 }
 function disc(x, y, r, col, g) {
   g = g || c; r = Math.round(r);
-  if (r > 48 || r < 0) { discRows(g, Math.round(x), Math.round(y), r, col); return; }
+  if (r > 48 || r < 0 || (stampDirect && g.globalAlpha === 1)) { discRows(g, Math.round(x), Math.round(y), r, col); return; }
+  if (stampDirect) {
+    const d = 2 * r + 1;
+    discRows(scratch(d, d), r, r, r, col);
+    g.drawImage(scratchCv, 0, 0, d, d, Math.round(x) - r, Math.round(y) - r, d, d); return;
+  }
   let byCol = discCache.get(col);
   if (!byCol) { byCol = []; discCache.set(col, byCol); }
   let img = byCol[r];
@@ -837,6 +856,14 @@ function ring(x, y, r, col, th, g) {
     for (let i = 0; i < n; i++) {
       const an = i / n * Math.PI * 2;
       g.fillRect(Math.round(x + Math.cos(an) * r), Math.round(y + Math.sin(an) * r), th, th);
+    } return;
+  }
+  if (stampDirect && g.globalAlpha === 1 && col.length === 7) {   // solid colour only: the ring's squares overlap
+    const X = Math.round(x) - R - 1, Y = Math.round(y) - R - 1;
+    g.fillStyle = col;
+    for (let i = 0; i < n; i++) {
+      const an = i / n * Math.PI * 2;
+      g.fillRect(X + Math.round(R + 1 + Math.cos(an) * R), Y + Math.round(R + 1 + Math.sin(an) * R), th, th);
     } return;
   }
   let byCol = ringCache.get(col);
@@ -1120,9 +1147,16 @@ function cavernAt(d) {
 // random place: the floor's slopes are walls, so missing the hole costs a hit and shoves him toward it.
 const VOID_ABOVE = 550 * PX_PER_M, VOID_LEN = 150 * PX_PER_M, VOID_HW = W / 2 - 8, HOLE_HW = 28;
 const VOID_OPEN = 160, VOID_FLOOR = 110, VOID_NECK = 240, VOID_BACK = 240;   // px: opening out, the floor's slope, the narrow shaft, back to normal
+// Remembered per void and seed (version 121): the wall maths asks for it hundreds of times a frame.
+const voidInfos = new Map();
 function voidInfo(j) {
+  let V = voidInfos.get(j);
+  if (V && V.seed === SEED) return V;
   const T = cafeD(j + 1) - VOID_ABOVE + 160 + Math.floor(hash(j * 6.7 + SEED) * 400);
-  return { j, T, B: T + VOID_LEN, exitX: Math.round(HOLE_HW + 40 + hash(j * 8.3 + SEED) * (W - 2 * (HOLE_HW + 40))) };
+  V = { j, seed: SEED, T, B: T + VOID_LEN, exitX: Math.round(HOLE_HW + 40 + hash(j * 8.3 + SEED) * (W - 2 * (HOLE_HW + 40))) };
+  if (voidInfos.size > 64) voidInfos.clear();
+  voidInfos.set(j, V);
+  return V;
 }
 // The void whose stretch (from opening out to back to normal) covers depth d, or null.
 function voidAt(d) {
@@ -1182,9 +1216,20 @@ function voidShape(V, d, C0, hw0) {
   const u = smoothstep((d - V.B - VOID_NECK) / VOID_BACK);
   return [lerp(V.exitX, C0, u), lerp(HOLE_HW, hw0, u)];
 }
+// Remembered per 1800 px stretch and seed (version 121). Every wall row asks about five times, and each answer used to
+// walk the stretch testing for voids and boss caverns: about 1,600 bossAt and 800 voidAt calls a frame in a normal fall.
+const splitInfos = new Map();
 function splitAt(d) {
   const k = Math.floor((d - 1500) / 1800);
   if (k < 0) return null;
+  let m = splitInfos.get(k);
+  if (!m || m.seed !== SEED) {
+    if (splitInfos.size > 64) splitInfos.clear();
+    splitInfos.set(k, m = { seed: SEED, sp: splitFind(k) });
+  }
+  return m.sp;
+}
+function splitFind(k) {
   const sp = { s0: 1500 + k * 1800 + 260 + Math.floor(hash(k * 3.7 + SEED) * 600), len: 500 + Math.floor(hash(k * 5.3 + SEED) * 220) };
   const a = sp.s0 - 450, b = sp.s0 + sp.len + 450;
   for (let j = Math.max(1, cafeIdx(a) - 1); j <= cafeIdx(b) + 1; j++) if (cafeD(j) + 420 > a && cafeD(j) - 420 < b) return null;
@@ -1256,6 +1301,7 @@ function palAt(d, smooth) {
     const A = MATS[st === 16 ? ib : ia], B = MATS[ib];
     Q = {}; for (const n of MKEYS) Q[n] = st === 0 || st === 16 ? A[n] : mix(A[n], B[n], st / 16);
     Q.glow = mix(P.lava, Q.sI, 0.7);
+    Q.pure = st === 0 || st === 16;   // a layer's own colours, not a step of the blend between two (see bossStage)
     palCache.set(key, Q);
   }
   return Q;
@@ -1485,24 +1531,30 @@ function ellipseIn(cx, cy, rx, ry, col, ox, oy, OR) {
 // The elder thing: a domed, tentacle-bearded head with bat wings, and red eyes that follow the pilot.
 // Wings move in 2 px steps, so there are 7 images per elder.
 const elderArt = new Map(), ELDER_OX = 120, ELDER_OY = 80;
-function elderFrame(col, flap) {
-  let byCol = elderArt.get(col);
-  if (!byCol) { elderArt.clear(); byCol = []; elderArt.set(col, byCol); }
-  let img = byCol[flap + 6];
-  if (img) return img;
-  img = document.createElement('canvas'); img.width = 240; img.height = 160;
-  const g = img.getContext('2d'), x = ELDER_OX, y = ELDER_OY;
+function elderShape(g, x, y, flap, col) {
   for (const s of [-1, 1]) {
     fillPoly(g, [[x + s * 24, y + 6], [x + s * 70, y - 40 + flap], [x + s * 98, y - 58 + flap], [x + s * 92, y - 30 + flap * 0.7], [x + s * 112, y - 8 + flap * 0.5], [x + s * 88, y + 10], [x + s * 96, y + 36], [x + s * 66, y + 26], [x + s * 58, y + 54], [x + s * 30, y + 34]], col);
   }
   fillEllipse(g, x, y + 40, 36, 26, col);
   fillEllipse(g, x, y - 20, 30, 40, col);
   fillEllipse(g, x, y - 52, 20, 14, col);
+}
+// Images for the last three colours (version 129; it kept one, so the boss and a background elder took turns
+// throwing each other's away).
+function elderFrame(col, flap) {
+  let byCol = elderArt.get(col);
+  if (!byCol) { if (elderArt.size >= 3) elderArt.delete(elderArt.keys().next().value); byCol = []; elderArt.set(col, byCol); }
+  let img = byCol[flap + 6];
+  if (img) return img;
+  img = document.createElement('canvas'); img.width = 240; img.height = 160;
+  elderShape(img.getContext('2d'), ELDER_OX, ELDER_OY, flap, col);
   return (byCol[flap + 6] = img);
 }
 function drawElder(x, y, dir, k, col) {
   y += Math.sin(clock * 0.6 + k) * 4;
-  c.drawImage(elderFrame(col, 2 * Math.round(Math.sin(clock * 0.8 + k) * 3)), Math.round(x) - ELDER_OX, Math.round(y) - ELDER_OY);
+  const flap = 2 * Math.round(Math.sin(clock * 0.8 + k) * 3);
+  if (stampDirect) { elderShape(scratch(240, 160), ELDER_OX, ELDER_OY, flap, col); c.drawImage(scratchCv, Math.round(x) - ELDER_OX, Math.round(y) - ELDER_OY); }
+  else c.drawImage(elderFrame(col, flap), Math.round(x) - ELDER_OX, Math.round(y) - ELDER_OY);
   for (let i = 0; i < 7; i++) {
     const bx = x - 18 + i * 6, by = y + 8;
     for (let j = 0; j < 17; j++) {
@@ -1751,7 +1803,8 @@ function leviathans(cam) {
     if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(kind); }
     if (state === 'play' && sy > -40 && sy < H + 40) near = true;
     if (cam < -H || sy < -220 || sy > H + 220) continue;
-    LEVI_DRAW[kind](sx, sy, dir, k, mix(palAt(D).sO, P.ink, k % 2 ? 0.35 : 0.42));
+    const Q = palAt(D);   // its colour is worked out once per palette (version 129), not every frame
+    LEVI_DRAW[kind](sx, sy, dir, k, k % 2 ? Q.lev1 || (Q.lev1 = mix(Q.sO, P.ink, 0.35)) : Q.lev0 || (Q.lev0 = mix(Q.sO, P.ink, 0.42)));
   }
   Music.creature(near && !boss);
 }
@@ -1834,38 +1887,48 @@ function backTileIn(p, col) {
   }
   return p.out;
 }
-// The shadow wedges that grow out of the walls (30 rows, tapering) are drawn once per slope, side and colour.
-// Each reaches 24 px back into the wall so it always meets it; the wall overlay hides that part.
-const WEDGE_M = 24, wedgeArt = new Map();
-function wedgeImg(col, side, s) {
-  let byCol = wedgeArt.get(col);
-  if (!byCol) { if (wedgeArt.size > 24) wedgeArt.clear(); byCol = []; wedgeArt.set(col, byCol); }
-  const key = (side > 0 ? 16 : 0) + s;
-  let img = byCol[key];
-  if (img) return img;
-  const h1 = 0.4 + (s + 0.5) / 16, wid = WEDGE_M + 43;
-  img = document.createElement('canvas'); img.width = wid; img.height = 30;
-  const g = img.getContext('2d'); g.fillStyle = col;
-  for (let l6 = 0; l6 < 30; l6++) { const len = Math.round((30 - l6) * h1); g.fillRect(side < 0 ? 0 : wid - WEDGE_M - len, l6, WEDGE_M + len, 1); }
-  return (byCol[key] = img);
+// The shadow wedges that grow out of the walls (30 rows, tapering; 16 slopes a side) and the near spurs (jagged teeth
+// of rock, 10-24 px past the shaft's dark rim; 8 shapes a side). Each reaches 24 px back into the wall so it always
+// meets it; the wall overlay hides that part.
+// Version 129: all 48 shapes sit on one sheet per rock colour, and at most 18 sheets exist: a colour that isn't on one
+// takes over the sheet unused the longest, which is recoloured in place (two fills). Until then each shape was its
+// own small canvas per colour, and through the blend between two layers the colour changes every 60 px of depth:
+// about a hundred new canvases at every boundary (and the store was emptied whenever it passed 24 colours, so the
+// layer's own were made again), some 4,000 over a 15 km run.
+const WEDGE_M = 24, WEDGE_W = WEDGE_M + 43, WEDGES_H = 32 * 30, SPURS_H = 16 * 22, spurW = s => WEDGE_M + 10 + s * 2 + 3;
+function wedgeRows(g, side, s, y) {
+  const h1 = 0.4 + (s + 0.5) / 16;
+  for (let l6 = 0; l6 < 30; l6++) { const len = Math.round((30 - l6) * h1); g.fillRect(side < 0 ? 0 : WEDGE_W - WEDGE_M - len, y + l6, WEDGE_M + len, 1); }
 }
-// The near spurs: jagged teeth of rock, 10-24 px past the shaft's dark rim, drawn once per shape, side and colour and
-// anchored to the wall like the wedges.
-const spurArt = new Map();
-function spurImg(col, side, s) {
-  let byCol = spurArt.get(col);
-  if (!byCol) { if (spurArt.size > 24) spurArt.clear(); byCol = []; spurArt.set(col, byCol); }
-  const key = (side > 0 ? 8 : 0) + s;
-  let img = byCol[key];
-  if (img) return img;
-  const reach = 10 + s * 2, wid = WEDGE_M + reach + 3;
-  img = document.createElement('canvas'); img.width = wid; img.height = 22;
-  const g = img.getContext('2d'); g.fillStyle = col;
+function spurRows(g, side, s, y0) {
+  const reach = 10 + s * 2, wid = spurW(s);
   for (let y = 0; y < 22; y++) {
     const u = 1 - Math.abs(2 * (y + 0.5) / 22 - 1), len = Math.max(0, Math.round(reach * Math.pow(u, 0.7) + (hash(s * 31 + y) - 0.5) * 3));
-    g.fillRect(side < 0 ? 0 : wid - WEDGE_M - len, y, WEDGE_M + len, 1);
+    g.fillRect(side < 0 ? 0 : wid - WEDGE_M - len, y0 + y, WEDGE_M + len, 1);
   }
-  return (byCol[key] = img);
+}
+// Where a shape is on the sheet: wedges first (30 rows each), then the spurs (22 rows each).
+const wedgeY = (side, s) => ((side > 0 ? 16 : 0) + s) * 30, spurY = (side, s) => WEDGES_H + ((side > 0 ? 8 : 0) + s) * 22;
+let wallMask = null, wallArtTick = 0;
+const wallArts = [];
+// The sheet in the colours of rock palette Q (from palAt): wedges in its shadow colour, spurs a little lighter.
+function wallArt(Q) {
+  let old = null;
+  for (const a of wallArts) { if (a.Q === Q) { a.used = ++wallArtTick; return a.cv; } if (!old || a.used < old.used) old = a; }
+  const mk = () => { const v = document.createElement('canvas'); v.width = WEDGE_W; v.height = WEDGES_H + SPURS_H; return v; };
+  if (!wallMask) {
+    wallMask = mk(); const g = wallMask.getContext('2d'); g.fillStyle = '#fff';
+    for (const side of [-1, 1]) { for (let s = 0; s < 16; s++) wedgeRows(g, side, s, wedgeY(side, s)); for (let s = 0; s < 8; s++) spurRows(g, side, s, spurY(side, s)); }
+  }
+  if (wallArts.length < 18) { const cv = mk(); old = { Q: null, cv, g: cv.getContext('2d'), used: 0 }; wallArts.push(old); }
+  const g = old.g;
+  g.globalCompositeOperation = 'copy'; g.drawImage(wallMask, 0, 0);
+  g.globalCompositeOperation = 'source-atop';
+  g.fillStyle = Q.sO; g.fillRect(0, 0, WEDGE_W, WEDGES_H);
+  g.fillStyle = Q.near || (Q.near = mix(Q.sO, Q.ink, 0.35)); g.fillRect(0, WEDGES_H, WEDGE_W, SPURS_H);
+  g.globalCompositeOperation = 'source-over';
+  old.Q = Q; old.used = ++wallArtTick;
+  return old.cv;
 }
 // In 45% of 60-row blocks (three-quarter speed), set 19 rows off the wedges' rhythm.
 function drawSpurs(cam, top, y0) {
@@ -1874,9 +1937,9 @@ function drawSpurs(cam, top, y0) {
     if (hash(q * 2.3 + 7) >= 0.45) continue;
     const yTop = q * 60 - bk + 19;
     if (yTop < y0) continue;
-    const dMid = top + yTop + 11, e = edgeAt(dMid), L = e.L, R = e.R, side = hash(q + 5) < 0.5 ? -1 : 1, Q = palAt(dMid, true),
-      img = spurImg(Q.near || (Q.near = mix(Q.sO, Q.ink, 0.35)), side, Math.floor(hash(q + 3) * 8));
-    c.drawImage(img, side < 0 ? L + 8 - WEDGE_M : R - 8 + WEDGE_M - img.width, yTop);
+    const dMid = top + yTop + 11, e = edgeAt(dMid), L = e.L, R = e.R, side = hash(q + 5) < 0.5 ? -1 : 1,
+      s = Math.floor(hash(q + 3) * 8), w = spurW(s);
+    c.drawImage(wallArt(palAt(dMid, true)), 0, spurY(side, s), w, 22, side < 0 ? L + 8 - WEDGE_M : R - 8 + WEDGE_M - w, yTop, w, 22);
   }
 }
 function drawShaft(cam) {
@@ -1904,9 +1967,8 @@ function drawShaft(cam) {
     if (yTop < y0) continue;
     const dMid = top + yTop + 15,
       e = edgeAt(dMid),
-      side = hash(q6 + 2) < 0.5 ? -1 : 1,
-      img = wedgeImg(palAt(dMid, true).sO, side, Math.min(15, Math.floor(hash(q6 + 1) * 16)));
-    c.drawImage(img, side < 0 ? e.L + 8 - WEDGE_M : e.R - 8 + WEDGE_M - img.width, yTop);
+      side = hash(q6 + 2) < 0.5 ? -1 : 1, s = Math.min(15, Math.floor(hash(q6 + 1) * 16));
+    c.drawImage(wallArt(palAt(dMid, true)), 0, wedgeY(side, s), WEDGE_W, 30, side < 0 ? e.L + 8 - WEDGE_M : e.R - 8 + WEDGE_M - WEDGE_W, yTop, WEDGE_W, 30);
   }
   drawSpurs(cam, top, y0);
   // The walls go back on top, so everything behind them only shows inside the shaft.
@@ -2126,7 +2188,7 @@ function shipPix(u, v) {
     if (Math.abs(v) > hh - 1.2 || u < -43) return P.ink;
     if (u > -10 && u < -1 && v > -2 && v < 8) return v < -1 || u < -9 || u > -2 ? P.ink : P.deeper;
     if (u > 14 && u < 28 && v > -8 && v < -1) return u < 17 || (u > 20 && u < 21.5) ? P.lite : P.blue;
-    for (const pu of [-32, -22]) {
+    for (let pu = -32; pu <= -22; pu += 10) {   // the two portholes
       const r2 = (u - pu) ** 2 + (v + 3) ** 2;
       if (r2 < 8) return r2 > 4 ? P.ink : (u < pu && v < -3 ? P.lite : P.blue);
     }
@@ -2248,12 +2310,24 @@ const MOON_FEATS = (() => {
 })();
 function drawMoonAt(mx, my, R, rot) {
   const top = Math.max(0, Math.floor(my - R)), bot = Math.min(H - 1, Math.ceil(my + R));
-  for (let y = top; y <= bot; y++) {
-    const dy = (y - my) / R; if (Math.abs(dy) > 1) continue;
-    const w = Math.sqrt(1 - dy * dy) * R, x0 = Math.round(mx - w), x1 = Math.round(mx + w);
-    c.fillStyle = S.shade; c.fillRect(x0 - 1, y, x1 - x0 + 2, 1);
-    c.fillStyle = S.dust; c.fillRect(x0, y, x1 - x0, 1);
-  }
+  // The disc's rows from mx + k0 * (the row's half width) to its right edge; neighbouring rows that come out the same
+  // are handed over as one block (version 129: a big moon was up to 700 one-row rectangles, four times over).
+  const rows = (k0, emit) => {
+    let ry = 0, ra = 0, rb = 0, n = 0;
+    for (let y = top; y <= bot + 1; y++) {
+      let a = 0, b = 0, ok = false;
+      if (y <= bot) {
+        const dy = (y - my) / R;
+        if (Math.abs(dy) <= 1) { const w = Math.sqrt(1 - dy * dy) * R; a = Math.round(mx + w * k0); b = Math.round(mx + w); ok = true; }
+      }
+      if (n && (!ok || a !== ra || b !== rb)) { emit(ra, ry, rb, n); n = 0; }
+      if (ok) { if (!n) { ry = y; ra = a; rb = b; } n++; }
+    }
+  };
+  rows(-1, (x0, y, x1, n) => {
+    c.fillStyle = S.shade; c.fillRect(x0 - 1, y, x1 - x0 + 2, n);
+    c.fillStyle = S.dust; c.fillRect(x0, y, x1 - x0, n);
+  });
   const blob = (ux, uy, ur, col) => {
     const r = Math.round(ur * R), x = mx + ux * R, y = my + uy * R;
     if (r < 1 || y + r < 0 || y - r > H || x + r < 0 || x - r > W) return;
@@ -2275,20 +2349,9 @@ function drawMoonAt(mx, my, R, rot) {
     disc(csx, csy, Math.max(1, Math.round(0.014 * R)), S.ink);
     if (R > 300) disc(csx, csy, Math.round(0.009 * R), S.deep);
   }
-  c.globalAlpha = 0.35; c.fillStyle = S.deep;
-  for (let y = top; y <= bot; y++) {
-    const dy = (y - my) / R;
-    if (Math.abs(dy) > 1) continue;
-    const w = Math.sqrt(1 - dy * dy) * R, a = Math.round(mx + w * 0.3), b = Math.round(mx + w);
-    if (b > a) c.fillRect(a, y, b - a, 1);
-  }
-  c.globalAlpha = 0.45;
-  for (let y = top; y <= bot; y++) {
-    const dy = (y - my) / R;
-    if (Math.abs(dy) > 1) continue;
-    const w = Math.sqrt(1 - dy * dy) * R, a = Math.round(mx + w * 0.7), b = Math.round(mx + w);
-    if (b > a) c.fillRect(a, y, b - a, 1);
-  }
+  const shadow = (a, y, b, n) => { if (b > a) c.fillRect(a, y, b - a, n); };
+  c.globalAlpha = 0.35; c.fillStyle = S.deep; rows(0.3, shadow);
+  c.globalAlpha = 0.45; rows(0.7, shadow);
   c.globalAlpha = 1;
   return [csx, csy];
 }
@@ -5891,15 +5954,24 @@ function drawJungleHazard(h, cam, y, L, R) {
     for (let x = 0; x < w; x += 2) { c.fillStyle = x % 6 < 3 ? JH.branch : JH.bark; c.fillRect(s < 0 ? L - 2 + x : R + 2 - x - 2, top - 2 + Math.round(Math.sin(x * 0.4) * 1.5), 2, 4); }
     for (let i = 0; i * 5 < w; i++) {
       const x0 = i * 5 + 2, len = Math.round(h.len * (1 - 0.55 * x0 / w) * (0.75 + 0.25 * hash(i + h.d)));
-      let px = 0;
+      // Rows of a vine that fall in the same column are drawn as one rectangle (version 129; each was its own, about
+      // 1,100 a frame with a vine hazard on screen). A run ends at a leaf or a flower, so they overlap as before.
+      let px = 0, runX = 0, runY = 0, runN = 0;
       for (let j = 0; j < len; j++) {
         const sw = Math.sin(clock * 1.6 + i * 0.9 + j * 0.05) * j * 0.05, xx = Math.round((s < 0 ? L + x0 : R - x0) + sw), yy = top + j;
         if (yy < -2 || yy > H + 2) continue;
-        c.fillStyle = JH.vine; c.fillRect(xx, yy, 1, 1);
-        if ((j + i * 3) % 7 === 0) { c.fillStyle = JH.leaf; c.fillRect(xx - (j % 2 ? 2 : -1), yy, 2, 2); }
-        if ((j + i * 11) % 31 === 0 && j > 6) { c.fillStyle = JH.flower; c.fillRect(xx - 1, yy, 3, 2); }
+        if (runN && xx !== runX) { c.fillStyle = JH.vine; c.fillRect(runX, runY, 1, runN); runN = 0; }
+        if (!runN) { runX = xx; runY = yy; }
+        runN++;
+        const leaf = (j + i * 3) % 7 === 0, flower = (j + i * 11) % 31 === 0 && j > 6;
+        if (leaf || flower) {
+          c.fillStyle = JH.vine; c.fillRect(runX, runY, 1, runN); runN = 0;
+          if (leaf) { c.fillStyle = JH.leaf; c.fillRect(xx - (j % 2 ? 2 : -1), yy, 2, 2); }
+          if (flower) { c.fillStyle = JH.flower; c.fillRect(xx - 1, yy, 3, 2); }
+        }
         px = xx;
       }
+      if (runN) { c.fillStyle = JH.vine; c.fillRect(runX, runY, 1, runN); }
       c.fillStyle = JH.vineL; c.fillRect(px - 1, top + len - 1, 2, 2);
     }
   } else if (h.kind === 'thorns') {
@@ -6243,9 +6315,16 @@ let boss = null, pilotNow = 180;   // the fight on now (or null), and where the 
 let bossTune = -1, bossTrack = 0, bossTuneOn = false;
 const bossShots = [], bossGone = new Set();
 let bossFront = null, bossBack = null, bossTmp = null, bossTmpG = null;   // the boss's paint buffers (see drawBoss)
-const BOSS_PAINT_EVERY = 0.05; let bossPaintAt = 0;
+const BOSS_PAINT_EVERY = 0.05; let bossPaintAt = 0, bossFresh = false;
+// Its five canvases are made as he enters the thin shaft (version 129, with the music), not on the fight's first frame.
+function bossBufs(kind) {
+  if (bossFront && bossFront.kind === kind) return;
+  bossFront = bossBuf(kind); bossBack = bossBuf(kind);
+  bossTmp = document.createElement('canvas'); bossTmp.width = bossFront.w; bossTmp.height = bossFront.h; bossTmpG = bossTmp.getContext('2d');
+}
 function bossMusic(B, out) {
   if (bossTune === B.k) return;
+  bossBufs(leviKind(2 * B.k));
   bossTune = B.k; bossTrack = Math.floor(Math.random() * 3); bossTuneOn = true;
   Music.heat(0); Music.boss(bossTrack, out);
 }
@@ -6254,7 +6333,7 @@ function startBoss(B) {
   const x0 = W / 2 + dir * (mid - A) * 0.14, y0 = Math.max(-170, H / 2 + (A - mid) * LEVI_PARALLAX);
   boss = { B, kind, k2, n: (B.k + 1) / 2, dir, rot: 0, turnT: -1, turnFrom: dir, sideT: 0, lastTurn: 0, kick: 0, rage: false,
     phase: 'enter', t: 0, pt: 0, x0, y0, x: x0, y: y0, next: 0.6, queue: [], charge: 0, last: '', orbs: 0, d: 0, sil: mix(palAt(A).sO, P.ink, 0.42) };
-  bossShots.length = 0; bossFront = bossBack = null;
+  bossShots.length = 0; bossFresh = true;
   hud.classList.add('boss'); coach.classList.add('gone');
   Sfx.groan(kind); Sfx.bossRoar(); Buzz.mine(); shake = Math.max(shake, 1.6);
   bossMusic(B); Music.heat(1);
@@ -6623,15 +6702,17 @@ function bossPal(kind, Q) {
   for (const n in src) p[n] = n === 'eye' || n === 'mark' || n === 'hi' ? src[n] : mix(src[n], Q.sO, 0.12);
   return (m[kind] = p);
 }
-// Two-pixel checks of one colour, for dithering one shade into another.
+// Two-pixel checks of one colour, for dithering one shade into another. One 2 x 2 canvas is repainted for every new
+// colour (version 129; it made a canvas per colour, and the colours change every paint while it fades in).
 const checkArt = new Map();
+let checkCv = null, checkG = null;
 function checks(col) {
   let pat = checkArt.get(col);
   if (pat) return pat;
-  if (checkArt.size > 40) checkArt.clear();   // the colours change every paint while it fades in
-  const cnv = document.createElement('canvas'); cnv.width = cnv.height = 2;
-  const g = cnv.getContext('2d'); g.fillStyle = col; g.fillRect(0, 0, 1, 1); g.fillRect(1, 1, 1, 1);
-  pat = bossTmpG.createPattern(cnv, 'repeat'); checkArt.set(col, pat);
+  if (checkArt.size > 40) checkArt.clear();
+  if (!checkCv) { checkCv = document.createElement('canvas'); checkCv.width = checkCv.height = 2; checkG = checkCv.getContext('2d'); }
+  checkG.clearRect(0, 0, 2, 2); checkG.fillStyle = col; checkG.fillRect(0, 0, 1, 1); checkG.fillRect(1, 1, 1, 1);
+  pat = bossTmpG.createPattern(checkCv, 'repeat'); checkArt.set(col, pat);
   return pat;
 }
 // The strip of the boss's body within `off` px of its lower edge (or its upper edge, with `up`), painted with `fill`.
@@ -7031,7 +7112,7 @@ function bossBuf(kind) {
   const [L, T, R, B] = BOSS_BOX[kind], w = R - L + 12, h = B - T + 12;
   const mk = () => { const v = document.createElement('canvas'); v.width = w; v.height = h; return v; };
   const cv = mk(), rim = mk();
-  return { kind, cv, g: cv.getContext('2d'), rim, rg: rim.getContext('2d'), w, h, stage: 0, ox: 0, oy: 0, dir: 1, clock: 0, p: null, fade: 1, look: [1, 0] };
+  return { kind, cv, g: cv.getContext('2d'), rim, rg: rim.getContext('2d'), w, h, stage: 0, ox: 0, oy: 0, dir: 1, clock: 0, p: null, fade: 1, look: [1, 0], direct: false };
 }
 // One of the three painting steps into `buf`: (0) the creature's shape in its base colour with its colour regions,
 // (1) the shading, (2) its features and the light rim. The paint keeps the clock and colours of its first step, so the
@@ -7039,7 +7120,7 @@ function bossBuf(kind) {
 function bossStage(b, buf) {
   const [L, T, R] = BOSS_BOX[b.kind], dive = BOSS_DIVES[b.kind], keepClock = clock, keepX = player.x;
   if (buf.stage === 0) {
-    const dir = dive ? b.dir : bossFacing(b) < 0 ? -1 : 1, p = bossPal(b.kind, palAt(camY + b.y, true));
+    const dir = dive ? b.dir : bossFacing(b) < 0 ? -1 : 1, Q = palAt(camY + b.y, true), p = bossPal(b.kind, Q);
     // Its body (tail, fins, wings, tentacles) animates 1.6 times as fast as in the background while it fights
     // (version 95): the clock runs ahead by 0.6 of the fight's time, so there's no jump as it starts.
     buf.dir = dir; buf.clock = clock + 0.6 * b.t; buf.ox = dir > 0 ? 6 - L : R + 6; buf.oy = 6 - T;
@@ -7050,8 +7131,9 @@ function bossStage(b, buf) {
     buf.look = [lx / n, ly / n];
     buf.fade = b.phase === 'enter' ? smoothstep(b.pt / (BOSS_ENTER * 0.7)) : 1;
     if (buf.fade < 1) { const q = {}; for (const n in p) q[n] = mix(b.sil, p[n], buf.fade); buf.p = q; } else buf.p = p;   // fading in from its silhouette
+    buf.direct = buf.fade < 1 || !Q.pure;   // colours that last one paint: no images are made for them (see stampDirect)
   }
-  clock = buf.clock; bossLook = buf.look;
+  clock = buf.clock; bossLook = buf.look; stampDirect = buf.direct;
   if (!dive) player.x += buf.ox - b.x;   // the elder's eyes follow him: place him as he is relative to it on screen
   const was = c, p = buf.p, x = buf.ox, y = buf.oy, dir = buf.dir;
   c = buf.g;
@@ -7072,7 +7154,7 @@ function bossStage(b, buf) {
     g.globalCompositeOperation = 'source-in'; g.fillStyle = p.hi; g.fillRect(0, 0, buf.w, buf.h);
     g.globalCompositeOperation = 'source-over';
   }
-  c = was; clock = keepClock; player.x = keepX;
+  c = was; clock = keepClock; player.x = keepX; stampDirect = false;
   buf.stage = (buf.stage + 1) % 3;
   return buf.stage === 0;
 }
@@ -7081,9 +7163,8 @@ function bossStage(b, buf) {
 function drawBoss(sy) {
   const b = boss;
   if (!b || (b.phase === 'crash' && b.pt > 0.45)) return;
-  if (!bossFront || bossFront.kind !== b.kind) {
-    bossFront = bossBuf(b.kind); bossBack = bossBuf(b.kind);
-    bossTmp = document.createElement('canvas'); bossTmp.width = bossFront.w; bossTmp.height = bossFront.h; bossTmpG = bossTmp.getContext('2d');
+  if (bossFresh || !bossFront || bossFront.kind !== b.kind) {
+    bossBufs(b.kind); bossFresh = false; bossFront.stage = bossBack.stage = 0;
     while (!bossStage(b, bossFront));
   } else if (bossBack.stage || Math.abs(clock - bossPaintAt) >= BOSS_PAINT_EVERY) {
     // A new paint starts at most 20 times a second (version 91), so a 120 Hz screen doesn't paint it twice as often as a 60 Hz one.
