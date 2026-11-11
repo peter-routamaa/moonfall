@@ -23,6 +23,9 @@ never building anything in the middle of play.
 9. **Measure before and after with `tools/prof.py`**, on both moons, and check the picture is unchanged.
 10. **Run `python3 tools/levi_budget.py` before publishing anything a Leviathan draws.** It counts all twelve against
     the budgets below in about two seconds and fails (exit 1) naming the creature and the number that's over.
+    Two gates run it for you, so it holds even for someone who has not read this file: a commit that changes
+    `src/moonfall.html` (`tools/hooks/pre-commit`) and the website build (`tools/build_site.py`) both stop when it
+    fails. Never skip them (`--no-verify`); fix the creature.
 
 ## Budgets (what the game costs now; stay inside these)
 
