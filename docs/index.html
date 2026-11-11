@@ -130,6 +130,27 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .levi-pic { display: block; width: 100%; height: 64px; padding: 4px; object-fit: contain; background: color-mix(in srgb, var(--blue) 24%, var(--ink)); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--blue) 40%, var(--ink)); }
 .levi-name { font: 700 11px/1 var(--display); letter-spacing: .1em; color: var(--gold); }
 .levi-line { font: 400 16px/.95 var(--body); color: var(--dust-dim); }
+/* Version 108: Leviathan trophies. A beaten creature gets a gold frame and name; one not beaten yet is a dark silhouette. */
+.levi-list li.won .levi-pic { box-shadow: inset 0 0 0 2px var(--gold); }
+.levi-list li:not(.won) .levi-name { color: var(--dust-dim); }
+#leviBack .row .btn { flex: 1; }
+/* Badges (version 108): their own face, opened from the Leviathans card. */
+#badgeBack h2 { text-align: center; }
+#badgeBack { gap: 10px; }
+#badgeBack .hint { margin: 0; color: var(--dust); font-size: 18px; }
+.badge-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.badge-list li { display: grid; grid-template-columns: 30px 1fr; column-gap: 10px; align-items: center; }
+.badge-list svg { grid-row: span 2; width: 30px; height: 30px; }
+.badge-list li:not(.got) svg { opacity: .35; }
+.badge-name { font: 700 11px/1 var(--display); letter-spacing: .1em; color: var(--gold); }
+.badge-list li:not(.got) .badge-name { color: var(--dust-dim); }
+.badge-how { font: 400 18px/.95 var(--body); color: var(--dust-dim); }
+/* Run highlights on the game over card (version 108), one per line. */
+#runExtra span { display: block; }
+/* The barista's greeting at a cafe (version 108): a speech bubble over the cafe window, its tail pointing at the barista. */
+.say { position: absolute; z-index: 3; transform: translate(-50%, -100%); max-width: 172px; width: max-content; padding: 6px 8px 5px; background: var(--dust); color: var(--ink); font: 400 17px/.95 var(--body); text-align: center; box-shadow: 3px 3px 0 var(--ink); pointer-events: none; animation: sayIn .25s steps(4) both; }
+.say::after { content: ''; position: absolute; top: 100%; left: calc(50% + var(--tail, 0px) - 5px); border: 5px solid transparent; border-top-color: var(--dust); border-bottom: 0; }
+@keyframes sayIn { from { opacity: 0; transform: translate(-50%, -80%); } }
 @keyframes newsBob {
   0%, 100% { transform: rotate(-12deg) scale(1); box-shadow: 2px 2px 0 var(--gold-dk); }
   50% { transform: rotate(-12deg) scale(1.1) translateY(-2px); box-shadow: 6px 7px 0 color-mix(in srgb, var(--gold-dk) 70%, transparent); }
@@ -156,6 +177,10 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
   .levi-list { gap: 7px 8px; }
   .levi-pic { height: 50px; padding: 3px; }
   .levi-line { font-size: 15px; }
+  #badgeBack { gap: 9px; padding: 12px 14px; }
+  #badgeBack .hint { font-size: 18px; }
+  .badge-list { gap: 6px; }
+  .badge-how { font-size: 17px; }
 }
 /* On the shortest phones the ship repair panel steps aside while Instructions or Settings is open, so the card fits. */
 @media (max-height: 600px) { #titleScreen.reading .repair { display: none; } }
@@ -435,7 +460,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
       <div class="repair-head"><span id="repairTitle">SHIP REPAIR</span><b><span id="repairPct">0</span><svg class="pct" viewBox="0 0 9 10" width="9" height="10" shape-rendering="crispEdges" role="img" aria-label="%"><path fill="currentColor" d="M0 0h3v3h-3zM6 7h3v3h-3zM8 0h1v1h-1zM7 1h2v1h-2zM6 2h2v1h-2zM5 3h2v1h-2zM4 4h2v1h-2zM3 5h2v1h-2zM2 6h2v1h-2zM1 7h2v1h-2zM0 8h2v1h-2zM0 9h1v1h-1z"/></svg></b></div>
       <div class="repair-bar" id="repairBar"></div>
       <ul class="parts" id="partsList"></ul>
-      <button class="news" id="newsTag" type="button"><b>NEW!</b><span>Leviathan chases added</span><small>(tap to see)</small></button>
+      <button class="news" id="newsTag" type="button"><b>NEW!</b><span>Trophies and badges</span><small>(tap to see)</small></button>
     </section>
     <div class="flip" id="titleFlip">
      <div class="flip-inner">
@@ -476,9 +501,15 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
      </div>
      <div class="card face back" id="leviBack" hidden inert aria-hidden="true">
       <h2>Leviathans</h2>
-      <p class="hint">Six lurk in the shaft. One hunts you after every second cafe.</p>
+      <p class="hint" id="leviHint">One hunts you after every second cafe.</p>
       <ul class="levi-list" id="leviList"></ul>
-      <button class="btn" id="leviDone" type="button">Done</button>
+      <div class="row"><button class="btn" id="leviDone" type="button">Done</button><button class="btn settings" id="badgeBtn" type="button">Badges</button></div>
+     </div>
+     <div class="card face back" id="badgeBack" hidden inert aria-hidden="true">
+      <h2>Badges</h2>
+      <p class="hint" id="badgeHint">0 of 6 earned</p>
+      <ul class="badge-list" id="badgeList"></ul>
+      <button class="btn" id="badgeDone" type="button">Back</button>
      </div>
      </div>
     </div>
@@ -631,7 +662,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 106;
+const VERSION = 109;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -2196,7 +2227,8 @@ const runParts = { plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 };
 const playerStart = () => ({
   x: 84, y: -30, v: 0, vx: 0, hp: 5, max: 5, inv: 0, blockT: 0, shield: 0, shieldMax: 8, orbs: 0, spare: 0, streak: 0,
   bestStreak: 0, perks: {}, perkCafe: 0, toughN: 0, bought: [], slowUntil: 0, flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false,
-  fallRamp: 1
+  fallRamp: 1,
+  hits: 0, closest: Infinity, closestMine: false, leviRun: [], bossWon: false, newBadges: []   // version 108: run highlights and badges
 });
 const player = { touch: false, ...playerStart() };
 let rocks = [], items = [], particles = [], nextSeg = 0, lastRockD = -999, lastShieldD = -9999, steerAcc = 0;
@@ -3171,7 +3203,7 @@ function setHP(kind, n = 1) {
   hpBox.setAttribute('aria-valuenow', String(player.hp));
 }
 let shownDepth = -1;
-function setDepth() { const m = depthM(); if (m !== shownDepth) { shownDepth = m; depthEl.firstChild.nodeValue = fmtM(m); renderTarget(); } }
+function setDepth() { const m = depthM(); if (m !== shownDepth) { shownDepth = m; depthEl.firstChild.nodeValue = fmtM(m); renderTarget(); if (m >= 3000 && state === 'play') award('deep'); } }
 // Pops about him go above his head, clear of him, and stack upward when several come at once (version 81: they used to
 // sit on him and hide him).
 let popStack = [];
@@ -3220,7 +3252,7 @@ function drawIcons() {
 
 // ---------- flow ----------
 function resetRun() {
-  newSeed();
+  newSeed(); sayEl.style.visibility = '';
   rocks = []; items = []; particles = []; hazards = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; lastHazD = -9999; steerAcc = 0;
   for (const k in runParts) runParts[k] = 0;
   leviSeen.clear();
@@ -3229,6 +3261,7 @@ function resetRun() {
   cafeVisited.clear(); cafeArt.clear(); signArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
   buildHP(); $('spareRun').textContent = '0'; spareHud.hidden = true; streakFlash.classList.remove('on'); buildFlags(); refreshBoard();
   Music.reset();
+  sayEl.hidden = true;
   boss = null; bossShots.length = 0; bossGone.clear(); pilotNow = pilotScreenY; hud.classList.remove('boss'); bossTune = -1; bossTuneOn = false;
   shake = 0; dieT = 0; camY = camY0; shownDepth = -1;
   setHP(); setDepth();
@@ -3268,14 +3301,15 @@ function setCard(side, instant) {
   instant = !!instant || reduceMotion;
   cardSide = side;
   if (side === 'levi') fillLeviCard();
-  turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack'), levi: $('leviBack') }, was, side, instant, () => {
+  if (side === 'badges') fillBadges();
+  turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack'), levi: $('leviBack'), badges: $('badgeBack') }, was, side, instant, () => {
     const ts = $('titleScreen');
     clearTimeout(readTimer);
     if (side) { ts.classList.toggle('levi', side === 'levi'); ts.classList.toggle('how', side === 'how'); }
     if (side || instant) ts.classList.toggle('reading', !!side);   // Settings too since version 84 (one more row)
     else readTimer = setTimeout(() => ts.classList.remove('reading'), 480);
   });
-  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $('sndT') : side === 'how' ? $('howDone') : side === 'levi' ? $('leviDone') : $(was === 'how' ? 'howBtn' : was === 'levi' ? 'startBtn' : 'settingsBtn')), 460);
+  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $('sndT') : side === 'how' ? $('howDone') : side === 'levi' ? $(was === 'badges' ? 'badgeBtn' : 'leviDone') : side === 'badges' ? $('badgeDone') : $(was === 'how' ? 'howBtn' : was === 'levi' || was === 'badges' ? 'startBtn' : 'settingsBtn')), 460);
 }
 // -- the Leviathans card (version 102): the NEW sticker opens it. Each creature's name, its signature attack in a line,
 // and a portrait painted with its fight art (bossStage), facing right and looking down at the viewer.
@@ -3306,20 +3340,41 @@ function leviPortrait(kind) {
   return out;
 }
 let leviCardDone = false;
+const leviPics = {};
+// A dark silhouette of a portrait, for a Leviathan not beaten yet (version 108).
+function silhouette(src) {
+  const out = document.createElement('canvas'); out.width = src.width; out.height = src.height;
+  const g = out.getContext('2d'); g.drawImage(src, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#4A5675'; g.fillRect(0, 0, out.width, out.height);
+  return out;
+}
 function fillLeviCard() {
-  if (leviCardDone) return;
-  leviCardDone = true;
-  const list = $('leviList');
-  for (const [kind, name, line] of LEVI_INFO) {
-    const li = document.createElement('li'), pic = leviPortrait(kind);
-    pic.className = 'levi-pic'; pic.setAttribute('role', 'img'); pic.setAttribute('aria-label', name);
-    const n = document.createElement('span'); n.className = 'levi-name'; n.textContent = name.toUpperCase();
-    const l = document.createElement('span'); l.className = 'levi-line'; l.textContent = line;
-    li.append(pic, n, l); list.append(li);
+  const won = save.leviBeaten || {}, list = $('leviList');
+  if (!leviCardDone) {
+    leviCardDone = true;
+    for (const [kind, name, line] of LEVI_INFO) {
+      const li = document.createElement('li'), pic = leviPortrait(kind);
+      leviPics[kind] = { color: pic, dark: silhouette(pic) };
+      li.dataset.kind = kind;
+      const n = document.createElement('span'); n.className = 'levi-name'; n.textContent = name.toUpperCase();
+      const l = document.createElement('span'); l.className = 'levi-line'; l.textContent = line;
+      li.append(document.createElement('canvas'), n, l); list.append(li);
+    }
   }
+  let beaten = 0;
+  for (const li of list.children) {
+    const kind = li.dataset.kind, w = !!won[kind], name = LEVI_INFO.find(x => x[0] === kind)[1];
+    if (w) beaten++;
+    const pic = leviPics[kind][w ? 'color' : 'dark'];
+    pic.className = 'levi-pic'; pic.setAttribute('role', 'img'); pic.setAttribute('aria-label', name + (w ? ', beaten' : ', not beaten yet'));
+    if (li.firstChild !== pic) li.replaceChild(pic, li.firstChild);
+    li.classList.toggle('won', w);
+  }
+  $('leviHint').textContent = 'One hunts you after every second cafe. Beaten: ' + beaten + ' of 6';
 }
 $('newsTag').addEventListener('click', () => { if (state === 'title' && !cardSide) setCard('levi'); });
 $('leviDone').addEventListener('click', () => setCard(null));
+$('badgeBtn').addEventListener('click', () => setCard('badges'));
+$('badgeDone').addEventListener('click', () => setCard('levi'));
 $('howBtn').addEventListener('click', () => setCard('how'));
 // Reset ship repair (Settings): two confirmations, the second sterner, before the parts are cleared.
 const confirmDlg = $('confirmDlg');
@@ -3416,13 +3471,13 @@ function beginPlay() {
 }
 function pause() {
   if (!['play', 'intro', 'landing', 'cafe', 'cafeJump'].includes(state)) return;
-  prevState = state; setState('paused'); Sfx.wind(0); Sfx.thrust(0); Music.stop(0.15); syncToggles();
+  prevState = state; setState('paused'); sayEl.style.visibility = 'hidden'; Sfx.wind(0); Sfx.thrust(0); Music.stop(0.15); syncToggles();
   $('perkPause').textContent = perkSummary(); $('perkPause').hidden = !player.bought.length;
   showScreen('pause');
 }
 function resume() {
   if (state !== 'paused') return;
-  setState(prevState); showScreen(null); last = performance.now();
+  setState(prevState); showScreen(null); sayEl.style.visibility = ''; last = performance.now();
   if (state === 'landing' || state === 'cafe' || state === 'cafeJump') Music.title();
   else if (bossTuneOn) Music.boss(bossTrack);
   else if (state === 'play' || introT >= 1.3) Music.start();
@@ -3443,6 +3498,7 @@ function toTitle() {
   if (repairedThisRun) startFireworks();
 }
 function die() {
+  sayEl.hidden = true;
   setState('dying'); dieT = 0; Buzz.death(); Sfx.death(); Sfx.wind(0); Sfx.thrust(0); Music.stop(0.7);
   for (let i = 0; i < 18; i++) burst(player.x, player.y + PILOT_CY, i % 3 ? P.dust : P.lava, 1);
 }
@@ -3453,8 +3509,17 @@ function gameOver() {
   $('oDepth').innerHTML = m + '<small>m</small>'; $('oBest').innerHTML = save.best + '<small>m</small>'; $('oOrbs').textContent = player.orbs;
   $('newBest').hidden = !isBest;
   renderRunParts();
-  const extra = [player.bestStreak ? 'Best streak ' + player.bestStreak : '', perkSummary()].filter(Boolean).join(' \u00b7 ');
-  $('runExtra').textContent = extra; $('runExtra').hidden = !extra;
+  // Run highlights (version 108), one per line, the rarest first; at most four, then the treats.
+  const leviName = k => LEVI_INFO.find(x => x[0] === k)[1], nb = player.newBadges;
+  const lines = [
+    nb.length ? 'New badge' + (nb.length > 1 ? 's' : '') + ': <b>' + nb.join(', ') + '</b>' : '',
+    player.leviRun.length ? 'Beat <b>' + player.leviRun.map(leviName).join(', ') + '</b>' : '',
+    cafesRun ? 'Cafes visited <b>' + cafesRun + '</b>' + (cafesRun && !player.hits ? ', no hits' : '') : '',
+    player.closest < Infinity ? 'Closest call <b>' + player.closest + ' px</b> from a ' + (player.closestMine ? 'mine' : 'rock') : '',
+    player.bestStreak ? 'Best streak <b>' + player.bestStreak + '</b>' : '',
+  ].filter(Boolean).slice(0, 4);
+  if (player.bought.length) lines.push(perkSummary());
+  $('runExtra').innerHTML = lines.map(t => '<span>' + t + '</span>').join(''); $('runExtra').hidden = !lines.length;
   $('overLaunchBtn').hidden = !canLaunch();
   hud.classList.add('off'); syncToggles();
   if (qualifies(m)) { showScores(m); return; }
@@ -3780,9 +3845,80 @@ function checkCafe() {
   steerAcc = 0; tapBurst.l = tapBurst.r = 0; presses.clear(); player.vx = 0; player.thr = 0; Sfx.thrust(0.9);
 }
 function leaveCafe() {
+  sayEl.hidden = true;
   setState('cafeJump'); cafeT = 0; shopEl.hidden = true; cafeCard(null, true); Sfx.jump();
 }
 // -- landing, the counter and leaving: land on the pad, a cup at the counter, run and jump back in
+// -- the barista's greeting (version 108): a speech bubble over the cafe window while he's at the counter. The line
+// depends on this player's history: first visit, a Leviathan just beaten, deeper than ever, no hits, many cafes, or dives.
+const sayEl = document.createElement('div');
+sayEl.className = 'say'; sayEl.hidden = true; sayEl.setAttribute('role', 'status');
+function cafeArrive(C) {
+  save.cafeVisits = (save.cafeVisits || 0) + 1; persist();
+  award('cafe');
+  if (!player.hits) award('clean');
+  sayEl.textContent = baristaLine(C); sayEl.hidden = false;
+  if (!sayEl.isConnected) game.appendChild(sayEl);
+  sayEl.style.animation = 'none'; void sayEl.offsetWidth; sayEl.style.animation = '';
+  placeSay(C);
+}
+function baristaLine(C) {
+  const m = Math.round(C.Dl / PX_PER_M), ini = /^[A-Z]{3}$/.test(save.initials || '') ? save.initials : '', dives = save.dives || 0;
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  if (save.cafeVisits === 1) return 'First time here? Coffee\'s on the house!';
+  if (player.bossWon) { player.bossWon = false; return pick(['Was that crash you? Sit, sit!', 'You beat that thing? Have a refill!']); }
+  if (save.best > 0 && m > save.best) return 'Never seen you this deep!';
+  if (!player.hits) return pick(['Not a scratch on you!', 'Clean dive! Nice.']);
+  if (cafesRun >= 3) return 'Cafe number ' + cafesRun + '! You\'re a regular.';
+  return pick([
+    ini ? 'Hey ' + ini + '! The usual?' : 'Hey pilot! The usual?',
+    'Dive ' + dives + ' already? Fresh pot\'s on.',
+    save.best ? 'Your best is ' + fmtM(save.best) + ' m. Go beat it!' : 'Mind the walls out there.',
+    'Mind the walls out there.',
+  ]);
+}
+// Over the barista (the blob in the cafe window), kept on screen; the tail shifts to keep pointing at him.
+function placeSay(C) {
+  if (sayEl.hidden) return;
+  const s = C.side, x0 = Math.round(C.shopX), bx = (s < 0 ? x0 + 30 : x0 + 8) + 13, by = C.Dl - 58;
+  const half = Math.min(sayEl.offsetWidth / 2 + 6, W * sc / 2), want = bx * sc, x = Math.max(half, Math.min(W * sc - half, want));
+  sayEl.style.left = Math.round(x) + 'px'; sayEl.style.top = Math.round((by - camY) * sc) + 'px';
+  sayEl.style.setProperty('--tail', Math.round(Math.max(-half + 12, Math.min(half - 12, want - x))) + 'px');
+}
+
+// ---------- badges (version 108): saved on the phone in save.badges (id: when earned) ----------
+const BADGES = [
+  ['cafe', 'First cafe', 'Land at a cafe'],
+  ['clean', 'Not a scratch', 'Reach a cafe without a hit'],
+  ['deep', '3,000 m', 'Fall 3,000 m in one run'],
+  ['streak', 'Streak 24', 'Skim 24 rocks or mines in a row'],
+  ['levi', 'Monster down', 'Beat a Leviathan'],
+  ['all6', 'All six', 'Beat every Leviathan'],
+];
+if (!save.badges || typeof save.badges !== 'object') save.badges = {};
+function award(id) {
+  if (save.badges[id]) return;
+  const b = BADGES.find(x => x[0] === id);
+  if (!b) return;
+  save.badges[id] = Date.now(); persist();
+  player.newBadges.push(b[1]);
+  pop('BADGE: ' + b[1].toUpperCase(), player.x, player.y - 30, 'part');
+  Sfx.part(); Buzz.part();
+}
+const MEDAL = '<svg viewBox="0 0 10 10" shape-rendering="crispEdges" aria-hidden="true"><path fill="var(--lava)" d="M2 0h2v3h-2zM6 0h2v3h-2z"/><path fill="var(--gold-dk)" d="M3 3h4v1h-4zM2 4h6v5h-6zM3 9h4v1h-4z"/><path fill="var(--gold)" d="M3 4h4v5h-4zM2 5h6v3h-6z"/><path fill="var(--dust)" d="M4 5h1v1h-1z"/></svg>';
+function fillBadges() {
+  const list = $('badgeList'); list.innerHTML = '';
+  let n = 0;
+  for (const [id, name, how] of BADGES) {
+    const got = !!save.badges[id]; if (got) n++;
+    const li = document.createElement('li'); li.classList.toggle('got', got);
+    li.innerHTML = MEDAL;
+    const a = document.createElement('span'); a.className = 'badge-name'; a.textContent = name.toUpperCase() + (got ? '' : ' (not yet)');
+    const h = document.createElement('span'); h.className = 'badge-how'; h.textContent = how;
+    li.append(a, h); list.append(li);
+  }
+  $('badgeHint').textContent = n + ' of ' + BADGES.length + ' earned';
+}
 function updateCafe(dt) {
   cafeT += dt;
   const C = cafeInfo(cafeK), t = cafeT, crossed = at => t >= at && t - dt < at, standY = C.Dl - 28;
@@ -3793,7 +3929,7 @@ function updateCafe(dt) {
       x: C.padX + (Math.random() - 0.5) * 40, d: C.Dl - 5, vx: (Math.random() - 0.5) * 90, vy: -20 - Math.random() * 40, t: 0,
       life: 0.5 + Math.random() * 0.4, col: Math.random() < 0.5 ? P.shade : P.strata, z: 2
     });
-    if (u >= 1) { setState('cafe'); cafeT = 0; Sfx.thrust(0); Sfx.land(); Buzz.orb(); Music.title(); }
+    if (u >= 1) { setState('cafe'); cafeT = 0; Sfx.thrust(0); Sfx.land(); Buzz.orb(); Music.title(); cafeArrive(C); }
   } else if (state === 'cafe') {
     if (t < 0.7) {
       player.x = lerp(C.padX, C.counterX, t / 0.7);
@@ -3810,6 +3946,7 @@ function updateCafe(dt) {
       } else pop('REFRESHED', player.x, player.y - 10, 'good');
     }
     if (crossed(1.6)) openShop();
+    placeSay(C);
   } else {
     const runTo = C.tip + C.side * 8;
     if (t < 0.5) {
@@ -5114,7 +5251,7 @@ function hurt(kind, x, d, size) {
   }
   if (player.inv > 0) return;
   const dmg = kind === 'wall' ? WALL_DAMAGE : 1;
-  player.hp = Math.max(0, player.hp - dmg); player.inv = HIT_INVULN_S; shake = Math.max(shake, 1);
+  player.hp = Math.max(0, player.hp - dmg); player.inv = HIT_INVULN_S; shake = Math.max(shake, 1); player.hits++;
   // Hit-stop: the world freezes for a beat so the hit lands, with a white flash on the pilot.
   hitStop = kind === 'mine' ? 0.12 : 0.07; player.flash = 0.14;
   player.streak = 0;
@@ -5163,6 +5300,9 @@ function collect(it) {
 function nearMiss(k) {
   if (state !== 'play' || player.shield > 0 || player.inv > 0) return;
   player.streak++; player.bestStreak = Math.max(player.bestStreak, player.streak);
+  const gap = Math.max(0, Math.round((k.minN - 1) * (k.rr + HIT_HALF_W)));
+  if (gap < player.closest) { player.closest = gap; player.closestMine = !!k.isMine; }
+  if (player.streak >= 24) award('streak');
   Sfx.close(player.streak);
   pop('CLOSE!', k.x, k.d - k.rr - 8, 'close');
   if (player.streak % 24 === 0) { giveShield(5); Sfx.streak(); Buzz.shield(); pop('STREAK SHIELD', player.x, player.y - 18, 'shield'); }
@@ -5444,6 +5584,11 @@ function crashBoss() {
   bossShots.length = 0;
   Sfx.crash(); Sfx.mine(); Buzz.death(); shake = 3;
   explode(b.x, hit, 30, true);
+  // Version 108: a trophy for the Leviathans card, and the badges
+  save.leviBeaten = save.leviBeaten || {}; save.leviBeaten[b.kind] = (save.leviBeaten[b.kind] || 0) + 1; persist();
+  player.leviRun.push(b.kind); player.bossWon = true;
+  award('levi');
+  if (LEVI_KINDS.every(k => save.leviBeaten[k])) award('all6');
   const e = edgeAt(hit), Q = palAt(hit);
   for (const x of [e.L + 3, e.R - 3]) sparks(x, hit, [Q.b0, Q.shade, Q.ink, P.dust], 18, 8);
 }
