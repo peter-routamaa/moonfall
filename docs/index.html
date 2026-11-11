@@ -813,7 +813,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 139;
+const VERSION = 140;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -1758,14 +1758,28 @@ function trapLobe(x, hy, s, a, n) {
 // The jaws' teeth: points along each jaw's inner rim, with the way each tooth points.
 function trapTeeth(x, hy, s, a) {
   const out = [];
-  for (let i = 0; i < 9; i++) {
-    const ph = -0.25 + i * 0.22, base = trapPt(x, hy, s, a, -s * 24 * Math.cos(ph), 38 + 40 * Math.sin(ph)), L = i % 2 ? 9 : 13;
+  for (let i = 0; i < 7; i++) {   // 7 along the same stretch of rim since version 140 (was 9: about 50 fewer rectangles a frame)
+    const ph = -0.25 + i * 0.293, base = trapPt(x, hy, s, a, -s * 24 * Math.cos(ph), 38 + 40 * Math.sin(ph)), L = i % 2 ? 9 : 13;
     const tip = trapPt(x, hy, s, a, -s * 24 * Math.cos(ph) - s * L * 0.8, 38 + 40 * Math.sin(ph) + L * 0.6);
     out.push([base, tip]);
   }
   return out;
 }
 function trapStalk(x, hy, sw, t) { return [lerp(x + sw, x, t) + Math.sin(t * 3 + clock * 0.4) * 6 * (1 - t), lerp(hy - 260, hy - 4, t)]; }
+// Version 140 (performance): the stalk as one strip, a row at a time, with rows that come out the same merged into one
+// rectangle (about 60-90 a frame). It was 61 overlapping discs: 61 stamps, or about 1,280 rectangles while its colour
+// fades in. Same shape: centre and thickness as trapStalk, 8 px wide at the top to 12 at the hinge.
+function trapStalkStrip(x, hy, sw, col) {
+  const y0 = Math.round(hy - 260), y1 = Math.round(hy + 2), ph = clock * 0.4;
+  c.fillStyle = col;
+  let runY = y0, runL = 0, runR = -1;
+  for (let y = y0; y <= y1; y++) {
+    const t = Math.min(1, (y - (hy - 260)) / 256), cx = x + sw * (1 - t) + Math.sin(t * 3 + ph) * 6 * (1 - t), r = 8 + 4 * t;
+    const L = Math.round(cx - r), R = Math.round(cx + r);
+    if (L !== runL || R !== runR) { if (runR >= runL && y > runY) c.fillRect(runL, runY, runR - runL + 1, y - runY); runY = y; runL = L; runR = R; }
+  }
+  if (runR >= runL) c.fillRect(runL, runY, runR - runL + 1, y1 + 1 - runY);
+}
 // Version 137 (user: "additional, small mouths on the stalks"): three little flytraps budding off the stalk on short stems,
 // pointing down and outwards, snapping open and shut faster than the big one. Each: where its stem leaves the stalk
 // (sx, sy), its hinge (hx, hy), which way it points (rot, 0 = straight down), how open (a) and its size (sc).
@@ -1780,12 +1794,12 @@ function trapBuds(x, hy, sw, k) {
 function budPt(b, s, u, v) { const th = b.rot + s * b.a; u *= b.sc; v *= b.sc; return [b.hx + u * Math.cos(th) + v * Math.sin(th), b.hy - u * Math.sin(th) + v * Math.cos(th)]; }
 function drawTrapBuds(x, hy, sw, k, col) {
   for (const b of trapBuds(x, hy, sw, k)) {
-    for (let j = 0; j <= 8; j++) disc(lerp(b.sx, b.hx, j / 8), lerp(b.sy, b.hy, j / 8) + Math.sin(j / 8 * Math.PI) * -4, 4, col);   // its stem
+    limb(b.sx, b.sy, b.hx, b.hy, 4, 4, col);   // its stem (one quad since version 140; was 9 discs)
     for (const s of [-1, 1]) {
       const pts = []; for (let i = 0; i < 16; i++) { const t = i / 16 * Math.PI * 2; pts.push(budPt(b, s, 24 * Math.cos(t), 38 + 40 * Math.sin(t))); }
       fillPoly(c, pts, col);
-      for (let i = 0; i < 5; i++) {   // teeth along the inner rim
-        const ph = -0.2 + i * 0.36, bu = -s * 24 * Math.cos(ph), bv = 38 + 40 * Math.sin(ph), L = i % 2 ? 12 : 17;
+      for (let i = 0; i < 2; i++) {   // two teeth along the inner rim (since version 140; five was 30 tiny triangles a frame)
+        const ph = 0.15 + i * 0.75, bu = -s * 24 * Math.cos(ph), bv = 38 + 40 * Math.sin(ph), L = i ? 14 : 19;
         const p0 = budPt(b, s, bu, bv), t = budPt(b, s, bu - s * L * 0.8, bv + L * 0.6);
         fillPoly(c, [[p0[0] - 1, p0[1] - 1], [p0[0] + 1, p0[1] + 1], t], col);
       }
@@ -1795,7 +1809,7 @@ function drawTrapBuds(x, hy, sw, k, col) {
 }
 function drawTrap(x, y, dir, k, col) {
   const { y: yy, a, sw } = trapPose(x, y, k), hy = yy - 30;
-  for (let j = 0; j <= 60; j++) { const [sx, sy] = trapStalk(x, hy, sw, j / 60); disc(sx, sy, Math.round(8 + 4 * j / 60), col); }
+  trapStalkStrip(x, hy, sw, col);
   drawTrapBuds(x, hy, sw, k, col);
   for (const s of [-1, 1]) {   // two leaves off the stalk, drooping outwards
     const [bx, by] = trapStalk(x, hy, sw, 0.62 + (s > 0 ? 0.08 : 0)), fl = Math.sin(clock * 0.9 + k + s) * 5;
@@ -1806,7 +1820,8 @@ function drawTrap(x, y, dir, k, col) {
   for (const s of [-1, 1]) for (const [b, t] of trapTeeth(x, hy, s, a)) fillPoly(c, [[b[0] - 2, b[1] - 1], [b[0] + 2, b[1] + 1], t], col);
   for (const s of [-1, 1]) for (let i = 0; i < 3; i++) {   // root threads from the hinge
     const ox = x + s * (12 + i * 5), oy = hy + 4;
-    for (let j = 0; j < 22; j++) { c.fillStyle = col; c.fillRect(Math.round(ox + s * j * 0.5 + Math.sin(clock * 1.4 + i + j * 0.3) * j * 0.15), Math.round(oy + j * 2.2), 1, 2); }
+    c.fillStyle = col;   // 11 steps of 4 px (version 140; was 22 of 2 px, half the rectangles for the same thread)
+    for (let j = 0; j < 22; j += 2) c.fillRect(Math.round(ox + s * j * 0.5 + Math.sin(clock * 1.4 + i + j * 0.3) * j * 0.15), Math.round(oy + j * 2.2), 1, 5);
   }
 }
 // Gloomwing, a moth wider than the shaft, head down and coming at him: big forewings beating slowly, rounded hindwings,
