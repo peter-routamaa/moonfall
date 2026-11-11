@@ -111,6 +111,14 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .btn.settings:active { box-shadow: 2px 2px 0 var(--dust-dim); }
 .best.best-big { display: flex; justify-content: center; align-items: baseline; gap: 10px; margin: 0; font-size: 12px; }
 .card-nav { display: grid; gap: 10px; }
+/* Version 133: Instructions and Settings share a row, with Badges (moved here from the Leviathans card) full width below. */
+#titleFront .card-nav { grid-template-columns: 1fr 1fr; }
+#titleFront .card-nav .btn.settings { min-width: 0; gap: 6px; padding: 11px 6px 10px; font-size: 13px; letter-spacing: .02em; }
+#titleFront .card-nav .btn.settings > svg { flex: none; }
+#badgesBtn { grid-column: 1 / -1; }
+#badgesBtn svg { width: 16px; height: 16px; }
+#badgesBtn small { font: inherit; font-size: 11px; color: color-mix(in srgb, var(--dust) 75%, var(--blue)); }
+@media (max-width: 360px) { #titleFront .card-nav { column-gap: 8px; } #titleFront .card-nav .btn.settings { font-size: 11px; gap: 4px; padding-inline: 3px; letter-spacing: 0; } #titleFront .card-nav .btn.settings > svg { width: 12px; height: 12px; } }
 .best.best-big b { font-size: 22px; color: var(--gold); letter-spacing: .03em; }
 #titleScreen { padding-block: 8px 22px; gap: 8px; }
 /* The news sticker (version 99): floats in the sky under the repair panel, tilted (a 45-degree corner ribbon covered the
@@ -541,6 +549,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <div class="card-nav">
         <button class="btn settings" id="howBtn" type="button"><svg viewBox="0 0 9 9" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM6 2h1v1h-1zM7 2h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1z"/></svg>Instructions</button>
         <button class="btn settings" id="settingsBtn" type="button"><svg viewBox="0 0 9 9" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM1 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM7 1h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM0 3h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM7 5h1v1h-1zM8 5h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM1 7h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM7 7h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM5 8h1v1h-1z"/></svg>Settings</button>
+        <button class="btn settings" id="badgesBtn" type="button"><span class="medal-ico"></span>Badges <small id="badgesCount"></small></button>
       </div>
      </div>
      <div class="card face back" id="titleBack" hidden inert aria-hidden="true">
@@ -586,13 +595,13 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <h2>Leviathans</h2>
       <p class="hint" id="leviHint">One hunts you after every second cafe.</p>
       <ul class="levi-list" id="leviList"></ul>
-      <div class="row"><button class="btn" id="leviDone" type="button">Done</button><button class="btn settings" id="badgeBtn" type="button">Badges</button></div>
+      <div class="row"><button class="btn" id="leviDone" type="button">Done</button></div>
      </div>
      <div class="card face back" id="badgeBack" hidden inert aria-hidden="true">
       <h2>Badges</h2>
       <p class="hint" id="badgeHint">0 of 6 earned</p>
       <ul class="badge-list" id="badgeList"></ul>
-      <button class="btn" id="badgeDone" type="button">Back</button>
+      <button class="btn" id="badgeDone" type="button">Done</button>
      </div>
      </div>
     </div>
@@ -749,7 +758,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 132;
+const VERSION = 133;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3875,6 +3884,7 @@ function buildRepair() {
 }
 const NAV_SPR = ['kkkkkkkkkkkk', 'knnnnnnnnnnk', 'knEEEEEEEEnk', 'knEeEEEEEEnk', 'knEEEeeEEEnk', 'knEEEEEEeEnk', 'knEEEEEEEEnk', 'knnnnnnnnnnk', 'kkkkkkkkkkkk', '....kqqk....', '..kkkkkkkk..'];
 function renderRepair() {
+  badgesButton();   // version 133: the menu's badge count
   repair = repairFrac();
   const pct = Math.floor(repair * 100);
   $('repairPct').textContent = pct;
@@ -4141,7 +4151,7 @@ function setCard(side, instant) {
     if (side || instant) ts.classList.toggle('reading', !!side);   // Settings too since version 84 (one more row)
     else readTimer = setTimeout(() => ts.classList.remove('reading'), 480);
   });
-  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $('sndT') : side === 'how' ? $('howDone') : side === 'news' ? $('newsLevi') : side === 'levi' ? $(was === 'badges' ? 'badgeBtn' : 'leviDone') : side === 'badges' ? $('badgeDone') : $(was === 'how' ? 'howBtn' : was === 'levi' || was === 'badges' || was === 'news' ? 'startBtn' : 'settingsBtn')), 460);
+  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $('sndT') : side === 'how' ? $('howDone') : side === 'news' ? $('newsLevi') : side === 'levi' ? $('leviDone') : side === 'badges' ? $('badgeDone') : $(was === 'how' ? 'howBtn' : was === 'badges' ? 'badgesBtn' : was === 'levi' || was === 'news' ? 'startBtn' : 'settingsBtn')), 460);
 }
 // -- the Leviathans card (version 102): the NEW sticker opens it. Each creature's name, its signature attack in a line,
 // and a portrait painted with its fight art (bossStage), facing right and looking down at the viewer.
@@ -4222,8 +4232,9 @@ function syncMoon() {
 }
 for (const b of document.querySelectorAll('.moon-btn')) b.addEventListener('click', () => setMoon(b.dataset.moon));
 $('leviDone').addEventListener('click', () => setCard(null));
-$('badgeBtn').addEventListener('click', () => setCard('badges'));
-$('badgeDone').addEventListener('click', () => setCard('levi'));
+// Version 133: Badges opens from the main menu (it used to be a button on the Leviathans card).
+$('badgesBtn').addEventListener('click', () => setCard('badges'));
+$('badgeDone').addEventListener('click', () => setCard(null));
 $('howBtn').addEventListener('click', () => setCard('how'));
 // Reset ship repair (Settings): two confirmations, the second sterner, before the parts are cleared.
 const confirmDlg = $('confirmDlg');
@@ -4808,6 +4819,11 @@ function award(id) {
   Sfx.part(); Buzz.part();
 }
 const MEDAL = '<svg viewBox="0 0 10 10" shape-rendering="crispEdges" aria-hidden="true"><path fill="var(--lava)" d="M2 0h2v3h-2zM6 0h2v3h-2z"/><path fill="var(--gold-dk)" d="M3 3h4v1h-4zM2 4h6v5h-6zM3 9h4v1h-4z"/><path fill="var(--gold)" d="M3 4h4v5h-4zM2 5h6v3h-6z"/><path fill="var(--dust)" d="M4 5h1v1h-1z"/></svg>';
+// The menu's Badges button: the medal and how many are earned (version 133).
+function badgesButton() {
+  const ico = $('badgesBtn').querySelector('.medal-ico'); if (ico) ico.outerHTML = MEDAL;
+  $('badgesCount').textContent = BADGES.filter(b => save.badges[b[0]]).length + '/' + BADGES.length;
+}
 function fillBadges() {
   const list = $('badgeList'); list.innerHTML = '';
   let n = 0;
