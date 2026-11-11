@@ -136,10 +136,22 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 #menuStart { display: none; position: absolute; left: 0; right: 0; margin-inline: auto; width: max-content; min-width: 190px;
   bottom: calc(20% + env(safe-area-inset-bottom, 0px)); z-index: 3; font-size: 24px; padding: 16px 30px 14px; }
 #titleScreen.clean #menuStart { display: block; }
-#titleScreen .repair, #titleScreen .flip { transition: opacity .3s steps(4), transform .4s steps(5); }
-#titleScreen.clean .repair { opacity: 0; transform: translateY(-30px); visibility: hidden; transition: none; }
-#titleScreen.clean .flip { opacity: 0; transform: translateY(60px); visibility: hidden; transition: none; }
+#titleScreen.clean .repair, #titleScreen.clean .flip { visibility: hidden; }
 #titleScreen.clean .news { display: none; }
+/* Version 139 (user: "flip in each UI section of the main menu, one at a time from the top"): after START each section
+   turns down into place like a card on a hinge along its top edge, 0.15 s after the one above it: the ship repair panel,
+   the NEW FEATURES sticker, the menu card, then the card's rows (BEST, Jump in, Instructions and Settings, Badges and
+   Unlocks). `backwards` keeps each one turned away until its turn. */
+@keyframes flipDown { from { transform: perspective(520px) rotateX(-92deg); opacity: 0; } 30% { opacity: 1; } to { transform: perspective(520px) rotateX(0); opacity: 1; } }
+#titleScreen.arriving :is(.repair, .news, .flip, #bestBtn, #launchBtn, #startBtn, #howBtn, #settingsBtn, #badgesBtn, #unlocksBtn, #verTag) {
+  transform-origin: 50% 0; animation: flipDown .34s steps(7) var(--d, 0s) backwards; }
+@keyframes flipDownTilt { from { transform: rotate(var(--tilt)) perspective(520px) rotateX(-92deg); opacity: 0; } 30% { opacity: 1; } to { transform: rotate(var(--tilt)) perspective(520px) rotateX(0); opacity: 1; } }
+#titleScreen.arriving .news { --d: .15s; animation-name: flipDownTilt; }   /* keeps its tilt */
+#titleScreen.arriving .flip { --d: .3s; }
+#titleScreen.arriving :is(#bestBtn, #verTag) { --d: .45s; }
+#titleScreen.arriving :is(#launchBtn, #startBtn) { --d: .6s; }
+#titleScreen.arriving :is(#howBtn, #settingsBtn) { --d: .75s; }
+#titleScreen.arriving :is(#badgesBtn, #unlocksBtn) { --d: .9s; }
 /* Version 122: on the right (on the left it sometimes covered the wrecked ship), tilted the other way. */
 .news { --tilt: 10deg; position: absolute; top: calc(100% + 30px); right: 4px; z-index: 2; padding: 6px 10px 5px; border: 0; background: var(--gold); color: var(--ink); box-shadow: 3px 3px 0 var(--gold-dk); text-align: center; cursor: pointer; transform: rotate(var(--tilt)); animation: newsBob 2s ease-in-out infinite; }
 .news b { display: block; font: 700 12px/1 var(--display); letter-spacing: .12em; color: var(--lava-dk); }
@@ -467,7 +479,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   .btn.launch { animation: none; }
   .news { animation: none; }
   .btn.bob { animation: none; }
-  #titleScreen .repair, #titleScreen .flip { transition: none; }
+  #titleScreen.arriving * { animation: none !important; }
   .intro-cap { transition: none; }
 }
 </style>
@@ -781,7 +793,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 138;
+const VERSION = 139;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -4276,8 +4288,10 @@ $('newsTag').addEventListener('click', () => { if (state === 'title' && !cardSid
 // Version 138: START on the clear main menu brings in the ship repair panel and the menu card.
 function openMenu() {
   if (!screens.title.classList.contains('clean')) return;
-  Sfx.bleep(880); screens.title.classList.remove('clean');
-  setTimeout(() => kbFocus($('startBtn')), 420);
+  const ts = screens.title;
+  Sfx.bleep(880); ts.classList.add('arriving'); ts.classList.remove('clean');   // version 139: the sections flip in one by one
+  clearTimeout(openMenu.t); openMenu.t = setTimeout(() => ts.classList.remove('arriving'), 1400);
+  setTimeout(() => kbFocus($('startBtn')), 1000);
 }
 $('menuStart').addEventListener('click', openMenu);
 $('newsLevi').addEventListener('click', () => setCard('levi'));

@@ -57,6 +57,12 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     M.render(); M.cine(); M.state = 'paused'; document.title = 'ready'; return;
   }
   if (q.get('scene') === 'title') {
+    if (q.get('arrive')) {   // &arrive=ms: the main menu's sections flipping in after START (version 139), frozen at that moment
+      for (const st of document.querySelectorAll('style')) if (st.textContent.includes('animation-duration:1ms')) st.remove();
+      const ts = document.getElementById('titleScreen'); ts.classList.remove('arriving'); ts.classList.add('clean'); const st0 = window.setTimeout; window.setTimeout = (f, ms, ...r) => ms === 1400 ? 0 : st0(f, ms, ...r); document.getElementById('menuStart').click(); window.setTimeout = st0;   // keep it 'arriving' (screenshots run time fast)
+      for (const an of document.getAnimations()) { if ((an.animationName || '').startsWith('flipDown')) { an.pause(); an.currentTime = +q.get('arrive'); } else try { an.finish(); } catch (e) { an.cancel(); } }
+      M.render(); document.title = 'ready'; return;
+    }
     for (let i = 0; i < 60; i++) M.update(1 / 60);
     if (q.get('fw')) {   // &fw=1: a run that finishes the ship, quit back to the menu, 2.5 s of fireworks
       for (const k in M.save.parts) M.save.parts[k] = 0;   // the saved profile may already have a repaired ship
