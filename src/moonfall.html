@@ -151,10 +151,12 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .badge-how { font: 400 18px/.95 var(--body); color: var(--dust-dim); }
 /* Run highlights on the game over card (version 108), one per line. */
 #runExtra span { display: block; }
-/* The barista's greeting at a cafe (version 108): a speech bubble over the cafe window, its tail pointing at the barista. */
-.say { position: absolute; z-index: 3; transform: translate(-50%, -100%); max-width: 172px; width: max-content; padding: 6px 8px 5px; background: var(--dust); color: var(--ink); font: 400 17px/.95 var(--body); text-align: center; box-shadow: 3px 3px 0 var(--ink); pointer-events: none; animation: sayIn .25s steps(4) both; }
-.say::after { content: ''; position: absolute; top: 100%; left: calc(50% + var(--tail, 0px) - 5px); border: 5px solid transparent; border-top-color: var(--dust); border-bottom: 0; }
-@keyframes sayIn { from { opacity: 0; transform: translate(-50%, -80%); } }
+/* The barista's greeting at a cafe (version 108): a speech bubble, since version 114 on the ledge below the pilot, its
+   tail pointing up at the barista. */
+.say { position: absolute; z-index: 3; transform: translate(-50%, 0); max-width: 172px; width: max-content; padding: 6px 8px 5px; background: var(--dust); color: var(--ink); font: 400 17px/.95 var(--body); text-align: center; box-shadow: 3px 3px 0 var(--ink); pointer-events: none; animation: sayIn .25s steps(4) both; }
+.say::after { content: ''; position: absolute; bottom: 100%; left: calc(50% + var(--tail, 0px) - 5px); border: 5px solid transparent; border-bottom-color: var(--dust); border-top: 0; }
+.say.covered { visibility: hidden; }
+@keyframes sayIn { from { opacity: 0; transform: translate(-50%, 20%); } }
 @keyframes newsBob {
   0%, 100% { transform: rotate(-12deg) scale(1); box-shadow: 2px 2px 0 var(--gold-dk); }
   50% { transform: rotate(-12deg) scale(1.1) translateY(-2px); box-shadow: 6px 7px 0 color-mix(in srgb, var(--gold-dk) 70%, transparent); }
@@ -686,7 +688,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 113;
+const VERSION = 114;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -1653,13 +1655,23 @@ const leviMark = k => k % 2 ? cafeD((k + 1) / 2) - 550 * PX_PER_M : cafeD(k / 2)
 // drifts into place with the layer as he falls and lands, with no move of its own.
 function leviDepth(k) {
   if (k % 2) return leviMark(k);
-  const camAt = cafeLedge(k / 2) - 28 - pilotScreenY, ledge = pilotScreenY + 28 + 46;
+  const camAt = cafeLedge(k / 2) - 28 - pilotScreenY - cafeLift, ledge = pilotScreenY + cafeLift + 28 + 46;
   return camAt + H / 2 + ((ledge + (cafeCardTop || H * 0.55)) / 2 - 7 - H / 2) / LEVI_PARALLAX;
 }
 // The cafe card's top edge in game px, measured with the card laid out but invisible (on resize, and once the fonts
 // have loaded), so the creature's place is known before the card shows.
 let cafeCardTop = 0;
+// Version 114 (user: "I can't see the cafe sign"): while he stands at a cafe the camera sits cafeLift px higher than in
+// the fall, so the top of the CAFE sign (93 px above the ledge) clears the bottom of the HUD's right column (PARTS) by
+// 4 px. Measured with offsets, so the HUD's slide-away transform doesn't count.
+let cafeLift = 0;
+function measureCafeLift() {
+  let el = $('partsHud'), y = el.offsetHeight + 4;
+  while (el && el !== game) { y += el.offsetTop; el = el.offsetParent; }
+  cafeLift = Math.max(0, Math.ceil(y / sc + 4 - (pilotScreenY + 28 - 93)));
+}
 function measureCafeCard() {
+  measureCafeLift();
   if (!shopEl.hidden) return;
   shopEl.style.visibility = 'hidden'; shopEl.hidden = false;
   const r = $('cafeFront').getBoundingClientRect();
@@ -4272,13 +4284,17 @@ function baristaLine(C) {
     'Mind the walls out there.',
   ]);
 }
-// Over the barista (the blob in the cafe window), kept on screen; the tail shifts to keep pointing at him.
+// Version 114 (user: it blocked the cafe art): on the ledge's face below him and a little to his right, kept on screen,
+// with its tail pointing up at the barista in the window (it sat over the window until then).
 function placeSay(C) {
   if (sayEl.hidden) return;
-  const bx = cafeGeo(C).baristaX, by = C.Dl - 31;
-  const half = Math.min(sayEl.offsetWidth / 2 + 6, W * sc / 2), want = bx * sc, x = Math.max(half, Math.min(W * sc - half, want));
+  const bx = cafeGeo(C).baristaX, by = C.Dl + 6;
+  const half = Math.min(sayEl.offsetWidth / 2 + 6, W * sc / 2), want = (C.counterX + 30) * sc, x = Math.max(half, Math.min(W * sc - half, want));
   sayEl.style.left = Math.round(x) + 'px'; sayEl.style.top = Math.round((by - camY) * sc) + 'px';
-  sayEl.style.setProperty('--tail', Math.round(Math.max(-half + 12, Math.min(half - 12, want - x))) + 'px');
+  sayEl.style.setProperty('--tail', Math.round(Math.max(-half + 12, Math.min(half - 12, bx * sc - x))) + 'px');
+  // On short phones the cafe card (the shop above all) can reach up to the ledge: then the bubble steps aside.
+  const top = (by - camY) * sc, card = shopEl.hidden ? Infinity : $('cafeFlip').getBoundingClientRect().top - game.getBoundingClientRect().top;
+  sayEl.classList.toggle('covered', top + sayEl.offsetHeight + 4 > card);
 }
 
 // ---------- badges (version 108): saved on the phone in save.badges (id: when earned) ----------
@@ -4361,7 +4377,9 @@ function updateCafe(dt) {
       Music.start();
     }
   }
-  camY = player.y - pilotScreenY;
+  // Eased in as he lands and out as he leaves, so the fall picks up where it was (version 114).
+  const lift = cafeLift * (state === 'landing' ? easeInOut(Math.min(1, t / 1.1)) : state === 'cafeJump' ? 1 - easeInOut(Math.min(1, t / 0.5)) : 1);
+  camY = player.y - pilotScreenY - lift;
 }
 // -- the shop: spend spare crystals on one perk per cafe
 const PERKS = [
