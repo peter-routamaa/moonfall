@@ -803,7 +803,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 142;
+const VERSION = 143;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -1957,13 +1957,13 @@ function drawMantis(x, y, dir, k, col) {
     }
   }
 }
-// Six kinds per moon (version 80 made the order random; version 142 below makes the cafe ones a bag across runs).
+// Six kinds per moon (version 80 made the order random; version 143 below makes the cafe ones a bag across runs).
 // The even-numbered ones wait at the cafes (creature 2n at cafe n), hovering in place; the odd ones drift past.
 // The Jungle moon has its own six (three in version 113, three more in version 130), in the same kind of order.
 const LEVI_KINDS = ['nautilus', 'whale', 'elder', 'jelly', 'angler', 'manta'];
 const LEVI_SETS = { dust: LEVI_KINDS, jungle: ['centipede', 'flytrap', 'moth', 'spider', 'frog', 'mantis'] };
 const leviSet = () => LEVI_SETS[moon];
-// Version 142 (user: "I don't want to see the same Leviathan again before I've been through all six"): the cafe ones
+// Version 143 (user: "I don't want to see the same Leviathan again before I've been through all six"): the cafe ones
 // (even k) come out of a shuffled bag of the moon's six that lasts across runs. save.leviMet[moon] lists the ones met at
 // a cafe since the bag was last full; a run's cafes take the rest in a random order, then fresh shuffles of all six
 // (never the same one twice across the join). The passing ones (odd k) stay random, each differing from the cafe one
