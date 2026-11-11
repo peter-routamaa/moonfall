@@ -26,7 +26,7 @@ globalThis.fetch = async (url, init = {}) => {
   if (q.get('or')) { const m = q.get('or').match(/depth\.gt\.(\d+),and\(depth\.eq\.(\d+),id\.lt\.(\d+)\)/); r = r.filter(x => x.depth > +m[1] || (x.depth === +m[2] && x.id < +m[3])); }
   if (h.Prefer === 'count=exact') return new Response('[]', { headers: { 'content-range': r.length ? `0-0/${r.length}` : `*/0` } });
   r.sort((a, b) => b.depth - a.depth || a.id - b.id);
-  return new Response(JSON.stringify(r.slice(0, +q.get('limit')).map(({ id, initials, depth, escaped }) => ({ id, initials, depth, escaped }))));
+  return new Response(JSON.stringify(r.slice(0, +q.get('limit')).map(({ id, initials, depth, escaped, moon }) => ({ id, initials, depth, escaped, moon }))));
 };
 await import(root + 'tools/out/function.mjs');
 
@@ -45,28 +45,33 @@ const s2 = await call('POST', { initials: 'ESC', depth: 400, escaped: true }, 'e
 check('escaped stored and returned', s2[0] === 200 && s2[1].top.find(t => t.initials === 'ESC').escaped === true && s1[1].top[0].escaped === null, [s1, s2]);
 const s3 = await call('POST', { initials: 'JNK', depth: 300, escaped: 'yes' }, 'j');
 check('junk escaped stored as null', s3[0] === 200 && db.scores.find(x => x.initials === 'JNK').escaped === null, db.scores);
+const s4 = await call('POST', { initials: 'JGL', depth: 350, moon: 'jungle' }, 'm');
+check('moon stored and returned', s4[0] === 200 && s4[1].top.find(t => t.initials === 'JGL').moon === 'jungle' && db.scores.find(x => x.initials === 'ESC').moon === null, s4);
+await call('POST', { initials: 'MNX', depth: 340, moon: 'mars' }, 'n');
+check('unknown moon stored as null', db.scores.find(x => x.initials === 'MNX').moon === null, db.scores);
 check('rude initials refused', (await call('POST', { initials: 'ass', depth: 300 }, 'b'))[0] === 400, null);
 check('bad depth refused', (await call('POST', { initials: 'ABC', depth: -5 }, 'c'))[0] === 400, null);
 db.scores.push({ id: 99, initials: 'FUK', depth: 900, who: null, created_at: '2026-01-01' });
 const masked = (await call('GET'))[1].top.map(t => t.initials + t.depth).join(' ');
-check('rude names already stored show as ???', masked === '???900 ABC500 ESC400 JNK300', masked);
+check('rude names already stored show as ???', masked === '???900 ABC500 ESC400 JGL350 MNX340 JNK300', masked);
 const burst = []; for (let k = 0; k < 8; k++) burst.push((await call('POST', { initials: 'SPM', depth: 5 }, 'spam'))[0]);
 check('6 scores a minute per connection, then 429', burst.join(',') === '200,200,200,200,200,200,429,429', burst);
 
 // Play stats
 const P = '00112233aabbccdd', RUN = '1111222233334444';
-check('play ping', (await call('POST', { event: 'play', player: P, run: RUN, ver: 106 }))[0] === 200, null);
+check('play ping', (await call('POST', { event: 'play', player: P, run: RUN, ver: 106, moon: 'jungle' }))[0] === 200, null);
+check('moon stored on the start ping', db.plays.find(x => x.run === RUN).moon === 'jungle', db.plays);
 check('version stored on the start ping', db.plays.find(x => x.run === RUN).ver === 106, db.plays);
 await call('POST', { event: 'play', player: P, run: RUN });
 check('repeat ping within 5 s ignored', db.plays.filter(x => x.player === P).length === 1, db.plays);
 check('bad player id refused', (await call('POST', { event: 'play', player: 'nope' }))[0] === 400, null);
 const end = { event: 'end', player: P, run: RUN, depth: 812, secs: 95, how: 'mine', orbs: 7, parts: 2, cafes: 0, initials: 'PJR',
-  fps: 89.67, worst: 41, device: 'phone', os: 'android', screen: '412x915@2.63', treats: ['Magnet', 'Bubble to go'], streak: 17, sound: true, music: false, repair: 53, intro: 'skipped', ver: 107 };
+  fps: 89.67, worst: 41, device: 'phone', os: 'android', screen: '412x915@2.63', treats: ['Magnet', 'Bubble to go'], streak: 17, sound: true, music: false, repair: 53, intro: 'skipped', ver: 107, moon: 'dust' };
 check('end ping', (await call('POST', end))[0] === 200, null);
 await call('POST', { ...end, depth: 900, secs: 120, how: 'rock' });
 const row = db.plays.find(x => x.run === RUN);
 check('second end updates the same run', row.depth === 900 && row.how === 'rock' && db.plays.filter(x => x.run === RUN).length === 1, row);
-check('extras stored', row.fps === 89.7 && row.device === 'phone' && row.treats.join() === 'Magnet,Bubble to go' && row.intro === 'skipped' && row.repair === 53 && row.ver === 107, row);
+check('extras stored', row.fps === 89.7 && row.device === 'phone' && row.treats.join() === 'Magnet,Bubble to go' && row.intro === 'skipped' && row.repair === 53 && row.ver === 107 && row.moon === 'dust', row);
 await call('POST', { ...end, run: '5555666677778888', depth: 40, how: 'left' });
 check('end without a start makes the row', !!db.plays.find(x => x.run === '5555666677778888'), db.plays);
 const { ver: _v, ...old } = end;
@@ -74,9 +79,9 @@ await call('POST', { ...old, run: '9999aaaa9999bbbb' });
 check('older copies without a version still save', db.plays.find(x => x.run === '9999aaaa9999bbbb')?.ver === null, db.plays);
 check('bad how refused', (await call('POST', { ...end, how: 'boom' }))[0] === 400, null);
 check('bad run id refused', (await call('POST', { ...end, run: 'zz' }))[0] === 400, null);
-await call('POST', { ...end, run: '0000aaaa0000bbbb', fps: 'fast', device: 'fridge', screen: '<b>', treats: ['<x>'], repair: 140, intro: 'maybe', initials: 'ASS', ver: '106' });
+await call('POST', { ...end, run: '0000aaaa0000bbbb', fps: 'fast', device: 'fridge', screen: '<b>', treats: ['<x>'], repair: 140, intro: 'maybe', initials: 'ASS', ver: '106', moon: 'Jungle' });
 const junk = db.plays.find(x => x.run === '0000aaaa0000bbbb');
-check('junk extras stored as empty, run kept', junk.how === 'mine' && [junk.fps, junk.device, junk.screen, junk.treats, junk.repair, junk.intro, junk.initials, junk.ver].every(v => v === null), junk);
+check('junk extras stored as empty, run kept', junk.how === 'mine' && [junk.fps, junk.device, junk.screen, junk.treats, junk.repair, junk.intro, junk.initials, junk.ver, junk.moon].every(v => v === null), junk);
 
 console.log(failed ? `${failed} failed, ${passed} passed` : `all ${passed} checks passed`);
 process.exit(failed ? 1 : 0);

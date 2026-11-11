@@ -1,11 +1,11 @@
 // MoonFall online high scores and play counter.
 //   GET  -> { top }                 the 10 deepest runs
-//   POST -> { top, rank, id }       body { initials: "ABC", depth: 812, escaped: true }; saves the run
-//                                   (escaped: the player had repaired the ship; optional, stored as null if missing)
+//   POST -> { top, rank, id }       body { initials: "ABC", depth: 812, escaped: true, moon: "jungle" }; saves the run
+//                                   (escaped: the player had repaired the ship; moon: dust or jungle; both optional, null if missing)
 //   POST -> { ok }                  body { event: "play", player: "<16 hex>", run: "<16 hex>", ver }; a run started (owner's stats)
 //   POST -> { ok }                  body { event: "end", player, run, depth, secs, how, orbs, parts, cafes, initials,
 //                                         fps, worst, device, os, screen, treats, streak, sound, music, repair, intro, ver }; how it went
-//                                   (ver: the game's version number, e.g. 106; optional)
+//                                   (ver: the game's version number, e.g. 106; moon: dust or jungle, version 113; both optional)
 // The game only knows this function's URL. The secret key comes from the function's own
 // environment (Supabase provides SUPABASE_URL plus SUPABASE_SECRET_KEYS on newer projects and
 // SUPABASE_SERVICE_ROLE_KEY on all), so no key is ever in the game file.
@@ -41,7 +41,7 @@ const reply = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 
 async function top() {
-  const r = await fetch(`${REST}/scores?select=id,initials,depth,escaped&order=depth.desc,id.asc&limit=${TOP}`, { headers: auth });
+  const r = await fetch(`${REST}/scores?select=id,initials,depth,escaped,moon&order=depth.desc,id.asc&limit=${TOP}`, { headers: auth });
   if (!r.ok) throw new Error(`top: ${r.status} ${await r.text()}`);
   const rows = await r.json();
   return rows.map((s: { initials: string }) => (BAD.has(s.initials) ? { ...s, initials: '???' } : s));
@@ -78,6 +78,8 @@ async function update(table: string, filter: string, row: unknown) {
 const whole = (v: unknown, max: number) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= max;
 // The game's version number, sent with both pings since version 106; empty from older copies.
 const version = (v: unknown) => (whole(v, 100000) && (v as number) >= 1 ? v : null);
+// Which moon (version 113): the original Dust moon or the Jungle moon; empty from older copies.
+const moonOf = (v: unknown) => (v === 'dust' || v === 'jungle' ? v : null);
 
 // The extra run stats are optional (older copies of the game don't send them); anything missing or malformed is stored as empty.
 function extras(b: Record<string, unknown>) {
@@ -90,7 +92,7 @@ function extras(b: Record<string, unknown>) {
     treats, streak: whole(b.streak, 100000) ? b.streak : null,
     sound: typeof b.sound === 'boolean' ? b.sound : null, music: typeof b.music === 'boolean' ? b.music : null,
     repair: whole(b.repair, 100) ? b.repair : null, intro: b.intro === 'watched' || b.intro === 'skipped' ? b.intro : null,
-    ver: version(b.ver),
+    ver: version(b.ver), moon: moonOf(b.moon),
   };
 }
 
@@ -113,7 +115,7 @@ Deno.serve(async req => {
       if (!HEX16.test(player)) return reply({ error: 'bad player id' }, 400);
       const run = typeof body.run === 'string' && HEX16.test(body.run) ? body.run : null;
       const since = new Date(Date.now() - PLAY_GAP_MS).toISOString();
-      if (await count('plays', `player=eq.${player}&created_at=gt.${encodeURIComponent(since)}`) === 0) await insert('plays', { player, run, ver: version(body.ver) }, false);
+      if (await count('plays', `player=eq.${player}&created_at=gt.${encodeURIComponent(since)}`) === 0) await insert('plays', { player, run, ver: version(body.ver), moon: moonOf(body.moon) }, false);
       return reply({ ok: true });
     }
 
@@ -149,7 +151,7 @@ Deno.serve(async req => {
     }
 
     const escaped = typeof body?.escaped === 'boolean' ? body.escaped : null;
-    const row = await insert('scores', { initials, depth, who, escaped }, true);
+    const row = await insert('scores', { initials, depth, who, escaped, moon: moonOf(body?.moon) }, true);
     // Rank in the same order as the table: deeper first, earlier run first on a tie.
     const above = await count('scores', `or=(depth.gt.${depth},and(depth.eq.${depth},id.lt.${row.id}))`);
     return reply({ top: await top(), rank: above + 1, id: row.id });

@@ -15,7 +15,7 @@ OUT = os.path.join(ROOT, 'tools', 'out')
 
 # The debug handle: the game's internals that the tests and screenshots reach for.
 # Functions added recently are looked up with typeof, so the hook also works on older versions (same_pixels compares them).
-HOOK = """window.__mf = { gameOver, depthM, startLaunch, save, player, Sfx, Music, get state() { return state; }, set state(v) { state = v; }, update, render, get openT() { return openT; }, cafeInfo, get flags() { return flags; }, get rocks() { return rocks; }, get items() { return items; }, get hazards() { return hazards; }, setHP, voidAt: typeof voidAt === 'function' ? voidAt : null, voidInfo: typeof voidInfo === 'function' ? voidInfo : null, get fireworks() { return typeof fireworks === 'undefined' ? [] : fireworks; }, nearMiss, collect, buyPerk, openShop, get shopOffer() { return shopOffer; }, get hitStop() { return hitStop; }, get flyers() { return flyers; }, hurt, buildFlags, get cafeT() { return cafeT; }, set cafeT(v) { cafeT = v; }, get camY() { return camY; }, edgeAt, checkCafe, prepaint, frame, DROPS, dropList, set clock(v) { clock = v; }, get shopDone() { return shopDone; }, leviDepth, openTable, showScreen, setLevi(k, kind) { leviKind(k); leviOrder[k] = LEVI_KINDS.indexOf(kind); }, cafesPassed, speedAt, payNav, renderRepair, canLaunch, leviKind, set cafeSide(v) { cafeSide = v; }, expireTreats, checkCafe2: null, get pilotScreenY() { return pilotScreenY; }, get boss() { return typeof boss === 'undefined' ? null : boss; }, bossInfo: typeof bossInfo === 'function' ? bossInfo : null, get bossShots() { return typeof bossShots === 'undefined' ? [] : bossShots; }, get pilotNow() { return typeof pilotNow === 'undefined' ? 0 : pilotNow; }, get H() { return H; }, get tiles() { return tiles; }, leviPortrait: typeof leviPortrait === 'function' ? leviPortrait : null, bossBuf: typeof bossBuf === 'function' ? bossBuf : null, bossStage: typeof bossStage === 'function' ? bossStage : null, setBossTmp(cv) { bossTmp = cv; bossTmpG = cv.getContext('2d'); }, get clock() { return clock; } };"""
+HOOK = """window.__mf = { gameOver, depthM, startLaunch, save, player, Sfx, Music, get state() { return state; }, set state(v) { state = v; }, update, render, get openT() { return openT; }, cafeInfo, get flags() { return flags; }, get rocks() { return rocks; }, get items() { return items; }, get hazards() { return hazards; }, setHP, voidAt: typeof voidAt === 'function' ? voidAt : null, voidInfo: typeof voidInfo === 'function' ? voidInfo : null, get fireworks() { return typeof fireworks === 'undefined' ? [] : fireworks; }, nearMiss, collect, buyPerk, openShop, get shopOffer() { return shopOffer; }, get hitStop() { return hitStop; }, get flyers() { return flyers; }, hurt, buildFlags, get cafeT() { return cafeT; }, set cafeT(v) { cafeT = v; }, get camY() { return camY; }, edgeAt, checkCafe, prepaint, frame, DROPS, dropList, set clock(v) { clock = v; }, get shopDone() { return shopDone; }, leviDepth, openTable, showScreen, setLevi(k, kind) { leviKind(k); leviOrder[k] = (typeof leviSet === 'function' ? leviSet() : LEVI_KINDS).indexOf(kind); }, applyMoon: typeof applyMoon === 'function' ? applyMoon : null, get moon() { return typeof moon === 'undefined' ? 'dust' : moon; }, jungleHits: typeof jungleHits === 'function' ? jungleHits : null, sporeCentre: typeof sporeCentre === 'function' ? sporeCentre : null, cafesPassed, speedAt, payNav, renderRepair, canLaunch, leviKind, set cafeSide(v) { cafeSide = v; }, expireTreats, checkCafe2: null, get pilotScreenY() { return pilotScreenY; }, get boss() { return typeof boss === 'undefined' ? null : boss; }, bossInfo: typeof bossInfo === 'function' ? bossInfo : null, get bossShots() { return typeof bossShots === 'undefined' ? [] : bossShots; }, get pilotNow() { return typeof pilotNow === 'undefined' ? 0 : pilotNow; }, get H() { return H; }, get tiles() { return tiles; }, leviPortrait: typeof leviPortrait === 'function' ? leviPortrait : null, bossBuf: typeof bossBuf === 'function' ? bossBuf : null, bossStage: typeof bossStage === 'function' ? bossStage : null, setBossTmp(cv) { bossTmp = cv; bossTmpG = cv.getContext('2d'); }, get clock() { return clock; } };"""
 
 # A pretend scoreboard: answers the game's requests to fake-scores.test from memory. B.mode = 'down' fails them.
 FAKE_BOARD = """window.__board = { rows: [], next: 1, mode: 'ok', calls: [] };
@@ -25,11 +25,11 @@ window.fetch = async (url, init = {}) => {
   const B = window.__board; B.calls.push((init.method || 'GET') + (init.body ? ' ' + init.body : ''));
   await new Promise(r => setTimeout(r, 150));
   if (B.mode === 'down') throw new TypeError('Failed to fetch');
-  const top = () => B.rows.slice().sort((a, b) => b.depth - a.depth || a.id - b.id).slice(0, 10).map(({ id, initials, depth, escaped }) => ({ id, initials, depth, escaped }));
+  const top = () => B.rows.slice().sort((a, b) => b.depth - a.depth || a.id - b.id).slice(0, 10).map(({ id, initials, depth, escaped, moon }) => ({ id, initials, depth, escaped, moon }));
   if ((init.method || 'GET') === 'POST') {
     const b = JSON.parse(init.body);
     if (!/^[A-Z]{3}$/.test(b.initials)) return new Response('{"error":"bad"}', { status: 400 });
-    const row = { id: B.next++, initials: b.initials, depth: b.depth, escaped: typeof b.escaped === 'boolean' ? b.escaped : null }; B.rows.push(row);
+    const row = { id: B.next++, initials: b.initials, depth: b.depth, escaped: typeof b.escaped === 'boolean' ? b.escaped : null, moon: b.moon === 'dust' || b.moon === 'jungle' ? b.moon : null }; B.rows.push(row);
     const rank = B.rows.filter(r => r.depth > row.depth || (r.depth === row.depth && r.id < row.id)).length + 1;
     return new Response(JSON.stringify({ top: top(), rank, id: row.id }));
   }
@@ -42,6 +42,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
   const q = new URLSearchParams(location.search), M = window.__mf, pl = M.player, wait = ms => new Promise(f => setTimeout(f, ms));
   document.addEventListener('visibilitychange', e => e.stopImmediatePropagation(), true);
   M.save.introSeen = true; M.save.cafeTips = !q.get('first');
+  if (M.applyMoon) { M.applyMoon(q.get('moon') || 'dust'); M.save.moon = M.moon; }   // &moon=jungle: the Jungle moon (version 113)
   if (document.fonts) await document.fonts.ready;
   await wait(300);
   if (q.get('scene') === 'splash') { M.clock = +(q.get('ft') || 0); M.render(); M.state = 'paused'; document.title = 'ready'; return; }
@@ -88,7 +89,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
       }
       M.render();
     };
-    const sheet = document.createElement('canvas'); sheet.width = 640; sheet.height = 400; const g = sheet.getContext('2d');
+    const sheet = document.createElement('canvas'); sheet.width = 640; sheet.height = M.moon === 'jungle' ? 600 : 400; const g = sheet.getContext('2d');
     g.imageSmoothingEnabled = false; g.fillStyle = '#000'; g.fillRect(0, 0, 640, 400);
     let slot = 0;
     const grab = (h, label) => {
@@ -97,15 +98,24 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
       g.fillStyle = '#fff'; g.fillRect(sx, sy, 120, 13); g.fillStyle = '#000'; g.font = 'bold 10px monospace'; g.fillText(label, sx + 3, sy + 10);
       g.fillStyle = '#000'; g.fillRect(sx + 319, sy, 1, 200); g.fillRect(sx, sy + 199, 320, 1); slot++;
     };
+    if (M.moon === 'jungle') {   // the Jungle moon's three (version 113)
+      M.save.hints = { vines: 1, thorns: 1, spores: 1, void: 1 };
+      let h = goTo('vines', 120); pose(h, 0.3); grab(h, 'vines');
+      h = goTo('thorns', 520); pose(h, 1.3); grab(h, 'thorns: growing');
+      pose(h, 0.6, 1); grab(h, 'thorns: grown');
+      h = goTo('spores', 1020); pose(h, 1.03); grab(h, 'spores: swelling');
+      pose(h, 0.55, 26); grab(h, 'spores: burst');
+    } else {
     let h = goTo('glaze', 120); pose(h, 0.3); grab(h, 'glaze');
     h = goTo('crumble', 520); pose(h, 1.3); grab(h, 'crumble: shaking');
     pose(h, 0.55, 1); grab(h, 'crumble: boulder');
+    }
     document.body.innerHTML = ''; document.body.style.cssText = 'margin:0;background:#000';
-    sheet.style.cssText = 'display:block;width:640px;height:400px;image-rendering:pixelated'; document.body.appendChild(sheet);
+    sheet.style.cssText = 'display:block;width:640px;height:' + sheet.height + 'px;image-rendering:pixelated'; document.body.appendChild(sheet);
     document.title = 'ready'; return;
   }
   if (q.get('scene') === 'board') {   // the high score table: escaped, not escaped, and an old score with no answer
-    M.save.scores = [{ i: 'PJR', m: 3120, e: true }, { i: 'ABC', m: 2405, e: false }, { i: 'OLD', m: 1810 }, { i: 'MIA', m: 960, e: true }];
+    M.save.scores = [{ i: 'PJR', m: 3120, e: true, o: 'jungle' }, { i: 'ABC', m: 2405, e: false, o: 'dust' }, { i: 'OLD', m: 1810 }, { i: 'MIA', m: 960, e: true, o: 'dust' }];
     document.getElementById('hsEntry').hidden = true; M.openTable(); M.showScreen('score'); await wait(400); document.title = 'ready'; return;
   }
   if (q.get('scene') === 'pause') { for (let i = 0; i < 150; i++) M.update(1 / 60); M.render(); document.getElementById('pauseBtn').click(); await wait(300); document.title = 'ready'; return; }
