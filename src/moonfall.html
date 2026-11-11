@@ -737,7 +737,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 120;
+const VERSION = 121;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -4333,7 +4333,7 @@ function cafeInfo(k) {
     wall = side < 0 ? e.L : e.R,
     len = CAFE_LEDGE;
   const tip = wall - side * len;
-  C = { k, seed: SEED, Dc, Dl, side, wall, tip, padX: tip + side * 30, counterX: wall - side * 58, shopX: side < 0 ? wall + 4 : wall - 4 - CAFE_W };
+  C = { k, seed: SEED, Dc, Dl, side, wall, tip, padX: tip + side * 30, counterX: wall - side * 90, shopX: side < 0 ? wall + 4 : wall - 4 - CAFE_W };
   cafeInfos.set(k, C);
   return C;
 }
