@@ -103,6 +103,8 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .moon-ico.dust { color: #EEE8D8; --spot: #B9B3A6; }
 .moon-ico.jungle { color: #58C26A; --spot: #2E7D44; }
 .moon-row .moon-btn { padding: 7px 8px 6px; }
+/* Version 136: the Settings moon row sits in a box like the Reset ship repair button below it, in blue rather than red. */
+.moon-row { padding: 8px 10px 8px 12px; box-shadow: inset 0 0 0 2px var(--blue); }
 .set-tog:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 /* Each word of a toggle's name on its own line (user, version 84). */
 .set-tog > span { grid-column: 1; grid-row: 1; line-height: 1.3; text-align: left; }
@@ -767,7 +769,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 135;
+const VERSION = 136;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
