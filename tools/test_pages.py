@@ -46,7 +46,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
   if (document.fonts) await document.fonts.ready;
   await wait(300);
   if (q.get('scene') === 'splash') { M.clock = +(q.get('ft') || 0); M.render(); M.state = 'paused'; document.title = 'ready'; return; }
-  (document.getElementById('splashSkip') || { click() { const g = id => document.getElementById(id); g('chooseBtn').click(); document.querySelector('.splash-moon[data-moon="' + (window.__mf.moon || 'dust') + '"]').click(); g('splashBtn').click(); g('introSkip').click(); } }).click(); await wait(300);
+  (document.getElementById('splashSkip') || { click() { const g = id => document.getElementById(id); g('chooseBtn').click(); document.querySelector('.splash-moon[data-moon="' + (window.__mf.moon || 'dust') + '"]').click(); g('splashBtn').click(); g('introSkip').click(); if (g('menuStart') && !new URLSearchParams(location.search).get('clean')) g('menuStart').click(); } }).click(); await wait(300);
   if (q.get('scene') === 'launch') {   // the ending at ?t= seconds
     M.startLaunch(); for (let i = 0; i < Math.round(+(q.get('t') || 0) * 60); i++) M.update(1 / 60);
     document.querySelectorAll('.pop').forEach(e => { if (!q.get('pops')) e.remove(); }); M.prepaint(M.camY); M.render(); M.cine(); document.title = 'ready'; return;

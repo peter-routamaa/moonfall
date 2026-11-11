@@ -33,7 +33,7 @@ DRIVER = r"""<script>
   const mine = () => M.rocks.push({ d: P.y + 14, x0: P.x, x: P.x, size: 1, rr: 9, amp: 0, ph: 0, sp: 1, hot: true, isMine: true, dead: false });
   if (document.fonts) await document.fonts.ready; await wait(300);
   run(30); fp('splash');
-  (document.getElementById('splashSkip') || { click() { const g = id => document.getElementById(id); g('chooseBtn').click(); document.querySelector('.splash-moon[data-moon="' + (window.__mf.moon || 'dust') + '"]').click(); g('splashBtn').click(); g('introSkip').click(); } }).click(); await wait(300); run(30); fp('title');
+  (document.getElementById('splashSkip') || { click() { const g = id => document.getElementById(id); g('chooseBtn').click(); document.querySelector('.splash-moon[data-moon="' + (window.__mf.moon || 'dust') + '"]').click(); g('splashBtn').click(); g('introSkip').click(); if (g('menuStart') && !new URLSearchParams(location.search).get('clean')) g('menuStart').click(); } }).click(); await wait(300); run(30); fp('title');
   document.getElementById('startBtn').click(); await wait(100);
   run(300, () => { P.inv = 1; }); fp('falling');
   M.rocks.length = 0; P.inv = 0; P.shield = 0; P.hp = 5; mine(); run(1); run(20); fp('mine');
