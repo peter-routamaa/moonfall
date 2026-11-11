@@ -854,6 +854,30 @@ function drawMan(x, y, pose, t, thr) {
     c.fillStyle = P.dust; c.fillRect(x0 + 11, y0 + 14, 1, 1); c.fillRect(x0 + 14, y0 + 5, 2, 1);
   } else if (pose !== 'wave') { c.fillStyle = P.blue; c.fillRect(pose === 'runL' || pose === 'standL' ? x0 + 14 : x0 + 6, y0 + 15, 2, 2); }
 }
+// -- squash and stretch (idea 15): the pilot flattens when he lands or is hit, stretches when he grabs something, bonks a
+// wall or jumps, and stretches a little as the fall speeds up. `sq.q` > 0 squashes (wider, shorter), < 0 stretches; a
+// springy wobble (SQ_K, SQ_D) brings it back. Drawn by painting him into a small canvas and scaling that, pixel-sharp.
+// Off with reduced motion.
+const sq = { q: 0, v: 0 }, SQ_K = 420, SQ_D = 11;
+function squash(q) { if (!reduceMotion) { sq.q = q; sq.v = 0; } }
+function stepSquash(dt) {
+  dt = Math.min(dt, 1 / 30);
+  // the base stretch while falling: none at the starting speed, SQ_FAST at the top speed
+  const fast = state === 'play' && player.pose === 'fall' && !reduceMotion ? Math.max(0, Math.min(1, (player.v / FALL_SPEED - 1) / CAFE_SPEED_MAX)) : 0;
+  sq.v += (-SQ_K * (sq.q + SQ_FAST * fast) - SQ_D * sq.v) * dt; sq.q += sq.v * dt;
+}
+const SQ_FAST = 0.06, manCv = document.createElement('canvas'), manG = manCv.getContext('2d');
+manCv.width = 120; manCv.height = 56;
+// drawMan with the squash applied, about his feet when standing or running, about his middle when falling.
+function drawManSquashed(x, y, pose, t, thr) {
+  const sx = 1 + 0.7 * sq.q, sy = 1 - sq.q;
+  if (Math.abs(sx - 1) < 0.03 && Math.abs(sy - 1) < 0.03) { drawMan(x, y, pose, t, thr); return; }
+  const keep = c, ox = 60, oy = 14, ay = pose === 'fall' ? PILOT_CY : 28;
+  manG.clearRect(0, 0, manCv.width, manCv.height);
+  c = manG; drawMan(ox, oy, pose, t, thr); c = keep;
+  const w = Math.round(manCv.width * sx), h = Math.round(manCv.height * sy);
+  c.drawImage(manCv, Math.round(x - ox * sx), Math.round(y + ay - (oy + ay) * sy), w, h);
+}
 // Sea mine: dark riveted sphere with horned spikes and a slow-blinking warning light.
 const MINE = { body: '#2E3446', mid: '#454D66', hi: '#7D879F', tip: '#B9C0CF' };
 function drawMine(x, y, rr, seed) {
@@ -3232,7 +3256,7 @@ function drawIcons() {
 
 // ---------- flow ----------
 function resetRun() {
-  newSeed(); sayEl.style.visibility = '';
+  newSeed(); sayEl.style.visibility = ''; sq.q = sq.v = 0;
   rocks = []; items = []; particles = []; hazards = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; lastHazD = -9999; steerAcc = 0;
   for (const k in runParts) runParts[k] = 0;
   leviSeen.clear();
@@ -3826,7 +3850,7 @@ function checkCafe() {
 }
 function leaveCafe() {
   sayEl.hidden = true;
-  setState('cafeJump'); cafeT = 0; shopEl.hidden = true; cafeCard(null, true); Sfx.jump();
+  setState('cafeJump'); cafeT = 0; shopEl.hidden = true; cafeCard(null, true); Sfx.jump(); squash(-0.22);
 }
 // -- landing, the counter and leaving: land on the pad, a cup at the counter, run and jump back in
 // -- the barista's greeting (version 108): a speech bubble over the cafe window while he's at the counter. The line
@@ -3909,7 +3933,7 @@ function updateCafe(dt) {
       x: C.padX + (Math.random() - 0.5) * 40, d: C.Dl - 5, vx: (Math.random() - 0.5) * 90, vy: -20 - Math.random() * 40, t: 0,
       life: 0.5 + Math.random() * 0.4, col: Math.random() < 0.5 ? P.shade : P.strata, z: 2
     });
-    if (u >= 1) { setState('cafe'); cafeT = 0; Sfx.thrust(0); Sfx.land(); Buzz.orb(); Music.title(); cafeArrive(C); }
+    if (u >= 1) { setState('cafe'); cafeT = 0; Sfx.thrust(0); Sfx.land(); Buzz.orb(); Music.title(); cafeArrive(C); squash(0.32); }
   } else if (state === 'cafe') {
     if (t < 0.7) {
       player.x = lerp(C.padX, C.counterX, t / 0.7);
@@ -4279,7 +4303,7 @@ function updateOpening(dt) {
     player.y = -30;
     player.pose = 'stand';
     sparks(84, -2, [P.strata, P.shade], 8);
-    Sfx.land();
+    Sfx.land(); squash(0.3);
   }
   if (t < O.hit) {
     const x = W * 0.36 + Math.sin(t * 0.8) * 4, y = H * 0.42 + Math.sin(t * 1.3) * 6;
@@ -4757,7 +4781,7 @@ function repairScene(t, dt, crossed) {
   } else { player.x = 84; player.y = -30; player.pose = 'standL'; }
   // The jetpack hisses while he's off the ground.
   if (t - dt <= 0) Sfx.thrust(0.9);
-  if (crossed(R.arc)) { Sfx.thrust(0); Sfx.land(); Buzz.orb(); sparks(84, -2, [P.strata, P.shade, P.dust], 12); }
+  if (crossed(R.arc)) { Sfx.thrust(0); Sfx.land(); Buzz.orb(); squash(0.3); sparks(84, -2, [P.strata, P.shade, P.dust], 12); }
   if (crossed(R.toShip)) Sfx.thrust(0.5);
   if (crossed(R.drop)) Sfx.thrust(0);
   // Hammer blows: CLANG, sparks, a jolt.
@@ -5222,7 +5246,7 @@ function hurt(kind, x, d, size) {
       const cut = kind === 'mine' ? SHIELD_MINE_CUT : SHIELD_HIT_CUT;
       player.shield = Math.max(0, player.shield - cut * player.shieldMax);
       Buzz.block();
-      Sfx.block();
+      Sfx.block(); squash(0.12);
       if (player.shield > 0.05) pop('SHIELD -' + Math.round(cut * 100) + '%', player.x, player.y - 6, 'good');
       else { player.shield = 0; player.inv = HIT_INVULN_S; pop('SHIELD BROKEN', player.x, player.y - 6, 'bad'); }
       hitStop = 0.04;
@@ -5232,6 +5256,7 @@ function hurt(kind, x, d, size) {
   if (player.inv > 0) return;
   const dmg = kind === 'wall' ? WALL_DAMAGE : 1;
   player.hp = Math.max(0, player.hp - dmg); player.inv = HIT_INVULN_S; shake = Math.max(shake, 1); player.hits++;
+  squash(kind === 'wall' ? -0.24 : 0.28);   // a wall squeezes him thin and tall, anything else flattens him
   // Hit-stop: the world freezes for a beat so the hit lands, with a white flash on the pilot.
   hitStop = kind === 'mine' ? 0.12 : 0.07; player.flash = 0.14;
   player.streak = 0;
@@ -5246,6 +5271,7 @@ const SHIELD_S = 8, SHIELD_MINE_CUT = 0.5, SHIELD_HIT_CUT = 0.25, CLOSE_PX = 10;
 let orbChain = 0, lastOrbT = -9;
 function collect(it) {
   it.dead = true;
+  squash(-0.14);
   if (it.kind === 'orb') {
     player.orbs++;
     // Crystals caught close together chime a step higher each time.
@@ -6065,6 +6091,7 @@ function prune(arr, keep) { let n = 0; for (let i = 0; i < arr.length; i++) { co
 const particleLive = p => p.t < p.life, thingLive = k => !k.dead && k.d > camY - 60;
 function update(dt) {
   updateFireworks(dt);
+  stepSquash(dt);
   for (const f of flyers) { f.t += dt; if (f.t >= f.life) { f.hit = true; bump(f.el); if (f.done) f.done(); } }
   if (flyers.length) flyers = flyers.filter(f => !f.hit);
   if (player.flash > 0) player.flash -= dt;
@@ -6095,7 +6122,7 @@ function update(dt) {
       player.pose = 'fall';
     }
     else { const u = t - 1.3; player.x = 160; player.y = u < 0.5 ? -30 + 250 * u * u : 32.5 + 250 * (u - 0.5); player.pose = 'fall'; }
-    if (t >= 0.95 && t - dt < 0.95) { Sfx.jump(); Music.leap(); }
+    if (t >= 0.95 && t - dt < 0.95) { Sfx.jump(); Music.leap(); squash(-0.22); }
     if (t >= 1.3 && t - dt < 1.3) Music.start();
     camY = lerp(camY0, player.y - pilotScreenY, easeInOut(seg(t, 0.9, 2.0)));
     Sfx.wind(seg(t, 1.3, 2.0) * 0.5);
@@ -6280,7 +6307,7 @@ function render() {
       disc(player.x, my + PILOT_CY, Math.round(10 + 8 * (1 - a)), P.dust);
       ring(player.x, my + PILOT_CY, Math.round(14 + 14 * (1 - a)), P.dust);
     }
-    drawMan(player.x + (state === 'dying' ? Math.round(Math.sin(clock * 40) * 2) : 0), my, player.pose, clock, player.thr);
+    drawManSquashed(player.x + (state === 'dying' ? Math.round(Math.sin(clock * 40) * 2) : 0), my, player.pose, clock, player.thr);
     if (state === 'launch' && launchT < REPAIR.done) drawRepairTools(my);
     c.globalAlpha = 1;
     if (state === 'landing') {
