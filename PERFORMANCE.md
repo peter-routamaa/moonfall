@@ -21,6 +21,8 @@ never building anything in the middle of play.
 7. **Touch the page (the HUD) only when a value changes, and don't measure it every frame.**
 8. **Throttle by time, not by frame**, so a 120 Hz phone doesn't do twice the work.
 9. **Measure before and after with `tools/prof.py`**, on both moons, and check the picture is unchanged.
+10. **Run `python3 tools/levi_budget.py` before publishing anything a Leviathan draws.** It counts all twelve against
+    the budgets below in about two seconds and fails (exit 1) naming the creature and the number that's over.
 
 ## Budgets (what the game costs now; stay inside these)
 
@@ -37,16 +39,22 @@ From the profiler's seeded 15 km run at 320 x 694 game pixels. Counts are exact 
 | Page measurements (forced layouts) | 0 in the fall | 3.4 at a cafe counter (`placeSay`), tolerated |
 | Wall maths while falling | `hash` 430-620, `bossAt` 120-210, `voidAt` 77-110 calls | |
 
-A Leviathan, measured on its own (versions 130 and 131, all twelve):
+A Leviathan, measured on its own by `tools/levi_budget.py` (all twelve, averaged over 30 moments; version 141). The
+script holds these limits too: change both together.
 
 | | Range across the twelve |
 |---|---|
-| Background shape (`LEVI_DRAW[kind]`), drawing calls per frame | 116-735 |
-| One fight paint (three `bossStage` steps) | 1,020-2,172 rectangles, 26-190 stamps |
-| One paint while fading in | 1,176-3,334 rectangles |
+| Background shape (`LEVI_DRAW[kind]`), drawing calls per frame | 117-749 (limit 750) |
+| One fight paint (three `bossStage` steps) | 1,018-2,094 rectangles (limit 2,172), 30-194 stamps (limit 195) |
+| One paint while fading in | 1,206-3,084 rectangles (limit 3,334) |
 
 If a new thing pushes a number well outside its range, fix that before publishing. If it has to, say so in the notes
 with the before and after.
+
+Why the script exists (version 141): in version 137 Gnashbloom was reshaped (wide-open jaws, three small mouths on its
+stalk) by a thread that hadn't read this file, and nothing counted it: its background went to 931 calls a frame, its
+fight paint to 2,384 rectangles and its fade-in to 4,041, and the owner felt the fight stutter on a phone. Version 140
+brought it back inside; `levi_budget.py` would have failed version 137 on all three.
 
 ## Rules in detail
 
@@ -163,8 +171,9 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
 2. Do the same for the build before the change (`python3 tools/prof.py /tmp/before.html prof-old`) and compare.
 3. **Trust the counts, not the times.** Times on a desktop are tiny and swing more from run to run than any change
    does, more so when the browser pane is hidden. The counts are exact.
-4. For one Leviathan on its own: a throwaway page that counts `fillRect` and `drawImage` while calling
-   `LEVI_DRAW[kind]` once and `bossStage` three times, normally and with a fade below 1.
+4. For the Leviathans on their own: `python3 tools/levi_budget.py` (counts `fillRect` and `drawImage` while calling
+   `LEVI_DRAW[kind]` and `bossStage` three times, normally and fading in, for all twelve; pass another build's file to
+   compare, e.g. `git show HEAD~1:src/moonfall.html > /tmp/old.html` then `python3 tools/levi_budget.py /tmp/old.html`).
 5. **Picture unchanged?** Run both builds with `&fp=3` and compare the fingerprint lists; for frames that differ, add
    `&shot=<frame numbers>` to both (without `&fp`, so it draws the way a phone does) and compare the pictures pixel
    for pixel. Two things to know: a build differs from itself in a few 0.4 s windows from run to run (about 1% of
@@ -175,6 +184,8 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
    with its version, device and moon: after a release, compare those for the new version with the one before.
 
 ## Before publishing a heavy change: checklist
+
+- [ ] `python3 tools/levi_budget.py` says OK (any change a Leviathan draws).
 
 - [ ] Profiler run on both moons finishes with no errors.
 - [ ] No function new to this change appears high in `makers`; canvases per fight and per rock layer are in the table's range.
