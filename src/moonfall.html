@@ -412,7 +412,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
         <li>Spend spare crystals in the shop: one treat per cafe, lasting until the next cafe.</li>
         <li>Skim past rocks and mines for a streak: every 8 pays a crystal.</li>
         <li>Tombstones on the shaft walls mark where players died: pass them to beat their high scores.</li>
-        <li>The fall gets 5% faster after every cafe, whether you stop or not, up to 25%.</li>
+        <li>The fall gets 5% faster after every cafe, whether you stop or not, up to 35%.</li>
       </ul>
       <button class="btn" id="tipsDone" type="button">Done</button>
      </div>
@@ -475,7 +475,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
         <li><span class="ico"><canvas id="icoOrb" width="14" height="14"></canvas></span>Crystal: +1 health</li>
         <li><span class="ico"><canvas id="icoShield" width="28" height="28"></canvas></span>Bubble: 8s shield, hits wear it down</li>
         <li><span class="ico"><canvas id="icoPart" class="wide" width="30" height="30"></canvas></span>Gold ring: ship part, collect&nbsp;these</li>
-        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Cafes from 1050 m, every 1000 m (1600 m after a Leviathan fight): coffee (+1 health) and bonus items. The fall gets 5% faster after each cafe, up to 25%</li>
+        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Cafes from 1050 m, every 1000 m (1600 m after a Leviathan fight): coffee (+1 health) and bonus items. The fall gets 5% faster after each cafe, up to 35%</li>
       </ul>
       <button class="btn" id="howDone" type="button">Done</button>
      </div>
@@ -642,7 +642,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 110;
+const VERSION = 111;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -2245,9 +2245,10 @@ const depthM = () => Math.max(0, Math.floor(player.y / PX_PER_M));
 // 3 km); the user found the game too hard and asked for it off for now (version 76). Set SPEED_RAMP back to 170 to bring
 // the speed-up back (the speed lines appear with it).
 // Since version 80 the fall gets faster for every cafe passed, landed at or not, eased in over the 400 px below each
-// ledge. Since version 85 it's CAFE_SPEEDUP (5%) of the starting speed per cafe, up to CAFE_SPEED_MAX (+25%, reached at
-// the fifth cafe): 262.5, 275, 287.5, 300, then 312.5 px/s. (Version 80-84 compounded 5% per cafe with no top.)
-const FALL_SPEED = 250, SPEED_RAMP = 0, CAFE_SPEEDUP = 0.05, CAFE_SPEED_MAX = 0.25;
+// ledge. Since version 85 it's CAFE_SPEEDUP (5%) of the starting speed per cafe, up to CAFE_SPEED_MAX: +35% since version
+// 111 (user asked; +25% before, reached at the fifth cafe), reached at the seventh: 262.5, 275, 287.5, 300, 312.5, 325, then
+// 337.5 px/s. (Version 80-84 compounded 5% per cafe with no top.)
+const FALL_SPEED = 250, SPEED_RAMP = 0, CAFE_SPEEDUP = 0.05, CAFE_SPEED_MAX = 0.35;
 const cafesPassed = d => { const k = cafeAbove(d - 40); return k < 1 ? 0 : k - 1 + Math.min(1, (d - cafeLedge(k)) / 400); };
 // How many cafe ledges lie above depth d, counted the moment he passes each one (pops and treats use this).
 const ledgesPassed = d => Math.max(0, cafeAbove(d - 40));
