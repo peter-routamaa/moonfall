@@ -72,8 +72,9 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
       for (let i = 0; i < 150; i++) M.update(1 / 60);
       M.render(); document.title = 'ready:' + M.fireworks.length; return;
     }
-    if (q.get('card')) { document.getElementById({ how: 'howBtn', news: 'newsTag', levi: 'newsTag', badges: 'badgesBtn', unlocks: 'unlocksBtn' }[q.get('card')] || 'settingsBtn').click(); await wait(800); }
+    if (q.get('card')) { document.getElementById({ how: 'howBtn', news: 'newsTag', levi: 'newsTag', moons: 'newsTag', badges: 'badgesBtn', unlocks: 'unlocksBtn' }[q.get('card')] || 'settingsBtn').click(); await wait(800); }
     if (q.get('card') === 'levi') { document.getElementById('newsLevi').click(); await wait(1200); }
+    if (q.get('card') === 'moons') { document.getElementById('newsMoons').click(); await wait(1200); }
     M.render(); document.title = 'ready'; return;
   }
   document.getElementById('startBtn').click(); await wait(300);
