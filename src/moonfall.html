@@ -102,9 +102,14 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .moon-ico { flex: none; }
 .moon-ico.dust { color: #EEE8D8; --spot: #B9B3A6; }
 .moon-ico.jungle { color: #58C26A; --spot: #2E7D44; }
+.moon-ico.machine { color: #A9B2BC; --spot: #D9792E; }
 .moon-row .moon-btn { padding: 7px 8px 6px; }
 /* Version 136: the Settings moon row sits in a box like the Reset ship repair button below it, in blue rather than red. */
 .moon-row { padding: 8px 10px 8px 12px; box-shadow: inset 0 0 0 2px var(--blue); }
+/* Version 145: three moons don't fit beside the label on a small phone, so the label sits above three equal buttons. */
+.moon-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.moon-row > span { grid-column: 1 / -1; margin: 0; }
+.moon-row .moon-btn { padding: 7px 2px 6px; gap: 4px; }
 .set-tog:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 /* Each word of a toggle's name on its own line (user, version 84). */
 .set-tog > span { grid-column: 1; grid-row: 1; line-height: 1.3; text-align: left; }
@@ -344,7 +349,9 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 @keyframes bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -6px; } }
 .splash-moons { display: flex; flex-direction: column; align-items: stretch; gap: 14px; width: min(100%, 320px); }
 .splash-moons[hidden] { display: none; }
-.splash-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.splash-pick { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }   /* three moons since version 145 */
+.splash-pick .splash-moon { padding: 12px 3px 10px; }
+.splash-pick .splash-moon small { font-size: 15px; line-height: 1.05; }
 .splash-moon { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; padding: 12px 6px 10px; border: 2px solid var(--dust-dim); background: var(--ink); color: var(--dust);
   box-shadow: 4px 4px 0 var(--blue); font: 700 11px/1.1 var(--display); letter-spacing: .04em; text-transform: uppercase; cursor: pointer; }
 .splash-moon small { font: 400 17px/1 var(--body); letter-spacing: 0; text-transform: none; color: var(--dust-dim); }
@@ -565,6 +572,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <div class="splash-pick" role="group" aria-label="Moon">
         <button class="splash-moon" type="button" data-moon="dust" aria-pressed="false"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Dust moon</span><small>Rock, lava and mines</small></button>
         <button class="splash-moon" type="button" data-moon="jungle" aria-pressed="false"><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Jungle moon</span><small>Vines, thorns and spores</small></button>
+        <button class="splash-moon" type="button" data-moon="machine" aria-pressed="false"><svg class="moon-ico machine" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Machine moon</span><small>Crushers, saws and lasers</small></button>
       </div>
       <button class="btn" id="splashBtn" type="button" disabled>Start</button>
     </div>
@@ -607,6 +615,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <div class="suit-row moon-row" role="group" aria-label="Moon"><span>MOON</span>
         <button class="moon-btn" type="button" data-moon="dust" aria-pressed="true"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Dust</span></button>
         <button class="moon-btn" type="button" data-moon="jungle" aria-pressed="false"><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Jungle</span></button>
+        <button class="moon-btn" type="button" data-moon="machine" aria-pressed="false"><svg class="moon-ico machine" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Machine</span></button>
       </div>
       <button class="btn quiet warn" id="resetBtn" type="button">Reset ship repair</button>
       <button class="btn" id="settingsDone" type="button">Done</button>
@@ -797,14 +806,15 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 //   the shaft, alien life, the moon surface, game state, saved settings, sound and his voice, music, haptics, DOM, flow,
 //   high scores, coffee stop (cafes: drawing, landing, the shop, the signs), board flags, the opening film, the launch,
 //   input, signature hazards (glazed ice, crumbling ledges), level generation, damage and pickups, update, render, sizing and loop.
-// TWO MOONS (version 113): `moon` is 'dust' (the original) or 'jungle'. applyMoon() swaps the rock layers (MATS), the
-//   scenery palette S (P's colours, overridden for the Jungle), the hazards (HAZ_KINDS), the Leviathans (LEVI_SETS) and
-//   the music's key and instruments. It's picked on the main menu or in Settings and saved as save.moon.
+// MOONS (version 113; three since version 145): `moon` is 'dust' (the original), 'jungle' or 'machine'. applyMoon()
+//   swaps the rock layers (MATS), the scenery palette S (P's colours, overridden per moon), the hazards (HAZ_KINDS), the
+//   Leviathans (LEVI_SETS) and the music's key and instruments. It's picked on the start screen or in Settings and saved
+//   as save.moon.
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 144;
+const VERSION = 145;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -835,19 +845,25 @@ const P = (() => {
     grn: '#3CB86A', grnD: '#1F7F45', grnL: '#A6EBB9', grnXL: mix('#A6EBB9', g, 0.5),
     pur: '#9B6BE8', purD: '#5B3AA8', purL: '#CDB6F5', purXL: mix('#CDB6F5', g, 0.5) };
 })();
-// Version 113: two moons. The original Dust moon and the Jungle moon (user, 2026-11-11), picked on the main menu or in
-// Settings. S is the scenery palette for the moon being played: the sky, hills and plants of the surface, the planet in
+// Version 113: two moons. The original Dust moon and the Jungle moon (user, 2026-11-11); version 145 adds the Machine
+// moon (user, 2026-11-12). Picked on the start screen or in Settings. S is the scenery palette for the moon being played: the sky, hills and plants of the surface, the planet in
 // the sky, the moon seen from space, and the life on the shaft walls. On the Dust moon it is exactly P; the Jungle moon
 // overrides some colours (MOON_SURF). The rock layers change too (MOON_MATS), and the hazards, Leviathans and music.
-// applyMoon() switches everything over; `moon` is 'dust' or 'jungle'.
+// applyMoon() switches everything over; `moon` is 'dust', 'jungle' or 'machine'.
 let moon = 'dust';
-const isJungle = () => moon === 'jungle';
+const isJungle = () => moon === 'jungle', isMachine = () => moon === 'machine';
 const S = Object.assign({}, P);
 const MOON_SURF = {
   dust: { pl: P.blue, plL: P.lite, plD: P.deep },
   jungle: { dust: '#E2F1D6', ink: '#13201A', strata: '#9FCB8E', hill: '#6FAE6A', shade: '#3F7A4E', rock: '#C9E2BC', rock2: '#B2D3A4',
     lite: '#F4A8C8', blue: '#D9528E', deep: '#24584A', deeper: '#183C34', moss: '#58C26A', mossDk: '#2E7D44', bio: '#E8F58A',
     pl: '#E8924A', plL: '#F7C88A', plD: '#9A4E2C' },
+  // Version 145, the Machine moon: an ancient alien mine in rust and steel. A pale steel sky over grey slag hills (so
+  // from space it's a grey moon, not the Dust moon's cream); rust orange and amber where the Jungle has pink; verdigris
+  // teal for the wall growths and a cyan glow; a teal planet.
+  machine: { dust: '#D6DBE0', ink: '#1A1C21', strata: '#AAB0B7', hill: '#7F858D', shade: '#4F545B', rock: '#C3C8CE', rock2: '#BCA595',
+    lite: '#F2B25A', blue: '#D9792E', deep: '#2E3440', deeper: '#1E222A', moss: '#7FB3B0', mossDk: '#3F6E70', bio: '#7FF4E6',
+    pl: '#5FB3C9', plL: '#A8E0EC', plD: '#2E6A80' },
 };
 Object.assign(S, MOON_SURF.dust);
 
@@ -1337,6 +1353,15 @@ const MOON_MATS = {
     { label: 'Amber', b0: '#C9853F', b1: '#B87634', b2: '#A6682C', shade: '#7E4A1E', ink: '#2E1608', hi: '#FFD58A', cryL: '#FFC85C', cryD: '#E0702A', sO: '#24120A', sI: '#361C10' },
     { label: 'Orchid', b0: '#D59AC4', b1: '#C788B6', b2: '#B877A8', shade: '#8E5482', ink: '#3A1A36', hi: '#FBE3F4', cryL: '#FFD0EE', cryD: '#E05AB8', sO: '#2A1028', sI: '#3C1838' },
   ],
+  // The Machine moon's five (version 145): Plating (steel), Rust, Pipes (verdigris copper), Furnace (dark iron, the
+  // extra-lava layer) and Circuit (a dark green board with gold traces). drawRow adds panel seams and rivets.
+  machine: [
+    { label: 'Plating', b0: '#A9B2BC', b1: '#9BA5B0', b2: '#8D97A3', shade: '#68717D', ink: '#22272E', hi: '#E2E8EE', cryL: '#8FE8F0', cryD: '#2EA8B8', sO: '#1A1E25', sI: '#262C35' },
+    { label: 'Rust', b0: '#B87A4E', b1: '#A86C42', b2: '#985F38', shade: '#744425', ink: '#2C170C', hi: '#F0B98A', cryL: '#FFD27A', cryD: '#D08A2A', sO: '#24140C', sI: '#361E12' },
+    { label: 'Pipes', b0: '#6FA39A', b1: '#62948C', b2: '#56867E', shade: '#3C625C', ink: '#12221F', hi: '#C8EDE2', cryL: '#F2B880', cryD: '#C06A30', sO: '#0F1C1A', sI: '#172A27' },
+    { label: 'Furnace', b0: '#4E4844', b1: '#403B38', b2: '#5A534E', shade: '#2C2826', ink: '#0E0C0B', hi: '#FFB060', cryL: '#FFD27A', cryD: '#E0602A', sO: '#140F0D', sI: '#221A16' },
+    { label: 'Circuit', b0: '#46735A', b1: '#3C6650', b2: '#345A46', shade: '#244332', ink: '#0A1A10', hi: '#E8D27A', cryL: '#9FF6E8', cryD: '#2EC8B0', sO: '#081610', sI: '#0E2219' },
+  ],
 };
 const MKEYS = ['b0', 'b1', 'b2', 'shade', 'ink', 'hi', 'cryL', 'cryD', 'sO', 'sI'];
 const matI = k => k < MATS.length ? k : 1 + (k - 1) % (MATS.length - 1);
@@ -1402,6 +1427,7 @@ function drawRow(g, d, y, e) {
     g.fillStyle = Q.cryL; g.fillRect(xc - w, y, w + 1, 1);
     g.fillStyle = Q.cryD; g.fillRect(xc + 1, y, w, 1);
   }
+  if (moon === 'machine' && d > 6) machineRow(g, d, y, Q);
   if (d < 4) { g.fillStyle = d < 2 ? S.dust : S.shade; g.fillRect(0, y, W, 1); }
   g.fillStyle = Q.shade; g.fillRect(L - 6, y, R - L + 12, 1);
   const q2 = Math.floor(d / 180), ls = lavaSide(q2), ld = d - q2 * 180;
@@ -1433,6 +1459,30 @@ function drawRow(g, d, y, e) {
     g.fillStyle = bandC; g.fillRect(e.iL, y, e.iR - e.iL, 1);
     g.fillStyle = Q.shade; g.fillRect(e.iR - 5, y, 4, 1);
     if (hash(d * 6.1) < 0.4) g.fillRect(Math.round(e.iL + 4 + hash(d * 8.3) * (e.iR - e.iL - 8)), y, 3, 1);
+  }
+}
+// The Machine moon's walls (version 145): steel panels 36 rows tall, a seam between each and staggered seams down them,
+// with rivets beside the seams. In the Pipes layer a copper pipe runs along some panels; in the Circuit layer, gold
+// traces. Painted with the rest of the row, once per tile (a handful of rectangles a row); the shaft is drawn over it.
+function machineRow(g, d, y, Q) {
+  const pr = Math.floor(d / 36), pv = d - pr * 36, off = Math.floor(hash(pr * 3.7 + 1) * 60), z = matI(Math.floor(d / PX_PER_M / ZONE_M));
+  if (pv === 0) { g.fillStyle = Q.ink; g.fillRect(0, y, W, 1); return; }
+  if (pv === 1) { g.fillStyle = Q.shade; g.fillRect(0, y, W, 1); return; }
+  if (z === 2 && hash(pr * 5.3 + 2) < 0.45 && pv >= 12 && pv <= 19) {   // a pipe across the panel
+    g.fillStyle = pv === 12 || pv === 19 ? Q.ink : pv === 13 ? Q.cryL : pv === 18 ? Q.shade : Q.cryD; g.fillRect(0, y, W, 1);
+    if (pv > 12 && pv < 19) { g.fillStyle = Q.ink; for (let x = off + 22; x < W; x += 60) g.fillRect(x, y, 3, 1); }   // its collars
+    return;
+  }
+  g.fillStyle = Q.shade;
+  for (let x = off; x < W; x += 60) g.fillRect(x, y, 1, 1);
+  if (pv === 4 || pv === 5 || pv === 31 || pv === 32) { g.fillStyle = pv === 4 || pv === 31 ? Q.hi : Q.ink; for (let x = off; x < W; x += 60) { g.fillRect(x - 5, y, 2, 1); g.fillRect(x + 4, y, 2, 1); } }
+  if (z === 4) {   // circuit traces: a gold run along the panel and a line down it, with a pad at the end
+    const tx = Math.floor(hash(pr * 2.9 + 4) * W), tl = 14 + Math.floor(hash(pr * 6.1) * 30);
+    g.fillStyle = Q.hi;
+    if (pv === 17) g.fillRect(tx, y, tl, 1);
+    else if (pv > 17 && pv < 30) g.fillRect(tx + tl - 1, y, 1, 1);
+    else if (pv === 30) g.fillRect(tx + tl - 2, y, 3, 2);
+    if (pv > 6 && pv < 17) g.fillRect(tx, y, 1, 1);
   }
 }
 // A tile's edges are worked out as soon as anything needs them; its rock is painted a few rows per frame ahead of the camera.
@@ -1958,11 +2008,136 @@ function drawMantis(x, y, dir, k, col) {
     }
   }
 }
+// -- the Machine moon's six (version 145), built to the performance rules from the start: long parts are limb quads,
+// plates are fillPoly or fillEllipse, nothing is made per colour or per frame.
+// Augerwyrm, a drill worm seen side on, diving head first: armoured segments rippling as it bores, a spinning drill
+// cone for a head with hooked mandibles behind it, and a spike for a tail. drillAt(t) is a point down its body, from the
+// head (0) to the tail (1), with its radius there.
+const DRILL_N = 11;
+function drillAt(x, y, dir, k, t) {
+  const len = 200, ph = clock * 2.4 + k;
+  return [x + dir * (len / 2 - t * len), y + Math.sin(ph - t * 6) * 6 * (0.25 + t), Math.max(7, 17 - t * 10)];
+}
+function drillHead(x, y, dir, k) { const [hx, hy] = drillAt(x, y, dir, k, 0); return [hx + dir * 14, hy]; }   // the cone's base
+function drawDrill(x, y, dir, k, col) {
+  let [px, py, pr] = drillAt(x, y, dir, k, 1);
+  limb(px, py, px - dir * 28, py + Math.sin(clock * 2 + k) * 3, 5, 1, col);   // the tail spike
+  for (let i = DRILL_N - 1; i >= 0; i--) {
+    const [bx, by, r] = drillAt(x, y, dir, k, i / DRILL_N);
+    limb(px, py, bx, by, pr, r, col); disc(bx, by, r + 1, col);   // the body, and each segment's armour ring a little proud of it
+    px = bx; py = by; pr = r;
+  }
+  const [hx, hy] = drillHead(x, y, dir, k);
+  limb(px, py, hx, hy, 17, 15, col);   // the collar
+  fillPoly(c, [[hx, hy - 15], [hx + dir * 42, hy], [hx, hy + 15]], col);   // the drill
+  for (const s of [-1, 1]) { const o = Math.sin(clock * 4 + k) * 3; limb(px + dir * 6, py + s * 12, px + dir * 18, py + s * (25 + o), 4, 2, col); limb(px + dir * 18, py + s * (25 + o), px + dir * 30, py + s * (17 + o), 2, 1, col); }
+}
+// Glarecore, a sentinel: a floating armoured eye under a hood, four steel vanes round it, and three cable arms with
+// claws hanging below, feeling for him.
+const sentY = (y, k) => y + Math.sin(clock * 0.9 + k) * 5;
+function sentArm(x, y, i, k) {
+  const sw = Math.sin(clock * 1.2 + i * 1.7 + k) * 8, sw2 = Math.sin(clock * 1.2 + i * 1.7 + k - 0.8) * 12;
+  return [x + i * 18, y + 26, x + i * 30 + sw, y + 62, x + i * 26 + sw2, y + 96];
+}
+const sentFin = (x, y, s, k) => { const f = Math.sin(clock * 1.5 + k) * 3; return [[[x + s * 18, y - 26], [x + s * 58, y - 60 + f], [x + s * 70, y - 48 + f], [x + s * 32, y - 12]], [[x + s * 30, y - 4], [x + s * 80, y + 8 - f], [x + s * 72, y + 20 - f], [x + s * 30, y + 14]]]; };
+function drawSentinel(x, y, dir, k, col) {
+  y = sentY(y, k);
+  for (const s of [-1, 1]) for (const F of sentFin(x, y, s, k)) fillPoly(c, F, col);
+  for (let i = -1; i <= 1; i++) {
+    const [hx, hy, ex, ey, fx, fy] = sentArm(x, y, i, k);
+    limb(hx, hy, ex, ey, 4, 3, col); limb(ex, ey, fx, fy, 3, 2, col);
+    limb(fx, fy, fx - 6, fy + 10, 2, 1, col); limb(fx, fy, fx + 6, fy + 10, 2, 1, col);   // its claw
+  }
+  fillEllipse(c, x, y, 34, 32, col);   // the body
+  fillPoly(c, [[x - 30, y - 18], [x - 18, y - 44], [x + 18, y - 44], [x + 30, y - 18]], col);   // the hood
+  limb(x, y - 44, x + Math.sin(clock * 0.7 + k) * 4, y - 64, 3, 1, col);   // a mast
+}
+// Rivetclaw, a mech crab as wide as the shaft, seen from above as it comes at him: a riveted carapace, two great claws
+// reaching forward that open and close, two jointed legs a side tapping, and eyes on stalks.
+const crabY = (y, k) => y + Math.sin(clock * 1.1 + k) * 3;
+const CRAB_LEGS = [[50, -12, 92, -38, 122, -10], [54, 6, 100, 0, 126, 36]];
+function crabLeg(x, y, s, i, k) {
+  const [hu, hv, ku, kv, fu, fv] = CRAB_LEGS[i], tw = Math.sin(clock * 2.2 + i * 1.9 + s + k) * 3;
+  return [x + s * hu, y + hv, x + s * ku, y + kv - tw, x + s * fu, y + fv + tw];
+}
+const crabOpen = k => 0.5 + 0.5 * Math.sin(clock * 1.6 + k);
+function crabClaw(x, y, s, k) {   // shoulder, elbow, wrist, and the two jaws' tips
+  const o = crabOpen(k), wx = x + s * 46, wy = y + 84;
+  return [x + s * 36, y + 20, x + s * 74, y + 48, wx, wy, wx - s * (6 + 10 * o), wy + 30, wx + s * (10 + 8 * o), wy + 24];
+}
+function drawCrab(x, y, dir, k, col) {
+  y = crabY(y, k);
+  for (const s of [-1, 1]) {
+    for (let i = 0; i < 2; i++) { const [hx, hy, kx, ky, fx, fy] = crabLeg(x, y, s, i, k); limb(hx, hy, kx, ky, 5, 4, col); limb(kx, ky, fx, fy, 4, 1, col); }
+    const [ax, ay, ex, ey, wx, wy, px, py, qx, qy] = crabClaw(x, y, s, k);
+    limb(ax, ay, ex, ey, 7, 6, col); limb(ex, ey, wx, wy, 6, 9, col);
+    fillPoly(c, [[wx - 8, wy], [wx + 8, wy], [px, py]], col); fillPoly(c, [[wx - 6, wy - 2], [wx + 6, wy + 4], [qx, qy]], col);   // the jaws
+    limb(x + s * 12, y - 26, x + s * 16, y - 40, 2, 3, col);   // an eye stalk
+  }
+  fillEllipse(c, x, y, 64, 30, col);   // the carapace
+}
+// Thrumwing, a mech wasp hanging head down over him: two rotors either side of its thorax, a striped abdomen with the
+// sting on top, compound eyes and mandibles below, and three jointed legs a side ready to grab.
+const waspY = (y, k) => y + Math.sin(clock * 1.3 + k) * 4;
+const WASP_LEGS = [[10, 8, 36, 24, 32, 50], [12, 14, 42, 38, 46, 64], [8, 18, 26, 44, 16, 70]];
+function waspLeg(x, y, s, i, k) { const [hu, hv, ku, kv, fu, fv] = WASP_LEGS[i], tw = Math.sin(clock * 2 + i + s * 0.5 + k) * 3; return [x + s * hu, y + hv, x + s * ku, y + kv + tw, x + s * (fu + tw), y + fv]; }
+function drawWasp(x, y, dir, k, col) {
+  y = waspY(y, k);
+  for (const s of [-1, 1]) {
+    const rx = x + s * 62, ry = y - 22;
+    limb(x + s * 12, y - 8, rx, ry, 3, 3, col);   // the rotor's strut
+    fillEllipse(c, rx, ry, 44, 8, col); disc(rx, ry, 5, col);
+    for (let i = 0; i < 3; i++) { const [hx, hy, kx, ky, fx, fy] = waspLeg(x, y, s, i, k); limb(hx, hy, kx, ky, 3, 2, col); limb(kx, ky, fx, fy, 2, 1, col); }
+    limb(x + s * 6, y + 36, x + s * 13, y + 48, 3, 1, col);   // mandibles
+    limb(x + s * 4, y + 20, x + s * 18, y + 6 + Math.sin(clock * 2 + s + k) * 3, 1, 1, col);   // antennae, swept back
+  }
+  fillEllipse(c, x, y - 48, 16, 30, col);   // abdomen
+  fillPoly(c, [[x - 5, y - 74], [x + 5, y - 74], [x, y - 100]], col);   // the sting
+  fillEllipse(c, x, y, 18, 16, col); fillEllipse(c, x, y + 28, 14, 12, col);   // thorax and head
+}
+// Slagback, a smelter beetle seen from above, head down: a great split shell with molten slag glowing in its seam,
+// a horned pronotum, mandibles like tongs, and three legs a side.
+const beetY = (y, k) => y + Math.sin(clock * 0.7 + k) * 4;
+const BEET_LEGS = [[30, -24, 64, -38, 80, -62], [36, 0, 74, 4, 96, -8], [30, 22, 62, 42, 74, 70]];
+function beetLeg(x, y, s, i, k) { const [hu, hv, ku, kv, fu, fv] = BEET_LEGS[i], tw = Math.sin(clock * 1.6 + i * 2 + s + k) * 3; return [x + s * hu, y + hv, x + s * ku, y + kv + tw, x + s * fu, y + fv - tw]; }
+const beetJaw = k => Math.sin(clock * 1.4 + k) * 0.15;
+function drawBeetle(x, y, dir, k, col) {
+  y = beetY(y, k);
+  for (const s of [-1, 1]) {
+    for (let i = 0; i < 3; i++) { const [hx, hy, kx, ky, fx, fy] = beetLeg(x, y, s, i, k); limb(hx, hy, kx, ky, 5, 4, col); limb(kx, ky, fx, fy, 4, 1, col); }
+    const a = 0.35 + s * beetJaw(k);
+    fillPoly(c, [[x + s * 10, y + 60], [x + s * 22, y + 62], [x + s * (14 + Math.sin(a) * 30), y + 62 + Math.cos(a) * 30], [x + s * 6, y + 76]], col);   // a mandible
+  }
+  fillEllipse(c, x, y - 8, 46, 56, col);   // the shell
+  fillEllipse(c, x, y + 44, 34, 16, col);  // the pronotum
+  fillPoly(c, [[x - 6, y + 50], [x + 6, y + 50], [x, y + 74]], col);   // its horn
+  fillEllipse(c, x, y + 62, 18, 10, col);  // the head
+}
+// Gearmaw, a living cog: a great toothed wheel turning, a hinged jaw hanging from its hub, two smaller cogs meshing
+// above it, and chains dangling.
+const gearY = (y, k) => y + Math.sin(clock * 0.6 + k) * 5;
+const gearRot = k => clock * 0.45 + k;
+function gearTooth(x, y, a, r0, r1) { const ca = Math.cos(a), sa = Math.sin(a), ca2 = Math.cos(a + 0.11), sa2 = Math.sin(a + 0.11), cb = Math.cos(a - 0.11), sb = Math.sin(a - 0.11); return [[x + cb * r0, y + sb * r0], [x + ca2 * r0, y + sa2 * r0], [x + ca * r1 + (ca2 - ca) * r1 * 0.5, y + sa * r1 + (sa2 - sa) * r1 * 0.5], [x + ca * r1 + (cb - ca) * r1 * 0.5, y + sa * r1 + (sb - sa) * r1 * 0.5]]; }
+function drawGear(x, y, dir, k, col) {
+  y = gearY(y, k);
+  const rot = gearRot(k);
+  for (const s of [-1, 1]) {   // the small cogs, turning the other way
+    const gx = x + s * 60, gy = y - 36;
+    disc(gx, gy, 18, col); c.fillStyle = col;
+    for (let i = 0; i < 8; i++) { const a = -rot * 2.4 + i * Math.PI / 4 + s; c.fillRect(Math.round(gx + Math.cos(a) * 21) - 3, Math.round(gy + Math.sin(a) * 21) - 3, 6, 6); }
+    c.fillStyle = col; for (let j = 0; j < 9; j++) c.fillRect(Math.round(x + s * 30 + Math.sin(clock * 1.1 + j * 0.4 + s) * j * 0.6) - 1, y + 40 + j * 7, 3, 5);   // a chain
+  }
+  disc(x, y, 44, col);
+  for (let i = 0; i < 12; i++) fillPoly(c, gearTooth(x, y, rot + i * Math.PI / 6, 40, 56), col);
+  const jw = 4 + Math.sin(clock * 1.3 + k) * 4;
+  fillPoly(c, [[x - 28, y + 16], [x + 28, y + 16], [x + 20, y + 56 + jw], [x - 20, y + 56 + jw]], col);   // the jaw
+}
 // Six kinds per moon (version 80 made the order random; version 143 below makes the cafe ones a bag across runs).
 // The even-numbered ones wait at the cafes (creature 2n at cafe n), hovering in place; the odd ones drift past.
 // The Jungle moon has its own six (three in version 113, three more in version 130), in the same kind of order.
 const LEVI_KINDS = ['nautilus', 'whale', 'elder', 'jelly', 'angler', 'manta'];
-const LEVI_SETS = { dust: LEVI_KINDS, jungle: ['centipede', 'flytrap', 'moth', 'spider', 'frog', 'mantis'] };
+const LEVI_SETS = { dust: LEVI_KINDS, jungle: ['centipede', 'flytrap', 'moth', 'spider', 'frog', 'mantis'],
+  machine: ['drill', 'sentinel', 'crab', 'wasp', 'beetle', 'gear'] };   // version 145
 const leviSet = () => LEVI_SETS[moon];
 // Version 143 (user: "I don't want to see the same Leviathan again before I've been through all six"): the cafe ones
 // (even k) come out of a shuffled bag of the moon's six that lasts across runs. save.leviMet[moon] lists the ones met at
@@ -2011,7 +2186,8 @@ function leviMeet(k) {
   persist();
 }
 const LEVI_DRAW = { nautilus: drawNautilus, whale: drawLeviathan, elder: drawElder, jelly: drawJelly, angler: drawAngler, manta: drawManta,
-  centipede: drawCenti, flytrap: drawTrap, moth: drawMoth, spider: drawSpider, frog: drawFrog, mantis: drawMantis };
+  centipede: drawCenti, flytrap: drawTrap, moth: drawMoth, spider: drawSpider, frog: drawFrog, mantis: drawMantis,
+  drill: drawDrill, sentinel: drawSentinel, crab: drawCrab, wasp: drawWasp, beetle: drawBeetle, gear: drawGear };
 const leviSeen = new Set();
 // The depth each creature belongs to (its colour comes from the rock there). Creature 2n is cafe n's, 50 m above its
 // cavern. The odd ones pass in the normal shaft 550 m above the next cafe: 500 m down for the first, as it always was,
@@ -2304,6 +2480,13 @@ function life(cam) {
       for (let i = 0; i < 5; i++) { const an = i / 5 * Math.PI * 2 + clock * 0.2; disc(fx + Math.cos(an) * 4 * op, fy + Math.sin(an) * 4 * op, 3, i % 2 ? S.lite : S.blue); }
       disc(fx, fy, 2, S.bio); c.fillStyle = P.dust; c.fillRect(Math.round(fx) - 1, Math.round(fy) - 1, 1, 1);
       c.fillStyle = S.moss; c.fillRect(Math.round(ex + side * 4), y + 1, side * 5, 2);
+    } else if (type === 5 && moon === 'machine') {
+      // Version 145: a cog half sunk in the wall, turning, and a lamp blinking above it.
+      const cx = ex + side * 3, an = clock * 1.4 * side + q;
+      c.fillStyle = S.mossDk;
+      for (let i = 0; i < 8; i++) { const a = an + i * Math.PI / 4; c.fillRect(Math.round(cx + Math.cos(a) * 8) - 1, Math.round(y + Math.sin(a) * 8) - 1, 3, 3); }
+      disc(cx, y, 7, S.mossDk); disc(cx, y, 5, S.moss); disc(cx, y, 2, S.ink);
+      if (Math.floor(clock * 2 + q) % 3) { c.fillStyle = S.bio; c.fillRect(Math.round(ex + side * 4), y - 13, 2, 2); }
     }
   }
 }
@@ -2337,6 +2520,15 @@ function motes(cam) {
     const x = Math.round(laneX(d, (hash(k + 300) * 2 - 1) * 0.75) + Math.sin(clock * 2 + k) * 4), yy = Math.round(y);
     const kind = matI(Math.floor(d / PX_PER_M / ZONE_M)), M = MATS[kind], z = k % 3 ? 1 : 2;
     let star = false;
+    if (moon === 'machine') {   // version 145: sparks, rust flakes, steam, embers, and data glints in the circuits
+      if (kind === 0) { star = (clock * 1.7 + k * 0.31) % 1 < 0.08; c.fillStyle = star ? '#FFFFFF' : M.hi; }
+      else if (kind === 1) c.fillStyle = k % 2 ? M.b0 : M.hi;
+      else if (kind === 2) { c.fillStyle = M.hi; c.fillRect(x, yy, 2, 1); c.fillRect(x + 1, yy - 1, 1, 1); continue; }
+      else if (kind === 3) { const f = (Math.floor(clock * 10) + k) % 3; c.fillStyle = f === 0 ? P.hot : f === 1 ? M.cryL : P.lava; }
+      else { star = (clock * 1.1 + k * 0.23) % 1 < 0.14; c.fillStyle = star ? M.cryL : M.hi; }
+      if (star) { c.fillRect(x - 1, yy, 3, 1); c.fillRect(x, yy - 1, 1, 3); } else c.fillRect(x, yy, z, z);
+      continue;
+    }
     if (moon === 'jungle') {   // version 113: pollen, root dust, glowing spores, embers, and orchid petals drifting by
       if (kind === 0) c.fillStyle = k % 2 ? '#F2F0A0' : M.hi;
       else if (kind === 1) c.fillStyle = k % 2 ? M.b0 : M.hi;
@@ -2696,6 +2888,40 @@ function jungleTrees(base, T, near) {
     disc(tx, ty, 2, S.mossDk);
   }
 }
+// Version 145: the Machine moon's skyline. Far off, lattice pylons and a mine's headframe stand on the far hills; nearer,
+// smokestacks with a blinking lamp and a slow plume of smoke rise from the near hills. Each moves with its hills.
+const MT_FAR = [[20, 34, 0], [96, 52, 1], [170, 30, 0], [250, 40, 0], [330, 46, 1]];
+const MT_NEAR = [[60, 38], [210, 30], [300, 44]];
+function machineSkyline(base, T, near) {
+  const span = W + 60;
+  if (!near) {
+    const col = mix(S.strata, S.shade, 0.35);
+    c.fillStyle = col;
+    for (const [u, h, big] of MT_FAR) {
+      const x = Math.round((((u - T * 6) % span) + span) % span - 30), gy = Math.round(base - (44 + 16 * Math.sin((x + T * 6) * 0.011 + 1) + 9 * Math.sin(x * 0.035)) + 2);
+      if (big) {   // a headframe: two legs leaning in, a wheel on top
+        for (let j = 0; j < h; j += 2) { const w = Math.round(9 - j * 6 / h); c.fillRect(x - w, gy - j, 2, 2); c.fillRect(x + w - 1, gy - j, 2, 2); if (j % 8 === 0) c.fillRect(x - w, gy - j, 2 * w, 1); }
+        ring(x, gy - h - 3, 5, col, 1);
+      } else {   // a pylon: a mast with three crossbars
+        c.fillRect(x - 1, gy - h, 2, h);
+        for (let i = 0; i < 3; i++) c.fillRect(x - 6 + i, gy - h + 3 + i * 7, 12 - 2 * i, 1);
+      }
+    }
+    return;
+  }
+  for (const [u, h] of MT_NEAR) {
+    const x = Math.round((((u - T * 12) % span) + span) % span - 30), gy = base - hillH(x, T);
+    c.fillStyle = S.ink; c.fillRect(x - 5, gy - h - 1, 10, h + 1);
+    c.fillStyle = S.shade; c.fillRect(x - 4, gy - h, 8, h);
+    c.fillStyle = S.blue; c.fillRect(x - 4, gy - h + 4, 8, 2); c.fillRect(x - 4, gy - h + 10, 8, 1);   // rusty bands
+    c.fillStyle = S.ink; c.fillRect(x - 6, gy - h - 2, 12, 2);
+    if (Math.floor(T * 1.5 + u) % 2) { c.fillStyle = S.lite; c.fillRect(x - 1, gy - h - 4, 2, 2); }
+    for (let i = 0; i < 4; i++) {   // smoke drifting up and away
+      const ph = (T * 0.25 + i / 4 + u * 0.01) % 1, r = Math.round(3 + ph * 7);
+      disc(x - ph * 26, gy - h - 6 - ph * 44, r, i % 2 ? S.strata : mix(S.strata, S.shade, 0.25));
+    }
+  }
+}
 function drawSky(cam) {
   const T = clock, ys0 = -camY0, sk = cam - camY0, Y = v => Math.round(v - cam);
   c.fillStyle = S.dust; c.fillRect(0, 0, W, Math.min(H, Y(0) + 6));
@@ -2716,9 +2942,11 @@ function drawSky(cam) {
   drawPlanet(Math.round(232 + Math.sin(T * 0.05) * 6), Math.round(ys0 * 0.52 - sk * 0.3), false, clock * Math.PI / 12);
   const hf = Math.round(ys0 - sk * 0.4), hb = Math.round(ys0 - sk * 0.55), Th = paintHills(T);
   if (moon === 'jungle') jungleTrees(hf, Th, false);
+  else if (moon === 'machine') machineSkyline(hf, Th, false);
   c.drawImage(hillFar, 0, hf - HILL_FAR_H);
   if (hf < H) { c.fillStyle = S.strata; c.fillRect(0, hf, W, H - hf); }
   if (moon === 'jungle') jungleTrees(hb, Th, true);
+  else if (moon === 'machine') machineSkyline(hb, Th, true);
   c.drawImage(hillNear, 0, hb - HILL_NEAR_H);
   if (hb + HILL_NEAR_LOW < H) { c.fillStyle = S.hill; c.fillRect(0, hb + HILL_NEAR_LOW, W, H - hb - HILL_NEAR_LOW); }
   const wx = Math.round(W + 30 - ((T * 10) % (W + 70))), gy = hb - hillH(wx, Th);
@@ -2864,6 +3092,20 @@ function paintProps(cam, T) {
       disc(x + sw, Y(-h - 2), 1, S.bio);
     }
   }
+  if (moon === 'machine') {
+    // Version 145: round the crash site, a half-buried cog, a pipe elbow out of the ground and a lamp post (clear of
+    // the ship, the shaft and his run-up).
+    const an = T * 0.4;
+    for (let i = 0; i < 10; i++) { const a = an + i * Math.PI / 5; if (Math.sin(a) < 0.15) { c.fillStyle = S.ink; c.fillRect(Math.round(246 + Math.cos(a) * 14) - 2, Y(-Math.sin(a) * 14) - 2, 5, 5); c.fillStyle = S.shade; c.fillRect(Math.round(246 + Math.cos(a) * 14) - 1, Y(-Math.sin(a) * 14) - 1, 3, 3); } }
+    for (let j = 0; j <= 12; j++) { const w = Math.round(Math.sqrt(144 - j * j)); c.fillStyle = j === 12 ? S.ink : S.shade; c.fillRect(246 - w, Y(-j), 2 * w + 1, 1); }
+    disc(246, Y(-4), 4, S.ink); c.fillStyle = S.hill; c.fillRect(242, Y(-1), 9, 1);
+    c.fillStyle = S.ink; c.fillRect(297, Y(-22), 8, 22); c.fillRect(297, Y(-24), 22, 8);
+    c.fillStyle = S.mossDk; c.fillRect(298, Y(-21), 6, 21); c.fillRect(298, Y(-23), 20, 6);
+    c.fillStyle = S.moss; c.fillRect(299, Y(-21), 2, 21); c.fillRect(298, Y(-22), 20, 2);
+    c.fillStyle = S.ink; c.fillRect(296, Y(-6), 10, 2); c.fillRect(312, Y(-25), 2, 10);
+    c.fillStyle = S.ink; c.fillRect(180, Y(-26), 2, 26); c.fillRect(177, Y(-28), 8, 3);
+    if (Math.floor(T * 2) % 2) { c.fillStyle = S.lite; c.fillRect(178, Y(-27), 6, 1); }
+  }
   const n = Math.floor(T / 0.55), ph = (T / 0.55) % 1, bx = Math.round(252 + 24 * Math.sin((n + ph) * 0.3));
   sprite(c, BLOB[ph < 0.15 ? 1 : 0], bx - 7, Y(-13 - Math.round(Math.sin(Math.PI * ph) * 10)), MAP);
 }
@@ -2928,7 +3170,7 @@ function persist() { try { localStorage.setItem('moonfall.v1', JSON.stringify(sa
 // is thrown away to be painted again (the shaft's tiles and back layers, the hills and the surface props). The hazards,
 // Leviathans and music read `moon` as they go. Only called on the menus, never during a run.
 function applyMoon(m) {
-  moon = m === 'jungle' ? 'jungle' : 'dust';
+  moon = MOON_SURF[m] ? m : 'dust';
   MATS.splice(0, MATS.length, ...MOON_MATS[moon]);
   Object.assign(S, P, MOON_SURF[moon]); skyMix();
   palCache.clear(); leviFor = -1;
@@ -2939,7 +3181,8 @@ function applyMoon(m) {
   document.documentElement.dataset.moon = moon;
   syncMoon();
 }
-const MOON_NAMES = { dust: 'Dust moon', jungle: 'Jungle moon' };
+const MOON_NAMES = { dust: 'Dust moon', jungle: 'Jungle moon', machine: 'Machine moon' };
+const MOON_BLEEP = { dust: 880, jungle: 660, machine: 523 };   // the picker's bleep, a step lower for each moon
 
 // ---------- sound ----------
 // ---------- his voice: a glottal pulse with breath, jitter and shimmer through four formants, plus real consonants ----------
@@ -3298,6 +3541,24 @@ const Sfx = (() => {
             for (let j = 0; j < 5; j++) noise(0.06, 'lowpass', 600, 0.05, i * 0.8 + 0.1 + j * 0.12);
           }
           noise(0.08, 'bandpass', 1400, 0.09, 1.75); tone('sine', 420, 140, 0.12, 0.04, 1.75);
+        } else if (kind === 'drill') {   // version 145: a drill spinning up and grinding, over a low engine
+          swell('sawtooth', 160, 330, 2.2, 0.03, 0.8, 1400); swell('square', 55, 48, 2.6, 0.05, 0.6, 300);
+          for (let i = 0; i < 8; i++) noise(0.08, 'bandpass', 1500 + (i % 2) * 500, 0.06, 0.5 + i * 0.22);
+        } else if (kind === 'sentinel') {   // a falling electric hum and a string of beeps as it looks for him
+          swell('sine', 240, 110, 2.6, 0.08, 0.6, 1200); swell('sawtooth', 60, 55, 2.4, 0.03, 0.8, 300, 0.2);
+          for (let i = 0; i < 5; i++) tone('square', i % 2 ? 1320 : 990, i % 2 ? 1320 : 990, 0.06, 0.02, 0.6 + i * 0.18);
+        } else if (kind === 'crab') {   // legs clattering on steel, a hydraulic hiss and a low growl
+          for (let i = 0; i < 10; i++) noise(0.03, 'bandpass', 2000 + (i % 3) * 600, 0.08, i * 0.09 + (i > 4 ? 0.4 : 0));
+          noise(0.7, 'highpass', 3500, 0.05, 0.9); swell('sawtooth', 70, 50, 2.0, 0.06, 0.5, 420, 0.3);
+        } else if (kind === 'wasp') {   // a rotor's drone rising and falling, with a thin whine
+          swell('sawtooth', 120, 150, 1.4, 0.05, 0.4, 900); swell('sawtooth', 150, 110, 1.4, 0.05, 0.4, 900, 1.2);
+          swell('sine', 1480, 1560, 2.2, 0.01, 0.8, 4000, 0.3);
+        } else if (kind === 'beetle') {   // a furnace roaring, slag crackling, and a deep groan
+          noise(2.4, 'lowpass', 500, 0.14, 0.1); swell('sawtooth', 52, 40, 2.6, 0.07, 0.8, 300);
+          for (let i = 0; i < 9; i++) noise(0.02, 'highpass', 4000, 0.06, 0.5 + i * 0.17 + (i % 3) * 0.04);
+        } else if (kind === 'gear') {   // a great ratchet clicking round, and iron groaning under the strain
+          for (let i = 0; i < 12; i++) { noise(0.03, 'bandpass', 1200, 0.1, i * 0.16); tone('square', 180, 120, 0.04, 0.02, i * 0.16); }
+          swell('sawtooth', 90, 62, 2.4, 0.05, 0.9, 380, 0.3);
         } else if (kind === 'mantis') {   // a rasping rattle of wings, and a long scrape of blade on blade
           for (let i = 0; i < 12; i++) noise(0.05, 'bandpass', 3800 + (i % 3) * 600, 0.07, i * 0.06);
           swell('triangle', 1650, 2300, 1.0, 0.018, 0.5, 5000, 0.9); noise(0.9, 'highpass', 6000, 0.03, 0.9);
@@ -3355,6 +3616,11 @@ const Sfx = (() => {
     rustle() { noise(0.18, 'bandpass', 3200, 0.14); noise(0.22, 'highpass', 5000, 0.07, 0.06); },
     thorns() { tone('sawtooth', 120, 70, 0.35, 0.06); noise(0.3, 'bandpass', 900, 0.22); tone('square', 300, 180, 0.08, 0.05, 0.12); },
     spores() { noise(0.45, 'lowpass', 900, 0.5); noise(0.3, 'bandpass', 2400, 0.12, 0.05); tone('sine', 220, 90, 0.25, 0.18); },
+    // The Machine hazards (version 145): a ram slamming out, a saw's whine, a laser charging and then burning.
+    crush() { tone('square', 110, 45, 0.18, 0.12); noise(0.15, 'lowpass', 900, 0.35); tone('triangle', 900, 860, 0.12, 0.05, 0.02); },
+    saw() { tone('sawtooth', 1700, 1500, 0.5, 0.025); tone('square', 2550, 2300, 0.4, 0.012); noise(0.4, 'bandpass', 4200, 0.04); },
+    laserWarn() { tone('sine', 700, 1800, 0.6, 0.04); },
+    laserOn() { tone('sawtooth', 220, 210, 0.45, 0.07); noise(0.4, 'highpass', 3000, 0.08); tone('sine', 1760, 1700, 0.3, 0.03); },
     weld() { noise(0.1, 'highpass', 3800, 0.22); noise(0.07, 'bandpass', 1700, 0.16, 0.04); tone('square', 118, 108, 0.1, 0.04); },
     clang() { tone('triangle', 1180, 1150, 0.4, 0.28); tone('sine', 2650, 2580, 0.28, 0.12); tone('square', 560, 530, 0.07, 0.07); noise(0.04, 'highpass', 5000, 0.35); },
     firework() { noise(0.25, 'lowpass', 900, 0.3); noise(0.6, 'highpass', 5000, 0.06, 0.12); },
@@ -3412,7 +3678,9 @@ const Music = (() => {
   // The Jungle moon's music (version 113) is the same tune a fourth higher (D minor), with its own lead instruments and
   // hand drums; the boss tracks keep their own keys.
   // On the start screen it follows the moon the player has picked (skey, changed on a bar), not the saved one.
-  const key = () => mode === 'splash' ? skey : moon === 'jungle' && mode !== 'boss' ? 5 : 0;
+  // The Machine moon's (version 145) is a tone lower (G minor), with metal leads, an anvil clank and a piston hiss.
+  const MOON_KEY = { dust: 0, jungle: 5, machine: -2 };
+  const key = () => mode === 'splash' ? skey : mode !== 'boss' ? MOON_KEY[moon] || 0 : 0;
   const mtof = m => 440 * Math.pow(2, (m + key() - 69) / 12);
   function setup() {
     if (bus) return true;
@@ -3507,6 +3775,15 @@ const Music = (() => {
     (m, t) => { osc('sine', mtof(m), t, 0.3, 0.045, 0.003, 0, true); osc('sine', mtof(m) * 2.01, t, 0.18, 0.02, 0.003, 0, false); osc('sine', mtof(m) * 3.98, t, 0.08, 0.008, 0.002, 0, false); },
     (m, t) => { osc('sine', mtof(m + 12), t, 0.5, 0.03, 0.002, 0, true); osc('sine', mtof(m + 12) * 2.76, t, 0.15, 0.008, 0.001, 0, false); },
   ];
+  // The Machine moon's leads (version 145), one per layer: Plating a struck steel bell, Rust a clanky pluck, Pipes a
+  // hollow pipe, Furnace a gritty low pulse, Circuit a bright chip arpeggio an octave up.
+  const MLEADS = [
+    (m, t) => { osc('sine', mtof(m), t, 0.35, 0.05, 0.002, 0, true); osc('sine', mtof(m) * 2.76, t, 0.12, 0.012, 0.001, 0, false); osc('sine', mtof(m) * 5.4, t, 0.05, 0.005, 0.001, 0, false); },
+    (m, t) => { osc('square', mtof(m), t, 0.09, 0.04, 0.001, 900, true); hit(t, 0.03, 'bandpass', mtof(m) * 4, 0.03); },
+    (m, t) => { osc('triangle', mtof(m), t, 0.26, 0.06, 0.02, 0, true); osc('sine', mtof(m) * 2, t, 0.2, 0.015, 0.03, 0, false); },
+    (m, t) => { osc('sawtooth', mtof(m - 12), t, 0.12, 0.05, 0.002, 900, true); osc('square', mtof(m - 12) * 0.996, t, 0.12, 0.03, 0.002, 700, false); },
+    (m, t) => osc('square', mtof(m + 12), t, 0.07, 0.03, 0.001, 3000, true),
+  ];
   // A hand drum: a pitched thump that drops a little, quieter than the toms.
   function bongo(t, f, vol) {
     const { ctx } = A, o = ctx.createOscillator(), g = ctx.createGain();
@@ -3522,6 +3799,7 @@ const Music = (() => {
     if (i % 4 === 2) hit(t, 0.03, 'highpass', 8000, 0.02);
     if (Math.floor(s / 64) % 2 === 1 && MEL[bar][i]) glock(MEL[bar][i], t, 0.06);
     if (moon === 'jungle') { if (i % 2 === 1) hit(t, 0.025, 'highpass', 7000, 0.015); if (i === 6 || i === 14) bongo(t, 330, 0.06); }   // a soft shaker and hand drum
+    if (moon === 'machine' && (i === 6 || i === 14)) hit(t, 0.05, 'bandpass', 2600, 0.03);   // a distant clank
   }
   // Start screen (version 120, user: "when I'm picking between Dust Moon and Jungle Moon, there's no music"): a slow,
   // spacey theme (80 BPM; A minor 9, F major 7, C over G, E minor 7) that starts on the first tap (browsers allow no
@@ -3535,7 +3813,7 @@ const Music = (() => {
   function splashStep(bar, i, s, t) {
     const ch = SPL_CH[bar], sx = 15 / bpm;
     if (i === 0) {
-      skey = pick === 'jungle' ? 5 : 0; held.length = 0;
+      skey = MOON_KEY[pick] || 0; held.length = 0;
       pad(ch, t, 16 * sx, held);
       const { ctx } = A, o = ctx.createOscillator(), g = ctx.createGain();   // sub bass, held for the bar
       o.type = 'triangle'; o.frequency.value = mtof(SPL_BASS[bar]);
@@ -3543,7 +3821,7 @@ const Music = (() => {
       o.connect(g); g.connect(muff); o.start(t); o.stop(t + 16 * sx + 0.35); held.push(g);
       if (sflash) {   // just picked: a cymbal swell and a quick run up the chord
         sflash = false; hit(t, 1.8, 'highpass', 4500, 0.07);
-        ch.forEach((n, k) => pick === 'jungle' ? JLEADS[0](n + 12, t + k * 0.07) : osc('sine', mtof(n + 24), t + k * 0.07, 0.8, 0.04, 0.003, 0, true));
+        ch.forEach((n, k) => pick === 'jungle' ? JLEADS[0](n + 12, t + k * 0.07) : pick === 'machine' ? MLEADS[0](n + 12, t + k * 0.07) : osc('sine', mtof(n + 24), t + k * 0.07, 0.8, 0.04, 0.003, 0, true));
       }
     }
     const n = ch[[0, 1, 2, 3, 2, 1, 0, 2][(i >> 1) % 8]] + 12, mel = SPL_MEL[bar][i];
@@ -3554,6 +3832,11 @@ const Music = (() => {
       if (i % 2 === 0) { osc('sine', mtof(n + 12), t, 0.7, 0.03, 0.002, 0, true); osc('sine', mtof(n + 12) * 3.01, t, 0.15, 0.007, 0.001, 0, false); }
       if (mel) osc('square', mtof(mel), t, 0.5, 0.03, 0.01, 2000, true);
       if (i === 0 && bar % 2 === 0) hit(t, 3.2, 'bandpass', 900, 0.03);   // wind
+    } else if (pick === 'machine') {   // version 145: steel bells, a filtered square tune, a ticking clock and a far-off hiss
+      if (i % 2 === 0) MLEADS[0](n, t);
+      if (mel) osc('square', mtof(mel - 12), t, 0.6, 0.035, 0.02, 1100, true);
+      if (i % 4 === 0) hit(t, 0.02, 'highpass', 6000, 0.02);
+      if (i === 8 && bar % 2) hit(t, 1.2, 'highpass', 3000, 0.02);
     } else {
       if (i % 2 === 0) JLEADS[0](n, t);
       if (mel) { osc('sine', mtof(mel), t, 0.7, 0.045, 0.06, 0, true); hit(t, 0.1, 'bandpass', mtof(mel) * 3, 0.012); }
@@ -3735,7 +4018,12 @@ const Music = (() => {
       osc('square', mtof(BASS[bar]), t, 0.18, 0.05, 0.005, 500, false);
     }
     if (i === 0 || i === 8) kick(t);
-    if (layer >= 1) (moon === 'jungle' ? JLEADS : LEADS)[lead](ARP[bar][i % 4], t);
+    if (layer >= 1) (moon === 'jungle' ? JLEADS : moon === 'machine' ? MLEADS : LEADS)[lead](ARP[bar][i % 4], t);
+    // Machine (version 145): an anvil clank on the off-beats, and a piston's hiss once the depth brings the backbeat in.
+    if (moon === 'machine') {
+      if (i === 3 || i === 11) hit(t, 0.06, 'bandpass', 2800, 0.06);
+      if (layer >= 2 && (i === 6 || i === 14)) hit(t, 0.22, 'highpass', 4200, 0.035);
+    }
     // Jungle: a shaker on every off-beat 16th, and hand drums once the depth brings the backbeat in.
     if (moon === 'jungle') {
       if (i % 2 === 1) hit(t, 0.03, 'highpass', 6500, 0.03);
@@ -4306,6 +4594,13 @@ const LEVI_INFO = [
   ['spider', 'Widowloom', 'A web falls. Slip through the hole'],   // version 130
   ['frog', 'Croakmaw', 'Its tongue lashes where you are'],
   ['mantis', 'Sicklethorn', 'Blades curve in and cross on you'],
+  // The Machine moon's (version 145)
+  ['drill', 'Augerwyrm', 'Twin bolts corkscrew at you'],
+  ['sentinel', 'Glarecore', 'Its scan locks on, then it fires'],
+  ['crab', 'Rivetclaw', 'Shells land where the markers show'],
+  ['wasp', 'Thrumwing', 'Drones hunt you, then dart'],
+  ['beetle', 'Slagback', 'Molten slag pours. Stay between'],
+  ['gear', 'Gearmaw', 'Cogs bounce off the walls'],
 ];
 function leviPortrait(kind) {
   const buf = bossBuf(kind), keep = [bossTmp, bossTmpG, pilotNow];
@@ -4353,7 +4648,7 @@ function fillLeviCard() {
     pic.className = 'levi-pic'; pic.setAttribute('role', 'img'); pic.setAttribute('aria-label', name + (w ? ', beaten' : ', not beaten yet'));
     if (li.firstChild !== pic) li.replaceChild(pic, li.firstChild);
   }
-  $('leviHint').textContent = (isJungle() ? 'Jungle moon. ' : '') + 'One hunts you after every second cafe. Beaten: ' + beaten + ' of ' + set.length;
+  $('leviHint').textContent = (moon !== 'dust' ? MOON_NAMES[moon] + '. ' : '') + 'One hunts you after every second cafe. Beaten: ' + beaten + ' of ' + set.length;
 }
 // Version 122: the sticker opens the New features card; its Leviathan chases row opens the Leviathans card.
 $('newsTag').addEventListener('click', () => { if (state === 'title' && !cardSide) setCard('news'); });
@@ -4371,7 +4666,7 @@ $('newsDone').addEventListener('click', () => setCard(null));
 // The moon picker (Settings; the main menu pair was removed in version 123). Only on the main menu: a run always finishes on the moon it started on.
 function setMoon(m) {
   if (state !== 'title' || m === moon) return;
-  applyMoon(m); save.moon = moon; persist(); syncMoon(); Sfx.bleep(m === 'jungle' ? 660 : 880);
+  applyMoon(m); save.moon = moon; persist(); syncMoon(); Sfx.bleep(MOON_BLEEP[moon]);
 }
 function syncMoon() {
   for (const b of document.querySelectorAll('.moon-btn')) b.setAttribute('aria-pressed', String(b.dataset.moon === moon));
@@ -4957,6 +5252,7 @@ const BADGES = [
   ['levi', 'Monster down', 'Beat a Leviathan'],
   ['all6', 'All six', 'Beat every Leviathan'],
   ['jungle3', 'Jungle hunter', 'Beat all six Jungle Leviathans'],   // version 113 (three then); six since version 130, and anyone who had it keeps it
+  ['machine6', 'Machine hunter', 'Beat all six Machine Leviathans'],   // version 145
 ];
 if (!save.badges || typeof save.badges !== 'object') save.badges = {};
 function award(id) {
@@ -6023,7 +6319,7 @@ for (const b of document.querySelectorAll('.splash-moon')) b.addEventListener('c
   if (state !== 'splash') return;
   const m = b.dataset.moon;
   if (m !== moon) applyMoon(m);
-  save.moon = moon; persist(); syncMoon(); splashPicked = true; Sfx.bleep(m === 'jungle' ? 660 : 880); Music.pick(moon);
+  save.moon = moon; persist(); syncMoon(); splashPicked = true; Sfx.bleep(MOON_BLEEP[moon]); Music.pick(moon);
   for (const o of document.querySelectorAll('.splash-moon')) o.setAttribute('aria-pressed', String(o === b));
   $('splashBtn').disabled = false;
 });
@@ -6115,10 +6411,19 @@ addEventListener('keyup', e => {
 // Version 113, the Jungle moon: Moss has hanging vines that tangle his steering for a moment (no damage), Roots has thorny
 // branches that grow out of the wall as he nears (they hurt), and Spore has pods that swell and burst into a cloud of
 // spores (it hurts). Each reaches less than half way across, and grows or bursts in good time, like the crumbling ledges.
-const HAZ_KINDS = { dust: ['glaze', 'crumble', null, null, null], jungle: ['vines', 'thorns', 'spores', null, null] };   // by MATS index
+// Version 145, the Machine moon: Plating has crushers (a ram that slams out of a striped housing on one wall and pulls
+// back, over and over), Rust has saw blades running to and fro along a rail out from one wall, and Pipes has laser gates
+// right across the shaft with one gap, marked by its two emitters from the start; the beam warns, then burns. Crushers
+// and saws reach less than half way across, so the other side is always safe.
+const HAZ_KINDS = { dust: ['glaze', 'crumble', null, null, null], jungle: ['vines', 'thorns', 'spores', null, null], machine: ['crusher', 'saw', 'laser', null, null] };   // by MATS index
 const hazKind = i => HAZ_KINDS[moon][i];
 const HAZ_HINT = { glaze: 'GLAZED ICE BOUNCES YOU', crumble: 'LEDGES CRUMBLE INTO BOULDERS', vines: 'VINES TANGLE YOUR STEERING',
-  thorns: 'THORNS GROW OUT OF THE WALL', spores: 'SPORE PODS BURST. STEER CLEAR' };
+  thorns: 'THORNS GROW OUT OF THE WALL', spores: 'SPORE PODS BURST. STEER CLEAR',
+  crusher: 'CRUSHERS SLAM OUT OF THE WALL', saw: 'SAWS RUN ALONG THEIR RAILS', laser: 'LASER GATES. FIND THE GAP' };
+const CRUSH_P = 1.7, SAW_P = 2.3, SAW_R = 11;   // s per crusher stroke and per saw run there and back; the blade's radius
+const LASER_WARN = 2.2, LASER_ON = 1.0, LASER_GAP = 50;   // s before he reaches it: the beam blinks, then burns; gap px
+const MH = { stripe: '#E8B83A', stripeK: '#1A1C21', steel: '#7D8794', steelL: '#C4CCD6', steelD: '#3E454F', blade: '#D8DEE6', bladeD: '#6E7884',
+  beam: '#FF3A4E', beamL: '#FFC2C8', beamD: '#7A1020' };
 const THORN_WARN = 2.1, THORN_GROW = 1.7, THORN_OUT = 1.0;   // s before he reaches it: rustle, start growing, fully out
 const SPORE_SWELL = 1.9, SPORE_BURST = 1.0, SPORE_LIFE = 1.9, SPORE_HURT = 1.6;   // s before: swell, burst; s the cloud lasts, and hurts
 const VINE_TANGLE = 0.55;                                        // s his steering stays weak after touching vines
@@ -6141,11 +6446,17 @@ function placeHazard(k, d0) {
   if (voidAt(d - 300) || voidAt(d) || voidAt(d + 300)) return false;
   const h = { kind, d, side: r() < 0.5 ? -1 : 1 };
   if (kind === 'glaze' || kind === 'vines') h.len = Math.round(70 + r() * 70);
-  if (kind === 'thorns' || kind === 'spores' || kind === 'vines') {
+  if (kind === 'laser') {   // right across the shaft, with one gap at least 30 px off either wall
+    const e = edgeAt(d), w = e.R - e.L;
+    if (w < 120) return false;
+    h.gx = Math.round(e.L + 30 + LASER_GAP / 2 + r() * (w - 60 - LASER_GAP));
+  }
+  if (kind === 'crusher' || kind === 'saw') h.ph = r() * 10;
+  if (kind === 'thorns' || kind === 'spores' || kind === 'vines' || kind === 'crusher' || kind === 'saw') {
     // How far it reaches in from the wall: under half the shaft, always leaving him a wide way past.
     let w = 999;
     for (let dd = d - 30; dd <= d + (h.len || 0) + 30; dd += 10) { const e = edgeAt(dd); w = Math.min(w, e.R - e.L); }
-    h.reach = Math.min(Math.round(w * (kind === 'vines' ? 0.36 : 0.42)), w - 2 * HIT_HALF_W - 34);
+    h.reach = Math.min(Math.round(w * (kind === 'vines' ? 0.36 : kind === 'crusher' || kind === 'saw' ? 0.4 : 0.42)), w - 2 * HIT_HALF_W - 34);
     if (h.reach < 22) return false;
     if (kind === 'spores') h.r = Math.min(46, Math.round(h.reach * 0.62));
   }
@@ -6181,6 +6492,15 @@ function updateHazards(dt) {
         const { L, R } = edgeAt(h.d);
         particles.push({ x: h.side < 0 ? L + 2 : R - 3, d: h.d - 4, vx: -h.side * 20 * Math.random(), vy: 50, t: 0, life: 0.6, col: Math.random() < 0.5 ? JH.leaf : JH.bark, z: 1 });
       }
+    } else if (h.kind === 'crusher') {
+      const was = h.ext || 0; h.ext = crushExt(h);
+      if (seen && h.ext > 0.9 && was <= 0.9) { Sfx.crush(); const { L, R } = edgeAt(h.d); sparks(h.side < 0 ? L + h.reach : R - h.reach, h.d, [MH.steelL, P.dust, MH.stripe], 5, 6); }
+    } else if (h.kind === 'saw') {
+      if (seen && !h.heard) { h.heard = true; Sfx.saw(); }
+      if (seen && Math.random() < dt * 8) { const [sx] = sawAt(h); particles.push({ x: sx, d: h.d + SAW_R - 2, vx: (Math.random() - 0.5) * 60, vy: 40, t: 0, life: 0.35, col: Math.random() < 0.5 ? P.hot : MH.stripe, z: 1 }); }
+    } else if (h.kind === 'laser') {
+      if (!h.warned && soon < LASER_WARN) { h.warned = true; if (seen) Sfx.laserWarn(); }
+      if (!h.lit && soon < LASER_ON) { h.lit = true; if (seen) Sfx.laserOn(); }
     } else if (h.kind === 'spores') {
       h.swell = smoothstep((SPORE_SWELL - soon) / (SPORE_SWELL - SPORE_BURST));
       if (!h.burstAt && soon < SPORE_BURST) {
@@ -6213,6 +6533,91 @@ function bounceOff(side, edge, cd, fresh) {
   player.x = side < 0 ? edge + HIT_HALF_W + 2 : edge - HIT_HALF_W - 2;
   player.vx = -side * 330; player.aim = player.x - side * 80; player.touch = true;
   if (fresh) { sparks(edge, cd, ['#FFFFFF', ICE_GLAZE, P.lite], 9); Sfx.ice(); Buzz.orb(); }
+}
+// The Machine hazards (version 145). A crusher's ram, 0 (in) to 1 (out): slams out in a tenth of a stroke, holds, then
+// pulls back slowly and waits. A saw blade's middle on its rail. Both run on the clock from their own phase.
+function crushExt(h) {
+  const u = ((clock + h.ph) % CRUSH_P) / CRUSH_P;
+  return u < 0.1 ? smoothstep(u / 0.1) : u < 0.38 ? 1 : u < 0.72 ? 1 - smoothstep((u - 0.38) / 0.34) : 0;
+}
+function sawAt(h) {
+  const { L, R } = edgeAt(h.d), u = 0.5 - 0.5 * Math.cos((clock + h.ph) * Math.PI * 2 / SAW_P), out = 8 + (h.reach - SAW_R - 8) * u;
+  return [h.side < 0 ? L + out : R - out, h.d];
+}
+// The Machine hazards touching him (called from collide): the crusher's head, the saw blade and a burning laser hurt.
+function machineHits(cd) {
+  for (const h of hazards) {
+    if (h.kind === 'crusher') {
+      if (!(h.ext > 0.35) || Math.abs(cd - h.d) > 11 + 8) continue;
+      const { L, R } = edgeAt(h.d), tip = Math.round(h.reach * h.ext);
+      if (h.side < 0 ? player.x - HIT_HALF_W + 2 < L + tip : player.x + HIT_HALF_W - 2 > R - tip) {
+        if (player.inv <= 0 && player.shield <= 0) { player.vx = -h.side * 170; sparks(player.x, cd, [MH.steelL, MH.stripe, P.dust], 8); }
+        hurt('crush');
+      }
+    } else if (h.kind === 'saw') {
+      if (Math.abs(cd - h.d) > SAW_R + 10) continue;
+      const [sx] = sawAt(h), dx = player.x - sx, dy = (cd - h.d) * 0.8;
+      if (dx * dx + dy * dy < (SAW_R + HIT_HALF_W - 3) ** 2) {
+        if (player.inv <= 0 && player.shield <= 0) { player.vx = Math.sign(dx || -h.side) * 160; sparks(player.x, cd, [MH.blade, P.hot, MH.stripe], 8); }
+        hurt('saw');
+      }
+    } else if (h.kind === 'laser' && h.lit) {
+      if (Math.abs(cd - h.d) > 3 + 8) continue;
+      if (player.x - HIT_HALF_W + 2 < h.gx - LASER_GAP / 2 || player.x + HIT_HALF_W - 2 > h.gx + LASER_GAP / 2) hurt('laser');
+    }
+  }
+}
+// Machine hazards on the screen (drawn with the others in drawHazards).
+function drawMachineHazard(h, cam, y, L, R) {
+  const s = h.side, base = s < 0 ? L : R;
+  if (h.kind === 'crusher') {
+    // A housing striped in warning yellow on the wall, and the ram: a rod and a broad steel head.
+    const hx = s < 0 ? base - 8 : base;
+    c.fillStyle = MH.stripeK; c.fillRect(hx - 1, y - 15, 10, 30);
+    c.fillStyle = MH.stripe; for (let i = 0; i < 4; i++) c.fillRect(hx, y - 14 + i * 7, 8, 4);
+    const tip = Math.round(h.reach * (h.ext || 0));
+    if (tip > 2) {
+      const rx = s < 0 ? base : base - tip;
+      c.fillStyle = P.ink; c.fillRect(rx, y - 3, tip, 6); c.fillStyle = MH.steelD; c.fillRect(rx, y - 2, tip, 4); c.fillStyle = MH.steel; c.fillRect(rx, y - 2, tip, 1);
+    }
+    const fx = s < 0 ? base + tip - 1 : base - tip - 8;   // the head, always showing at the housing's mouth
+    c.fillStyle = P.ink; c.fillRect(fx - 1, y - 12, 10, 24);
+    c.fillStyle = MH.steel; c.fillRect(fx, y - 11, 8, 22);
+    c.fillStyle = MH.steelL; c.fillRect(fx + (s < 0 ? 5 : 1), y - 11, 2, 22);
+    c.fillStyle = MH.steelD; for (let i = 0; i < 4; i++) c.fillRect(s < 0 ? fx + 8 : fx - 2, y - 10 + i * 6, 2, 3);   // its teeth
+  } else if (h.kind === 'saw') {
+    // The rail: a dark slot out from the wall with a lit edge; the blade spinning along it, its teeth turning.
+    const rl = s < 0 ? base - 2 : base - h.reach, [sx] = sawAt(h), an = clock * 14 * -s;
+    c.fillStyle = P.ink; c.fillRect(rl, y - 2, h.reach + 2, 5); c.fillStyle = MH.steelD; c.fillRect(rl, y - 1, h.reach + 2, 3);
+    c.fillStyle = MH.steelL; c.fillRect(rl, y - 2, h.reach + 2, 1);
+    c.fillStyle = MH.stripe; c.fillRect(s < 0 ? base + h.reach - 3 : base - h.reach + 1, y - 4, 2, 9);   // the rail's stop
+    disc(sx, y, SAW_R, MH.bladeD); disc(sx, y, SAW_R - 2, MH.blade); disc(sx, y, 3, P.ink);
+    c.fillStyle = MH.bladeD;
+    for (let i = 0; i < 10; i++) { const a = an + i * Math.PI / 5; c.fillRect(Math.round(sx + Math.cos(a) * (SAW_R + 1)) - 1, Math.round(y + Math.sin(a) * (SAW_R + 1)) - 1, 3, 3); }
+    c.fillStyle = MH.steelD; for (let i = 0; i < 3; i++) { const a = an * 0.5 + i * 2.09; c.fillRect(Math.round(sx + Math.cos(a) * 6), Math.round(y + Math.sin(a) * 6), 2, 2); }
+  } else if (h.kind === 'laser') {
+    // Emitters on both walls and either side of the gap; between them the beam: a blinking dotted line, then a burn.
+    const gl = Math.round(h.gx - LASER_GAP / 2), gr = Math.round(h.gx + LASER_GAP / 2);
+    // The gap's emitters are tall posts striped like the crushers, so the way through shows from the moment it's on screen.
+    for (const [x, d] of [[L, 1], [gl, -1], [gr, 1], [R, -1]]) {
+      const gap = x === gl || x === gr, x0 = x - (d > 0 ? 1 : 6), hh = gap ? 9 : 6;
+      c.fillStyle = P.ink; c.fillRect(x0, y - hh, 7, 2 * hh); c.fillStyle = gap ? MH.stripe : MH.steelD; c.fillRect(x0 + 1, y - hh + 1, 5, 2 * hh - 2);
+      if (gap) { c.fillStyle = MH.stripeK; c.fillRect(x0 + 1, y - 5, 5, 2); c.fillRect(x0 + 1, y + 3, 5, 2); }
+      c.fillStyle = h.lit ? MH.beamL : h.warned && Math.floor(clock * 10) % 2 ? MH.beam : MH.beamD; c.fillRect(x0 + 2, y - 1, 3, 3);
+    }
+    if (h.lit) {
+      if (h.d < player.y + PILOT_CY - 60) return;   // he's well past it: it switches off
+      const fl = Math.floor(clock * 30) % 2;
+      for (const [a, b] of [[L + 6, gl - 6], [gr + 6, R - 6]]) if (b > a) {
+        c.fillStyle = MH.beamD; c.fillRect(a, y - 4 - fl, b - a, 9 + 2 * fl);
+        c.fillStyle = MH.beam; c.fillRect(a, y - 2, b - a, 5);
+        c.fillStyle = MH.beamL; c.fillRect(a, y - 1, b - a, 2);
+      }
+    } else if (h.warned && Math.floor(clock * 12) % 2) {
+      c.fillStyle = MH.beam;
+      for (const [a, b] of [[L + 6, gl - 6], [gr + 6, R - 6]]) for (let x = a; x < b - 2; x += 8) c.fillRect(x, y - 1, 4, 2);
+    }
+  }
 }
 // The middle of a spore pod's cloud: out from the wall by a little over its radius.
 function sporeCentre(h) { const { L, R } = edgeAt(h.d); return [h.side < 0 ? L + h.r * 0.75 : R - h.r * 0.75, h.d]; }
@@ -6338,7 +6743,8 @@ function drawHazards(cam) {
       c.fillStyle = Q.ink;
       for (const [dx, dy, l] of CRACKS) c.fillRect(h.side < 0 ? L - dx - l : R + dx, y + dy, l, 1);
       drawRock((h.side < 0 ? L + rr - 5 : R - rr + 5) + j, y, h.size);
-    } else if (h.kind !== 'crumble') drawJungleHazard(h, cam, y, L, R);
+    } else if (h.kind === 'crusher' || h.kind === 'saw' || h.kind === 'laser') drawMachineHazard(h, cam, y, L, R);
+    else if (h.kind !== 'crumble') drawJungleHazard(h, cam, y, L, R);
   }
 }
 
@@ -6507,7 +6913,7 @@ function hurt(kind, x, d, size) {
   // a spore cloud as lava (version 113; the run's moon is in its stats too).
   if (player.hp <= 0) { lastHit = kind === 'boss' ? 'lava' : as; die(); } else Sfx.hurtVoice(as);
 }
-const HURT_AS = { thorn: 'rock', spore: 'lava' };
+const HURT_AS = { thorn: 'rock', spore: 'lava', crush: 'rock', saw: 'rock', laser: 'lava' };   // version 145: the Machine hazards
 // A shield lasts SHIELD_S (8 s since version 80, was 10); a mine takes half of it, any other hit a quarter.
 const SHIELD_S = 8, SHIELD_MINE_CUT = 0.5, SHIELD_HIT_CUT = 0.25, CLOSE_PX = 10;
 let orbChain = 0, lastOrbT = -9;
@@ -6570,6 +6976,8 @@ const BOSS_PATTERNS = {
   angler: ['bomb', 'aimed', 'fan', 'beam'], manta: ['curtain', 'wave', 'fan', 'aimed'], nautilus: ['ring', 'bomb', 'wave', 'beam'],
   centipede: ['aimed', 'curtain', 'fan', 'wave'], flytrap: ['bomb', 'ring', 'aimed', 'beam'], moth: ['wave', 'ring', 'fan', 'curtain'],
   spider: ['aimed', 'wave', 'ring', 'beam'], frog: ['bomb', 'fan', 'wave', 'aimed'], mantis: ['aimed', 'fan', 'curtain', 'ring'],
+  drill: ['aimed', 'wave', 'fan', 'curtain'], sentinel: ['beam', 'ring', 'aimed', 'fan'], crab: ['bomb', 'fan', 'curtain', 'aimed'],
+  wasp: ['aimed', 'wave', 'ring', 'fan'], beetle: ['bomb', 'wave', 'beam', 'fan'], gear: ['ring', 'curtain', 'aimed', 'bomb'],
 };
 // Version 93 (user: more variety): each creature also has an attack of its own, which only it does. It opens the fight
 // and comes round more often than the others (SIG_CHANCE).
@@ -6589,26 +6997,39 @@ const BOSS_PATTERNS = {
 //   spider, web: a sheet of web drifts down the cavern with one hole in it, and the hole slides from side to side
 //   frog, tongue: a line from its mouth shows where, then the tongue lashes out along it and back, two or three times
 //   mantis, sickle: a spinning blade from each arm curves out and back in, the two crossing where he is; then again
+// The Machine moon's (version 145):
+//   drill, corkscrew: pairs of bolts twisting round each other along a line at him, one pair after another
+//   sentinel, scan: a scan line sweeps across from its eye; where it crosses him it locks on, and fires there a moment later
+//   crab, mortar: markers ring spots round his row, his own among them; then shells land and burst on each
+//   wasp, drones: little drones that steer after him for a moment, then dart off in a straight line
+//   beetle, slag: streams of molten slag pour down the cavern from its jaws, drifting slowly sideways
+//   gear, cogs: spinning cogs thrown out to the sides, which bounce off the cavern walls
 const BOSS_SIGNATURE = { whale: 'sonar', elder: 'shriek', jelly: 'sting', angler: 'lure', manta: 'sweep', nautilus: 'spiral',
-  centipede: 'pincer', flytrap: 'snap', moth: 'scales', spider: 'web', frog: 'tongue', mantis: 'sickle' };
+  centipede: 'pincer', flytrap: 'snap', moth: 'scales', spider: 'web', frog: 'tongue', mantis: 'sickle',
+  drill: 'corkscrew', sentinel: 'scan', crab: 'mortar', wasp: 'drones', beetle: 'slag', gear: 'cogs' };
 const SIG_CHANCE = 0.35;
 // Patterns that close off part of the cavern: two of them at once (enraged) could leave nowhere to go, so never paired.
-const BOSS_ZONE = { curtain: true, beam: true, lure: true, sweep: true, shriek: true, snap: true, pincer: true, web: true };
+const BOSS_ZONE = { curtain: true, beam: true, lure: true, sweep: true, shriek: true, snap: true, pincer: true, web: true, slag: true, mortar: true };
 // Where its shots come from, relative to its middle (x flips with the way it faces), and how far it sways either side.
-const BOSS_MOUTH = { whale: [100, 4], elder: [0, -14], jelly: [0, -22], angler: [76, -56], manta: [44, 0], nautilus: [54, 22], centipede: [136, 4], flytrap: [0, 44], moth: [0, 28], spider: [0, 34], frog: [0, 14], mantis: [0, -30] };
+const BOSS_MOUTH = { whale: [100, 4], elder: [0, -14], jelly: [0, -22], angler: [76, -56], manta: [44, 0], nautilus: [54, 22], centipede: [136, 4], flytrap: [0, 44], moth: [0, 28], spider: [0, 34], frog: [0, 14], mantis: [0, -30],
+  drill: [142, 0], sentinel: [0, 4], crab: [0, 36], wasp: [0, 44], beetle: [0, 72], gear: [0, 20] };
 // Version 89 (user): the side-on ones (whale, angler, manta, nautilus) turn a quarter turn as they come forward, to
 // dive head first down the shaft with their mouths chasing him; the elder thing and the jellyfish already face down.
 // BOSS_MOUTH stays in the creature's own drawing (x along the way it faces); bossMouth() turns it onto the screen.
 // BOSS_HALF: half its width on screen, for wedging in the funnel.
-const BOSS_DIVES = { whale: true, angler: true, manta: true, nautilus: true, centipede: true };
-const BOSS_SWAY = { whale: 80, elder: 60, jelly: 70, angler: 60, manta: 50, nautilus: 60, centipede: 80, flytrap: 55, moth: 45, spider: 50, frog: 50, mantis: 50 };
-const BOSS_HALF = { whale: 30, elder: 110, jelly: 55, angler: 60, manta: 100, nautilus: 70, centipede: 34, flytrap: 62, moth: 118, spider: 112, frog: 118, mantis: 112 };
+const BOSS_DIVES = { whale: true, angler: true, manta: true, nautilus: true, centipede: true, drill: true };
+const BOSS_SWAY = { whale: 80, elder: 60, jelly: 70, angler: 60, manta: 50, nautilus: 60, centipede: 80, flytrap: 55, moth: 45, spider: 50, frog: 50, mantis: 50,
+  drill: 80, sentinel: 60, crab: 50, wasp: 60, beetle: 55, gear: 55 };
+const BOSS_HALF = { whale: 30, elder: 110, jelly: 55, angler: 60, manta: 100, nautilus: 70, centipede: 34, flytrap: 62, moth: 118, spider: 112, frog: 118, mantis: 112,
+  drill: 26, sentinel: 80, crab: 118, wasp: 104, beetle: 88, gear: 78 };
 // Its shots' colours: outline, body, hot core. All in the reds, so they read as danger (green is health, purple shields).
 const BOSS_SHOT = {
   whale: [P.ink, P.lava, P.hot], elder: [P.ink, P.lava, '#F6D46A'], jelly: ['#2A1030', '#E0489A', '#F7B3D8'],
   angler: [P.ink, '#F08A3C', '#FFE2A8'], manta: [P.ink, '#C83A6A', '#F2A0BE'], nautilus: [P.ink, '#D85A2A', '#F6C08A'],
   centipede: [P.ink, '#E0642A', '#FFD08A'], flytrap: [P.ink, '#C83A5A', '#F7A8C0'], moth: [P.ink, '#D89A30', '#FFF0B0'],
   spider: [P.ink, '#C02A40', '#FFA0A8'], frog: [P.ink, '#E89A1C', '#FFF0A0'], mantis: [P.ink, '#D0388A', '#FFC4E4'],
+  drill: [P.ink, '#E0702A', '#FFD9A0'], sentinel: [P.ink, '#E83A4A', '#FFC0C8'], crab: [P.ink, '#D8542A', '#FFC890'],
+  wasp: [P.ink, '#E8A820', '#FFF2A8'], beetle: [P.ink, '#F06A1A', '#FFE08A'], gear: [P.ink, '#C8402A', '#F8B898'],
 };
 const BOSS_ENTER = 1.8, BOSS_LIFT = 1.6;   // s to come forward (and turn to dive); s of fall before the funnel when it stops firing
 const BOSS_ORBS = [4.5, 9.5, 14];                              // s into the fight when a crystal rises past
@@ -6832,6 +7253,53 @@ function bossFire(kind) {
     });
     return 0.4 + n * 0.6 + 0.6;
   }
+  if (kind === 'corkscrew') {   // drill: pairs of bolts twisting round each other along a line at him (where he's heading)
+    const n = lv >= 3 ? 4 : 3;
+    for (let w = 0; w < n; w++) later(0.45 + w * 0.5, () => {
+      const [x, y] = mouth(), a = aim(x, y, true), v = 170 * sp, ph = Math.random() * 6.28;
+      for (let i = 0; i < 2; i++) bossShots.push({ type: 'screw', cx: x, cy: y, x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, nx: -Math.sin(a), ny: Math.cos(a), ph: ph + i * Math.PI, R: 15, r: 4, t: 0 });
+      Sfx.bossShot();
+    });
+    return 0.45 + n * 0.5 + 0.4;
+  }
+  if (kind === 'scan') {   // sentinel: a sweep from one side to the other; it locks where it crosses him, then fires there
+    const n = lv >= 3 ? 2 : 1;
+    for (let i = 0; i < n; i++) later(0.35 + i * 1.7, () => {
+      const side = player.x < b.x ? 1 : -1;   // it sweeps toward him from his far side
+      bossShots.push({ type: 'scan', a0: Math.PI / 2 + side * 1.15, a1: Math.PI / 2 - side * 1.15, sweep: 0.95 / sp, x: b.x, y: b.y, lock: -1, lx: 0, ly: 0, aim: 0.55, dur: 0.3, t: 0 });
+      Sfx.laserWarn();
+    });
+    return 0.35 + n * 1.7 + 0.6;
+  }
+  if (kind === 'mortar') {   // crab: markers round his row (one where he's heading); a moment later, a shell bursts on each
+    const N = lv >= 3 ? 4 : 3, py = pilotNow + PILOT_CY, xs = [Math.max(24, Math.min(W - 24, player.x + player.vx * 0.3))];
+    for (let tries = 0; xs.length < N && tries < 40; tries++) { const x = 26 + Math.random() * (W - 52); if (xs.every(q => Math.abs(q - x) > 62)) xs.push(x); }
+    xs.forEach((x, i) => later(0.3 + i * 0.22, () => { bossShots.push({ type: 'mortar', x, y: py + (Math.random() - 0.5) * 24, R: 24, t: 0, warn: 1.15, dur: 0.22 }); if (!i) Sfx.bossCharge(); }));
+    return 0.3 + N * 0.22 + 1.6;
+  }
+  if (kind === 'drones') {   // wasp: drones that steer after him for a moment, then dart on in a straight line
+    const N = lv >= 3 ? 4 : 3;
+    for (let i = 0; i < N; i++) later(0.4 + i * 0.28, () => {
+      const [x, y] = mouth(), a = Math.PI / 2 + (i % 2 ? 1 : -1) * (0.9 + Math.random() * 0.4);
+      bossShots.push({ type: 'drone', x, y, a, v: 105 * sp, dart: 245 * sp, home: 1.5, r: 5, t: 0 });
+      Sfx.bossShot();
+    });
+    return 0.4 + N * 0.28 + 1.4;
+  }
+  if (kind === 'slag') {   // beetle: three streams of slag pour down the cavern, drifting sideways together
+    const drift = (Math.random() < 0.5 ? -1 : 1) * (14 + Math.random() * 12), dur = lv >= 3 ? 2.6 : 2.1, off = (Math.random() - 0.5) * 30;
+    later(0.4, () => { for (let i = 0; i < 3; i++) bossShots.push({ type: 'slag', x: W * (i + 1) / 4 + off, vx: drift, y: mouth()[1] + 6, t: 0, warn: 0.6, dur, w: 12 }); Sfx.bossShot(true); });
+    return 0.4 + 0.6 + dur + 0.3;
+  }
+  if (kind === 'cogs') {   // gear: cogs flung out to the sides, bouncing off the cavern walls on their way down
+    const n = lv >= 3 ? 3 : 2;
+    for (let w = 0; w < n; w++) later(0.45 + w * 0.6, () => {
+      const [x, y] = mouth();
+      for (const side of [-1, 1]) bossShots.push({ type: 'cog', x, y, vx: side * (150 + Math.random() * 70) * sp, vy: (95 + Math.random() * 30) * sp, r: 8, t: 0, spin: side, hits: 0 });
+      Sfx.bossShot(true);
+    });
+    return 0.45 + n * 0.6 + 1.0;
+  }
   // bomb: slow, big shots lobbed toward him that burst into a ring of small ones
   const N = 3 + (lv >= 3 ? 1 : 0);
   for (let i = 0; i < N; i++) later(0.45 + i * 0.45, () => { const [x, y] = mouth(); bossShots.push({ type: 'bomb', x, y, vx: (player.x - x) * 0.45, vy: 120 * sp, r: 7, t: 0, fuse: 1.35 + Math.random() * 0.25 }); Sfx.bossShot(true); });
@@ -6933,6 +7401,7 @@ function crashBoss() {
   award('levi');
   if (LEVI_KINDS.every(k => save.leviBeaten[k])) award('all6');
   if (LEVI_SETS.jungle.every(k => save.leviBeaten[k])) award('jungle3');
+  if (LEVI_SETS.machine.every(k => save.leviBeaten[k])) award('machine6');
   const e = edgeAt(hit), Q = palAt(hit);
   for (const x of [e.L + 3, e.R - 3]) sparks(x, hit, [Q.b0, Q.shade, Q.ink, P.dust], 18, 8);
 }
@@ -6997,7 +7466,48 @@ function updateBossShots(dt, live) {
       if (live && Math.hypot(player.x - mx - ca * u, py - my - sa * u) < 5 + HIT_HALF_W - 1) bossHit(s, false);
       continue;
     }
+    if (s.type === 'scan') {   // the sentinel's sweep: follows its eye; locks on him as it crosses him (or at the end), then fires
+      if (boss) { const [dx, dy] = bossMouth(boss); s.x = boss.x + dx; s.y = boss.y + dy; }
+      const ang = Math.atan2(py - s.y, player.x - s.x), sw = s.lock < 0 ? lerp(s.a0, s.a1, Math.min(1, s.t / s.sweep)) : 0;
+      if (s.lock < 0 && (Math.abs(sw - ang) < 0.05 || s.t >= s.sweep)) { s.lock = s.t; s.lx = player.x; s.ly = py; Sfx.bossCharge(); }
+      if (s.lock < 0) { s.sw = sw; continue; }
+      const T = s.t - s.lock - s.aim;
+      if (T >= 0 && T - dt < 0) { Sfx.bossBeam(); shake = Math.max(shake, 0.8); if (boss) boss.kick = 1; s.fa = Math.atan2(s.ly - s.y, s.lx - s.x); s.fx = s.x; s.fy = s.y; }
+      if (T > s.dur) { s.dead = true; continue; }
+      if (T >= 0 && live) {
+        const ca = Math.cos(s.fa), sa = Math.sin(s.fa), u = (player.x - s.fx) * ca + (py - s.fy) * sa;
+        if (u > 0 && Math.abs((player.x - s.fx) * sa - (py - s.fy) * ca) < 5 + HIT_HALF_W - 2) bossHit(s, false);
+      }
+      continue;
+    }
+    if (s.type === 'mortar') {   // the crab's shell: harmless while its marker shows, then a burst there
+      if (s.t >= s.warn && s.t - dt < s.warn) { Sfx.bossShot(true); Sfx.crush(); shake = Math.max(shake, 0.7); sparks(s.x, camY + s.y, BOSS_SHOT.crab.slice(1).concat(P.dust), 8, 10); }
+      if (s.t > s.warn + s.dur) { s.dead = true; continue; }
+      if (live && s.t > s.warn && Math.hypot(player.x - s.x, py - s.y) < s.R + HIT_HALF_W - 5) bossHit(s, false);
+      continue;
+    }
+    if (s.type === 'slag') {   // the beetle's slag: a dripping warning, then a stream that burns, drifting off the walls
+      s.x += s.vx * dt;
+      if (s.x < 14 || s.x > W - 14) s.vx = -s.vx;
+      if (s.t > s.warn + s.dur) { s.dead = true; continue; }
+      if (live && s.t > s.warn && py > s.y && Math.abs(player.x - s.x) < s.w / 2 + HIT_HALF_W - 3) bossHit(s, false);
+      continue;
+    }
     if (s.type === 'wave') { s.y += s.vy * dt; s.x = s.x0 + s.amp * Math.sin(s.t * s.f + s.ph); }
+    else if (s.type === 'screw') {   // a corkscrew bolt: its line moves on, and it twists round that line
+      s.cx += s.vx * dt; s.cy += s.vy * dt;
+      const o = Math.sin(s.ph + s.t * 9) * s.R * Math.min(1, s.t * 4);
+      s.x = s.cx + s.nx * o; s.y = s.cy + s.ny * o;
+    }
+    else if (s.type === 'drone') {   // steers after him (turning at most 2.4 rad/s) until it's done homing, then darts straight
+      if (s.t < s.home) { let d = Math.atan2(py - s.y, player.x - s.x) - s.a; d = Math.atan2(Math.sin(d), Math.cos(d)); s.a += Math.max(-2.4 * dt, Math.min(2.4 * dt, d)); }
+      const v = s.t < s.home ? s.v : s.dart;
+      s.x += Math.cos(s.a) * v * dt; s.y += Math.sin(s.a) * v * dt;
+    }
+    else if (s.type === 'cog') {   // bounces off the cavern's walls (three times at most), on its way down
+      s.x += s.vx * dt; s.y += s.vy * dt;
+      if (s.hits < 3) { const e = edgeAt(camY + s.y); if (s.x - s.r < e.L + 2 && s.vx < 0) { s.vx = -s.vx; s.hits++; } else if (s.x + s.r > e.R - 2 && s.vx > 0) { s.vx = -s.vx; s.hits++; } }
+    }
     else if (s.type === 'sickle') {   // along its curve to where he was, then on in a straight line
       const u = s.t / s.dur;
       if (u <= 1) [s.x, s.y] = bez(s.O, s.C, s.T, u);
@@ -7065,6 +7575,14 @@ const BOSS_PALS = {
   spider: { base: '#2C2232', dark: '#18121C', deep: '#09060B', light: '#4C3C56', hi: '#8C7A9C', belly: '#3A2028', mark: '#D8283C', eye: '#FF3A26' },
   frog: { base: '#1E2C3E', dark: '#111A26', deep: '#060A10', light: '#34506E', hi: '#7AA6CC', belly: '#3C4E5C', mark: '#E8A818', eye: '#FF3A26' },
   mantis: { base: '#3C2838', dark: '#22151F', deep: '#0D070B', light: '#6E4A64', hi: '#B58CAA', belly: '#74325E', mark: '#F2A2D2', eye: '#FF3A26' },
+  // Version 145, the Machine moon: dark iron, gunmetal and rust, each with one hot colour: the worm's glowing vents, the
+  // sentinel's brass iris, the crab's cyan vents, the wasp's hazard stripes, the beetle's molten seam, the cog's brass.
+  drill: { base: '#3A3632', dark: '#211E1B', deep: '#0B0A09', light: '#5E5853', hi: '#9C948A', belly: '#5A3A26', mark: '#FF8A2A', eye: '#FF3A26' },
+  sentinel: { base: '#2A3038', dark: '#171B21', deep: '#08090C', light: '#48525F', hi: '#8A97A6', belly: '#4A2E26', mark: '#E8C060', eye: '#FF2A3A' },
+  crab: { base: '#3E2A22', dark: '#22160F', deep: '#0C0705', light: '#6A4A38', hi: '#A8805E', belly: '#7A3A1C', mark: '#7FF4E6', eye: '#FF3A26' },
+  wasp: { base: '#2A2620', dark: '#16130F', deep: '#080706', light: '#4E463A', hi: '#8E8270', belly: '#3A3226', mark: '#C89A1C', eye: '#FF3A26' },
+  beetle: { base: '#2E2A2E', dark: '#19161A', deep: '#09080A', light: '#524A52', hi: '#958A92', belly: '#4A2A1A', mark: '#FF7A1A', eye: '#FFD040' },
+  gear: { base: '#3A3A36', dark: '#20201D', deep: '#0A0A09', light: '#5C5C55', hi: '#9E9C90', belly: '#4A2E22', mark: '#C8A040', eye: '#FF3A26' },
 };
 // A boss's colours, tinted a little toward the rock layer it's in, so it belongs there.
 function bossPal(kind, Q) {
@@ -7275,8 +7793,161 @@ function geoMantis(x, y, dir, k, p) {
     disc(lerp(W1[3][0], W1[4][0], 0.4), lerp(W1[3][1], W1[4][1], 0.4) - 9, 5, '#000');   // a hole through the right hindwing
   });
 }
+// Version 145, the Machine six: fins along the worm's back (one sheared off) and a dent bitten out of a segment; spikes
+// on the sentinel's hood and a vane snapped; spikes along the crab's shell and a leg's tip lost; barbs on the wasp's
+// abdomen and a hole through a rotor; spikes round the beetle's shell and a notch in it; a broken tooth on the cog.
+function geoDrill(x, y, dir, k, p) {
+  for (let i = 1; i < DRILL_N; i++) {
+    const [bx, by, r] = drillAt(x, y, dir, k, i / DRILL_N), h = i === 6 ? 2 : 6 + (i % 2) * 2;
+    fillPoly(c, [[bx + dir * 4, by - r + 2], [bx - dir * 4, by - r + 2], [bx - dir * 7, by - r - h]], p.base);
+  }
+  const [tx, ty, tr] = drillAt(x, y, dir, k, 0.55);
+  bossCut(() => bossCutBox(tx, ty + tr - 6));
+}
+function geoSentinel(x, y, dir, k, p) {
+  y = sentY(y, k);
+  for (let i = 0; i < 5; i++) { const u = -16 + i * 8; fillPoly(c, [[x + u - 3, y - 43], [x + u + 3, y - 43], [x + u, y - 51 - (i % 2) * 3]], p.base); }
+  const [, B] = sentFin(x, y, -1, k);
+  bossCut(() => fillPoly(c, [[lerp(B[1][0], B[2][0], 0.5) + 10, B[1][1] - 6], [B[1][0] - 6, B[1][1] - 4], [B[2][0] - 6, B[2][1] + 4], [lerp(B[1][0], B[2][0], 0.5) + 6, B[2][1] + 6]], '#000'));
+}
+function geoCrab(x, y, dir, k, p) {
+  y = crabY(y, k);
+  for (let i = 0; i < 7; i++) { const a = Math.PI * (0.22 + i * 0.093), bx = x + Math.cos(a) * 62, by = y + Math.sin(a) * 29; fillPoly(c, [[bx - 3, by - 1], [bx + 3, by - 1], [bx + Math.cos(a) * 7, by + Math.sin(a) * 8]], p.base); }
+  const [, , , , fx, fy] = crabLeg(x, y, 1, 1, k);
+  bossCut(() => disc(fx, fy, 7, '#000'));
+}
+function geoWasp(x, y, dir, k, p) {
+  y = waspY(y, k);
+  for (const s of [-1, 1]) for (let i = 0; i < 3; i++) { const v = y - 66 + i * 14, u = 15 - Math.abs(i - 1) * 2; fillPoly(c, [[x + s * u, v - 2], [x + s * u, v + 3], [x + s * (u + 7), v - 3]], p.base); }
+  bossCut(() => disc(x - 80, y - 22, 4, '#000'));
+}
+function geoBeetle(x, y, dir, k, p) {
+  y = beetY(y, k);
+  for (let i = 0; i < 9; i++) { const a = Math.PI * (1.12 + i * 0.095), bx = x + Math.cos(a) * 44, by = y - 8 + Math.sin(a) * 54; fillPoly(c, [[bx - Math.sin(a) * 3, by + Math.cos(a) * 3], [bx + Math.sin(a) * 3, by - Math.cos(a) * 3], [bx + Math.cos(a) * 8, by + Math.sin(a) * 8]], p.base); }
+  bossCut(() => fillPoly(c, [[x + 44, y - 14], [x + 47, y - 2], [x + 36, y - 7]], '#000'));
+}
+function geoGear(x, y, dir, k, p) {
+  y = gearY(y, k);
+  for (let i = 0; i < 5; i++) { const u = x - 16 + i * 8; fillPoly(c, [[u - 3, y + 56], [u + 3, y + 56], [u, y + 63 + (i % 2) * 3]], p.base); }   // spikes along the jaw's edge
+  const a = gearRot(k) + 4 * Math.PI / 6;
+  bossCut(() => disc(x + Math.cos(a) * 54, y + Math.sin(a) * 54, 7, '#000'));   // a broken tooth
+}
+// The Machine six's art (version 145).
+function artDrill(x, y, dir, k, p, step) {
+  const [hx, hy] = drillHead(x, y, dir, k);
+  if (!step) {
+    for (let i = 0; i < DRILL_N; i++) { const [bx, by, r] = drillAt(x, y, dir, k, i / DRILL_N); bpx(bx - 10, by + r * 0.3, 20, Math.round(r * 0.75) + 2, p.belly); }   // rusted belly plates
+    fillPoly(c, [[hx, hy - 15], [hx + dir * 42, hy], [hx, hy + 15]], p.light);   // bright steel drill
+    return;
+  }
+  for (let i = 1; i < DRILL_N; i++) {   // seams between the segments, rivets, and vents glowing down its back
+    const [ax, ay, ar] = drillAt(x, y, dir, k, (i - 0.5) / DRILL_N), [bx, by, r] = drillAt(x, y, dir, k, i / DRILL_N);
+    bpx(ax - 1, ay - ar, 2, 2 * ar, p.deep);
+    bpx(bx - 1, by - r + 3, 2, 2, p.hi); bpx(bx - 1, by + r - 5, 2, 2, p.hi);
+    if (i % 2 && Math.floor(clock * 3 + i) % 3) bpx(bx - 2, by - 3, 4, 2, p.mark);
+  }
+  for (let j = 0; j < 5; j++) {   // the drill's grooves turning
+    const u = (clock * 2.5 + j / 5) % 1, u2 = Math.min(1, u + 0.16);
+    bline(hx + dir * 42 * u, hy - 15 * (1 - u), hx + dir * 42 * u2, hy + 15 * (1 - u2), p.deep, 1);
+  }
+  bpx(hx + dir * 40 - 1, hy - 1, 3, 2, p.hi);
+  const [px, py] = drillAt(x, y, dir, k, 0);
+  bossEye(px + dir * 4, py - 5, 3, p); bpx(px + dir * 6 - 1, py + 3, 3, 2, p.eye); bpx(px - dir * 2 - 1, py + 4, 2, 2, p.eye);
+  const [sx, sy] = drillAt(x, y, dir, k, 0.3), [tx, ty] = drillAt(x, y, dir, k, 0.75);
+  bscar(sx - 14, sy - 10, sx + 6, sy + 8, p, 4, mix(p.eye, p.deep, 0.45)); bscar(tx - 8, ty - 6, tx + 10, ty + 6, p, 12);
+}
+function artSentinel(x, y, dir, k, p, step) {
+  y = sentY(y, k);
+  if (!step) {
+    fillPoly(c, [[x - 26, y - 20], [x - 16, y - 40], [x + 16, y - 40], [x + 26, y - 20]], p.light);   // the hood's plate
+    for (const s of [-1, 1]) for (const F of sentFin(x, y, s, k)) fillPoly(c, F.map(([u, v]) => [lerp(x, u, 0.86), lerp(y, v, 0.86)]), p.dark);
+    fillEllipse(c, x, y + 4, 23, 21, p.deep);   // the eye's socket
+    fillEllipse(c, x, y + 30, 22, 4, p.belly);  // a rusted band under it
+    return;
+  }
+  for (const s of [-1, 1]) {
+    bpx(x + s * 30 - 1, y - 2, 2, 12, p.hi);   // seams and rivets on the body
+    for (let i = 0; i < 3; i++) bpx(x + s * (12 + i * 8) - 1, y - 23 + i * 2, 2, 2, p.hi);
+    for (const F of sentFin(x, y, s, k)) if (Math.floor(clock * 2 + s) % 2) bpx(F[2][0] - 1, F[2][1] - 1, 3, 3, p.mark);   // lights on the vane tips
+  }
+  for (let i = -1; i <= 1; i++) { const [, , ex, ey, fx, fy] = sentArm(x, y, i, k); bpx(ex - 2, ey - 2, 4, 4, p.hi); bpx(fx - 1, fy - 1, 3, 3, p.mark); }   // the arms' joints
+  for (let i = 0; i < 8; i++) { const a = clock * 0.8 + i * Math.PI / 4; bpx(x + Math.cos(a) * 18 - 1, y + 4 + Math.sin(a) * 17 - 1, 3, 3, p.mark); }   // the iris's turning blades
+  bossEye(x, y + 4, 12, p);
+  bscar(x - 26, y + 8, x - 10, y + 26, p, 6, mix(p.eye, p.deep, 0.45)); bscar(x + 10, y - 38, x + 22, y - 24, p, 14);
+}
+function artCrab(x, y, dir, k, p, step) {
+  y = crabY(y, k);
+  if (!step) {
+    fillEllipse(c, x, y - 4, 48, 19, p.light);   // the top plate
+    for (const [u, v, r] of [[-30, 6, 7], [22, -10, 6], [40, 10, 5]]) disc(x + u, y + v, r, p.belly);   // rust
+    for (const s of [-1, 1]) { const [, , ex, ey, wx, wy] = crabClaw(x, y, s, k); limb(ex, ey, wx, wy, 3, 5, p.belly); }
+    return;
+  }
+  for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; bpx(x + Math.cos(a) * 56 - 1, y + Math.sin(a) * 25 - 1, 2, 2, p.hi); }   // rivets round the shell
+  bpx(x - 1, y - 22, 2, 34, p.deep);   // its seam
+  for (let i = 0; i < 3; i++) { const on = Math.floor(clock * 4 + i) % 3; bpx(x - 20 + i * 15, y + 16, 10, 2, on ? p.mark : p.deep); }   // vents glowing
+  for (const s of [-1, 1]) {
+    const [, , , , wx, wy, px, py, qx, qy] = crabClaw(x, y, s, k);
+    for (let i = 1; i < 4; i++) { bpx(lerp(wx, px, i / 4) - s * 2, lerp(wy, py, i / 4), 2, 2, p.hi); bpx(lerp(wx, qx, i / 4) + s, lerp(wy, qy, i / 4), 2, 2, p.hi); }   // teeth along the jaws
+    bossEye(x + s * 16, y - 41, 4, p);
+  }
+  bscar(x - 40, y - 14, x - 18, y + 4, p, 8, mix(p.eye, p.deep, 0.45)); bscar(x + 14, y + 2, x + 34, y + 14, p, 17);
+}
+function artWasp(x, y, dir, k, p, step) {
+  y = waspY(y, k);
+  if (!step) {
+    for (let i = 0; i < 4; i++) bpx(x - 17, y - 72 + i * 13, 34, 6, p.mark);   // hazard stripes
+    fillEllipse(c, x, y - 2, 12, 9, p.light);   // a plate on the thorax
+    for (const s of [-1, 1]) fillEllipse(c, x + s * 62, y - 22, 40, 5, p.belly);   // the rotors' blur
+    return;
+  }
+  for (const s of [-1, 1]) {
+    const rx = x + s * 62, ry = y - 22, a = clock * 9 * s + k;
+    for (let b = 0; b < 2; b++) { const ca = Math.cos(a + b * Math.PI), sa = Math.sin(a + b * Math.PI); for (let i = 1; i <= 6; i++) bpx(rx + ca * i * 7 - 1, ry + sa * i * 1.2, 3, 1, p.hi); }   // blades
+    disc(rx, ry, 3, p.deep);
+    bossEye(x + s * 7, y + 25, 4, p);
+  }
+  for (let i = 0; i < 4; i++) bpx(x - 9 + i * 6, y - 8, 2, 2, p.hi);   // rivets
+  if (Math.floor(clock * 3) % 2) bpx(x - 1, y - 99, 2, 4, p.eye);   // the sting's tip
+  bscar(x - 12, y - 60, x + 4, y - 40, p, 5, mix(p.eye, p.deep, 0.45)); bscar(x + 4, y - 6, x + 15, y + 6, p, 13);
+}
+function artBeetle(x, y, dir, k, p, step) {
+  y = beetY(y, k);
+  if (!step) {
+    for (const s of [-1, 1]) fillEllipse(c, x + s * 22, y - 26, 11, 22, p.light);   // shine on the shell's halves
+    fillEllipse(c, x, y + 44, 30, 11, p.dark);   // the pronotum
+    bpx(x - 2, y - 64, 4, 100, p.mark);   // molten slag in the seam
+    return;
+  }
+  for (let i = 0; i < 6; i++) {   // cracks in the shell glowing
+    const s = i % 2 ? 1 : -1, v = y - 50 + i * 15, L = 10 + (i * 7) % 9;
+    bline(x + s * 2, v, x + s * (2 + L), v + 6, Math.floor(clock * 2 + i) % 3 ? p.mark : p.belly, 1);
+  }
+  for (let i = 0; i < 14; i++) { const a = Math.PI * (0.62 + i * 0.13); bpx(x + Math.cos(a) * 41 - 1, y - 8 + Math.sin(a) * 51 - 1, 2, 2, p.hi); }   // rivets round the shell's edge
+  for (const s of [-1, 1]) { bossEye(x + s * 11, y + 61, 4, p); bpx(x + s * 18 - 1, y + 70, 2, 2, p.hi); }
+  if (Math.floor(clock * 1.5) % 3 === 0) bpx(x - 1, y + 78, 3, 4, p.mark);   // slag dripping from its jaws
+  bscar(x - 34, y - 30, x - 12, y - 14, p, 9, mix(p.eye, p.deep, 0.45)); bscar(x + 12, y + 20, x + 34, y + 30, p, 21);
+}
+function artGear(x, y, dir, k, p, step) {
+  y = gearY(y, k);
+  const rot = gearRot(k);
+  if (!step) {
+    disc(x, y, 31, p.dark);   // the hub
+    for (let i = 0; i < 4; i++) { const a = rot + i * Math.PI / 2 + 0.4; limb(x, y, x + Math.cos(a) * 36, y + Math.sin(a) * 36, 4, 3, p.light); }   // spokes
+    fillEllipse(c, x, y + 20, 20, 9, p.deep);   // the mouth
+    fillPoly(c, [[x - 22, y + 30], [x + 22, y + 30], [x + 16, y + 52], [x - 16, y + 52]], p.belly);   // the jaw's rusted plate
+    return;
+  }
+  for (let i = 0; i < 12; i++) { const a = rot + i * Math.PI / 6 + 0.26; bpx(x + Math.cos(a) * 40 - 1, y + Math.sin(a) * 40 - 1, 2, 2, p.hi); }   // bolts round the rim
+  for (let i = 0; i < 7; i++) { bpx(x - 15 + i * 5, y + 12, 2, 4, P.dust); bpx(x - 13 + i * 5, y + 25, 2, 4, P.dust); }   // teeth
+  if (Math.floor(clock * 3) % 2) bpx(x - 6, y + 19, 12, 2, p.mark);   // a glow in its throat
+  for (const s of [-1, 1]) disc(x + s * 60, y - 36, 6, p.deep);
+  bossEye(x, y - 12, 8, p);
+  bscar(x - 34, y - 26, x - 14, y - 8, p, 7, mix(p.eye, p.deep, 0.45)); bscar(x + 14, y + 32, x + 32, y + 22, p, 19);
+}
 const BOSS_GEO = { whale: geoWhale, elder: geoElder, jelly: geoJelly, angler: geoAngler, manta: geoManta, nautilus: geoNautilus,
-  centipede: geoCenti, flytrap: geoTrap, moth: geoMoth, spider: geoSpider, frog: geoFrog, mantis: geoMantis };
+  centipede: geoCenti, flytrap: geoTrap, moth: geoMoth, spider: geoSpider, frog: geoFrog, mantis: geoMantis,
+  drill: geoDrill, sentinel: geoSentinel, crab: geoCrab, wasp: geoWasp, beetle: geoBeetle, gear: geoGear };
 function artWhale(x, y, dir, k, p, step) {
   const S = 1.25, len = 190 * S, ph = clock * 1.3 + k;
   const at = t => [x + dir * (len / 2 - t * len), y + Math.sin(ph - t * 4.2) * 7 * S * t, Math.max(2, 22 * S * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.1 + 0.08)), 0.9) * (1 - t * 0.6))];
@@ -7608,7 +8279,8 @@ function artMantis(x, y, dir, k, p, step) {
   for (const s of [-1, 1]) { disc(x + s * 20, y - 62, 7, p.deep); bossEye(x + s * 20, y - 62, 5, p); }   // its great eyes, the pupils tracking him
 }
 const BOSS_ART = { whale: artWhale, elder: artElder, jelly: artJelly, angler: artAngler, manta: artManta, nautilus: artNautilus,
-  centipede: artCenti, flytrap: artTrap, moth: artMoth, spider: artSpider, frog: artFrog, mantis: artMantis };
+  centipede: artCenti, flytrap: artTrap, moth: artMoth, spider: artSpider, frog: artFrog, mantis: artMantis,
+  drill: artDrill, sentinel: artSentinel, crab: artCrab, wasp: artWasp, beetle: artBeetle, gear: artGear };
 // -- drawing the boss quickly (version 90). Version 89 repainted and shaded the boss on a 480 px canvas with about 35
 // full-canvas compositing passes every frame, which took a 120 Hz phone down to about 10 fps in the fight. Now it's
 // painted into a canvas only as big as the creature (BOSS_BOX: its extent around its middle, facing right), in three
@@ -7616,7 +8288,9 @@ const BOSS_ART = { whale: artWhale, elder: artElder, jelly: artJelly, angler: ar
 // animates at a third of the frame rate (40 fps on a 120 Hz phone) and every frame just stamps the front buffer.
 const BOSS_BOX = { whale: [-132, -44, 132, 50], elder: [-124, -94, 124, 100], jelly: [-76, -110, 76, 110], angler: [-134, -110, 94, 94], manta: [-220, -120, 64, 120], nautilus: [-94, -84, 120, 120],
   centipede: [-150, -62, 152, 46], flytrap: [-104, -200, 104, 104], moth: [-136, -88, 136, 74],
-  spider: [-128, -200, 128, 100], frog: [-130, -68, 130, 96], mantis: [-128, -110, 128, 104] };
+  spider: [-128, -200, 128, 100], frog: [-130, -68, 130, 96], mantis: [-128, -110, 128, 104],
+  drill: [-140, -44, 150, 40], sentinel: [-92, -80, 92, 116], crab: [-140, -54, 140, 124], wasp: [-118, -108, 118, 84],
+  beetle: [-108, -80, 108, 92], gear: [-90, -82, 90, 112] };
 function bossBuf(kind) {
   const [L, T, R, B] = BOSS_BOX[kind], w = R - L + 12, h = B - T + 12;
   const mk = () => { const v = document.createElement('canvas'); v.width = w; v.height = h; return v; };
@@ -7816,6 +8490,69 @@ function drawBossShots(sy) {
       c.lineCap = 'butt'; c.lineWidth = 1;
       continue;
     }
+    if (s.type === 'scan') {   // a thin sweeping line; then brackets closing on the lock; then a heavy beam through it
+      const ex = s.x, ey = s.y - sy;
+      if (s.lock < 0) {
+        c.beginPath(); c.moveTo(ex, ey); c.lineTo(ex + Math.cos(s.sw) * 900, ey + Math.sin(s.sw) * 900);
+        c.lineWidth = 4; c.strokeStyle = o; c.stroke(); c.lineWidth = 2; c.strokeStyle = m; c.stroke(); c.lineWidth = 1;
+        continue;
+      }
+      const T = s.t - s.lock - s.aim, lx = Math.round(s.lx), ly = Math.round(s.ly - sy);
+      if (T < 0) {
+        const q = 1 + T / s.aim, g = Math.round(22 - 12 * q);
+        if (Math.floor(s.t * (8 + 16 * q)) % 2) { c.fillStyle = m; c.fillRect(Math.round(ex), Math.round(ey), 1, 1); for (let d = 10; d < 600; d += 8) c.fillRect(Math.round(ex + Math.cos(Math.atan2(ly - ey, lx - ex)) * d), Math.round(ey + Math.sin(Math.atan2(ly - ey, lx - ex)) * d), 2, 2); }
+        for (const [col, e] of [[o, 1], [Math.floor(s.t * 12) % 2 ? h : m, 0]]) {   // corner brackets closing on the spot, dark-edged
+          c.fillStyle = col;
+          for (const [sx2, sy2] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+            const cx = lx + sx2 * g, cy = ly + sy2 * g;
+            c.fillRect(cx - (sx2 > 0 ? 8 : 0) - e, cy - (sy2 > 0 ? 2 : 0) - e, 9 + 2 * e, 3 + 2 * e); c.fillRect(cx - (sx2 > 0 ? 2 : 0) - e, cy - (sy2 > 0 ? 8 : 0) - e, 3 + 2 * e, 9 + 2 * e);
+          }
+        }
+      } else {
+        const fx = s.fx, fy = s.fy - sy, tx = fx + Math.cos(s.fa) * 900, ty = fy + Math.sin(s.fa) * 900;
+        for (const [lw, col] of [[12, o], [8, m], [3, h]]) { c.lineWidth = lw; c.strokeStyle = col; c.beginPath(); c.moveTo(fx, fy); c.lineTo(tx, ty); c.stroke(); }
+        c.lineWidth = 1;
+      }
+      continue;
+    }
+    if (s.type === 'mortar') {   // a marker ring blinking faster and a shell dropping onto it; then the burst
+      if (s.t < s.warn) {
+        const q = s.t / s.warn, on = Math.floor(s.t * (5 + 14 * q)) % 2;
+        c.lineWidth = 2; c.strokeStyle = on ? h : m; c.beginPath(); c.arc(x, y, s.R, 0, 2 * Math.PI); c.stroke(); c.lineWidth = 1;
+        c.fillStyle = on ? h : m; c.fillRect(x - 6, y, 12, 1); c.fillRect(x, y - 6, 1, 12);
+        if (q > 0.6) { const yy = Math.round(lerp(-10, y, (q - 0.6) / 0.4)); c.drawImage(shotImg(o, m, h, 5), x - 6, yy - 6); }
+      } else {
+        const r = Math.round(s.R * (0.6 + 0.4 * Math.min(1, (s.t - s.warn) / 0.08)));
+        for (const [rr, col] of [[r + 2, o], [r, m], [Math.round(r * 0.55), h]]) { c.fillStyle = col; c.beginPath(); c.arc(x, y, rr, 0, 2 * Math.PI); c.fill(); }
+      }
+      continue;
+    }
+    if (s.type === 'slag') {   // drips first, then a pouring stream with a lit core and blobs running down it
+      const y0 = Math.max(0, y);
+      if (s.t < s.warn) { c.fillStyle = m; for (let yy = y0 + ((s.t * 300) % 24); yy < H; yy += 24) c.fillRect(x - 1, Math.round(yy), 3, 5); continue; }
+      const w = s.w + (s.t - s.warn < 0.06 ? 6 : 0);
+      c.fillStyle = o; c.fillRect(x - w / 2 - 1, y0, w + 2, H - y0);
+      c.fillStyle = m; c.fillRect(x - w / 2, y0, w, H - y0);
+      c.fillStyle = h; c.fillRect(x - 2, y0, 3, H - y0);
+      c.fillStyle = P.dust; for (let yy = y0 + ((s.t * 260) % 40); yy < H; yy += 40) c.fillRect(x - 3, Math.round(yy), 2, 4);
+      continue;
+    }
+    if (s.type === 'drone') {   // a little drone: its body, two rotor blurs flickering, and a light while it hunts
+      if (y < -10 || y > H + 10) continue;
+      c.drawImage(shotImg(o, m, h, s.r), x - s.r - 1, y - s.r - 1);
+      c.fillStyle = o; c.fillRect(x - 10, y - 8, 8, 3); c.fillRect(x + 3, y - 8, 8, 3);   // two rotors on struts
+      c.fillStyle = Math.floor(s.t * 20) % 2 ? h : m; c.fillRect(x - 9, y - 7, 6, 1); c.fillRect(x + 4, y - 7, 6, 1);
+      if (s.t < s.home && Math.floor(s.t * 8) % 2) { c.fillStyle = P.dust; c.fillRect(x - 1, y - 1, 2, 2); }
+      continue;
+    }
+    if (s.type === 'cog') {   // a spinning cog: its teeth turning round a dark-edged wheel
+      if (y < -14 || y > H + 14) continue;
+      const an = s.t * 10 * s.spin;
+      c.fillStyle = o; for (let i = 0; i < 6; i++) { const a = an + i * Math.PI / 3; c.fillRect(Math.round(x + Math.cos(a) * 9) - 2, Math.round(y + Math.sin(a) * 9) - 2, 5, 5); }
+      c.drawImage(shotImg(o, m, h, s.r - 1), x - s.r, y - s.r);
+      c.fillStyle = o; c.fillRect(x - 1, y - 1, 3, 3);
+      continue;
+    }
     if (s.type === 'sting') {   // a little bell with three trailing threads
       if (y < -14 || y > H + 14) continue;
       const wig = Math.round(2 * Math.sin(s.t * 6 + s.ph));
@@ -7899,6 +8636,7 @@ function collide(prevX) {
     }
   }
   if (isJungle()) jungleHits(cd);
+  else if (isMachine()) machineHits(cd);
   for (const it of items) {
     if (!it.dead && Math.abs(it.d - cd) < 18 && Math.abs(it.x - player.x) < 17) collect(it);
   }
@@ -8252,7 +8990,7 @@ function cineCaps() {
   if (k > was && all[k - 1] !== ' ') Sfx.tick();
   capKey = key;
   const ka = Math.min(k, a.length), kb = Math.max(0, k - a.length), cur = '<i class="cur"></i>';
-  el.style.setProperty('--cap', moonCol ? (moon === 'jungle' ? '#7FD38C' : '#EEE8D8') : 'var(--dust)');
+  el.style.setProperty('--cap', moonCol ? ({ jungle: '#7FD38C', machine: '#9FD8E6' }[moon] || '#EEE8D8') : 'var(--dust)');
   el.innerHTML = '<small>' + a.slice(0, ka) + (k <= a.length ? cur : '') + '<span class="rest">' + a.slice(ka) + '</span></small>' +
     '<span>' + b.slice(0, kb) + (k > a.length ? cur : '') + '<span class="rest">' + b.slice(kb) + '</span></span>';
   el.classList.add('on');

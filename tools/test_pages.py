@@ -29,7 +29,7 @@ window.fetch = async (url, init = {}) => {
   if ((init.method || 'GET') === 'POST') {
     const b = JSON.parse(init.body);
     if (!/^[A-Z]{3}$/.test(b.initials)) return new Response('{"error":"bad"}', { status: 400 });
-    const row = { id: B.next++, initials: b.initials, depth: b.depth, escaped: typeof b.escaped === 'boolean' ? b.escaped : null, moon: b.moon === 'dust' || b.moon === 'jungle' ? b.moon : null }; B.rows.push(row);
+    const row = { id: B.next++, initials: b.initials, depth: b.depth, escaped: typeof b.escaped === 'boolean' ? b.escaped : null, moon: ['dust', 'jungle', 'machine'].includes(b.moon) ? b.moon : null }; B.rows.push(row);
     const rank = B.rows.filter(r => r.depth > row.depth || (r.depth === row.depth && r.id < row.id)).length + 1;
     return new Response(JSON.stringify({ top: top(), rank, id: row.id }));
   }
@@ -96,7 +96,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
       }
       M.render();
     };
-    const sheet = document.createElement('canvas'); sheet.width = 640; sheet.height = M.moon === 'jungle' ? 600 : 400; const g = sheet.getContext('2d');
+    const sheet = document.createElement('canvas'); sheet.width = 640; sheet.height = M.moon === 'dust' ? 400 : 600; const g = sheet.getContext('2d');
     g.imageSmoothingEnabled = false; g.fillStyle = '#000'; g.fillRect(0, 0, 640, 400);
     let slot = 0;
     const grab = (h, label) => {
@@ -112,6 +112,13 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
       pose(h, 0.6, 1); grab(h, 'thorns: grown');
       h = goTo('spores', 1020); pose(h, 1.03); grab(h, 'spores: swelling');
       pose(h, 0.55, 26); grab(h, 'spores: burst');
+    } else if (M.moon === 'machine') {   // the Machine moon's three (version 145)
+      M.save.hints = { crusher: 1, saw: 1, laser: 1, void: 1 };
+      let h = goTo('crusher', 120); pose(h, 0.4); grab(h, 'crusher');
+      h.ext = 1; M.render(); grab(h, 'crusher: out');
+      h = goTo('saw', 520); pose(h, 0.4); grab(h, 'saw');
+      h = goTo('laser', 1020); pose(h, 1.03); grab(h, 'laser: warning');
+      pose(h, 0.5, 1); grab(h, 'laser: burning');
     } else {
     let h = goTo('glaze', 120); pose(h, 0.3); grab(h, 'glaze');
     h = goTo('crumble', 520); pose(h, 1.3); grab(h, 'crumble: shaking');

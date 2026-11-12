@@ -20,8 +20,8 @@ never building anything in the middle of play.
 6. **Never composite over the whole screen every frame.** Paint into a canvas the size of the thing, a few times a second.
 7. **Touch the page (the HUD) only when a value changes, and don't measure it every frame.**
 8. **Throttle by time, not by frame**, so a 120 Hz phone doesn't do twice the work.
-9. **Measure before and after with `tools/prof.py`**, on both moons, and check the picture is unchanged.
-10. **Run `python3 tools/levi_budget.py` before publishing anything a Leviathan draws.** It counts all twelve against
+9. **Measure before and after with `tools/prof.py`**, on every moon, and check the picture is unchanged.
+10. **Run `python3 tools/levi_budget.py` before publishing anything a Leviathan draws.** It counts every Leviathan (eighteen since version 145) against
     the budgets below in about two seconds and fails (exit 1) naming the creature and the number that's over.
     Two gates run it for you, so it holds even for someone who has not read this file: a commit that changes
     `src/moonfall.html` (`tools/hooks/pre-commit`) and the website build (`tools/build_site.py`) both stop when it
@@ -33,7 +33,7 @@ From the profiler's seeded 15 km run at 320 x 694 game pixels. Counts are exact 
 
 | Per frame | Now | Notes |
 |---|---|---|
-| Rectangles on screen, falling | 500-730 (Dust), 540-1,000 (Jungle), about 1,200 with Jungle vines on screen | |
+| Rectangles on screen, falling | 500-730 (Dust), 540-1,000 (Jungle), 530-880 (Machine), about 1,200 with Jungle vines on screen | |
 | Images stamped on screen | 120-185 | |
 | Pixels covered by images | 0.8-1.1 million (4 to 5 screens' worth) | the cost a phone's graphics chip feels most |
 | Rectangles into off-screen canvases, in a fight | 315-710 | the Leviathan's paints |
@@ -42,10 +42,10 @@ From the profiler's seeded 15 km run at 320 x 694 game pixels. Counts are exact 
 | Page measurements (forced layouts) | 0 in the fall | 3.4 at a cafe counter (`placeSay`), tolerated |
 | Wall maths while falling | `hash` 430-620, `bossAt` 120-210, `voidAt` 77-110 calls | |
 
-A Leviathan, measured on its own by `tools/levi_budget.py` (all twelve, averaged over 30 moments; version 141). The
+A Leviathan, measured on its own by `tools/levi_budget.py` (all eighteen, averaged over 30 moments; version 141, Machine six added in 145). The
 script holds these limits too: change both together.
 
-| | Range across the twelve |
+| | Range across the eighteen |
 |---|---|
 | Background shape (`LEVI_DRAW[kind]`), drawing calls per frame | 117-749 (limit 750) |
 | One fight paint (three `bossStage` steps) | 1,018-2,094 rectangles (limit 2,172), 30-194 stamps (limit 195) |
@@ -175,7 +175,7 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
 3. **Trust the counts, not the times.** Times on a desktop are tiny and swing more from run to run than any change
    does, more so when the browser pane is hidden. The counts are exact.
 4. For the Leviathans on their own: `python3 tools/levi_budget.py` (counts `fillRect` and `drawImage` while calling
-   `LEVI_DRAW[kind]` and `bossStage` three times, normally and fading in, for all twelve; pass another build's file to
+   `LEVI_DRAW[kind]` and `bossStage` three times, normally and fading in, for every moon's; pass another build's file to
    compare, e.g. `git show HEAD~1:src/moonfall.html > /tmp/old.html` then `python3 tools/levi_budget.py /tmp/old.html`).
 5. **Picture unchanged?** Run both builds with `&fp=3` and compare the fingerprint lists; for frames that differ, add
    `&shot=<frame numbers>` to both (without `&fp`, so it draws the way a phone does) and compare the pictures pixel
@@ -190,7 +190,7 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
 
 - [ ] `python3 tools/levi_budget.py` says OK (any change a Leviathan draws).
 
-- [ ] Profiler run on both moons finishes with no errors.
+- [ ] Profiler run on every moon finishes with no errors.
 - [ ] No function new to this change appears high in `makers`; canvases per fight and per rock layer are in the table's range.
 - [ ] Rectangles, images and pixels per frame are in the table's range for every scene the change touches.
 - [ ] A new Leviathan is inside the three Leviathan ranges.

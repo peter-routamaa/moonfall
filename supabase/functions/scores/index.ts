@@ -1,11 +1,11 @@
 // MoonFall online high scores and play counter.
 //   GET  -> { top }                 the 10 deepest runs
 //   POST -> { top, rank, id }       body { initials: "ABC", depth: 812, escaped: true, moon: "jungle" }; saves the run
-//                                   (escaped: the player had repaired the ship; moon: dust or jungle; both optional, null if missing)
+//                                   (escaped: the player had repaired the ship; moon: dust, jungle or machine; both optional, null if missing)
 //   POST -> { ok }                  body { event: "play", player: "<16 hex>", run: "<16 hex>", ver }; a run started (owner's stats)
 //   POST -> { ok }                  body { event: "end", player, run, depth, secs, how, orbs, parts, cafes, initials,
 //                                         fps, worst, device, os, screen, treats, streak, sound, music, repair, intro, ver }; how it went
-//                                   (ver: the game's version number, e.g. 106; moon: dust or jungle, version 113; both optional)
+//                                   (ver: the game's version number, e.g. 106; moon: dust, jungle or machine, version 113; both optional)
 // The game only knows this function's URL. The secret key comes from the function's own
 // environment (Supabase provides SUPABASE_URL plus SUPABASE_SECRET_KEYS on newer projects and
 // SUPABASE_SERVICE_ROLE_KEY on all), so no key is ever in the game file.
@@ -78,8 +78,8 @@ async function update(table: string, filter: string, row: unknown) {
 const whole = (v: unknown, max: number) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= max;
 // The game's version number, sent with both pings since version 106; empty from older copies.
 const version = (v: unknown) => (whole(v, 100000) && (v as number) >= 1 ? v : null);
-// Which moon (version 113): the original Dust moon or the Jungle moon; empty from older copies.
-const moonOf = (v: unknown) => (v === 'dust' || v === 'jungle' ? v : null);
+// Which moon (version 113): the original Dust moon, the Jungle moon or (version 145) the Machine moon; empty from older copies.
+const moonOf = (v: unknown) => (v === 'dust' || v === 'jungle' || v === 'machine' ? v : null);
 
 // The extra run stats are optional (older copies of the game don't send them); anything missing or malformed is stored as empty.
 function extras(b: Record<string, unknown>) {

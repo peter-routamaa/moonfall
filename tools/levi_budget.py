@@ -1,4 +1,4 @@
-"""Checks every Leviathan against the budgets in PERFORMANCE.md, on both moons, and fails if one is over.
+"""Checks every Leviathan against the budgets in PERFORMANCE.md, on every moon, and fails if one is over.
 
     python3 tools/levi_budget.py [game.html]        (default: src/moonfall.html)
 
@@ -36,7 +36,9 @@ window.addEventListener('load', () => setTimeout(() => {
   P.drawImage = function (...a) { n.img++; return di.apply(this, a); };
   const test = document.createElement('canvas'); test.width = 480; test.height = 600; const tg = test.getContext('2d');
   const N = 30, avg = a => Math.round(a.reduce((s, v) => s + v, 0) / a.length), max = a => Math.max(...a);
-  for (const moon of ['dust', 'jungle']) {
+  // Every moon the game has (version 145: read from the game, so a new moon is counted without changing this file).
+  out.expected = Object.values(L.LEVI_SETS).reduce((s, a) => s + a.length, 0);
+  for (const moon of Object.keys(L.LEVI_SETS)) {
     L.applyMoon(moon);
     for (const kind of L.LEVI_SETS[moon]) {
       try {
@@ -103,10 +105,11 @@ def main():
     print(f"\nbudgets (PERFORMANCE.md): background {BUDGET['background']} calls, paint {BUDGET['paint_rect']} rectangles and "
           f"{BUDGET['paint_img']} stamps, fading {BUDGET['fading_rect']} rectangles")
     for e in res['errors']: print('ERROR', e)
-    if res['errors'] or over or len(res['rows']) < 12:
-        print('FAIL' + (': over budget: ' + ', '.join(over) if over else '') + (f" ({len(res['rows'])} of 12 measured)" if len(res['rows']) < 12 else ''))
+    want = res.get('expected', 12)
+    if res['errors'] or over or len(res['rows']) < want:
+        print('FAIL' + (': over budget: ' + ', '.join(over) if over else '') + (f" ({len(res['rows'])} of {want} measured)" if len(res['rows']) < want else ''))
         sys.exit(1)
-    print('OK: all 12 Leviathans inside the budgets')
+    print(f"OK: all {len(res['rows'])} Leviathans inside the budgets")
 
 
 if __name__ == '__main__':

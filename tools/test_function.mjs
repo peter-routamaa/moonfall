@@ -47,13 +47,15 @@ const s3 = await call('POST', { initials: 'JNK', depth: 300, escaped: 'yes' }, '
 check('junk escaped stored as null', s3[0] === 200 && db.scores.find(x => x.initials === 'JNK').escaped === null, db.scores);
 const s4 = await call('POST', { initials: 'JGL', depth: 350, moon: 'jungle' }, 'm');
 check('moon stored and returned', s4[0] === 200 && s4[1].top.find(t => t.initials === 'JGL').moon === 'jungle' && db.scores.find(x => x.initials === 'ESC').moon === null, s4);
+const s5 = await call('POST', { initials: 'MCH', depth: 345, moon: 'machine' }, 'q');
+check('machine moon stored', s5[0] === 200 && db.scores.find(x => x.initials === 'MCH').moon === 'machine', s5);
 await call('POST', { initials: 'MNX', depth: 340, moon: 'mars' }, 'n');
 check('unknown moon stored as null', db.scores.find(x => x.initials === 'MNX').moon === null, db.scores);
 check('rude initials refused', (await call('POST', { initials: 'ass', depth: 300 }, 'b'))[0] === 400, null);
 check('bad depth refused', (await call('POST', { initials: 'ABC', depth: -5 }, 'c'))[0] === 400, null);
 db.scores.push({ id: 99, initials: 'FUK', depth: 900, who: null, created_at: '2026-01-01' });
 const masked = (await call('GET'))[1].top.map(t => t.initials + t.depth).join(' ');
-check('rude names already stored show as ???', masked === '???900 ABC500 ESC400 JGL350 MNX340 JNK300', masked);
+check('rude names already stored show as ???', masked === '???900 ABC500 ESC400 JGL350 MCH345 MNX340 JNK300', masked);
 const burst = []; for (let k = 0; k < 8; k++) burst.push((await call('POST', { initials: 'SPM', depth: 5 }, 'spam'))[0]);
 check('6 scores a minute per connection, then 429', burst.join(',') === '200,200,200,200,200,200,429,429', burst);
 
