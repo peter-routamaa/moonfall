@@ -829,7 +829,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 151;
+const VERSION = 152;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3131,7 +3131,8 @@ const STATES = new Set(['splash', 'opening', 'title', 'intro', 'play', 'landing'
 function setState(next) {
   if (!STATES.has(next)) console.error('MoonFall: unknown state', next);
   state = next;
-  document.getElementById('game').dataset.state = next;   // CSS shows Skip intro only during the intro film (version 115)
+  document.getElementById('game').dataset.state = next;
+  if (next === 'title') setTimeout(prepLeviPics, 0);   // version 152: the Leviathans card's portraits, in idle moments (after start-up)   // CSS shows Skip intro only during the intro film (version 115)
 }
 let state = 'title', prevState = 'play', clock = 0, introT = 0, dieT = 0, camY = -360, shake = 0, repair = 0, repairStart = 0, readyStart = false;
 const runParts = { plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 };
@@ -4639,13 +4640,33 @@ function leviPortrait(kind) {
 }
 let leviCardDone = false;
 const leviPics = {};
+// Version 152 (user: "there's a bit of a lag and a judder as the next panel loads in"): painting all eighteen portraits
+// when the card first opened took about 70 ms on a desktop, several times that on a phone, right as the card started to
+// turn. Now they're painted ahead of time on the main menu, one per idle moment (this moon's six first), and the card
+// paints only one it shows that isn't ready yet. Only on the menu: a portrait borrows the boss's scratch canvases.
+const leviPic = kind => leviPics[kind] || (leviPics[kind] = leviPortrait(kind));
+let leviPrepQ = null, leviPrepOn = false;
+function prepLeviPics() {
+  if (leviPrepOn) return;
+  const set = leviSet();
+  if (!leviPrepQ) leviPrepQ = set.concat(LEVI_INFO.map(x => x[0]).filter(k => !set.includes(k)));
+  if (!leviPrepQ.some(k => !leviPics[k])) return;
+  leviPrepOn = true;
+  const later = () => window.requestIdleCallback ? requestIdleCallback(step, { timeout: 1500 }) : setTimeout(step, 120);
+  function step() {
+    if (state !== 'title') { leviPrepOn = false; return; }   // carries on the next time the menu shows
+    while (leviPrepQ.length && leviPics[leviPrepQ[0]]) leviPrepQ.shift();
+    if (leviPrepQ.length) leviPic(leviPrepQ.shift());
+    if (leviPrepQ.length) later(); else leviPrepOn = false;
+  }
+  later();
+}
 function fillLeviCard() {
   const won = save.leviBeaten || {}, list = $('leviList');
   if (!leviCardDone) {
     leviCardDone = true;
     for (const [kind, name, line] of LEVI_INFO) {
-      const li = document.createElement('li'), pic = leviPortrait(kind);
-      leviPics[kind] = pic;
+      const li = document.createElement('li');
       li.dataset.kind = kind;
       const n = document.createElement('span'); n.className = 'levi-name'; n.textContent = name.toUpperCase();
       const l = document.createElement('span'); l.className = 'levi-line'; l.textContent = line;
@@ -4660,7 +4681,7 @@ function fillLeviCard() {
     li.hidden = !set.includes(kind);
     if (li.hidden) continue;
     if (w) beaten++;
-    const pic = leviPics[kind];   // full colour whether beaten or not (version 132)
+    const pic = leviPic(kind);   // full colour whether beaten or not (version 132); painted ahead of time since version 152
     pic.className = 'levi-pic'; pic.setAttribute('role', 'img'); pic.setAttribute('aria-label', name + (w ? ', beaten' : ', not beaten yet'));
     if (li.firstChild !== pic) li.replaceChild(pic, li.firstChild);
   }
