@@ -35,7 +35,7 @@ From the profiler's seeded 15 km run at 320 x 694 game pixels. Counts are exact 
 |---|---|---|
 | Rectangles on screen, falling | 500-730 (Dust), 540-1,000 (Jungle), 530-880 (Machine), about 1,200 with Jungle vines on screen | |
 | Images stamped on screen | 120-185 | |
-| Pixels covered by images | 0.8-1.1 million (4 to 5 screens' worth) | the cost a phone's graphics chip feels most |
+| Pixels covered by images | 0.74-0.90 million since version 154 (was 0.8-1.1 million) | the cost a phone's graphics chip feels most |
 | Rectangles into off-screen canvases, in a fight | 315-710 | the Leviathan's paints |
 | Canvases created | **0 in steady play** | about 1,000 over a whole run, nearly all first-time use; 16-56 per fight |
 | Page changes | about 1 | the depth read-out and the smooth-scroll nudge |
@@ -94,6 +94,10 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
 
 ### 3. Leviathans
 
+- The shading (`bossBand`) is three passes over the paint canvas per band since version 154 (fill the band colour, cut the
+  shifted shape out, lay it on with `source-atop`), not four; the picture is the same for every Leviathan whose shape
+  has no half-covered pixels. Keep shapes on whole pixels (round a bob before using it, as `gearY` does): the jellyfish's
+  threads sit on half pixels, so it keeps the old four-pass way.
 - All of a Leviathan's fight art goes through `bossStage`: three steps into a canvas the size of the creature
   (`BOSS_BOX`), started at most 20 times a second (`BOSS_PAINT_EVERY`). Every frame then only stamps the finished
   canvas. Never draw fight art straight to the screen, and never add a compositing pass over the whole screen: that is
@@ -142,6 +146,11 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
 
 ### 7. Pixels covered
 
+- **Don't stamp see-through pixels.** Drawing a transparent part of an image still costs a phone its pixels. The wall
+  overlay is drawn as two strips, one per wall (`t.wl`, `t.wr` in `tile`; version 154): about 20% fewer pixels a frame in a
+  fight, 9% falling. Same for a Leviathan's paint canvas (`BOSS_BOX`): size it to the creature's own pixels, measured over
+  many moments (version 154 cut the Machine six by about 15%), keeping each edge's change even (the dither checks) and the
+  box symmetric for the ones that don't dive.
 - Every full-width layer adds about 220,000 pixels a frame. The rock and the two back layers are drawn only across the
   strip the shaft spans, and the wall overlay supplies the rest. A new back layer must do the same.
 - A void or a boss cavern is nearly the whole screen wide, so nothing is saved there: keep those scenes' extra layers few.
