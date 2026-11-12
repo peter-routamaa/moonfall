@@ -368,6 +368,10 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .intro-skip:active { transform: translate(2px, 2px); box-shadow: inset 0 0 0 2px var(--dust-dim), 2px 2px 0 var(--blue); }
 .intro-skip:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 #game:not([data-state="opening"]) .intro-skip { display: none; }
+/* Version 149 (user: "make the skip intro button pop up and down just a little bit"): a small, slow bob, half the
+   height of the Choose Moon / START bob. */
+.intro-skip { animation: bobSmall 1.4s ease-in-out infinite; }
+@keyframes bobSmall { 0%, 100% { translate: 0 0; } 50% { translate: 0 -3px; } }
 /* Version 117: the cinematics' captions are typed into the bottom letterbox bar (--bar is its height, set in resize). */
 .intro-cap { position: absolute; left: 0; right: 0; bottom: 0; height: var(--bar, 46px); display: flex; flex-direction: column; justify-content: center; align-items: center;
   z-index: 4; pointer-events: none; white-space: nowrap; text-align: center;
@@ -496,6 +500,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   .btn.launch { animation: none; }
   .news { animation: none; }
   .btn.bob { animation: none; }
+  .intro-skip { animation: none; }
   #titleScreen.arriving * { animation: none !important; }
   .intro-cap { transition: none; }
 }
@@ -814,7 +819,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 148;
+const VERSION = 149;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
