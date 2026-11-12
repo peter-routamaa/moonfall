@@ -153,6 +153,9 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
 - Don't read sizes or positions (`offsetWidth`, `getBoundingClientRect`) every frame. Measure when something changes
   (a resize, fonts loaded, a card opening) and keep the number, as `measureCafeCard` does.
 - The HUD's height never changes during a run. Keep it so: a read-out that can be empty keeps its place, invisible.
+- **Nothing slow in the tap that opens a card.** A card's turn starts in that tap, so a few tens of ms of work there is a
+  visible judder. Make what it needs ahead of time in idle moments on the menu (`prepLeviPics`, version 152: the
+  Leviathans card painted all eighteen portraits in the tap, 71 ms on a desktop; now 2 ms).
 
 ### 9. Time and frame rate
 
