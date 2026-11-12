@@ -90,7 +90,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .suit-sw:disabled { background: var(--ink-soft); box-shadow: none; cursor: default; }
 .suit-sw:disabled::after { content: ''; position: absolute; left: 11px; top: 14px; width: 8px; height: 6px; background: var(--dust-dim); }
 .suit-sw:disabled::before { content: ''; position: absolute; left: 12px; top: 9px; width: 4px; height: 5px; border: 1px solid var(--dust-dim); border-bottom: 0; }
-.suit-note { margin: -4px 0 0; font-size: 17px; color: var(--dust-dim); text-align: right; }
+.suit-note { margin: -4px 0 0; font-size: 17px; color: var(--dust-dim); text-align: left; }   /* left since version 151 (user) */
 /* Version 150 (user): the suits in a box like the Settings moon row: SUIT TYPE, the picked suit's name under it, then
    the swatches. The unlock hint stays under the box. */
 .suit-box { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px 12px; box-shadow: inset 0 0 0 2px var(--blue); }
@@ -829,7 +829,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 150;
+const VERSION = 151;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -1076,7 +1076,7 @@ function drawFlame(nx, ny, dir, k) {
 // -- suits (version 112, idea 13): one more colour unlocks with each finished mission (save.missionsDone); picked in
 // Settings (save.suit). The suit is the w pixels (and their s shading) of the pilot's sprites.
 const SUITS = [
-  ['Moon dust', P.dust, P.shade], ['Signal red', '#E86A5C', mix(P.lava, P.ink, 0.35)], ['Gold', '#F2C14E', '#A9781B'],
+  ['Moon Dust', P.dust, P.shade], ['Signal Red', '#E86A5C', mix(P.lava, P.ink, 0.35)], ['Gold', '#F2C14E', '#A9781B'],
   ['Mint', '#A6EBB9', '#1F7F45'], ['Amethyst', '#CDB6F5', '#5B3AA8'],
 ];
 const suitMaps = SUITS.map(([, w, sh]) => Object.assign(pmap(), { w, s: sh }));
