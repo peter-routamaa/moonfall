@@ -10,7 +10,7 @@ Play it at **https://peter-routamaa.github.io/moonfall/**. The `docs` folder is 
 |---|---|
 | `src/moonfall.html` | **The game's source**: the whole game in one file (HTML, CSS and JavaScript), exactly as published on claude.ai. Edit this one. A guide at the top of its script explains how the code fits together. |
 | `src/share.png` | The link preview picture (1200 × 630) shown when the game's address is shared in WhatsApp, iMessage and so on. The build copies it to `docs/` and adds the preview tags. |
-| `src/voices/` | The recorded voice clips, loaded by the game when sound starts: the pilot's lines recorded for MoonFall (64 kbps mono MP3), and two CC0 clips by qubodup on OpenGameArt (`s02`, `s11`, WAV). |
+| `src/voices/` | The pilot's voice clips, recorded for MoonFall (64 kbps mono MP3), loaded by the game when sound starts. |
 | `docs/index.html`, `docs/voices/` | The website copy, built from `src/` by `tools/build_site.py`. Don't edit these by hand. |
 | `PERFORMANCE.md` | **Performance rules.** Read it before adding anything drawn or worked out every frame (a Leviathan, a moon, a hazard, a layer, an effect): the rules, today's per-frame budgets, and how to measure. |
 | `tools/` | Build, test and screenshot scripts (see *Working on the game*). |
