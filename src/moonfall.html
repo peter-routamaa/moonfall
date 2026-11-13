@@ -97,7 +97,6 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .suit-lbl { font: 700 10px/1 var(--display); letter-spacing: .08em; color: var(--dust); }
 .suit-name { font: 400 21px/1 var(--body); color: var(--gold); margin-bottom: 4px; }
 .suit-note:empty { display: none; }
-.hard-box .suit-note { margin: 0; }   /* the drone's unlock line sits inside its box (version 181, user) */
 /* Version 113: the menu card is taller with the moon picker, so on short phones the NEW sticker would cover it. */
 @media (max-height: 600px) { .news { display: none; } }
 /* Version 113: the moon picker in Settings (the main menu pair was removed in version 123). The picked moon has a gold border. */
@@ -142,7 +141,11 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 #badgesBtn small { font: inherit; font-size: 11px; color: color-mix(in srgb, var(--dust) 75%, var(--blue)); }
 @media (max-width: 360px) { #titleFront .card-nav { column-gap: 8px; } #titleFront .card-nav .btn.settings { font-size: 11px; gap: 4px; padding-inline: 3px; letter-spacing: 0; } #titleFront .card-nav .btn.settings > svg { width: 12px; height: 12px; } }
 .best.best-big b { font-size: 22px; color: var(--gold); letter-spacing: .03em; }
-#bestTitle .unit-m { width: .99em; height: .62em; margin-left: .02em; vertical-align: baseline; }   /* the drawn m (version 181) */
+/* The drawn m (version 181 on BEST, everywhere since version 182; user: the pixel font's m was hard to read): two-pixel
+   stems, as tall as the digits, in the text's colour. */
+.unit-m { display: inline-block; width: .99em; height: .62em; margin-left: .14em; vertical-align: baseline; }
+#bestTitle .unit-m { margin-left: .02em; }
+.hs-depth .unit-m { width: .64em; height: .4em; margin-left: .12em; }
 #titleScreen { padding-block: 8px 22px; gap: 8px; }
 /* The news sticker (version 99): floats in the sky under the repair panel, tilted (a 45-degree corner ribbon covered the
    end of the logo). Since version 100 it swells toward the viewer and back, its shadow growing as it lifts, instead of
@@ -581,10 +584,10 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <div class="panel hp" id="hp" role="meter" aria-label="Health" aria-valuemin="0" aria-valuemax="5" aria-valuenow="5">
         <canvas class="pilot-face" id="face" width="12" height="12" aria-hidden="true"></canvas><i></i><i></i><i></i><i></i><i></i>
       </div>
-      <div class="panel target none" id="target"><span id="targetWho">BEAT</span><b id="targetM">0 m</b></div>
+      <div class="panel target none" id="target"><span id="targetWho">BEAT</span><b id="targetM">0<svg class="unit-m" viewBox="0 0 8 5" width="8" height="5" shape-rendering="crispEdges" role="img" aria-label="metres"><path fill="currentColor" d="M0 0h7v1h-7zM0 1h2v4h-2zM3 1h2v4h-2zM6 1h2v4h-2z"/></svg></b></div>
     </div>
     <div class="right">
-      <div class="panel depth" id="depth" aria-live="off">0000<small>m</small></div>
+      <div class="panel depth" id="depth" aria-live="off">0000<svg class="unit-m" viewBox="0 0 8 5" width="8" height="5" shape-rendering="crispEdges" role="img" aria-label="metres"><path fill="currentColor" d="M0 0h7v1h-7zM0 1h2v4h-2zM3 1h2v4h-2zM6 1h2v4h-2z"/></svg></div>
       <button class="icon-btn" id="pauseBtn" type="button" aria-label="Pause">II</button>
       <div class="counters">
         <div class="panel parts-hud" id="partsHud">PARTS <b id="partsRun">0</b></div>
@@ -718,8 +721,8 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <div class="suit-box hard-box">
         <button class="set-tog" id="droneT" type="button" aria-pressed="false" aria-label="Helper drone"><span>Helper drone</span></button>
         <p class="hard-how">Falls with you and catches half of the ship parts and crystals you miss.</p>
-        <p class="suit-note" id="droneNote"></p>
       </div>
+      <p class="suit-note" id="droneNote"></p>
       <button class="btn" id="unlocksDone" type="button">Done</button>
      </div>
      <div class="card face back" id="newsBack" hidden inert aria-hidden="true">
@@ -766,7 +769,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <button class="btn quiet" id="quitBtn" type="button">Quit</button>
       </div>
       <div class="meta">
-        <span class="best">BEST <b id="bestPause">0000 m</b></span>
+        <span class="best">BEST <b id="bestPause">0000<svg class="unit-m" viewBox="0 0 8 5" width="8" height="5" shape-rendering="crispEdges" role="img" aria-label="metres"><path fill="currentColor" d="M0 0h7v1h-7zM0 1h2v4h-2zM3 1h2v4h-2zM6 1h2v4h-2z"/></svg></b></span>
         <span class="toggles">
           <button class="tog" id="sndP" type="button" aria-pressed="true">Sound FX</button>
           <button class="tog" id="musP" type="button" aria-pressed="true">Music</button>
@@ -782,7 +785,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
     <div class="card score-card">
      <div class="hs-step" id="hsEntry">
       <span class="newbest gold">NEW HIGH SCORE</span>
-      <p class="hs-depth"><b id="hsDepth">0</b><small>m</small></p>
+      <p class="hs-depth"><b id="hsDepth">0</b><svg class="unit-m" viewBox="0 0 8 5" width="8" height="5" shape-rendering="crispEdges" role="img" aria-label="metres"><path fill="currentColor" d="M0 0h7v1h-7zM0 1h2v4h-2zM3 1h2v4h-2zM6 1h2v4h-2z"/></svg></p>
       <p class="hs-rank" id="hsRank">RANK 1</p>
       <p class="hint" id="hsHint">Enter your initials</p>
       <div class="initials" id="initials">
@@ -822,8 +825,8 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <span class="newbest" id="newBest" hidden>NEW BEST</span>
       <h2 class="bad">Out of health</h2>
       <dl class="stats">
-        <div><dt>DEPTH</dt><dd id="oDepth">0<small>m</small></dd></div>
-        <div><dt>BEST</dt><dd id="oBest">0<small>m</small></dd></div>
+        <div><dt>DEPTH</dt><dd id="oDepth">0<svg class="unit-m" viewBox="0 0 8 5" width="8" height="5" shape-rendering="crispEdges" role="img" aria-label="metres"><path fill="currentColor" d="M0 0h7v1h-7zM0 1h2v4h-2zM3 1h2v4h-2zM6 1h2v4h-2z"/></svg></dd></div>
+        <div><dt>BEST</dt><dd id="oBest">0<svg class="unit-m" viewBox="0 0 8 5" width="8" height="5" shape-rendering="crispEdges" role="img" aria-label="metres"><path fill="currentColor" d="M0 0h7v1h-7zM0 1h2v4h-2zM3 1h2v4h-2zM6 1h2v4h-2z"/></svg></dd></div>
         <div><dt>CRYSTALS</dt><dd id="oOrbs">0</dd></div>
       </dl>
       <div class="run-parts" id="runParts"></div>
@@ -843,7 +846,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <h2>Off the moon!</h2>
       <p class="end-copy">You patched the hull, rewired the ship and lit the core. Time to fly home!</p>
       <dl class="stats">
-        <div><dt>BEST</dt><dd id="eBest">0<small>m</small></dd></div>
+        <div><dt>BEST</dt><dd id="eBest">0<svg class="unit-m" viewBox="0 0 8 5" width="8" height="5" shape-rendering="crispEdges" role="img" aria-label="metres"><path fill="currentColor" d="M0 0h7v1h-7zM0 1h2v4h-2zM3 1h2v4h-2zM6 1h2v4h-2z"/></svg></dd></div>
         <div><dt>DIVES</dt><dd id="eDives">0</dd></div>
         <div><dt>PARTS</dt><dd id="eParts">74</dd></div>
         <div><dt>LAUNCHES</dt><dd id="eLaunch">1</dd></div>
@@ -909,7 +912,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 181;
+const VERSION = 182;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -4657,7 +4660,7 @@ function syncToggles() {
     b.setAttribute('aria-label', SUITS[i][0] + (i >= open ? ', locked' : ''));
   });
   $('suitName').textContent = SUITS[cur][0];
-  $('suitNote').textContent = open < SUITS.length ? 'Fix the ship once to unlock every colour' : '';   // version 171
+  $('suitNote').textContent = open < SUITS.length ? 'Fix the ship to unlock these suits' : '';   // version 171; wording since version 182 (user)
   $('hardNote').textContent = hardOpen() ? '' : 'Fix the ship to unlock Terminal Velocity';
   const dt = $('droneT');   // version 160
   dt.disabled = !droneOpen(); dt.setAttribute('aria-pressed', String(!!save.drone && droneOpen()));
@@ -4666,7 +4669,7 @@ function syncToggles() {
   $('buzzNote').hidden = Buzz.canVibrate || !save.vib;
   // Version 181 (user: the "m" is "a bit difficult to read"): the main menu's BEST uses a drawn pixel m as tall as the
   // digits (M_ICON), like the percent sign on the speed-up banner.
-  $('bestTitle').innerHTML = fmtM(save.best) + ' ' + M_ICON; $('bestPause').textContent = fmtM(save.best) + ' m';
+  $('bestTitle').innerHTML = fmtM(save.best) + ' ' + M_ICON; $('bestPause').firstChild.nodeValue = fmtM(save.best);
 }
 function toggleSound() { save.snd = !save.snd; Sfx.init(); Sfx.setOn(save.snd); persist(); syncToggles(); }
 function toggleVib() { save.vib = !save.vib; persist(); syncToggles(); if (save.vib) Buzz.test(); }
@@ -5110,7 +5113,7 @@ function gameOver() {
   setState('over'); endRun(lastHit || 'wall');
   const m = depthM(), isBest = m > save.best;
   if (isBest) { save.best = m; persist(); }
-  $('oDepth').innerHTML = m + '<small>m</small>'; $('oBest').innerHTML = save.best + '<small>m</small>'; $('oOrbs').textContent = player.orbs;
+  $('oDepth').firstChild.nodeValue = m; $('oBest').firstChild.nodeValue = save.best; $('oOrbs').textContent = player.orbs;
   $('newBest').hidden = !isBest;
   renderRunParts();
   // Run highlights (version 108), one per line, the rarest first; at most four, then the treats.
@@ -5225,9 +5228,9 @@ function renderTable() {
     const li = document.createElement('li');
     if (!r) { li.className = 'gap'; li.textContent = '…'; $('hsList').append(li); continue; }
     li.className = r.you ? 'you' : '';
-    for (const [txt, unit] of [[r.n + '.'], [r.i], [fmtM(r.m), 'm']]) {
+    for (const [txt, unit] of [[r.n + '.'], [r.i], [fmtM(r.m), true]]) {
       const sp = document.createElement('span'); sp.textContent = txt;
-      if (unit) { const smoothstep = document.createElement('small'); smoothstep.textContent = unit; sp.append(smoothstep); }
+      if (unit) sp.insertAdjacentHTML('beforeend', M_ICON);   // the drawn m (version 182)
       li.append(sp);
     }
     // Version 113: the moon the score was set on, as a little moon of its colour; a dash for older scores.
@@ -5872,7 +5875,7 @@ function passFlags() {
 function renderTarget() {
   const f = flags[nextFlag], el = $('target');
   el.classList.toggle('none', !f);
-  if (f) { $('targetWho').textContent = 'BEAT ' + f.i; $('targetM').textContent = Math.max(0, f.m - depthM()) + ' m'; }
+  if (f) { $('targetWho').textContent = 'BEAT ' + f.i; $('targetM').firstChild.nodeValue = Math.max(0, f.m - depthM()); }
 }
 // Each flag is a little gravestone on the rock just outside the shaft's edge (sides alternate), standing on the depth
 // where that run ended, with the player's initials above it: pale before he passes it, gold after. Drawn once into a
@@ -6594,7 +6597,7 @@ function showEnd() {
   if (save.droneNew) { lines.push('Helper drone unlocked!'); save.droneNew = false; persist(); }   // version 160
   $('eUnlock').textContent = lines.length ? lines.join(' ') + ' (Unlocks)' : '';   // "(Unlocks)" since version 160 (they moved off Settings)
   $('eUnlock').hidden = !$('eUnlock').textContent;
-  $('eBest').innerHTML = save.best + '<small>m</small>';
+  $('eBest').firstChild.nodeValue = save.best;
   $('eParts').textContent = PARTS.reduce((n, pt) => n + pt.need, 0);
   $('eLaunch').textContent = save.launches;
   $('eDives').textContent = save.dives || 0;
