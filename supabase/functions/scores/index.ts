@@ -8,7 +8,8 @@
 //                                   (ver: the game's version number, e.g. 106; moon: dust, jungle or machine, version 113; both optional)
 //                                   Both run pings may carry hard, droneOpen, drone (booleans, version 190; optional).
 //                                   The end ping may carry (version 192; optional) errors, error, leviFought, leviEscaped,
-//                                   missions, suit, badges, nav, cafesPassed, droneCaught, installed, browser, pauses.
+//                                   missions, suit, badges, nav, cafesPassed, droneCaught, installed, browser, pauses,
+//                                   and the frame-rate figures hz, fpsFight, slowPct (all optional).
 // The game only knows this function's URL. The secret key comes from the function's own
 // environment (Supabase provides SUPABASE_URL plus SUPABASE_SECRET_KEYS on newer projects and
 // SUPABASE_SERVICE_ROLE_KEY on all), so no key is ever in the game file.
@@ -89,6 +90,11 @@ const flags = (b: Record<string, unknown>) => ({ hard: bool(b.hard), drone_open:
 // Version 192: errors, Leviathans fought and escaped, progress on the device, cafes passed, drone catches, how it's played.
 const BROWSER = new Set(['safari', 'chrome', 'firefox', 'edge', 'samsung', 'opera', 'inapp', 'other']);
 const kinds = (v: unknown) => (Array.isArray(v) && v.length <= 20 && v.every(k => typeof k === 'string' && /^[a-z]{2,16}$/.test(k)) ? v : null);
+// Frame-rate figures (Performance pass, 2026-11-13): refresh rate, fps in Leviathan fights, % of frames missing a refresh.
+const tenth = (v: unknown, max: number) => (typeof v === 'number' && v >= 0 && v <= max ? Math.round(v * 10) / 10 : null);
+const frames = (b: Record<string, unknown>) => ({
+  hz: whole(b.hz, 500) && (b.hz as number) >= 20 ? b.hz : null, fps_fight: tenth(b.fpsFight, 500), slow_pct: tenth(b.slowPct, 100),
+});
 const more = (b: Record<string, unknown>) => ({
   errors: whole(b.errors, 100000) ? b.errors : null,
   error: typeof b.error === 'string' && b.error.length <= 200 ? b.error.replace(/[^\x20-\x7E]/g, '?') : null,
@@ -110,7 +116,7 @@ function extras(b: Record<string, unknown>) {
     treats, streak: whole(b.streak, 100000) ? b.streak : null,
     sound: typeof b.sound === 'boolean' ? b.sound : null, music: typeof b.music === 'boolean' ? b.music : null,
     repair: whole(b.repair, 100) ? b.repair : null, intro: b.intro === 'watched' || b.intro === 'skipped' ? b.intro : null,
-    ver: version(b.ver), moon: moonOf(b.moon), ...flags(b), ...more(b),
+    ver: version(b.ver), moon: moonOf(b.moon), ...flags(b), ...more(b), ...frames(b),
   };
 }
 
