@@ -927,7 +927,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 179;
+const VERSION = 180;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -1004,6 +1004,9 @@ function rng32(a) {
 // Nor while `stampAllow` is 0, which it is all through a fight (version 179): a disc or ring that has no image yet is
 // drawn the same direct way instead of having one made, so a fight makes no canvas at all. Its images are made in the
 // thin shaft before it, a few a frame (bossWarmStep).
+// Everywhere else one new image may be made a frame (version 180; `frame` sets it): a creature, hazard or explosion
+// seen for the first time used to make up to 21 in one frame. The rest are drawn direct that frame and get their
+// image on a later one. Drawn direct outside a paint, the canvas keeps its fill colour, as it does after a stamp.
 const discCache = new Map(), ringCache = new Map(), sprCache = new WeakMap();
 let stampDirect = false, stampAllow = Infinity, scratchCv = null, scratchG = null;
 const mayStamp = () => stampAllow > 0 && (stampAllow--, true);
@@ -1021,7 +1024,11 @@ function disc(x, y, r, col, g) {
   if (r > 48 || r < 0 || (stampDirect && g.globalAlpha === 1)) { discRows(g, Math.round(x), Math.round(y), r, col); return; }
   let byCol = stampDirect ? null : discCache.get(col), img = byCol && byCol[r];
   if (!img && (stampDirect || !mayStamp())) {
-    if (g.globalAlpha === 1) { discRows(g, Math.round(x), Math.round(y), r, col); return; }
+    if (g.globalAlpha === 1) {
+      if (stampDirect) discRows(g, Math.round(x), Math.round(y), r, col);
+      else { const was = g.fillStyle; discRows(g, Math.round(x), Math.round(y), r, col); g.fillStyle = was; }
+      return;
+    }
     const d = 2 * r + 1;
     discRows(scratch(d, d), r, r, r, col);
     g.drawImage(scratchCv, 0, 0, d, d, Math.round(x) - r, Math.round(y) - r, d, d); return;
@@ -1034,6 +1041,30 @@ function disc(x, y, r, col, g) {
     byCol[r] = img;
   }
   g.drawImage(img, Math.round(x) - r, Math.round(y) - r);
+}
+// A ring's image, made and kept: radius R (a whole number up to 60), th px thick.
+function ringMake(col, R, th) {
+  let byCol = ringCache.get(col);
+  if (!byCol) { byCol = []; ringCache.set(col, byCol); }
+  if (byCol[R * 4 + th]) return byCol[R * 4 + th];
+  const n = Math.max(16, Math.round(R * 7)), img = document.createElement('canvas'); img.width = img.height = 2 * R + th + 2;
+  const gg = img.getContext('2d'); gg.fillStyle = col;
+  for (let i = 0; i < n; i++) {
+    const an = i / n * Math.PI * 2;
+    gg.fillRect(Math.round(R + 1 + Math.cos(an) * R), Math.round(R + 1 + Math.sin(an) * R), th, th);
+  }
+  return (byCol[R * 4 + th] = img);
+}
+// The rings of an explosion and of a pickup grow through every size, so the first of each made an image or two a
+// frame while it lasted, and drawn direct a big ring is hundreds of squares. Their 140 images are made ahead instead
+// (version 180), one a frame on frames that make nothing else (`frame`), starting on the start screen: small first.
+const ringWant = [];
+function ringsAhead() {
+  const add = (col, a, b, th) => { for (let R = a; R <= b; R++) ringWant.push([col, R, th]); };
+  add(P.lava, 8, 60, 2); add(P.hot, 4, 38, 2);                               // a blast (drawn in render)
+  add(P.grnL, 6, 32, 2); add(P.dust, 3, 19, 2);                              // a pickup's burst
+  add(P.grnL, 10, 12, 1); add(P.grnD, 12, 16, 1);                            // a crystal's halo
+  ringWant.sort((p, q) => q[1] - p[1]);                                      // taken from the end
 }
 function ring(x, y, r, col, th, g) {
   g = g || c; th = th || 2;
@@ -1048,24 +1079,16 @@ function ring(x, y, r, col, th, g) {
   let byCol = ringCache.get(col), img = byCol && byCol[R * 4 + th];
   // Drawn straight in: solid colour only (the ring's squares overlap), and in a fight only a ring with no image yet.
   if ((stampDirect || (!img && stampAllow <= 0)) && g.globalAlpha === 1 && col.length === 7) {
-    const X = Math.round(x) - R - 1, Y = Math.round(y) - R - 1;
+    const X = Math.round(x) - R - 1, Y = Math.round(y) - R - 1, was = stampDirect ? null : g.fillStyle;
     g.fillStyle = col;
     for (let i = 0; i < n; i++) {
       const an = i / n * Math.PI * 2;
       g.fillRect(X + Math.round(R + 1 + Math.cos(an) * R), Y + Math.round(R + 1 + Math.sin(an) * R), th, th);
-    } return;
-  }
-  if (!img) {
-    if (!byCol) { byCol = []; ringCache.set(col, byCol); }
-    if (stampAllow > 0) stampAllow--;
-    img = document.createElement('canvas'); img.width = img.height = 2 * R + th + 2;
-    const gg = img.getContext('2d'); gg.fillStyle = col;
-    for (let i = 0; i < n; i++) {
-      const an = i / n * Math.PI * 2;
-      gg.fillRect(Math.round(R + 1 + Math.cos(an) * R), Math.round(R + 1 + Math.sin(an) * R), th, th);
     }
-    byCol[R * 4 + th] = img;
+    if (was !== null) g.fillStyle = was;
+    return;
   }
+  if (!img) { if (stampAllow > 0) stampAllow--; img = ringMake(col, R, th); }
   g.drawImage(img, Math.round(x) - R - 1, Math.round(y) - R - 1);
 }
 
@@ -4696,7 +4719,7 @@ function resetRun() {
   drone.ox = 24; drone.oy = -20; drone.mode = 'follow'; drone.it = null; drone.lock = null; drone.caught = 0; drone.hp = undefined; drone.chatAt = 0;
   $('partsRun').textContent = '0'; repair = repairFrac(); repairStart = repair; readyStart = canLaunch();
   Object.assign(player, playerStart());
-  cafeVisited.clear(); cafeArt.clear(); signArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
+  cafeVisited.clear(); cafeRetire(); signArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
   buildHP(); $('spareRun').textContent = '0'; spareHud.hidden = true; streakFlash.classList.remove('on'); speedFlash.classList.remove('on'); speedRush = 0; buildFlags(); refreshBoard();
   Music.reset();
   sayEl.hidden = true;
@@ -5347,11 +5370,21 @@ function cafeGeo(C) {
   const s = C.side, x0 = Math.round(C.shopX), X = (u, w = 0) => s < 0 ? x0 + CAFE_W - u - w : x0 + u;
   return { x0, X, winX: X(8, 44), baristaX: X(30), smokeX: X(87), lampX: X(58, 3), sgx: X(10, 72), sgv: -92 };
 }
+// A cafe's two canvases are taken over from one left behind (version 180): before, every cafe made two new full-width
+// canvases as it came into view.
+const cafeSpare = [];
+function cafeRetire(keep) {
+  for (const [key, a] of cafeArt) if (keep === undefined || Math.abs(key - keep) > 1) { cafeSpare.push(a.base, a.sign); cafeArt.delete(key); }
+}
 function cafeLayers(C) {
   let a = cafeArt.get(C.k);
   if (a) return a;
-  for (const key of cafeArt.keys()) if (Math.abs(key - C.k) > 1) cafeArt.delete(key);
-  const mk = () => { const v = document.createElement('canvas'); v.width = W; v.height = CAFE_Y + 50; return v; };
+  cafeRetire(C.k);
+  const mk = () => {
+    const v = cafeSpare.pop();
+    if (v) { const q = v.getContext('2d'); q.setTransform(1, 0, 0, 1, 0, 0); q.globalAlpha = 1; q.globalCompositeOperation = 'source-over'; q.clearRect(0, 0, v.width, v.height); return v; }
+    const n = document.createElement('canvas'); n.width = W; n.height = CAFE_Y + 50; return n;
+  };
   const base = mk(), sign = mk(), g = base.getContext('2d'), h = sign.getContext('2d');
   const Q = palAt(C.Dl), s = C.side, k = C.k, y = CAFE_Y;
   // rock shelf: flat top, jagged underside narrowing back into the wall
@@ -5594,7 +5627,12 @@ function updateCafe(dt) {
         pop('+1 COFFEE', player.x, player.y - 10, 'good');
       } else pop('REFRESHED', player.x, player.y - 10, 'good');
     }
-    if (crossed(1.6)) openShop();
+    if (crossed(1.6)) {
+      openShop();
+      // A Leviathan below: its paint canvases are made now, while nothing moves (version 180), not as he jumps.
+      const B = bossAt(player.y + 300);
+      if (B && !bossGone.has(B.k)) bossBufs(leviKind(2 * B.k));
+    }
     placeSay(C);
   } else {
     const runTo = C.tip + C.side * 8;
@@ -7494,7 +7532,7 @@ function bossBufs(kind) {
 // Everything else a fight stamps is made in the thin shaft as well (version 179), a little each frame: its shots and
 // charge glow, then BOSS_WARM paints of the creature at different moments of its animation in the cavern's settled rock
 // colours (a cavern can run from one layer into the next), which fills the disc and ring images its art uses. A paint
-// step may make at most four images. Until then they were made in the fight: 8 to 30 in the second before its first
+// step may make at most two images. Until then they were made in the fight: 8 to 30 in the second before its first
 // shot, more whenever the rock's colour changed (22 to 59 a fight). Limited by the clock (90 steps a second), not the frame.
 const BOSS_WARM = 24;
 let bossWarm = null;
@@ -7513,14 +7551,14 @@ function bossWarmStep(B) {
   const w = bossWarm;
   for (let k = 0; k < 2 && w.n < (clock - w.at) * 90; k++) {
     w.n++;
-    if (w.shots.length) { for (let i = 0; i < 3 && w.shots.length; i++) shotImg(...w.shots.pop()); if (kind === 'angler') ringImg(); continue; }
-    if (w.paints >= BOSS_WARM || !bossBack || bossBack.kind !== kind) return;
-    if (!bossBack.stage) {
-      w.b.t = w.paints * 0.683; w.b.y = w.pals[w.paints % w.pals.length] - camY;   // the clock runs 0.6 of b.t ahead in a paint: 0.41 s apart
-    }
     const keep = stampAllow;
-    stampAllow = 4;
-    if (bossStage(w.b, bossBack)) w.paints++;
+    stampAllow = 2;   // a step's own allowance, whatever the frame has left
+    if (w.shots.length) { for (let i = 0; i < 2 && w.shots.length; i++) shotImg(...w.shots.pop()); if (kind === 'angler') ringImg(); }
+    else if (w.paints < BOSS_WARM && bossBack && bossBack.kind === kind) {
+      // The clock runs 0.6 of b.t ahead in a paint, so these are 0.41 s apart.
+      if (!bossBack.stage) { w.b.t = w.paints * 0.683; w.b.y = w.pals[w.paints % w.pals.length] - camY; }
+      if (bossStage(w.b, bossBack)) w.paints++;
+    }
     stampAllow = keep;
   }
 }
@@ -8887,7 +8925,7 @@ function shotImg(o, m, h, r) {
 function shot(o, m, h, r, x, y) {
   const img = shotImg(o, m, h, r);
   if (img) c.drawImage(img, x - r - 1, y - r - 1);
-  else { discRows(c, x, y, r + 1, o); discRows(c, x, y, r, m); discRows(c, x, y, Math.max(1, r - 2), h); }
+  else { const was = c.fillStyle; discRows(c, x, y, r + 1, o); discRows(c, x, y, r, m); discRows(c, x, y, Math.max(1, r - 2), h); c.fillStyle = was; }
 }
 function drawBossShots(sy) {
   if (!bossShots.length) return;
@@ -9535,7 +9573,7 @@ let last = performance.now();
 const meter = { n: 0, time: 0, cpu: 0, worst: 0 };
 function frame(now) {
   const raw = Math.max(0, (now - last) / 1000), dt = Math.min(0.05, raw); last = now;
-  stampAllow = boss ? 0 : Infinity;   // a fight makes no images (see disc)
+  stampAllow = boss ? 0 : 1;   // a fight makes no images, and nothing makes more than one a frame (see disc)
   if (state !== 'paused') {
     const t0 = performance.now();
     // Hit-stop: the world holds still for a beat. Nothing updates during it, so nothing can collide and start another one
@@ -9545,6 +9583,7 @@ function frame(now) {
     if (runId && raw < 1) { runFrames++; runRaw += raw; if (runFrames > 5) runWorst = Math.max(runWorst, raw); }
     updateFace(); prepaint(camY); render(); drawCinema(); cineCaps(); meter.cpu += performance.now() - t0;
   }
+  if (stampAllow > 0 && ringWant.length) { const w = ringWant.pop(); ringMake(w[0], w[1], w[2]); }   // see ringsAhead
   if (save.fps) {
     meter.n++; meter.time += raw; meter.worst = Math.max(meter.worst, raw);
     if (meter.time >= 0.5) {
@@ -9564,6 +9603,7 @@ function start(data) {
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { placeHorizon(); measureCafeCard(); });
   window.claude?.hot?.snapshot?.(() => ({ best: save.best, parts: save.parts }));
   applyMoon(save.moon);
+  ringsAhead();
 requestAnimationFrame(t => { last = t; frame(t); });
 }
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
