@@ -912,7 +912,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 182;
+const VERSION = 183;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -4660,8 +4660,8 @@ function syncToggles() {
     b.setAttribute('aria-label', SUITS[i][0] + (i >= open ? ', locked' : ''));
   });
   $('suitName').textContent = SUITS[cur][0];
-  $('suitNote').textContent = open < SUITS.length ? 'Fix the ship to unlock these suits' : '';   // version 171; wording since version 182 (user)
-  $('hardNote').textContent = hardOpen() ? '' : 'Fix the ship to unlock Terminal Velocity';
+  $('suitNote').textContent = open < SUITS.length ? 'Repair the ship to unlock these suits' : '';   // version 171; wording since version 183 (user)
+  $('hardNote').textContent = hardOpen() ? '' : 'Repair the ship to unlock Terminal Velocity';
   const dt = $('droneT');   // version 160
   dt.disabled = !droneOpen(); dt.setAttribute('aria-pressed', String(!!save.drone && droneOpen()));
   dt.setAttribute('aria-label', droneOpen() ? 'Helper drone' : 'Helper drone, locked until the ship is repaired on Terminal Velocity');
