@@ -99,7 +99,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .set-tog::after { content: 'OFF'; grid-column: 2; grid-row: 1; box-sizing: border-box; width: 3.6em; text-align: center; font-size: 9px; padding: 3px 0 2px; margin-top: -2px; background: var(--ink-soft); color: var(--dust-dim); }
 .set-tog[aria-pressed="true"] { border-color: var(--green); background: transparent; }
 .set-tog[aria-pressed="true"]::after { content: 'ON'; background: var(--green); color: var(--ink); }
-/* Version 112: Hard dive is locked until the ship has been fixed once. Suits: a row of swatches, one per suit. */
+/* Version 112: Hard Dive is locked until the ship has been fixed once. Suits: a row of swatches, one per suit. */
 .set-tog:disabled { opacity: .55; cursor: default; }
 .set-tog:disabled::after { content: 'LOCKED'; width: auto; padding: 3px 3px 2px; }
 .suit-row { display: flex; align-items: center; gap: 8px; }
@@ -151,7 +151,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 /* Version 135: Unlocks (the suit colours, moved out of Settings) beside Badges. */
 #unlocksBack h2 { text-align: center; }
 #unlocksBack { gap: 12px; }
-/* Version 158 (user: "this is an earned unlock, so let's move it to the unlocks"): Hard dive moved from Settings to the
+/* Version 158 (user: "this is an earned unlock, so let's move it to the unlocks"): Hard Dive moved from Settings to the
    Unlocks card, in a box like the suits: its toggle tile, a line on what it does, and a hint under the box while locked.
    Settings keeps five toggles (Invert thruster controls stays half width, user, version 159). */
 .hard-box { gap: 8px; }
@@ -285,7 +285,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
    Since version 157 these rules only set --aside: syncAside flips the panel up and away (folding its height) and back
    down when the card closes, instead of it vanishing; .aside is where it rests while away. */
 #titleScreen .repair.aside, #titleScreen .news.aside { display: none; }
-@media (max-height: 600px) { #titleScreen.reading .repair { --aside: 1; } }
+#titleScreen.reading .repair { --aside: 1; }   /* every card, every phone since version 161 (user); the per-card rules below are older and now covered */
 /* The Leviathans card is taller: the panel steps aside for it on phones up to 760 px tall (version 102). */
 @media (max-height: 760px) { #titleScreen.reading.levi .repair { --aside: 1; } }
 /* And for the moons card (version 153) up to 800 px tall. */
@@ -296,7 +296,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
    everything isn't as cramped"): the panel steps aside on every phone, and on phones 640 px tall or more the card
    spreads out into the room: bigger tiles and labels, more space between them. (Before: hidden up to 640 px only.) */
 #titleScreen.reading.settings .repair { --aside: 1; }
-@media (min-height: 640px) {
+@media (min-height: 700px) {   /* 640 in version 157; 700 since 162 so Done can sit 50 px up on a 640 px phone */
   #titleBack { gap: 16px; padding: 18px 16px; }
   #titleBack .set-list { gap: 10px; }
   #titleBack .set-tog { font-size: 12px; padding: 12px 7px 12px 9px; min-height: 66px; }
@@ -309,8 +309,31 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 }
 /* And for Badges (seven rows) up to 700 px tall (version 135: its Done sat on the bottom edge of a 640 px screen). */
 @media (max-height: 700px) { #titleScreen.reading.badges .repair { --aside: 1; } }
-/* And for Unlocks since Hard dive moved onto it (version 158) up to 760 px tall: at 667 its Done ran off the bottom. */
-@media (max-height: 760px) { #titleScreen.reading.unlocks .repair { --aside: 1; } }   /* 640 since version 135 (suits moved out) */
+/* And for Unlocks (Hard Dive since version 158, the helper drone since 160) on every phone: with three boxes it filled
+   an 844 px screen beside the panel. On short phones the card tightens up. */
+#titleScreen.reading.unlocks .repair { --aside: 1; }
+@media (max-height: 700px) {   /* 640 in version 160; 700 since 162 (Done 50 px up at 667) */
+  #unlocksBack { gap: 7px; padding: 10px 12px; }
+  #unlocksBack .suit-box { padding: 7px 10px 8px; gap: 4px; }
+  #unlocksBack .suit-name { font-size: 18px; margin-bottom: 2px; }
+  #unlocksBack .suit-sw { width: 28px; height: 28px; }
+  #unlocksBack .suit-note { font-size: 15px; margin-top: -2px; }
+  #unlocksBack .hard-box .set-tog { padding: 7px 7px 7px 9px; }
+  #unlocksBack .hard-how { font-size: 15px; }
+  #unlocksBack h2 { margin: 0; }
+}
+@media (max-height: 600px) {   /* version 162: room for Done 50 px up on a 568 px phone */
+  #unlocksBack { gap: 5px; }
+  #unlocksBack .hard-how { font-size: 14px; line-height: 1; }
+  #unlocksBack .suit-note { font-size: 14px; }
+  #badgeBack { gap: 6px; }
+  .badge-list { gap: 4px; }
+  .badge-how { font-size: 16px; }
+}
+/* And for New features on every phone (version 160, user), whose card then slides up to the middle (placeNews). */
+#titleScreen.reading.newsopen .repair { --aside: 1; }
+#titleFlip { transition: transform .45s cubic-bezier(.3, .7, .2, 1); }
+#titleFlip.lift-instant { transition: none; }   /* 640 since version 135 (suits moved out) */
 .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .best { font: 400 12px/1 var(--display); letter-spacing: .05em; color: var(--dust-dim); }
 .best b { color: var(--dust); font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -706,10 +729,15 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       </div>
       <p class="suit-note" id="suitNote"></p>
       <div class="suit-box hard-box">
-        <button class="set-tog" id="hardT" type="button" aria-pressed="false" aria-label="Hard dive"><span>Hard dive</span></button>
+        <button class="set-tog" id="hardT" type="button" aria-pressed="false" aria-label="Terminal Velocity"><span>Terminal<br>Velocity</span></button>
         <p class="hard-how">Start with 4 health and fall 15% faster. Leviathans rage from the start.</p>
       </div>
       <p class="suit-note" id="hardNote"></p>
+      <div class="suit-box hard-box">
+        <button class="set-tog" id="droneT" type="button" aria-pressed="false" aria-label="Helper drone"><span>Helper drone</span></button>
+        <p class="hard-how">Falls with you and catches half of the ship parts and crystals you miss.</p>
+      </div>
+      <p class="suit-note" id="droneNote"></p>
       <button class="btn" id="unlocksDone" type="button">Done</button>
      </div>
      <div class="card face back" id="newsBack" hidden inert aria-hidden="true">
@@ -717,6 +745,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <ul class="news-list">
         <li><button class="news-item" id="newsLevi" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#C64B3B" d="M2 0h4v1h-4zM1 1h6v1h-6zM0 2h8v3h-8zM1 5h6v1h-6zM2 6h4v1h-4z"/><path fill="#F2C14E" d="M3 2h2v3h-2z"/><path fill="#1A1E2C" d="M3 3h1v1h-1z"/></svg></span><span class="news-name">Leviathan chases</span><span class="news-how">Giant creatures hunt you after every second cafe. Tap to meet them!</span></button></li>
         <li><button class="news-item" id="newsMoons" type="button"><span class="news-ico"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><svg class="moon-ico machine" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg></span><span class="news-name">The new moons</span><span class="news-how">Fall into the Dust moon, the Jungle moon or the Machine moon. Swap any time in Settings. Tap to learn more.</span></button></li>
+        <li><button class="news-item" id="newsHard" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#E8B83A" d="M0 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1zM3 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1z"/></svg></span><span class="news-name">Terminal Velocity</span><span class="news-how">Fix the ship once to earn it: 4 health, 15% faster and raging Leviathans. Tap to see Unlocks.</span></button></li>
       </ul>
       <button class="btn" id="newsDone" type="button">Done</button>
      </div>
@@ -898,7 +927,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 159;
+const VERSION = 171;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -1142,8 +1171,9 @@ function drawFlame(nx, ny, dir, k) {
     if (u < 0.35) { c.fillStyle = P.dust; c.fillRect(x, ny, 1, 1); }
   }
 }
-// -- suits (version 112, idea 13): one more colour unlocks with each finished mission (save.missionsDone); picked in
-// Settings (save.suit). The suit is the w pixels (and their s shading) of the pilot's sprites.
+// -- suits (version 112, idea 13): picked on the Unlocks card (save.suit). Until version 171 one more colour unlocked
+// with each finished mission; since then (user: "have all the suit colours unlock once the game is beaten a single
+// time") every colour unlocks with the first finished mission (save.missionsDone). The suit is the w pixels (and their s shading) of the pilot's sprites.
 const SUITS = [
   ['Moon Dust', P.dust, P.shade], ['Signal Red', '#E86A5C', mix(P.lava, P.ink, 0.35)], ['Gold', '#F2C14E', '#A9781B'],
   ['Mint', '#A6EBB9', '#1F7F45'], ['Amethyst', '#CDB6F5', '#5B3AA8'],
@@ -1153,7 +1183,7 @@ function missionsDone() {
   if (save.missionsDone === undefined) { save.missionsDone = save.launches || 0; save.missionDone = save.missionsDone > 0 && canLaunch(); persist(); }
   return save.missionsDone;
 }
-const suitsOpen = () => Math.min(SUITS.length, 1 + missionsDone());
+const suitsOpen = () => missionsDone() > 0 ? SUITS.length : 1;
 const suitMap = () => suitMaps[Math.min(save.suit || 0, suitsOpen() - 1)] || MAP;
 function drawMan(x, y, pose, t, thr) {
   const f = Math.floor(t * 6) % 2,
@@ -3295,7 +3325,7 @@ function setState(next) {
 let state = 'title', prevState = 'play', clock = 0, introT = 0, dieT = 0, camY = -360, shake = 0, repair = 0, repairStart = 0, readyStart = false;
 const runParts = { plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 };
 // A fresh pilot for every run (resetRun). `touch` (a finger is on the screen) carries over between runs.
-let hardRun = false;   // this run is a Hard dive (version 112; see startRun)
+let hardRun = false;   // this run is a Hard Dive (version 112; see startRun)
 const playerStart = () => ({
   x: 84, y: -30, v: 0, vx: 0, hp: hardRun ? 4 : 5, max: hardRun ? 4 : 5, inv: 0, blockT: 0, shield: 0, shieldMax: 8, orbs: 0, spare: 0, streak: 0,
   bestStreak: 0, perks: {}, perkCafe: 0, toughN: 0, bought: [], slowUntil: 0, flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false,
@@ -3303,6 +3333,18 @@ const playerStart = () => ({
   hits: 0, closest: Infinity, closestMine: false, leviRun: [], bossWon: false, newBadges: []   // version 108: run highlights and badges
 });
 const player = { touch: false, ...playerStart() };
+// Version 160: the helper drone, unlocked by repairing the ship on a Hard Dive (save.droneOpen) and switched on the
+// Unlocks card (save.drone). It hovers beside the pilot and catches ship parts and crystals that go past him. Its place
+// is kept relative to the pilot's middle (ox, oy) so it falls with him. Since version 165 (user: "up what the drone
+// collects to 50% ... a dotted line or a laser sight from the drone to a pickup that it's going to get") it picks its
+// target ahead of time: as a part or crystal comes up within DRONE_AHEAD px below him it rolls once (1 in 2) and, if
+// it's free, locks on, with a dotted cyan sight to it. If he takes it himself the lock just ends; if it goes past him,
+// the drone dashes along the sight and catches it. One lock at a time; an item that passes while it was busy gets its
+// roll then. It reaches across the whole shaft; the only limit is catching it before it leaves the top of the screen.
+let droneRun = false;
+const drone = { ox: 24, oy: -20, mode: 'follow', it: null, lock: null, caught: 0 };
+const DRONE_CHANCE = 0.5, DRONE_SPEED = 720, DRONE_AHEAD = 220;   // share it goes for (0.25 until v165); dash px/s; lock range below him
+const droneOpen = () => !!save.droneOpen;
 let rocks = [], items = [], particles = [], nextSeg = 0, lastRockD = -999, lastShieldD = -9999, steerAcc = 0;
 // The shaft is generated SEG_LEN pixels at a time; the pilot's hitbox is HIT_HALF_W pixels either side of his middle.
 const SEG_LEN = 110, HIT_HALF_W = 8;
@@ -3789,6 +3831,18 @@ const Sfx = (() => {
     // The ash vents (version 155): a low rumble as one builds, the whoosh of its blast, and a puff when it shoves him.
     ashRumble() { noise(0.42, 'lowpass', 220, 0.22); tone('sine', 58, 46, 0.42, 0.14); },
     ashGust() { noise(0.55, 'lowpass', 520, 0.4); noise(0.4, 'bandpass', 1700, 0.08, 0.04); tone('sine', 72, 44, 0.35, 0.16); },
+    // The helper drone's voice (version 160, user: "add a little bit of personality ... beeps and boops"): little square
+    // and sine chirps, quiet, under the game's own sounds.
+    droneLock() { tone('sine', 1400, 1400, 0.04, 0.02); tone('sine', 1870, 1870, 0.05, 0.02, 0.05); },   // version 165: locking on, "bip-bip"
+    droneGo() { tone('square', 900, 1500, 0.07, 0.035); tone('sine', 1800, 2400, 0.06, 0.03, 0.05); },          // darting off: "bip-weee"
+    droneGot() { tone('square', 1046, 1046, 0.06, 0.035); tone('square', 1568, 1568, 0.09, 0.035, 0.07); tone('sine', 2093, 2093, 0.08, 0.025, 0.15); },   // caught it: "boop-beep-bing"
+    droneMiss() { tone('square', 700, 520, 0.12, 0.03); tone('square', 520, 330, 0.18, 0.03, 0.13); },           // too late: "bwoo-oo"
+    droneWorry() { for (let i = 0; i < 3; i++) tone('sine', 1300 - i * 180, 1100 - i * 180, 0.06, 0.03, i * 0.08); },   // he got hurt
+    droneHello() { [784, 988, 1175, 1568].forEach((f, i) => tone('square', f, f * (i === 3 ? 1.06 : 1), 0.06, 0.035, i * 0.07)); },   // unlocked: a bright hello
+    droneChat() {   // idle babble: 3-5 quick notes at random pitches, now and then
+      const n = 3 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < n; i++) { const f = 700 + Math.random() * 1500; tone(Math.random() < 0.5 ? 'square' : 'sine', f, f * (0.85 + Math.random() * 0.3), 0.045, 0.022, i * 0.065); }
+    },
     ashPuff() { noise(0.22, 'bandpass', 900, 0.3); noise(0.15, 'highpass', 3500, 0.06, 0.03); },
     // The Jungle hazards (version 113): leaves rustling, a branch creaking out of the rock, a pod bursting.
     rustle() { noise(0.18, 'bandpass', 3200, 0.14); noise(0.22, 'highpass', 5000, 0.07, 0.06); },
@@ -4660,10 +4714,10 @@ function syncToggles() {
   for (const id of ['fpsT', 'fpsP']) $(id).setAttribute('aria-pressed', String(save.fps));
   $('fps').hidden = !save.fps;
   $('invT').setAttribute('aria-pressed', String(!!save.inv));
-  // Hard dive and suits (version 112): unlocked by finishing missions
+  // Hard Dive and suits (version 112): unlocked by finishing missions
   const open = suitsOpen(), ht = $('hardT'), cur = Math.min(save.suit || 0, open - 1);
   ht.disabled = !hardOpen(); ht.setAttribute('aria-pressed', String(!!save.hard && hardOpen()));
-  ht.setAttribute('aria-label', hardOpen() ? 'Hard dive' : 'Hard dive, locked until the ship is fixed');
+  ht.setAttribute('aria-label', hardOpen() ? 'Terminal Velocity' : 'Terminal Velocity, locked until the ship is fixed');
   const row = $('suitRow');
   if (row.children.length < SUITS.length) SUITS.forEach(([name, w, sh], i) => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'suit-sw'; b.style.setProperty('--sw', w); b.style.setProperty('--sh', sh);
@@ -4675,8 +4729,12 @@ function syncToggles() {
     b.setAttribute('aria-label', SUITS[i][0] + (i >= open ? ', locked' : ''));
   });
   $('suitName').textContent = SUITS[cur][0];
-  $('suitNote').textContent = open < SUITS.length ? 'Fix the ship to unlock ' + (open === 1 ? 'more' : 'the next') : '';
-  $('hardNote').textContent = hardOpen() ? '' : 'Fix the ship to unlock Hard dive';
+  $('suitNote').textContent = open < SUITS.length ? 'Fix the ship once to unlock every colour' : '';   // version 171
+  $('hardNote').textContent = hardOpen() ? '' : 'Fix the ship to unlock Terminal Velocity';
+  const dt = $('droneT');   // version 160
+  dt.disabled = !droneOpen(); dt.setAttribute('aria-pressed', String(!!save.drone && droneOpen()));
+  dt.setAttribute('aria-label', droneOpen() ? 'Helper drone' : 'Helper drone, locked until the ship is repaired on Terminal Velocity');
+  $('droneNote').textContent = droneOpen() ? '' : 'Repair the ship on Terminal Velocity to unlock the drone';
   $('buzzNote').hidden = Buzz.canVibrate || !save.vib;
   $('bestTitle').textContent = fmtM(save.best) + ' m'; $('bestPause').textContent = fmtM(save.best) + ' m';
 }
@@ -4686,7 +4744,10 @@ for (const id of ['sndT', 'sndP']) $(id).addEventListener('click', toggleSound);
 for (const id of ['vibT', 'vibP']) $(id).addEventListener('click', toggleVib);
 for (const id of ['fpsT', 'fpsP']) $(id).addEventListener('click', () => { save.fps = !save.fps; persist(); syncToggles(); });
 $('invT').addEventListener('click', () => { save.inv = !save.inv; persist(); syncToggles(); });
-$('hardT').addEventListener('click', () => { if (!hardOpen()) return; save.hard = !save.hard; persist(); syncToggles(); });
+// Version 163 (user): switching Hard Dive on starts the mission over: the ship's parts and the crystals paid into the
+// nav computer go back to zero, after a pop-up that says so (askHard). Switching it off changes nothing else.
+$('hardT').addEventListener('click', () => { if (!hardOpen()) return; if (!save.hard) { askHard(); return; } save.hard = false; persist(); syncToggles(); });
+$('droneT').addEventListener('click', () => { if (!droneOpen()) return; save.drone = !save.drone; persist(); syncToggles(); });
 function toggleMusic() { save.mus = !save.mus; Sfx.init(); Music.setOn(); persist(); syncToggles(); }
 for (const id of ['musT', 'musP']) $(id).addEventListener('click', toggleMusic);
 function drawIcons() {
@@ -4710,6 +4771,7 @@ function resetRun() {
   rocks = []; items = []; particles = []; hazards = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; lastHazD = -9999; steerAcc = 0;
   for (const k in runParts) runParts[k] = 0;
   leviSeen.clear();
+  drone.ox = 24; drone.oy = -20; drone.mode = 'follow'; drone.it = null; drone.lock = null; drone.caught = 0; drone.hp = undefined; drone.chatAt = 0;
   $('partsRun').textContent = '0'; repair = repairFrac(); repairStart = repair; readyStart = canLaunch();
   Object.assign(player, playerStart());
   cafeVisited.clear(); cafeArt.clear(); signArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
@@ -4782,23 +4844,48 @@ function syncAside(instant) {
     anims[0].onfinish = done; setTimeout(done, ASIDE_MS + 150);   // the timer too, in case the animation stalls (a page in the background)
   }
 }
-addEventListener('resize', () => syncAside(true));
+addEventListener('resize', () => { syncAside(true); if (cardSide) placeNews(cardSide, true); });
 // The main menu's card: Settings and Instructions on the back.
+let unlocksFromNews = false;   // the Unlocks card was opened from New features (version 160): its Done goes back there
+// Version 162 (user: "the 'done' button should always be at the same height on every screen ... something like 50
+// pixels up from the bottom"): while a card is open it slides up so its Done button's bottom edge is DONE_FROM_BOTTOM px
+// above the bottom of the screen, on every card, unless that would take its top over the tagline (then it rises only
+// that far, and dataset.short says by how much it fell short). Back down when it closes. (Versions 160-161 centred the
+// card instead.) Measured from steady layout, not from boxes caught mid-turn.
+const DONE_FROM_BOTTOM = 50;
+const CARD_FACE = { settings: 'titleBack', how: 'howBack', levi: 'leviBack', badges: 'badgeBack', news: 'newsBack', unlocks: 'unlocksBack', moons: 'moonsBack' };
+function placeNews(side, instant) {
+  const fl = $('titleFlip'), ts = $('titleScreen');
+  let lift = 0;
+  if (CARD_FACE[side]) {
+    // The card sits on the screen's bottom padding; its full height; Done ends at the face's bottom padding.
+    const face = $(CARD_FACE[side]), r = ts.getBoundingClientRect(), bottom = r.bottom - (parseFloat(getComputedStyle(ts).paddingBottom) || 0), h = face.scrollHeight;
+    const top = ts.querySelector('.tag').getBoundingClientRect().bottom + 10, doneGap = r.bottom - bottom + (parseFloat(getComputedStyle(face).paddingBottom) || 0);
+    const want = DONE_FROM_BOTTOM - doneGap, room = bottom - h - top;
+    lift = Math.round(Math.max(0, Math.min(want, room)));
+    fl.dataset.short = Math.max(0, Math.round(want - lift));
+  }
+  fl.dataset.lift = lift;
+  fl.classList.toggle('lift-instant', !!instant || reduceMotion);
+  fl.style.transform = lift ? 'translateY(' + -lift + 'px)' : '';
+}
 function setCard(side, instant) {
   const was = cardSide;
+  if (side === 'unlocks') unlocksFromNews = was === 'news'; else if (side !== 'news') unlocksFromNews = false;
   instant = !!instant || reduceMotion;
   cardSide = side;
   if (side === 'levi') fillLeviCard();
   if (side === 'badges') fillBadges();
-  if (side === 'unlocks') syncToggles();   // version 158: Hard dive's lock is shown from the save as it is now
+  if (side === 'unlocks') syncToggles();   // version 158: Hard Dive's lock is shown from the save as it is now
   turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack'), levi: $('leviBack'), badges: $('badgeBack'), news: $('newsBack'), unlocks: $('unlocksBack'), moons: $('moonsBack') }, was, side, instant, () => {
     const ts = $('titleScreen');
     clearTimeout(readTimer);
-    if (side) { ts.classList.toggle('levi', side === 'levi'); ts.classList.toggle('how', side === 'how'); ts.classList.toggle('settings', side === 'settings'); ts.classList.toggle('badges', side === 'badges'); ts.classList.toggle('moons', side === 'moons'); ts.classList.toggle('unlocks', side === 'unlocks'); }
+    if (side) { ts.classList.toggle('levi', side === 'levi'); ts.classList.toggle('how', side === 'how'); ts.classList.toggle('settings', side === 'settings'); ts.classList.toggle('badges', side === 'badges'); ts.classList.toggle('moons', side === 'moons'); ts.classList.toggle('unlocks', side === 'unlocks'); ts.classList.toggle('newsopen', side === 'news'); }   // not 'news': that's the sticker's own class (see version 146)
+    placeNews(side, instant);
     if (side || instant) { ts.classList.toggle('reading', !!side); syncAside(instant); }   // Settings too since version 84 (one more row)
     else readTimer = setTimeout(() => { ts.classList.remove('reading'); syncAside(); }, 480);
   });
-  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $('sndT') : side === 'how' ? $('howDone') : side === 'news' ? $(was === 'moons' ? 'newsMoons' : 'newsLevi') : side === 'unlocks' ? $('unlocksDone') : side === 'levi' ? $('leviDone') : side === 'moons' ? $('moonsDone') : side === 'badges' ? $('badgeDone') : $(was === 'how' ? 'howBtn' : was === 'badges' ? 'badgesBtn' : was === 'unlocks' ? 'unlocksBtn' : was === 'levi' || was === 'news' || was === 'moons' ? 'startBtn' : 'settingsBtn')), 460);
+  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $('sndT') : side === 'how' ? $('howDone') : side === 'news' ? $(was === 'moons' ? 'newsMoons' : was === 'unlocks' ? 'newsHard' : 'newsLevi') : side === 'unlocks' ? $('unlocksDone') : side === 'levi' ? $('leviDone') : side === 'moons' ? $('moonsDone') : side === 'badges' ? $('badgeDone') : $(was === 'how' ? 'howBtn' : was === 'badges' ? 'badgesBtn' : was === 'unlocks' ? 'unlocksBtn' : was === 'levi' || was === 'news' || was === 'moons' ? 'startBtn' : 'settingsBtn')), 460);
 }
 // -- the Leviathans card (version 102): the NEW sticker opens it. Each creature's name, its signature attack in a line,
 // and a portrait painted with its fight art (bossStage), facing right and looking down at the viewer.
@@ -4905,6 +4992,7 @@ function openMenu() {
 $('menuStart').addEventListener('click', openMenu);
 $('newsLevi').addEventListener('click', () => setCard('levi'));
 $('newsMoons').addEventListener('click', () => setCard('moons'));   // version 153
+$('newsHard').addEventListener('click', () => setCard('unlocks'));   // version 160: Hard Dive lives on the Unlocks card
 // Version 157: Done on the Moons or Leviathans card goes back one step, to New features, so the other row can be opened.
 $('moonsDone').addEventListener('click', () => setCard('news'));
 $('newsDone').addEventListener('click', () => setCard(null));
@@ -4922,13 +5010,38 @@ $('leviDone').addEventListener('click', () => setCard('news'));   // version 157
 $('badgesBtn').addEventListener('click', () => setCard('badges'));
 // Version 135: Unlocks (suit colours for now; more later) opens from the main menu.
 $('unlocksBtn').addEventListener('click', () => setCard('unlocks'));
-$('unlocksDone').addEventListener('click', () => setCard(null));
+$('unlocksDone').addEventListener('click', () => setCard(unlocksFromNews ? 'news' : null));   // version 160: back one step if opened from New features
 $('badgeDone').addEventListener('click', () => setCard(null));
 $('howBtn').addEventListener('click', () => setCard('how'));
 // Reset ship repair (Settings): two confirmations, the second sterner, before the parts are cleared.
 const confirmDlg = $('confirmDlg');
-let confirmStep = 0, resetTimer = 0;
+let confirmStep = 0, resetTimer = 0, confirmHard = false, confirmFrom = 'resetBtn';
+function clearRepair() {
+  for (const pt of PARTS) save.parts[pt.id] = 0;
+  save.dives = 0; save.nav = 0; missionsDone(); save.missionDone = false;   // the next finished mission counts (version 112)
+}
+function popConfirm() {
+  confirmDlg.classList.remove('pop-in'); void confirmDlg.offsetWidth; confirmDlg.classList.add('pop-in');
+  if (!confirmDlg.open) confirmDlg.showModal();
+  $('confirmNo').focus();
+}
+// Hard Dive's pop-up (version 163): one question, red like the reset's second step. With nothing to lose (no parts, no
+// crystals paid) it just switches on.
+function askHard() {
+  const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), c = save.nav || 0;
+  if (!n && !c) { save.hard = true; persist(); syncToggles(); return; }
+  confirmHard = true; confirmFrom = 'hardT'; confirmStep = 0;
+  confirmDlg.classList.add('danger');
+  $('confirmTitle').textContent = 'Go Terminal Velocity?';
+  const lost = [n ? `your ${n} ship part${n === 1 ? '' : 's'}` : '', c ? `the ${c} crystal${c === 1 ? '' : 's'} paid into the nav computer` : ''].filter(Boolean).join(' and ');
+  $('confirmText').textContent = `Terminal Velocity starts your mission over: ${lost} go${n + c === 1 && !(n && c) ? 'es' : ''} back to zero, and the ship repair to 0%. Your best depth, badges, suits and unlocks are kept.` +
+    (droneOpen() ? '' : ' Repair the ship on Terminal Velocity and you unlock the helper drone as a reward!');   // version 164 (user)
+  $('confirmYes').hidden = false; $('confirmYes').textContent = 'Reset and go hard';
+  $('confirmNo').textContent = 'Cancel';
+  popConfirm();
+}
 function askReset(step) {
+  confirmHard = false; confirmFrom = 'resetBtn';
   const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0);
   confirmStep = n ? step : 0;
   confirmDlg.classList.toggle('danger', step === 2);
@@ -4939,22 +5052,22 @@ function askReset(step) {
   $('confirmYes').hidden = !n;
   $('confirmYes').textContent = step === 1 ? 'Reset' : 'Yes, reset to 0%';
   $('confirmNo').textContent = !n ? 'OK' : step === 1 ? 'Cancel' : 'Keep my parts';
-  confirmDlg.classList.remove('pop-in'); void confirmDlg.offsetWidth; confirmDlg.classList.add('pop-in');
-  if (!confirmDlg.open) confirmDlg.showModal();
-  $('confirmNo').focus();
+  popConfirm();
 }
 $('resetBtn').addEventListener('click', () => askReset(1));
 $('confirmNo').addEventListener('click', () => confirmDlg.close());
 $('confirmYes').addEventListener('click', () => {
+  if (confirmHard) {   // version 163: start the mission over, then Hard Dive on
+    confirmDlg.close(); clearRepair(); save.hard = true; persist(); renderRepair(); syncToggles(); Sfx.bleep(330); return;
+  }
   if (confirmStep === 1) { askReset(2); return; }
   confirmDlg.close();
-  for (const pt of PARTS) save.parts[pt.id] = 0;
-  save.dives = 0; save.nav = 0; missionsDone(); save.missionDone = false;   // the next finished mission counts (version 112)
+  clearRepair();
   persist(); renderRepair();
   const b = $('resetBtn'); b.textContent = 'Repair reset to 0%';
   clearTimeout(resetTimer); resetTimer = setTimeout(() => (b.textContent = 'Reset ship repair'), 2500);
 });
-confirmDlg.addEventListener('close', () => $('resetBtn').focus({ preventScroll: true }));
+confirmDlg.addEventListener('close', () => { $(confirmFrom).focus({ preventScroll: true }); confirmHard = false; });
 $('settingsBtn').addEventListener('click', () => setCard('settings'));
 $('howDone').addEventListener('click', () => setCard(null));
 $('settingsDone').addEventListener('click', () => setCard(null));
@@ -4998,13 +5111,16 @@ function endRun(how) {
     intro: runId === introRun && introHow ? introHow : null });
   if (how !== 'left') runId = '';
 }
-// -- Hard dive (version 112, idea 13): unlocked once the ship has been fixed (a finished mission). The run starts with 4
+// -- Hard Dive (version 112, idea 13): unlocked once the ship has been fixed (a finished mission). The run starts with 4
 // health, falls HARD_SPEED faster all the way down, and the Leviathans are enraged from the start. (Until version 159 it
 // also had 50% more crystals; the user: "doesn't exactly make the game harder".) Switched on the Unlocks card since
 // version 158 (save.hard); fixed for the whole run (hardRun).
+// Version 170 (user): on screen it's called **Terminal Velocity** (was "Hard dive", then "Hard Dive"); in the code it
+// stays hard / hardRun / HARD_SPEED / save.hard, so saved settings carry over.
 const HARD_SPEED = 1.15, hardOpen = () => missionsDone() > 0;
 function startRun(quick) {
   hardRun = !!save.hard && hardOpen();
+  droneRun = !!save.drone && droneOpen();
   Sfx.init(); Music.stop(0.4); setCard(null, true);
   resetRun(); countPlay();
   save.dives = (save.dives || 0) + 1; persist();   // dives this mission, shown when it's complete
@@ -5023,7 +5139,7 @@ function beginPlay() {
     renderTarget();
   } player.v = speedAt(player.y); player.aim = player.x; player.vx = 0; steerAcc = 0; tapBurst.l = tapBurst.r = 0;
   showCoach('TAP A SIDE, OR DRAG', 2600);
-  if (hardRun) pop('HARD DIVE', player.x, player.y - 30, 'bad');
+  if (hardRun) pop('TERMINAL VELOCITY', player.x, player.y - 30, 'bad');
 }
 function pause() {
   if (!['play', 'intro', 'landing', 'cafe', 'cafeJump'].includes(state)) return;
@@ -5069,7 +5185,7 @@ function gameOver() {
   // Run highlights (version 108), one per line, the rarest first; at most four, then the treats.
   const leviName = k => LEVI_INFO.find(x => x[0] === k)[1], nb = player.newBadges;
   const lines = [
-    hardRun ? '<b>Hard dive</b>' : '',
+    hardRun ? '<b>Terminal Velocity</b>' : '',
     nb.length ? 'New badge' + (nb.length > 1 ? 's' : '') + ': <b>' + nb.join(', ') + '</b>' : '',
     player.leviRun.length ? 'Beat <b>' + player.leviRun.map(leviName).join(', ') + '</b>' : '',
     cafesRun ? 'Cafes visited <b>' + cafesRun + '</b>' + (cafesRun && !player.hits ? ', no hits' : '') : '',
@@ -6523,11 +6639,14 @@ function updateLaunch(dt) {
 }
 function showEnd() {
   setState('ended');
-  // A finished mission counts once (relaunching the same repaired ship doesn't): it unlocks a suit, and Hard dive.
+  // A finished mission counts once (relaunching the same repaired ship doesn't): it unlocks a suit, and Hard Dive.
   const before = suitsOpen();
   if (!save.missionDone) { save.missionsDone = missionsDone() + 1; save.missionDone = true; }
   save.launches = (save.launches || 0) + 1; persist();
-  $('eUnlock').textContent = suitsOpen() > before ? 'New suit: ' + SUITS[suitsOpen() - 1][0] + (save.missionsDone === 1 ? '. Hard dive unlocked too!' : '') + ' (Settings)' : '';
+  const lines = [];
+  if (suitsOpen() > before) lines.push('Every suit colour unlocked' + (save.missionsDone === 1 ? ', and Terminal Velocity too!' : '!'));   // version 171
+  if (save.droneNew) { lines.push('Helper drone unlocked!'); save.droneNew = false; persist(); }   // version 160
+  $('eUnlock').textContent = lines.length ? lines.join(' ') + ' (Unlocks)' : '';   // "(Unlocks)" since version 160 (they moved off Settings)
   $('eUnlock').hidden = !$('eUnlock').textContent;
   $('eBest').innerHTML = save.best + '<small>m</small>';
   $('eParts').textContent = PARTS.reduce((n, pt) => n + pt.need, 0);
@@ -6637,7 +6756,7 @@ addEventListener('keydown', e => {
     e.preventDefault();
     if (cafeT > 1.6) leaveCafe();
   }
-  else if (k === 'Escape' && state === 'title' && cardSide) setCard(cardSide === 'levi' || cardSide === 'moons' ? 'news' : null);   // one step back (version 157)
+  else if (k === 'Escape' && state === 'title' && cardSide) setCard(cardSide === 'levi' || cardSide === 'moons' || (cardSide === 'unlocks' && unlocksFromNews) ? 'news' : null);   // one step back (version 157)
   else if (k === 'Escape' || k === 'p' || k === 'P') { if (state === 'paused') resume(); else pause(); }
   else if ((k === ' ' || k === 'Enter') && state === 'title' && document.activeElement === document.body) { e.preventDefault(); if (screens.title.classList.contains('clean')) openMenu(); else startRun(false); }
   else return;
@@ -7240,6 +7359,78 @@ const HURT_AS = { thorn: 'rock', spore: 'lava', crush: 'rock', saw: 'rock', lase
 // A shield lasts SHIELD_S (8 s since version 80, was 10); a mine takes half of it, any other hit a quarter.
 const SHIELD_S = 8, SHIELD_MINE_CUT = 0.5, SHIELD_HIT_CUT = 0.25, CLOSE_PX = 10;
 let orbChain = 0, lastOrbT = -9;
+// The drone (version 160): hovering on the shaft's middle side of him, bobbing; dashing to a missed part or crystal and
+// catching it (as if he had); then back. It gives up on one that leaves the top of the screen.
+const droneRoll = it => hash(it.d * 0.37 + it.x * 1.3 + SEED) < DRONE_CHANCE;
+// Version 165 (user: "have it visible up at the surface by the crashed ship instead of just spawning in at the tunnel"):
+// once unlocked and switched on, it hovers by the pilot at the crash site on the main menu, drifting a little, and goes
+// with him on the run-up and the leap.
+const droneShown = () => state === 'title' ? !!save.drone && droneOpen() : droneRun;
+// Version 166 (user: "make the drone bob a little or move from side to side more often ... He's a bit static"): where it
+// idles beside him: a sway side to side and a bob (two waves each, so it never looks like a loop), plus a wander, a new
+// little spot nearby every 0.8-2.2 s that it glides to.
+function droneIdle() {
+  const D = drone;
+  if (!(D.wanderAt > clock)) { D.wx = (Math.random() * 2 - 1) * 10; D.wy = (Math.random() * 2 - 1) * 8; D.wanderAt = clock + 0.8 + Math.random() * 1.4; }
+  const side = player.x > W / 2 ? -1 : 1;
+  return [side * (24 + Math.sin(clock * 2.6) * 6) + Math.sin(clock * 1.1 + 1) * 4 + (D.wx || 0),
+          -20 + Math.sin(clock * 4.6) * 4 + Math.sin(clock * 1.7) * 2 + (D.wy || 0)];
+}
+function droneHover(dt) {
+  const D = drone, [tx, ty] = droneIdle(), k = Math.min(1, dt * 4), x0 = D.ox;
+  D.ox += (tx - D.ox) * k; D.oy += (ty - D.oy) * k; D.vx = (D.ox - x0) / Math.max(dt, 1e-3); D.mode = 'follow'; D.it = null; D.lock = null;
+}   // fixed per item, so a replay is the same
+function updateDrone(dt) {
+  const D = drone, cd = player.y + PILOT_CY;
+  let tx, ty;
+  if (D.lock && (D.lock.dead || D.lock.d < camY - 8)) D.lock = null;   // he took it himself (or it's gone)
+  if (!D.lock && D.mode !== 'fetch') {   // pick the next part or crystal coming up below him, once each
+    let best = null;
+    for (const it of items) if (!it.dead && !it.rolled && (it.kind === 'part' || it.kind === 'orb') && it.d > cd - 10 && it.d < cd + DRONE_AHEAD && (!best || it.d < best.d)) best = it;
+    if (best) { best.rolled = true; if (droneRoll(best)) { D.lock = best; Sfx.droneLock(); } }
+  }
+  if (D.mode === 'fetch') {
+    const it = D.it;
+    if (!it || it.dead || it.d < camY - 8) { if (it && !it.dead) Sfx.droneMiss(); D.mode = 'back'; D.it = null; }
+    else {
+      tx = it.x - player.x; ty = it.d - cd;
+      const dx = tx - D.ox, dy = ty - D.oy, n = Math.hypot(dx, dy), step = (DRONE_SPEED + player.v) * dt;
+      D.vx = dx / n * (DRONE_SPEED + player.v);
+      if (n <= step + 4) { D.ox = tx; D.oy = ty; collect(it); D.caught++; Sfx.droneGot(); sparks(it.x, it.d, [P.dust, '#7FF4E6', P.lite], 6); D.mode = 'back'; D.it = null; }
+      else { D.ox += dx / n * step; D.oy += dy / n * step; }
+      return;
+    }
+  }
+  if (player.hp < D.hp) Sfx.droneWorry();   // he was hit
+  D.hp = player.hp;
+  if (!(D.chatAt > clock)) { if (D.chatAt) Sfx.droneChat(); D.chatAt = clock + 7 + Math.random() * 9; }   // a babble every 7-16 s
+  [tx, ty] = droneIdle();
+  const k = Math.min(1, dt * (D.mode === 'back' ? 6 : 4)), x0 = D.ox;
+  D.ox += (tx - D.ox) * k; D.oy += (ty - D.oy) * k; D.vx = (D.ox - x0) / Math.max(dt, 1e-3);
+  if (D.mode === 'back' && Math.abs(tx - D.ox) < 3 && Math.abs(ty - D.oy) < 3) D.mode = 'follow';
+}
+// About 12 rectangles: a rounded steel body, a cyan eye that blinks, a rotor flickering above and a small thruster glow.
+function drawDrone(my) {
+  const x = Math.round(player.x + drone.ox), y = Math.round(my + PILOT_CY + drone.oy), f = Math.floor(clock * 30) % 2;
+  const tg = drone.mode === 'fetch' ? drone.it : drone.lock;
+  if (tg && !tg.dead) {
+    // Version 165: its sight, a dotted cyan line marching out to the target (one 2 x 1 rectangle every 5 px, about 50 at
+    // most), and four corner brackets round the target.
+    const ix = tg.x, iy = tg.d - camY - (player.y - camY - my) + Math.round(Math.sin(clock * 5 + tg.x) * 2), dx = ix - x, dy = iy - y, n = Math.hypot(dx, dy);
+    c.fillStyle = '#7FF4E6';
+    for (let s0 = 7 + (clock * 40) % 5; s0 < n - 12; s0 += 5) c.fillRect(Math.round(x + dx * s0 / n), Math.round(y + dy * s0 / n), 2, 1);
+    const bx = Math.round(ix), by = Math.round(iy), r = 12 + (Math.floor(clock * 4) % 2);
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { c.fillRect(bx + sx * r - (sx > 0 ? 3 : 0), by + sy * r, 4, 1); c.fillRect(bx + sx * r, by + sy * r - (sy > 0 ? 3 : 0), 1, 4); }
+  }
+  c.fillStyle = P.ink; c.fillRect(x - 6, y - 3, 13, 7); c.fillRect(x - 5, y - 4, 11, 9);
+  c.fillStyle = '#7D8794'; c.fillRect(x - 5, y - 3, 11, 7);
+  c.fillStyle = '#C4CCD6'; c.fillRect(x - 4, y - 3, 9, 2);
+  const look = Math.max(-2, Math.min(2, Math.round((drone.vx || 0) / 25)));   // version 166: the eye glances the way it's moving
+  c.fillStyle = Math.floor(clock * 1.5) % 4 ? '#7FF4E6' : P.ink; c.fillRect(x - 1 + look, y - 1, 3, 2);   // the eye, blinking
+  c.fillStyle = P.ink; c.fillRect(x, y - 7, 1, 3);
+  c.fillStyle = '#C4CCD6'; c.fillRect(f ? x - 5 : x - 2, y - 8, f ? 11 : 5, 1);   // the rotor
+  c.fillStyle = f ? P.hot : P.lava; c.fillRect(x - 1, y + 5, 3, 1 + f);
+}
 function collect(it) {
   it.dead = true;
   squash(-0.14);
@@ -7260,6 +7451,13 @@ function collect(it) {
       if (was < 1 && repair >= 1) {
         showCoach(navDone() ? 'SHIP REPAIRED! LAUNCH IT FROM THE MAIN MENU' : 'SHIP REPAIRED! NOW BUY THE NAV COMPUTER AT A CAFE', 3500); Sfx.repaired(); Buzz.shield();
         sparks(player.x, player.y + PILOT_CY, ['#F2C14E', '#FFFFFF', '#A9781B', P.hot], 40, 16);
+        // Version 160: repaired on a Hard Dive: the helper drone unlocks and joins him at once.
+        if (hardRun && !save.droneOpen) {
+          save.droneOpen = true; save.drone = true; save.droneNew = true; persist(); droneRun = true;
+          drone.ox = player.x > W / 2 ? -24 : 24; drone.oy = -60; drone.mode = 'back';
+          drone.hp = player.hp; drone.chatAt = clock + 6; setTimeout(() => Sfx.droneHello(), 900);
+          setTimeout(() => { if (state === 'play') showCoach('HELPER DRONE UNLOCKED!', 3000); }, 3700);
+        }
       }
     }
     fly('part', it.x, it.d, $('partsHud'), () => { $('partsRun').textContent = PARTS.reduce((n, q) => n + runParts[q.id], 0); }, pt);
@@ -8975,6 +9173,15 @@ function collide(prevX) {
   else ashHits(cd);
   for (const it of items) {
     if (!it.dead && Math.abs(it.d - cd) < 18 && Math.abs(it.x - player.x) < 17) collect(it);
+    else if (droneRun && !it.dead && it.d < cd - 18 && (it.kind === 'part' || it.kind === 'orb') && drone.mode !== 'fetch') {
+      // Gone past him uncollected: the drone dashes for it if it had locked on, or (if it was busy when this one came
+      // up) rolls for it now.
+      if (drone.lock === it) { drone.lock = null; drone.mode = 'fetch'; drone.it = it; Sfx.droneGo(); }
+      else if (!it.rolled && !drone.lock) {
+        it.rolled = true;
+        if (it.d > camY && droneRoll(it)) { drone.mode = 'fetch'; drone.it = it; Sfx.droneGo(); }
+      }
+    }
   }
 }
 // In-place filters for the per-frame lists, so no new arrays are made every frame.
@@ -9001,6 +9208,7 @@ function update(dt) {
   prune(particles, particleLive);
   if (state === 'launch') { updateLaunch(dt); return; }
   if (state === 'opening') { updateOpening(dt * introTimeScale()); return; }
+  if ((state === 'title' || state === 'intro') && droneShown()) droneHover(dt);   // version 165: by the ship, and in the run-up
   if (state === 'title' || state === 'over' || state === 'ended' || state === 'splash') return;
   if (state === 'intro') {
     introT += dt;
@@ -9078,6 +9286,7 @@ function update(dt) {
     }
     updateHazards(dt);
     collide(prevX);
+    if (droneRun) updateDrone(dt);
     if (bossShots.length) updateBossShots(dt, state === 'play');
     passFlags();
     if (speedRush > 0) speedRush = Math.max(0, speedRush - dt);
@@ -9202,6 +9411,7 @@ function render() {
       ring(player.x, my + PILOT_CY, Math.round(14 + 14 * (1 - a)), P.dust);
     }
     drawManSquashed(player.x + (state === 'dying' ? Math.round(Math.sin(clock * 40) * 2) : 0), my, player.pose, clock, player.thr);
+    if (droneShown() && ['title', 'intro', 'play', 'landing', 'cafe', 'cafeJump', 'dying', 'paused'].includes(state)) { const ga = c.globalAlpha; c.globalAlpha = 1; drawDrone(my); c.globalAlpha = ga; }
     if (state === 'launch' && launchT < REPAIR.done) drawRepairTools(my);
     c.globalAlpha = 1;
     if (state === 'landing') {
