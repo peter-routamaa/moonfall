@@ -907,7 +907,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 173;
+const VERSION = 174;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3464,6 +3464,8 @@ const Sfx = (() => {
   // overdrive), light static under it, and a longer squelch at the end. The recordings themselves are untouched; set
   // RADIO.on to false to hear them plain. RADIO.out keeps the filtered voice as loud as the plain one.
   const RADIO = { on: true, lo: 450, hi: 2800, mid: 5, drive: 4, hiss: 0.018, out: 0.376, lead: 0.09 };
+  // Version 174 (owner: "25% quieter ... a bit overpowering compared to the music"): every voice clip at 0.75.
+  const VOICE_LEVEL = 0.75;
   let radioCurve = null;
   const bq = (type, f, q, gain) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; if (gain !== undefined) b.gain.value = gain; return b; };
   function squelch(t, dur, level, out) {
@@ -3477,7 +3479,7 @@ const Sfx = (() => {
     if (!b) return false;
     const t = ctx.currentTime + (delay || 0), s = ctx.createBufferSource(), g = ctx.createGain();
     s.buffer = b; s.playbackRate.value = rate;
-    if (!RADIO.on) { g.gain.value = gain || 1.5; s.connect(g); g.connect(master); s.start(t); return true; }
+    if (!RADIO.on) { g.gain.value = (gain || 1.5) * VOICE_LEVEL; s.connect(g); g.connect(master); s.start(t); return true; }
     if (!radioCurve) {
       radioCurve = new Float32Array(1024);
       const k = Math.tanh(RADIO.drive);
@@ -3486,7 +3488,7 @@ const Sfx = (() => {
     const ws = ctx.createWaveShaper(), comp = ctx.createDynamicsCompressor();
     ws.curve = radioCurve; ws.oversample = '2x';
     comp.threshold.value = -18; comp.ratio.value = 4; comp.attack.value = 0.003; comp.release.value = 0.12;
-    g.gain.value = (gain || 1.5) * RADIO.out; g.connect(master);
+    g.gain.value = (gain || 1.5) * RADIO.out * VOICE_LEVEL; g.connect(master);
     const chain = [bq('highpass', RADIO.lo, 0.7), bq('highpass', RADIO.lo, 0.7), bq('peaking', 1700, 1, RADIO.mid), ws,
       bq('lowpass', RADIO.hi, 0.7), bq('lowpass', RADIO.hi, 0.7), comp, g];
     s.connect(chain[0]);
