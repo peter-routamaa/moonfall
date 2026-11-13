@@ -715,7 +715,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <p class="suit-note" id="hardNote"></p>
       <div class="suit-box hard-box">
         <button class="set-tog" id="droneT" type="button" aria-pressed="false" aria-label="Helper drone"><span>Helper drone</span></button>
-        <p class="hard-how">Falls with you and catches 1 in 4 of the ship parts and crystals you miss.</p>
+        <p class="hard-how">Falls with you and catches half of the ship parts and crystals you miss.</p>
       </div>
       <p class="suit-note" id="droneNote"></p>
       <button class="btn" id="unlocksDone" type="button">Done</button>
@@ -907,7 +907,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 164;
+const VERSION = 165;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3313,11 +3313,16 @@ const playerStart = () => ({
 });
 const player = { touch: false, ...playerStart() };
 // Version 160: the helper drone, unlocked by repairing the ship on a Hard Dive (save.droneOpen) and switched on the
-// Unlocks card (save.drone). It hovers beside the pilot and, for 1 in 4 of the ship parts and crystals that go past him
-// uncollected, darts up and catches it. Its place is kept relative to the pilot's middle (ox, oy) so it falls with him.
+// Unlocks card (save.drone). It hovers beside the pilot and catches ship parts and crystals that go past him. Its place
+// is kept relative to the pilot's middle (ox, oy) so it falls with him. Since version 165 (user: "up what the drone
+// collects to 50% ... a dotted line or a laser sight from the drone to a pickup that it's going to get") it picks its
+// target ahead of time: as a part or crystal comes up within DRONE_AHEAD px below him it rolls once (1 in 2) and, if
+// it's free, locks on, with a dotted cyan sight to it. If he takes it himself the lock just ends; if it goes past him,
+// the drone dashes along the sight and catches it. One lock at a time; an item that passes while it was busy gets its
+// roll then. It reaches across the whole shaft; the only limit is catching it before it leaves the top of the screen.
 let droneRun = false;
-const drone = { ox: 24, oy: -20, mode: 'follow', it: null, caught: 0 };
-const DRONE_CHANCE = 0.25, DRONE_SPEED = 720;   // the share of missed parts and crystals it goes for; its dash, px/s
+const drone = { ox: 24, oy: -20, mode: 'follow', it: null, lock: null, caught: 0 };
+const DRONE_CHANCE = 0.5, DRONE_SPEED = 720, DRONE_AHEAD = 220;   // share it goes for (0.25 until v165); dash px/s; lock range below him
 const droneOpen = () => !!save.droneOpen;
 let rocks = [], items = [], particles = [], nextSeg = 0, lastRockD = -999, lastShieldD = -9999, steerAcc = 0;
 // The shaft is generated SEG_LEN pixels at a time; the pilot's hitbox is HIT_HALF_W pixels either side of his middle.
@@ -3807,6 +3812,7 @@ const Sfx = (() => {
     ashGust() { noise(0.55, 'lowpass', 520, 0.4); noise(0.4, 'bandpass', 1700, 0.08, 0.04); tone('sine', 72, 44, 0.35, 0.16); },
     // The helper drone's voice (version 160, user: "add a little bit of personality ... beeps and boops"): little square
     // and sine chirps, quiet, under the game's own sounds.
+    droneLock() { tone('sine', 1400, 1400, 0.04, 0.02); tone('sine', 1870, 1870, 0.05, 0.02, 0.05); },   // version 165: locking on, "bip-bip"
     droneGo() { tone('square', 900, 1500, 0.07, 0.035); tone('sine', 1800, 2400, 0.06, 0.03, 0.05); },          // darting off: "bip-weee"
     droneGot() { tone('square', 1046, 1046, 0.06, 0.035); tone('square', 1568, 1568, 0.09, 0.035, 0.07); tone('sine', 2093, 2093, 0.08, 0.025, 0.15); },   // caught it: "boop-beep-bing"
     droneMiss() { tone('square', 700, 520, 0.12, 0.03); tone('square', 520, 330, 0.18, 0.03, 0.13); },           // too late: "bwoo-oo"
@@ -4744,7 +4750,7 @@ function resetRun() {
   rocks = []; items = []; particles = []; hazards = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; lastHazD = -9999; steerAcc = 0;
   for (const k in runParts) runParts[k] = 0;
   leviSeen.clear();
-  drone.ox = 24; drone.oy = -20; drone.mode = 'follow'; drone.it = null; drone.caught = 0; drone.hp = undefined; drone.chatAt = 0;
+  drone.ox = 24; drone.oy = -20; drone.mode = 'follow'; drone.it = null; drone.lock = null; drone.caught = 0; drone.hp = undefined; drone.chatAt = 0;
   $('partsRun').textContent = '0'; repair = repairFrac(); repairStart = repair; readyStart = canLaunch();
   Object.assign(player, playerStart());
   cafeVisited.clear(); cafeArt.clear(); signArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
@@ -7332,9 +7338,24 @@ const SHIELD_S = 8, SHIELD_MINE_CUT = 0.5, SHIELD_HIT_CUT = 0.25, CLOSE_PX = 10;
 let orbChain = 0, lastOrbT = -9;
 // The drone (version 160): hovering on the shaft's middle side of him, bobbing; dashing to a missed part or crystal and
 // catching it (as if he had); then back. It gives up on one that leaves the top of the screen.
+const droneRoll = it => hash(it.d * 0.37 + it.x * 1.3 + SEED) < DRONE_CHANCE;
+// Version 165 (user: "have it visible up at the surface by the crashed ship instead of just spawning in at the tunnel"):
+// once unlocked and switched on, it hovers by the pilot at the crash site on the main menu, drifting a little, and goes
+// with him on the run-up and the leap.
+const droneShown = () => state === 'title' ? !!save.drone && droneOpen() : droneRun;
+function droneHover(dt) {
+  const D = drone, tx = (player.x > W / 2 ? -1 : 1) * (24 + Math.sin(clock * 0.7) * 5), ty = -20 + Math.sin(clock * 3) * 3, k = Math.min(1, dt * 6);
+  D.ox += (tx - D.ox) * k; D.oy += (ty - D.oy) * k; D.mode = 'follow'; D.it = null; D.lock = null;
+}   // fixed per item, so a replay is the same
 function updateDrone(dt) {
   const D = drone, cd = player.y + PILOT_CY;
   let tx, ty;
+  if (D.lock && (D.lock.dead || D.lock.d < camY - 8)) D.lock = null;   // he took it himself (or it's gone)
+  if (!D.lock && D.mode !== 'fetch') {   // pick the next part or crystal coming up below him, once each
+    let best = null;
+    for (const it of items) if (!it.dead && !it.rolled && (it.kind === 'part' || it.kind === 'orb') && it.d > cd - 10 && it.d < cd + DRONE_AHEAD && (!best || it.d < best.d)) best = it;
+    if (best) { best.rolled = true; if (droneRoll(best)) { D.lock = best; Sfx.droneLock(); } }
+  }
   if (D.mode === 'fetch') {
     const it = D.it;
     if (!it || it.dead || it.d < camY - 8) { if (it && !it.dead) Sfx.droneMiss(); D.mode = 'back'; D.it = null; }
@@ -7358,6 +7379,16 @@ function updateDrone(dt) {
 // About 12 rectangles: a rounded steel body, a cyan eye that blinks, a rotor flickering above and a small thruster glow.
 function drawDrone(my) {
   const x = Math.round(player.x + drone.ox), y = Math.round(my + PILOT_CY + drone.oy), f = Math.floor(clock * 30) % 2;
+  const tg = drone.mode === 'fetch' ? drone.it : drone.lock;
+  if (tg && !tg.dead) {
+    // Version 165: its sight, a dotted cyan line marching out to the target (one 2 x 1 rectangle every 5 px, about 50 at
+    // most), and four corner brackets round the target.
+    const ix = tg.x, iy = tg.d - camY - (player.y - camY - my) + Math.round(Math.sin(clock * 5 + tg.x) * 2), dx = ix - x, dy = iy - y, n = Math.hypot(dx, dy);
+    c.fillStyle = '#7FF4E6';
+    for (let s0 = 7 + (clock * 40) % 5; s0 < n - 12; s0 += 5) c.fillRect(Math.round(x + dx * s0 / n), Math.round(y + dy * s0 / n), 2, 1);
+    const bx = Math.round(ix), by = Math.round(iy), r = 12 + (Math.floor(clock * 4) % 2);
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { c.fillRect(bx + sx * r - (sx > 0 ? 3 : 0), by + sy * r, 4, 1); c.fillRect(bx + sx * r, by + sy * r - (sy > 0 ? 3 : 0), 1, 4); }
+  }
   c.fillStyle = P.ink; c.fillRect(x - 6, y - 3, 13, 7); c.fillRect(x - 5, y - 4, 11, 9);
   c.fillStyle = '#7D8794'; c.fillRect(x - 5, y - 3, 11, 7);
   c.fillStyle = '#C4CCD6'; c.fillRect(x - 4, y - 3, 9, 2);
@@ -9108,10 +9139,14 @@ function collide(prevX) {
   else ashHits(cd);
   for (const it of items) {
     if (!it.dead && Math.abs(it.d - cd) < 18 && Math.abs(it.x - player.x) < 17) collect(it);
-    else if (droneRun && !it.dead && !it.rolled && it.d < cd - 18 && (it.kind === 'part' || it.kind === 'orb')) {
-      // Gone past him uncollected: 1 in 4 (fixed per item, so a replay is the same), the drone goes for it if it's free.
-      it.rolled = true;
-      if (drone.mode === 'follow' && it.d > camY && hash(it.d * 0.37 + it.x * 1.3 + SEED) < DRONE_CHANCE) { drone.mode = 'fetch'; drone.it = it; Sfx.droneGo(); }
+    else if (droneRun && !it.dead && it.d < cd - 18 && (it.kind === 'part' || it.kind === 'orb') && drone.mode !== 'fetch') {
+      // Gone past him uncollected: the drone dashes for it if it had locked on, or (if it was busy when this one came
+      // up) rolls for it now.
+      if (drone.lock === it) { drone.lock = null; drone.mode = 'fetch'; drone.it = it; Sfx.droneGo(); }
+      else if (!it.rolled && !drone.lock) {
+        it.rolled = true;
+        if (it.d > camY && droneRoll(it)) { drone.mode = 'fetch'; drone.it = it; Sfx.droneGo(); }
+      }
     }
   }
 }
@@ -9139,6 +9174,7 @@ function update(dt) {
   prune(particles, particleLive);
   if (state === 'launch') { updateLaunch(dt); return; }
   if (state === 'opening') { updateOpening(dt * introTimeScale()); return; }
+  if ((state === 'title' || state === 'intro') && droneShown()) droneHover(dt);   // version 165: by the ship, and in the run-up
   if (state === 'title' || state === 'over' || state === 'ended' || state === 'splash') return;
   if (state === 'intro') {
     introT += dt;
@@ -9341,7 +9377,7 @@ function render() {
       ring(player.x, my + PILOT_CY, Math.round(14 + 14 * (1 - a)), P.dust);
     }
     drawManSquashed(player.x + (state === 'dying' ? Math.round(Math.sin(clock * 40) * 2) : 0), my, player.pose, clock, player.thr);
-    if (droneRun && ['play', 'landing', 'cafe', 'cafeJump', 'dying', 'paused'].includes(state)) { const ga = c.globalAlpha; c.globalAlpha = 1; drawDrone(my); c.globalAlpha = ga; }
+    if (droneShown() && ['title', 'intro', 'play', 'landing', 'cafe', 'cafeJump', 'dying', 'paused'].includes(state)) { const ga = c.globalAlpha; c.globalAlpha = 1; drawDrone(my); c.globalAlpha = ga; }
     if (state === 'launch' && launchT < REPAIR.done) drawRepairTools(my);
     c.globalAlpha = 1;
     if (state === 'landing') {
