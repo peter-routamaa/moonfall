@@ -907,7 +907,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 162;
+const VERSION = 163;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -4717,7 +4717,9 @@ for (const id of ['sndT', 'sndP']) $(id).addEventListener('click', toggleSound);
 for (const id of ['vibT', 'vibP']) $(id).addEventListener('click', toggleVib);
 for (const id of ['fpsT', 'fpsP']) $(id).addEventListener('click', () => { save.fps = !save.fps; persist(); syncToggles(); });
 $('invT').addEventListener('click', () => { save.inv = !save.inv; persist(); syncToggles(); });
-$('hardT').addEventListener('click', () => { if (!hardOpen()) return; save.hard = !save.hard; persist(); syncToggles(); });
+// Version 163 (user): switching Hard dive on starts the mission over: the ship's parts and the crystals paid into the
+// nav computer go back to zero, after a pop-up that says so (askHard). Switching it off changes nothing else.
+$('hardT').addEventListener('click', () => { if (!hardOpen()) return; if (!save.hard) { askHard(); return; } save.hard = false; persist(); syncToggles(); });
 $('droneT').addEventListener('click', () => { if (!droneOpen()) return; save.drone = !save.drone; persist(); syncToggles(); });
 function toggleMusic() { save.mus = !save.mus; Sfx.init(); Music.setOn(); persist(); syncToggles(); }
 for (const id of ['musT', 'musP']) $(id).addEventListener('click', toggleMusic);
@@ -4986,8 +4988,32 @@ $('badgeDone').addEventListener('click', () => setCard(null));
 $('howBtn').addEventListener('click', () => setCard('how'));
 // Reset ship repair (Settings): two confirmations, the second sterner, before the parts are cleared.
 const confirmDlg = $('confirmDlg');
-let confirmStep = 0, resetTimer = 0;
+let confirmStep = 0, resetTimer = 0, confirmHard = false, confirmFrom = 'resetBtn';
+function clearRepair() {
+  for (const pt of PARTS) save.parts[pt.id] = 0;
+  save.dives = 0; save.nav = 0; missionsDone(); save.missionDone = false;   // the next finished mission counts (version 112)
+}
+function popConfirm() {
+  confirmDlg.classList.remove('pop-in'); void confirmDlg.offsetWidth; confirmDlg.classList.add('pop-in');
+  if (!confirmDlg.open) confirmDlg.showModal();
+  $('confirmNo').focus();
+}
+// Hard dive's pop-up (version 163): one question, red like the reset's second step. With nothing to lose (no parts, no
+// crystals paid) it just switches on.
+function askHard() {
+  const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), c = save.nav || 0;
+  if (!n && !c) { save.hard = true; persist(); syncToggles(); return; }
+  confirmHard = true; confirmFrom = 'hardT'; confirmStep = 0;
+  confirmDlg.classList.add('danger');
+  $('confirmTitle').textContent = 'Start a Hard dive?';
+  const lost = [n ? `your ${n} ship part${n === 1 ? '' : 's'}` : '', c ? `the ${c} crystal${c === 1 ? '' : 's'} paid into the nav computer` : ''].filter(Boolean).join(' and ');
+  $('confirmText').textContent = `Hard dive starts your mission over: ${lost} go${n + c === 1 && !(n && c) ? 'es' : ''} back to zero, and the ship repair to 0%. Your best depth, badges, suits and unlocks are kept.`;
+  $('confirmYes').hidden = false; $('confirmYes').textContent = 'Reset and go hard';
+  $('confirmNo').textContent = 'Cancel';
+  popConfirm();
+}
 function askReset(step) {
+  confirmHard = false; confirmFrom = 'resetBtn';
   const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0);
   confirmStep = n ? step : 0;
   confirmDlg.classList.toggle('danger', step === 2);
@@ -4998,22 +5024,22 @@ function askReset(step) {
   $('confirmYes').hidden = !n;
   $('confirmYes').textContent = step === 1 ? 'Reset' : 'Yes, reset to 0%';
   $('confirmNo').textContent = !n ? 'OK' : step === 1 ? 'Cancel' : 'Keep my parts';
-  confirmDlg.classList.remove('pop-in'); void confirmDlg.offsetWidth; confirmDlg.classList.add('pop-in');
-  if (!confirmDlg.open) confirmDlg.showModal();
-  $('confirmNo').focus();
+  popConfirm();
 }
 $('resetBtn').addEventListener('click', () => askReset(1));
 $('confirmNo').addEventListener('click', () => confirmDlg.close());
 $('confirmYes').addEventListener('click', () => {
+  if (confirmHard) {   // version 163: start the mission over, then Hard dive on
+    confirmDlg.close(); clearRepair(); save.hard = true; persist(); renderRepair(); syncToggles(); Sfx.bleep(330); return;
+  }
   if (confirmStep === 1) { askReset(2); return; }
   confirmDlg.close();
-  for (const pt of PARTS) save.parts[pt.id] = 0;
-  save.dives = 0; save.nav = 0; missionsDone(); save.missionDone = false;   // the next finished mission counts (version 112)
+  clearRepair();
   persist(); renderRepair();
   const b = $('resetBtn'); b.textContent = 'Repair reset to 0%';
   clearTimeout(resetTimer); resetTimer = setTimeout(() => (b.textContent = 'Reset ship repair'), 2500);
 });
-confirmDlg.addEventListener('close', () => $('resetBtn').focus({ preventScroll: true }));
+confirmDlg.addEventListener('close', () => { $(confirmFrom).focus({ preventScroll: true }); confirmHard = false; });
 $('settingsBtn').addEventListener('click', () => setCard('settings'));
 $('howDone').addEventListener('click', () => setCard(null));
 $('settingsDone').addEventListener('click', () => setCard(null));
