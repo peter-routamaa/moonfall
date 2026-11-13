@@ -912,7 +912,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 184;
+const VERSION = 185;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -2368,7 +2368,7 @@ function leviathans(cam) {
     const D = leviMark(k), A = leviDepth(k), sy = H / 2 + (A - mid) * LEVI_PARALLAX, dir = hash(k * 4.3 + SEED) < 0.5 ? 1 : -1, sx = W / 2 + dir * (mid - A) * 0.14;
     if (bossHides(k)) continue;
     const kind = leviKind(k);
-    if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(kind); leviMeet(k); }
+    if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(kind); Sfx.leviHello(); leviMeet(k); }
     if (state === 'play' && sy > -40 && sy < H + 40) near = true;
     if (cam < -H || sy < -220 || sy > H + 220) continue;
     const Q = palAt(D);   // its colour is worked out once per palette (version 129), not every frame
@@ -3429,7 +3429,8 @@ const VOICE_CLIPS = ['death1.mp3', 'moonland.mp3', 'byebye1.mp3', 'woohoo1.mp3',
   ...[...Array(16)].map((_, i) => 'hurt' + String(i + 1).padStart(2, '0') + '.mp3'),
   ...[1, 2, 3].map(i => 'lava' + i + '.mp3'), ...[1, 2, 3, 4].map(i => 'ohyeah' + i + '.mp3'),
   ...[1, 2].map(i => 'whoa' + i + '.mp3'), ...[1, 2, 3].map(i => 'yes' + i + '.mp3'),
-  'moondust.mp3', 'moonjungle.mp3', 'moonmachine.mp3', 'shaft.mp3'];   // version 176: the moon names and the jump into the shaft
+  'moondust.mp3', 'moonjungle.mp3', 'moonmachine.mp3', 'shaft.mp3',   // version 176: the moon names and the jump into the shaft
+  'coffee.mp3', 'eject.mp3', ...[1, 2, 3, 4, 5, 6].map(i => 'levi' + i + '.mp3')];   // version 185: the intro's coffee and eject, Leviathan hellos
 // Downloading needs no tap, so every clip is fetched now (about 260 KB in all) and waits as bytes for Sfx.init to decode.
 const fetchClip = f => fetch('voices/' + f).then(r => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)));
 const clipBytes = {};
@@ -3606,7 +3607,12 @@ const Sfx = (() => {
     // Version 176: the moon's name when one is picked (start screen or Settings); a quick change cuts the last one off.
     moonName(m) { if (moonVoice) moonVoice.stop(); moonVoice = clip('moon' + m, 0.04, 1, 1.8) || null; },
     // Version 176: the line as he jumps into the shaft after Jump in.
-    shaftLine() { clip('shaft', 0, 1, 1.8); },   // the voice still starts 0.3 s in, after the radio's squelch
+    shaftLine() { clip('shaft', 0, 1, 1.8); },
+    // Version 185: the intro's line as he lowers his coffee, his line as he ejects, and a hello (one of six takes) when a
+    // Leviathan appears, passing behind the rock or starting a fight; a little after its groan.
+    coffeeLine() { clip('coffee', 0, 1, 1.8); },
+    ejectLine() { clip('eject', 0.05, 1, 1.8); },
+    leviHello() { take('levi', 6, 0.35, 1.8); },   // the voice still starts 0.3 s in, after the radio's squelch
     impact() {
       noise(0.7, 'lowpass', 900, 1);
       tone('sine', 110, 30, 0.7, 0.8);
@@ -5946,6 +5952,7 @@ function updateOpening(dt) {
   if (crossedA(0.3)) Sfx.bleep(1320);
   if (crossedA(0.7)) Sfx.bleep(990);
   if (crossedA(3.5)) Sfx.bleep(880);
+  if (crossedA(3.0)) Sfx.coffeeLine();   // as the mug comes down from his sip (drawBridge: lowered by 3.6 s)
   if (crossedA(O.coffee)) Sfx.whoosh();
   for (const p of introFx) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.spin) p.a += p.spin * dt; }
   introFx = introFx.filter(p => p.t < p.life);
@@ -5978,7 +5985,7 @@ function updateOpening(dt) {
   }
   if (crossed(O.eject) && introShip) {
     introPilot = { x: introShip.x, y: introShip.y - 30, vx: -30, vy: -380, x0: 0, y0: 0 };
-    sparks(introShip.x, introShip.y - 10, [P.dust, P.hot, P.lava], 14); Sfx.eject();
+    sparks(introShip.x, introShip.y - 10, [P.dust, P.hot, P.lava], 14); Sfx.eject(); Sfx.ejectLine();
     cineStreaks.push({ x: introShip.x, wy: introShip.y - 6, t: 0, life: 0.5, len: 80, col: '#F6D46A' });
   }
   if (crossed(O.chute) && introPilot) { introPilot.x0 = introPilot.x; introPilot.y0 = introPilot.y; Sfx.chute(); }
@@ -7566,7 +7573,7 @@ function startBoss(B) {
     phase: 'enter', t: 0, pt: 0, x0, y0, x: x0, y: y0, next: 0.6, queue: [], charge: 0, last: '', orbs: 0, d: 0, sil: mix(palAt(A).sO, P.ink, 0.42) };
   bossShots.length = 0; bossFresh = true; stampAllow = 0;
   hud.classList.add('boss'); coach.classList.add('gone');
-  Sfx.groan(kind); Sfx.bossRoar(); Buzz.mine(); shake = Math.max(shake, 1.6);
+  Sfx.groan(kind); Sfx.bossRoar(); Sfx.leviHello(); Buzz.mine(); shake = Math.max(shake, 1.6);
   bossMusic(B); Music.heat(1);
 }
 // Which way it faces, as a horizontal scale: ±1 normally, passing through 0 while it turns round (it squashes and
