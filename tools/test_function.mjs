@@ -61,29 +61,33 @@ check('6 scores a minute per connection, then 429', burst.join(',') === '200,200
 
 // Play stats
 const P = '00112233aabbccdd', RUN = '1111222233334444';
-check('play ping', (await call('POST', { event: 'play', player: P, run: RUN, ver: 106, moon: 'jungle' }))[0] === 200, null);
+check('play ping', (await call('POST', { event: 'play', player: P, run: RUN, ver: 106, moon: 'jungle', hard: true, droneOpen: true, drone: false }))[0] === 200, null);
+check('hard and drone flags stored on the start ping', (r => r.hard === true && r.drone_open === true && r.drone === false)(db.plays.find(x => x.run === RUN)), db.plays);
 check('moon stored on the start ping', db.plays.find(x => x.run === RUN).moon === 'jungle', db.plays);
 check('version stored on the start ping', db.plays.find(x => x.run === RUN).ver === 106, db.plays);
 await call('POST', { event: 'play', player: P, run: RUN });
 check('repeat ping within 5 s ignored', db.plays.filter(x => x.player === P).length === 1, db.plays);
 check('bad player id refused', (await call('POST', { event: 'play', player: 'nope' }))[0] === 400, null);
 const end = { event: 'end', player: P, run: RUN, depth: 812, secs: 95, how: 'mine', orbs: 7, parts: 2, cafes: 0, initials: 'PJR',
-  fps: 89.67, worst: 41, device: 'phone', os: 'android', screen: '412x915@2.63', treats: ['Magnet', 'Bubble to go'], streak: 17, sound: true, music: false, repair: 53, intro: 'skipped', ver: 107, moon: 'dust' };
+  fps: 89.67, worst: 41, device: 'phone', os: 'android', screen: '412x915@2.63', treats: ['Magnet', 'Bubble to go'], streak: 17, sound: true, music: false, repair: 53, intro: 'skipped', ver: 107, moon: 'dust', hard: false, droneOpen: true, drone: true };
 check('end ping', (await call('POST', end))[0] === 200, null);
 await call('POST', { ...end, depth: 900, secs: 120, how: 'rock' });
 const row = db.plays.find(x => x.run === RUN);
 check('second end updates the same run', row.depth === 900 && row.how === 'rock' && db.plays.filter(x => x.run === RUN).length === 1, row);
-check('extras stored', row.fps === 89.7 && row.device === 'phone' && row.treats.join() === 'Magnet,Bubble to go' && row.intro === 'skipped' && row.repair === 53 && row.ver === 107 && row.moon === 'dust', row);
+check('extras stored', row.fps === 89.7 && row.device === 'phone' && row.treats.join() === 'Magnet,Bubble to go' && row.intro === 'skipped' && row.repair === 53 && row.ver === 107 && row.moon === 'dust' && row.hard === false && row.drone_open === true && row.drone === true, row);
 await call('POST', { ...end, run: '5555666677778888', depth: 40, how: 'left' });
 check('end without a start makes the row', !!db.plays.find(x => x.run === '5555666677778888'), db.plays);
 const { ver: _v, ...old } = end;
 await call('POST', { ...old, run: '9999aaaa9999bbbb' });
 check('older copies without a version still save', db.plays.find(x => x.run === '9999aaaa9999bbbb')?.ver === null, db.plays);
+const { hard: _h, droneOpen: _o, drone: _d, ...noFlags } = end;
+await call('POST', { ...noFlags, run: '9999cccc9999dddd' });
+check('older copies without hard/drone save them empty', (r => r && r.hard === null && r.drone_open === null && r.drone === null)(db.plays.find(x => x.run === '9999cccc9999dddd')), db.plays);
 check('bad how refused', (await call('POST', { ...end, how: 'boom' }))[0] === 400, null);
 check('bad run id refused', (await call('POST', { ...end, run: 'zz' }))[0] === 400, null);
-await call('POST', { ...end, run: '0000aaaa0000bbbb', fps: 'fast', device: 'fridge', screen: '<b>', treats: ['<x>'], repair: 140, intro: 'maybe', initials: 'ASS', ver: '106', moon: 'Jungle' });
+await call('POST', { ...end, run: '0000aaaa0000bbbb', fps: 'fast', device: 'fridge', screen: '<b>', treats: ['<x>'], repair: 140, intro: 'maybe', initials: 'ASS', ver: '106', moon: 'Jungle', hard: 'yes', droneOpen: 1, drone: 'on' });
 const junk = db.plays.find(x => x.run === '0000aaaa0000bbbb');
-check('junk extras stored as empty, run kept', junk.how === 'mine' && [junk.fps, junk.device, junk.screen, junk.treats, junk.repair, junk.intro, junk.initials, junk.ver, junk.moon].every(v => v === null), junk);
+check('junk extras stored as empty, run kept', junk.how === 'mine' && [junk.fps, junk.device, junk.screen, junk.treats, junk.repair, junk.intro, junk.initials, junk.ver, junk.moon, junk.hard, junk.drone_open, junk.drone].every(v => v === null), junk);
 
 console.log(failed ? `${failed} failed, ${passed} passed` : `all ${passed} checks passed`);
 process.exit(failed ? 1 : 0);
