@@ -76,6 +76,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     }
     if (q.get('kid')) {   // version 197: Kid mode on (mines at 50%) through its real slider, then back to the menu
       const g = id => document.getElementById(id); g('settingsBtn').click(); await wait(600); g('kidBtn').click(); await wait(600);
+      M.save.kidBest = M.save.kidBest || 1420;   // so the menu's KID BEST has a number
       for (const [id, v] of [['kidMines', 50], ['kidHp', 150]]) { g(id).value = v; g(id).dispatchEvent(new Event('input')); }
       if (q.get('card') !== 'kid') { g('kidDone').click(); await wait(600); g('settingsDone').click(); await wait(800); }
     }
@@ -147,9 +148,14 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     document.title = 'ready'; return;
   }
   if (q.get('scene') === 'board') {   // the high score table: escaped, not escaped, and an old score with no answer
+    if (window.__board) {   // shot-board.html: a pretend online top 10 for both boards (version 201)
+      const B = window.__board, add = (initials, depth, escaped, moon, kid) => B.rows.push({ id: B.next++, initials, depth, escaped, moon, kid });
+      [['ZAK', 6120, true, 'machine'], ['PJR', 5480, true, 'jungle'], ['ELI', 4310, false, 'dust'], ['ABC', 3990, true, 'dust'], ['NOA', 3150, false, 'machine'], ['SAM', 2760, false, 'jungle'], ['MIA', 2205, false, 'dust'], ['TOM', 1840, false, 'jungle'], ['ANA', 1310, false, 'dust'], ['JON', 960, false, 'machine']].forEach(r => add(...r, false));
+      [['LEO', 2140, false, 'jungle'], ['MIA', 1420, false, 'dust'], ['ISA', 1180, false, 'machine'], ['BEN', 730, false, 'dust'], ['EVA', 410, false, 'jungle']].forEach(r => add(...r, true));
+    }
     if (q.get('kid')) { M.save.kidScores = [{ i: 'MIA', m: 1420, e: false, o: 'jungle' }, { i: 'LEO', m: 880, e: false, o: 'dust' }]; M.save.kid = { mines: 50 }; document.getElementById('bestBtn').click(); await wait(400); document.title = 'ready'; return; }   // version 197: the Kid mode board
     M.save.scores = [{ i: 'PJR', m: 3120, e: true, o: 'jungle' }, { i: 'ABC', m: 2405, e: false, o: 'dust' }, { i: 'OLD', m: 1810 }, { i: 'MIA', m: 960, e: true, o: 'dust' }];
-    document.getElementById('hsEntry').hidden = true; M.openTable(); M.showScreen('score'); await wait(400); document.title = 'ready'; return;
+    document.getElementById('hsEntry').hidden = true; M.openTable(); M.showScreen('score'); await wait(400); if (window.__board) { M.openTable(); await wait(400); } document.title = 'ready'; return;   // a second openTable draws the loaded online board (this scene doesn't set scoreOpen)
   }
   if (q.get('scene') === 'pause') { for (let i = 0; i < 150; i++) M.update(1 / 60); M.render(); document.getElementById('pauseBtn').click(); await wait(300); document.title = 'ready'; return; }
   for (let i = 0; i < 150; i++) M.update(1 / 60);
@@ -229,6 +235,8 @@ if __name__ == '__main__':
     }
     local = pages['test.html']
     pages['shot.html'] = local[:local.rindex('</body>')] + SHOT + '</body></html>'
+    # The same scenes with the pretend online board (version 201): frame.html?page=shot-board.html&scene=board[&kid=1]
+    pages['shot-board.html'] = pages['test-board.html'][:pages['test-board.html'].rindex('</body>')] + SHOT + '</body></html>'
     shutil.copytree(os.path.join(ROOT, 'src', 'voices'), os.path.join(OUT, 'voices'), dirs_exist_ok=True)
     for name, html in pages.items():
         open(os.path.join(OUT, name), 'w').write(html)
