@@ -729,7 +729,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       </div>
       <p class="suit-note" id="suitNote"></p>
       <div class="suit-box hard-box">
-        <button class="set-tog" id="hardT" type="button" aria-pressed="false" aria-label="Hard Dive"><span>Hard Dive</span></button>
+        <button class="set-tog" id="hardT" type="button" aria-pressed="false" aria-label="Terminal Velocity"><span>Terminal<br>Velocity</span></button>
         <p class="hard-how">Start with 4 health and fall 15% faster. Leviathans rage from the start.</p>
       </div>
       <p class="suit-note" id="hardNote"></p>
@@ -745,7 +745,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <ul class="news-list">
         <li><button class="news-item" id="newsLevi" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#C64B3B" d="M2 0h4v1h-4zM1 1h6v1h-6zM0 2h8v3h-8zM1 5h6v1h-6zM2 6h4v1h-4z"/><path fill="#F2C14E" d="M3 2h2v3h-2z"/><path fill="#1A1E2C" d="M3 3h1v1h-1z"/></svg></span><span class="news-name">Leviathan chases</span><span class="news-how">Giant creatures hunt you after every second cafe. Tap to meet them!</span></button></li>
         <li><button class="news-item" id="newsMoons" type="button"><span class="news-ico"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><svg class="moon-ico machine" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg></span><span class="news-name">The new moons</span><span class="news-how">Fall into the Dust moon, the Jungle moon or the Machine moon. Swap any time in Settings. Tap to learn more.</span></button></li>
-        <li><button class="news-item" id="newsHard" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#E8B83A" d="M0 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1zM3 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1z"/></svg></span><span class="news-name">Hard Dive</span><span class="news-how">Fix the ship once to earn it: 4 health, 15% faster and raging Leviathans. Tap to see Unlocks.</span></button></li>
+        <li><button class="news-item" id="newsHard" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#E8B83A" d="M0 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1zM3 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1z"/></svg></span><span class="news-name">Terminal Velocity</span><span class="news-how">Fix the ship once to earn it: 4 health, 15% faster and raging Leviathans. Tap to see Unlocks.</span></button></li>
       </ul>
       <button class="btn" id="newsDone" type="button">Done</button>
      </div>
@@ -927,7 +927,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 166;
+const VERSION = 171;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -1171,8 +1171,9 @@ function drawFlame(nx, ny, dir, k) {
     if (u < 0.35) { c.fillStyle = P.dust; c.fillRect(x, ny, 1, 1); }
   }
 }
-// -- suits (version 112, idea 13): one more colour unlocks with each finished mission (save.missionsDone); picked in
-// Settings (save.suit). The suit is the w pixels (and their s shading) of the pilot's sprites.
+// -- suits (version 112, idea 13): picked on the Unlocks card (save.suit). Until version 171 one more colour unlocked
+// with each finished mission; since then (user: "have all the suit colours unlock once the game is beaten a single
+// time") every colour unlocks with the first finished mission (save.missionsDone). The suit is the w pixels (and their s shading) of the pilot's sprites.
 const SUITS = [
   ['Moon Dust', P.dust, P.shade], ['Signal Red', '#E86A5C', mix(P.lava, P.ink, 0.35)], ['Gold', '#F2C14E', '#A9781B'],
   ['Mint', '#A6EBB9', '#1F7F45'], ['Amethyst', '#CDB6F5', '#5B3AA8'],
@@ -1182,7 +1183,7 @@ function missionsDone() {
   if (save.missionsDone === undefined) { save.missionsDone = save.launches || 0; save.missionDone = save.missionsDone > 0 && canLaunch(); persist(); }
   return save.missionsDone;
 }
-const suitsOpen = () => Math.min(SUITS.length, 1 + missionsDone());
+const suitsOpen = () => missionsDone() > 0 ? SUITS.length : 1;
 const suitMap = () => suitMaps[Math.min(save.suit || 0, suitsOpen() - 1)] || MAP;
 function drawMan(x, y, pose, t, thr) {
   const f = Math.floor(t * 6) % 2,
@@ -4716,7 +4717,7 @@ function syncToggles() {
   // Hard Dive and suits (version 112): unlocked by finishing missions
   const open = suitsOpen(), ht = $('hardT'), cur = Math.min(save.suit || 0, open - 1);
   ht.disabled = !hardOpen(); ht.setAttribute('aria-pressed', String(!!save.hard && hardOpen()));
-  ht.setAttribute('aria-label', hardOpen() ? 'Hard Dive' : 'Hard Dive, locked until the ship is fixed');
+  ht.setAttribute('aria-label', hardOpen() ? 'Terminal Velocity' : 'Terminal Velocity, locked until the ship is fixed');
   const row = $('suitRow');
   if (row.children.length < SUITS.length) SUITS.forEach(([name, w, sh], i) => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'suit-sw'; b.style.setProperty('--sw', w); b.style.setProperty('--sh', sh);
@@ -4728,12 +4729,12 @@ function syncToggles() {
     b.setAttribute('aria-label', SUITS[i][0] + (i >= open ? ', locked' : ''));
   });
   $('suitName').textContent = SUITS[cur][0];
-  $('suitNote').textContent = open < SUITS.length ? 'Fix the ship to unlock ' + (open === 1 ? 'more' : 'the next') : '';
-  $('hardNote').textContent = hardOpen() ? '' : 'Fix the ship to unlock Hard Dive';
+  $('suitNote').textContent = open < SUITS.length ? 'Fix the ship once to unlock every colour' : '';   // version 171
+  $('hardNote').textContent = hardOpen() ? '' : 'Fix the ship to unlock Terminal Velocity';
   const dt = $('droneT');   // version 160
   dt.disabled = !droneOpen(); dt.setAttribute('aria-pressed', String(!!save.drone && droneOpen()));
-  dt.setAttribute('aria-label', droneOpen() ? 'Helper drone' : 'Helper drone, locked until the ship is repaired on a Hard Dive');
-  $('droneNote').textContent = droneOpen() ? '' : 'Repair the ship on a Hard Dive to unlock the drone';
+  dt.setAttribute('aria-label', droneOpen() ? 'Helper drone' : 'Helper drone, locked until the ship is repaired on Terminal Velocity');
+  $('droneNote').textContent = droneOpen() ? '' : 'Repair the ship on Terminal Velocity to unlock the drone';
   $('buzzNote').hidden = Buzz.canVibrate || !save.vib;
   $('bestTitle').textContent = fmtM(save.best) + ' m'; $('bestPause').textContent = fmtM(save.best) + ' m';
 }
@@ -5031,10 +5032,10 @@ function askHard() {
   if (!n && !c) { save.hard = true; persist(); syncToggles(); return; }
   confirmHard = true; confirmFrom = 'hardT'; confirmStep = 0;
   confirmDlg.classList.add('danger');
-  $('confirmTitle').textContent = 'Start a Hard Dive?';
+  $('confirmTitle').textContent = 'Go Terminal Velocity?';
   const lost = [n ? `your ${n} ship part${n === 1 ? '' : 's'}` : '', c ? `the ${c} crystal${c === 1 ? '' : 's'} paid into the nav computer` : ''].filter(Boolean).join(' and ');
-  $('confirmText').textContent = `Hard Dive starts your mission over: ${lost} go${n + c === 1 && !(n && c) ? 'es' : ''} back to zero, and the ship repair to 0%. Your best depth, badges, suits and unlocks are kept.` +
-    (droneOpen() ? '' : ' Repair the ship on a Hard Dive and you unlock the helper drone as a reward!');   // version 164 (user)
+  $('confirmText').textContent = `Terminal Velocity starts your mission over: ${lost} go${n + c === 1 && !(n && c) ? 'es' : ''} back to zero, and the ship repair to 0%. Your best depth, badges, suits and unlocks are kept.` +
+    (droneOpen() ? '' : ' Repair the ship on Terminal Velocity and you unlock the helper drone as a reward!');   // version 164 (user)
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Reset and go hard';
   $('confirmNo').textContent = 'Cancel';
   popConfirm();
@@ -5114,6 +5115,8 @@ function endRun(how) {
 // health, falls HARD_SPEED faster all the way down, and the Leviathans are enraged from the start. (Until version 159 it
 // also had 50% more crystals; the user: "doesn't exactly make the game harder".) Switched on the Unlocks card since
 // version 158 (save.hard); fixed for the whole run (hardRun).
+// Version 170 (user): on screen it's called **Terminal Velocity** (was "Hard dive", then "Hard Dive"); in the code it
+// stays hard / hardRun / HARD_SPEED / save.hard, so saved settings carry over.
 const HARD_SPEED = 1.15, hardOpen = () => missionsDone() > 0;
 function startRun(quick) {
   hardRun = !!save.hard && hardOpen();
@@ -5136,7 +5139,7 @@ function beginPlay() {
     renderTarget();
   } player.v = speedAt(player.y); player.aim = player.x; player.vx = 0; steerAcc = 0; tapBurst.l = tapBurst.r = 0;
   showCoach('TAP A SIDE, OR DRAG', 2600);
-  if (hardRun) pop('HARD DIVE', player.x, player.y - 30, 'bad');
+  if (hardRun) pop('TERMINAL VELOCITY', player.x, player.y - 30, 'bad');
 }
 function pause() {
   if (!['play', 'intro', 'landing', 'cafe', 'cafeJump'].includes(state)) return;
@@ -5182,7 +5185,7 @@ function gameOver() {
   // Run highlights (version 108), one per line, the rarest first; at most four, then the treats.
   const leviName = k => LEVI_INFO.find(x => x[0] === k)[1], nb = player.newBadges;
   const lines = [
-    hardRun ? '<b>Hard Dive</b>' : '',
+    hardRun ? '<b>Terminal Velocity</b>' : '',
     nb.length ? 'New badge' + (nb.length > 1 ? 's' : '') + ': <b>' + nb.join(', ') + '</b>' : '',
     player.leviRun.length ? 'Beat <b>' + player.leviRun.map(leviName).join(', ') + '</b>' : '',
     cafesRun ? 'Cafes visited <b>' + cafesRun + '</b>' + (cafesRun && !player.hits ? ', no hits' : '') : '',
@@ -6641,7 +6644,7 @@ function showEnd() {
   if (!save.missionDone) { save.missionsDone = missionsDone() + 1; save.missionDone = true; }
   save.launches = (save.launches || 0) + 1; persist();
   const lines = [];
-  if (suitsOpen() > before) lines.push('New suit: ' + SUITS[suitsOpen() - 1][0] + (save.missionsDone === 1 ? '. Hard Dive unlocked too!' : ''));
+  if (suitsOpen() > before) lines.push('Every suit colour unlocked' + (save.missionsDone === 1 ? ', and Terminal Velocity too!' : '!'));   // version 171
   if (save.droneNew) { lines.push('Helper drone unlocked!'); save.droneNew = false; persist(); }   // version 160
   $('eUnlock').textContent = lines.length ? lines.join(' ') + ' (Unlocks)' : '';   // "(Unlocks)" since version 160 (they moved off Settings)
   $('eUnlock').hidden = !$('eUnlock').textContent;
