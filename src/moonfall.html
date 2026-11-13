@@ -907,7 +907,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 177;
+const VERSION = 178;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3908,6 +3908,15 @@ const Music = (() => {
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
     o.connect(g); g.connect(muff); o.start(t); o.stop(t + 0.18);
   }
+  // The menu's Jungle shaker (version 178, owner: it "makes a ticking or clicking sound ... like the speakers are
+  // clipping"): until then a 25 ms burst of noise above 7 kHz that started at full volume, twice a beat, which a phone
+  // speaker turns into ticks. Now a "shh": a 6 ms fade in, a narrower band around 5.5 kHz and a 45 ms tail.
+  function shaker(t) {
+    const { ctx, noiseBuf } = A, s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    s.buffer = noiseBuf; f.type = 'bandpass'; f.frequency.value = 5500; f.Q.value = 1.2;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.022, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    s.connect(f); f.connect(g); g.connect(muff); s.start(t, Math.random() * 0.5); s.stop(t + 0.07);
+  }
   // Title loop: the same chords, softer and slower, with no drums.
   function titleStep(bar, i, s, t) {
     if (i === 0) pad(CH[bar], t, 240 / bpm);
@@ -3915,7 +3924,7 @@ const Music = (() => {
     if (i % 2 === 0) osc('triangle', mtof(ARP[bar][(i / 2) % 4]), t, 0.3, 0.035, 0.004, 0, true);
     if (i % 4 === 2) hit(t, 0.03, 'highpass', 8000, 0.02);
     if (Math.floor(s / 64) % 2 === 1 && MEL[bar][i]) glock(MEL[bar][i], t, 0.06);
-    if (moon === 'jungle') { if (i % 2 === 1) hit(t, 0.025, 'highpass', 7000, 0.015); if (i === 6 || i === 14) bongo(t, 330, 0.06); }   // a soft shaker and hand drum
+    if (moon === 'jungle') { if (i % 2 === 1) shaker(t); if (i === 6 || i === 14) bongo(t, 330, 0.06); }   // a soft shaker and hand drum
     if (moon === 'machine' && (i === 6 || i === 14)) hit(t, 0.05, 'bandpass', 2600, 0.03);   // a distant clank
   }
   // Start screen (version 120, user: "when I'm picking between Dust Moon and Jungle Moon, there's no music"): a slow,
