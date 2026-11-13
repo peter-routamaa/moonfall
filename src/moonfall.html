@@ -71,6 +71,8 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .flip .back { transform: rotateY(180deg); }
 .set-note { margin: -6px 0 0; font-size: 20px; line-height: 1.1; color: var(--dust-dim); }
 .set-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.set-list .cap-tog { grid-column: 1 / -1; order: 1; }   /* version 208: the 7th tile, full width under the others */
+.set-list .kid-tog { order: 0; }
 /* Each toggle is a small tile: the name on top, ON/OFF underneath. The badge is one fixed width,
    so flipping a toggle never changes its size (or the card's). */
 /* Settings toggles (restyled in version 84): the name, one word per line, with the ON/OFF badge at the top right beside
@@ -745,6 +747,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <button class="set-tog" id="vibT" type="button" aria-pressed="true" aria-label="Vibration"><span>Vibration</span></button>
         <button class="set-tog" id="fpsT" type="button" aria-pressed="false" aria-label="Display FPS"><span>Display<br>FPS</span></button>
         <button class="set-tog" id="invT" type="button" aria-pressed="false" aria-label="Invert thruster controls"><span>Invert<br>thruster<br>controls</span></button>
+        <button class="set-tog cap-tog" id="capT" type="button" aria-pressed="true" aria-label="Cap at 60 FPS"><span>Cap at 60 FPS</span></button>
         <button class="set-tog kid-tog" id="kidBtn" type="button" data-on="false" aria-haspopup="true" aria-label="Kid mode, off"><span>Kid<br>mode</span></button>
       </div>
       <div class="suit-row moon-row" role="group" aria-label="Moon"><span>MOON</span>
@@ -998,7 +1001,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 207;
+const VERSION = 208;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3480,7 +3483,7 @@ function speedAt(d) {
 }
 
 // ---------- saved settings ----------
-const save = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false, hints: {} };
+const save = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false, cap: true, hints: {} };   // cap: the 60 FPS cap (version 208, on unless switched off)
 try { Object.assign(save, JSON.parse(localStorage.getItem('moonfall.v1') || '{}')); } catch (e) {}
 save.parts = Object.assign({ plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 }, save.parts);
 const repairFrac = () => PARTS.reduce((sum, pt) => sum + Math.min(1, save.parts[pt.id] / pt.need), 0) / PARTS.length;
@@ -4768,6 +4771,7 @@ function syncToggles() {
   for (const id of ['fpsT', 'fpsP']) $(id).setAttribute('aria-pressed', String(save.fps));
   $('fps').hidden = !save.fps;
   $('invT').setAttribute('aria-pressed', String(!!save.inv));
+  $('capT').setAttribute('aria-pressed', String(save.cap !== false));
   // Hard Dive and suits (version 112): unlocked by finishing missions
   const open = suitsOpen(), ht = $('hardT'), cur = Math.min(save.suit || 0, open - 1);
   ht.disabled = !hardOpen(); ht.setAttribute('aria-pressed', String(!!save.hard && hardOpen()));
@@ -4803,6 +4807,7 @@ function toggleVib() { save.vib = !save.vib; persist(); syncToggles(); if (save.
 for (const id of ['sndT', 'sndP']) $(id).addEventListener('click', toggleSound);
 for (const id of ['vibT', 'vibP']) $(id).addEventListener('click', toggleVib);
 for (const id of ['fpsT', 'fpsP']) $(id).addEventListener('click', () => { save.fps = !save.fps; persist(); syncToggles(); });
+$('capT').addEventListener('click', () => { save.cap = save.cap === false; persist(); syncToggles(); });   // version 208
 $('invT').addEventListener('click', () => { save.inv = !save.inv; persist(); syncToggles(); });
 // Version 163 (user): switching Hard Dive on starts the mission over: the ship's parts and the crystals paid into the
 // nav computer go back to zero, after a pop-up that says so (askHard). Switching it off changes nothing else.
@@ -5199,8 +5204,11 @@ function runSmooth() {
   let n = 0, seen = 0, q = 0, cn = 0, cms = 0;
   for (let i = 0; i <= 100; i++) n += runGapN[i];
   if (n < 120) return { hz: null, fpsFight: null, slowPct: null };
-  while (q < 100 && seen + runGapN[q] < n * 0.1) seen += runGapN[q++];   // q: the ms the quickest tenth ends in
-  for (let i = 0; i <= 100 && i + 0.5 <= 1.5 * (q + 0.5); i++) { cn += runGapN[i]; cms += runGapMs[i]; }
+  // Version 208: hz from every refresh (refGapN), not the frames drawn, which the 60 FPS cap halves on a 120 Hz screen.
+  let rn = 0; for (let i = 0; i <= 100; i++) rn += refGapN[i];
+  const G = rn >= 120 ? refGapN : runGapN, GM = rn >= 120 ? refGapMs : runGapMs, gn = rn >= 120 ? rn : n;
+  while (q < 100 && seen + G[q] < gn * 0.1) seen += G[q++];   // q: the ms the quickest tenth ends in
+  for (let i = 0; i <= 100 && i + 0.5 <= 1.5 * (q + 0.5); i++) { cn += G[i]; cms += GM[i]; }
   const hz = Math.round(1000 * cn / cms);
   return { hz: hz >= 20 && hz <= 500 ? hz : null, fpsFight: fightRaw >= 1 ? Math.round(fightFrames / fightRaw * 10) / 10 : null, slowPct: Math.round(1000 * runStutter / n) / 10 };
 }
@@ -5217,7 +5225,7 @@ function statPing(body) {
 function countPlay() {
   if (!/^[0-9a-f]{16}$/.test(save.playerId || '')) { save.playerId = hex16(); persist(); }
   runId = hex16(); runSecs = 0; cafesRun = 0; lastHit = ''; fasterN = 0; runFrames = 0; runRaw = 0; runWorst = 0; runPauses = 0;
-  runGapN.fill(0); runGapMs.fill(0); fightFrames = 0; fightRaw = 0; runStutter = 0; gapA = gapB = gapC = 0;
+  runGapN.fill(0); runGapMs.fill(0); refGapN.fill(0); refGapMs.fill(0); fightFrames = 0; fightRaw = 0; runStutter = 0; gapA = gapB = gapC = 0;
   if (!introDone) { introDone = true; introRun = runId; }
   statPing({ event: 'play', player: save.playerId, run: runId, ver: VERSION, moon, ...runFlags() });
 }
@@ -9821,7 +9829,23 @@ function resize() {
 let last = performance.now();
 // Frame meter: frames per second, average time spent on game code and drawing, and the slowest frame.
 const meter = { n: 0, time: 0, cpu: 0, worst: 0 };
+// Version 208: the 60 FPS cap (user: "Could we cap the maximum frame rate at 60? ... it's the fluctuations from 60 to 80
+// to 100 down to 60 that I perceive as a stutter"). Phones that run their screens at 120 drop to 60 when not touched
+// and go back up when touched, and the game drew a frame on every refresh, so its pace changed with every touch. With
+// the cap (Settings, on by default) a frame is only drawn when CAP_MS have passed since the last one: every other
+// refresh at 120 Hz (60 a second), every second at 144 (72), every fourth at 240 (60), every one at 60. Screens slower
+// than CAP_FAST_MS a refresh (90 and 100 Hz) are left alone: they can't show 60 evenly (frames would be held for 2, 1, 2,
+// 1 refreshes), and the cap would halve them to 45. refMs: the screen's refresh time, a running average of the gaps
+// between every callback, drawn or skipped; refN/refMs histogram them for the run stats' hz (see runSmooth).
+const CAP_MS = 12.7, CAP_FAST_MS = 9.5;
+let lastCb = performance.now(), refAvg = 16.7;
+const refGapN = new Uint32Array(101), refGapMs = new Float64Array(101);
 function frame(now) {
+  const cb = now - lastCb; lastCb = now;
+  if (cb > 0 && cb < 40) refAvg += (cb - refAvg) * (cb < refAvg ? 0.4 : 0.08);   // quick to see a faster screen (a touch), slow to give it up
+  if (runId && cb > 0 && cb < 100 && state !== 'paused') { const i = cb | 0; refGapN[i]++; refGapMs[i] += cb; }
+  if (perfOn && perf.cur !== 255 && cb > 0 && cb < 100) { perf.cbs = (perf.cbs || 0) + 1; perf.cbMs = (perf.cbMs || 0) + cb; if (cb < (perf.cbMin || 1e9)) perf.cbMin = cb; }   // the self-test's refreshes
+  if (save.cap !== false && refAvg < CAP_FAST_MS && now - last < CAP_MS) { requestAnimationFrame(frame); return; }
   const raw = Math.max(0, (now - last) / 1000), dt = Math.min(0.05, raw); last = now;
   stampAllow = boss ? 0 : 1;   // a fight makes no images, and nothing makes more than one a frame (see disc)
   if (state !== 'paused') {
@@ -9923,7 +9947,9 @@ function perfReport() {
   const os = OS === 'android' ? 'android ' + ver(/Android (\d+)/) : OS === 'ios' ? 'ios ' + ver(/OS (\d+)_/) : OS;
   const out = ['MOONFALL v0.' + VERSION + ' SELF-TEST  ' + moon + ' / ' + p.kind,
     os + '  ' + browser + '  ' + screen.width + 'x' + screen.height + '@' + Math.round(devicePixelRatio * 100) / 100 + '  game ' + W + 'x' + H,
-    'screen about ' + Math.round(1000 / base) + ' Hz (' + base.toFixed(1) + ' ms a frame)', '',
+    'screen about ' + Math.round(1000 / base) + ' Hz (' + base.toFixed(1) + ' ms a frame)',
+    // version 208: with the 60 FPS cap on, 'screen' above is the drawing pace; this is how many refreshes there were
+    '60 FPS cap ' + (save.cap !== false ? 'on' : 'off') + ': drew ' + N + ' of ' + (p.cbs || 0) + ' refreshes', '',
     'SCENE       FRAMES  FPS SCRIPT   P95 WORST'], split = ['', 'FRAMES THAT TOOK  1    2    3   4+ SCREEN FRAMES'];
   let allGap = 0, allCpu = 0;
   PERF_SCENES.forEach((name, s) => {
