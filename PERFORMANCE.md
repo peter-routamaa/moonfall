@@ -230,7 +230,14 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
    real difference. `tools/same_pixels.py` likewise reports the same moments even for a build against itself (4 at version 129, 8 at
    version 178: later, cafe, shop, leftCafe, dead, launch1 twice, launch2), so run it on the old build against itself
    first and look for anything extra.
-7. **On a phone.** None of the above says how it feels. The game sends each run's average frame rate and worst frame
+7. **On a phone: the self-test** (version 184). Add `?perf=1` to the game's address (`?perf=crab` picks the Leviathan),
+   or tap the version number on the menu five times (the way in on the claude.ai copy). The game plays itself for about
+   a minute (a fall from 400 m with two blasts, the first cafe, a whole fight; the next of the moon's six Leviathans
+   each time) and ends on a card to copy or screenshot: per scene, frames a second, the ms of the game's own code a
+   frame, the longest frame, and how many frames took 1, 2, 3 or more of the screen's refreshes. **A frame that took
+   long while the code ran briefly was held up by the drawing (the graphics side), not the code.** Nothing is saved,
+   sent or awarded while it runs. It runs on the real frame loop, so not in a hidden tab and not headless.
+8. **On a phone, afterwards.** None of the above says how it feels. The game sends each run's average frame rate and worst frame
    with its version, device and moon: after a release, compare those for the new version with the one before.
 
 ## Before publishing a heavy change: checklist
