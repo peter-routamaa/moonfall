@@ -994,7 +994,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 202;
+const VERSION = 203;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -4782,7 +4782,7 @@ function syncToggles() {
   const dt = $('droneT');   // version 160
   dt.disabled = !droneOpen(); dt.setAttribute('aria-pressed', String(!!save.drone && droneOpen()));
   dt.setAttribute('aria-label', droneOpen() ? 'Helper drone' : 'Helper drone, locked until the ship is repaired on Terminal Velocity');
-  $('droneNote').textContent = droneOpen() ? 'Unlocked by repairing the ship on Terminal Velocity' : 'Repair the ship on Terminal Velocity to unlock the drone';
+  $('droneNote').textContent = droneOpen() ? 'Unlocked by repairing the ship on Terminal Velocity mode' : 'Repair the ship on Terminal Velocity mode to unlock the drone';   // "mode" since version 203 (user)
   $('buzzNote').hidden = Buzz.canVibrate || !save.vib;
   // Version 181 (user: the "m" is "a bit difficult to read"): the main menu's BEST uses a drawn pixel m as tall as the
   // digits (M_ICON), like the percent sign on the speed-up banner.
