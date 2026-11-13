@@ -907,7 +907,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 175;
+const VERSION = 176;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3390,7 +3390,8 @@ const MOON_BLEEP = { dust: 880, jungle: 660, machine: 523 };   // the picker's b
 const VOICE_CLIPS = ['death1.mp3', 'moonland.mp3', 'byebye1.mp3', 'woohoo1.mp3', 'goodgrief.mp3',
   ...[...Array(16)].map((_, i) => 'hurt' + String(i + 1).padStart(2, '0') + '.mp3'),
   ...[1, 2, 3].map(i => 'lava' + i + '.mp3'), ...[1, 2, 3, 4].map(i => 'ohyeah' + i + '.mp3'),
-  ...[1, 2].map(i => 'whoa' + i + '.mp3'), ...[1, 2, 3].map(i => 'yes' + i + '.mp3')];
+  ...[1, 2].map(i => 'whoa' + i + '.mp3'), ...[1, 2, 3].map(i => 'yes' + i + '.mp3'),
+  'moondust.mp3', 'moonjungle.mp3', 'moonmachine.mp3', 'shaft.mp3'];   // version 176: the moon names and the jump into the shaft
 // Downloading needs no tap, so every clip is fetched now (about 260 KB in all) and waits as bytes for Sfx.init to decode.
 const fetchClip = f => fetch('voices/' + f).then(r => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)));
 const clipBytes = {};
@@ -3431,7 +3432,7 @@ const Sfx = (() => {
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.03);
   }
-  let engineSrc = null;
+  let engineSrc = null, moonVoice = null;
   const introNodes = [];
   // Recorded voices (see VOICE_CLIPS), decoded once sound is unlocked. Since version 172 there is no synthesised stand-in:
   // a line whose clip hasn't loaded is simply not heard. Every hit draws from the owner's 16 hurt takes; lava has its own.
@@ -3480,7 +3481,8 @@ const Sfx = (() => {
     if (!b) return false;
     const t = ctx.currentTime + (delay || 0), s = ctx.createBufferSource(), g = ctx.createGain();
     s.buffer = b; s.playbackRate.value = rate;
-    if (!RADIO.on) { g.gain.value = (gain || 1.5) * VOICE_LEVEL; s.connect(g); g.connect(master); s.start(t); return true; }
+    const handle = { stop() { g.gain.setTargetAtTime(0, ctx.currentTime, 0.02); } };   // truthy, so callers can test it
+    if (!RADIO.on) { g.gain.value = (gain || 1.5) * VOICE_LEVEL; s.connect(g); g.connect(master); s.start(t); return handle; }
     if (!radioCurve) {
       radioCurve = new Float32Array(1024);
       const k = Math.tanh(RADIO.drive);
@@ -3500,7 +3502,7 @@ const Sfx = (() => {
     hiss.buffer = noiseBuf; hiss.loop = true; hg.gain.value = RADIO.hiss;
     hiss.connect(hf); hf.connect(hg); hg.connect(g); hiss.start(t, Math.random() * 0.5); hiss.stop(end + 0.05);
     squelch(t, 0.07, 0.25, g); squelch(end - 0.02, 0.14, 0.3, g);
-    return true;
+    return handle;
   }
   function boing(delay) {
     if (!ctx) return;
@@ -3562,7 +3564,11 @@ const Sfx = (() => {
     alarm() { for (let i = 0; i < 4; i++) tone('square', i % 2 ? 660 : 880, i % 2 ? 660 : 880, 0.12, 0.12, i * 0.25); },
     // The intro: "good grief" as the warning mark appears over the ship (OPEN.warn), done before the asteroid hits
     // (2.4 s later; the line is 1.8 s with its tail).
-    goodGrief() { clip('goodgrief', 0.21, 1, 1.8); },   // the voice still starts 0.3 s in, after the radio's squelch
+    goodGrief() { clip('goodgrief', 0.21, 1, 1.8); },
+    // Version 176: the moon's name when one is picked (start screen or Settings); a quick change cuts the last one off.
+    moonName(m) { if (moonVoice) moonVoice.stop(); moonVoice = clip('moon' + m, 0.04, 1, 1.8) || null; },
+    // Version 176: the line as he jumps into the shaft after Jump in.
+    shaftLine() { clip('shaft', 0, 1, 1.8); },   // the voice still starts 0.3 s in, after the radio's squelch
     impact() {
       noise(0.7, 'lowpass', 900, 1);
       tone('sine', 110, 30, 0.7, 0.8);
@@ -4878,7 +4884,7 @@ $('newsDone').addEventListener('click', () => setCard(null));
 // The moon picker (Settings; the main menu pair was removed in version 123). Only on the main menu: a run always finishes on the moon it started on.
 function setMoon(m) {
   if (state !== 'title' || m === moon) return;
-  applyMoon(m); save.moon = moon; persist(); syncMoon(); Sfx.bleep(MOON_BLEEP[moon]);
+  applyMoon(m); save.moon = moon; persist(); syncMoon(); Sfx.bleep(MOON_BLEEP[moon]); Sfx.moonName(moon);
 }
 function syncMoon() {
   for (const b of document.querySelectorAll('.moon-btn')) b.setAttribute('aria-pressed', String(b.dataset.moon === moon));
@@ -4997,13 +5003,14 @@ function endRun(how) {
 // Version 170 (user): on screen it's called **Terminal Velocity** (was "Hard dive", then "Hard Dive"); in the code it
 // stays hard / hardRun / HARD_SPEED / save.hard, so saved settings carry over.
 const HARD_SPEED = 1.15, hardOpen = () => missionsDone() > 0;
+let introRunUp = false;   // version 176: Jump in (the full run-up), not Play again, gets the shaft line
 function startRun(quick) {
   hardRun = !!save.hard && hardOpen();
   droneRun = !!save.drone && droneOpen();
   Sfx.init(); Music.stop(0.4); setCard(null, true);
   resetRun(); countPlay();
   save.dives = (save.dives || 0) + 1; persist();   // dives this mission, shown when it's complete
-  setState('intro'); introT = quick ? 0.94 : 0;
+  setState('intro'); introT = quick ? 0.94 : 0; introRunUp = !quick;
   if (quick) { player.x = 128; player.pose = 'run'; }
   showScreen(null); hud.classList.remove('off');
 }
@@ -6563,7 +6570,7 @@ for (const b of document.querySelectorAll('.splash-moon')) b.addEventListener('c
   if (state !== 'splash') return;
   const m = b.dataset.moon;
   if (m !== moon) applyMoon(m);
-  save.moon = moon; persist(); syncMoon(); splashPicked = true; Sfx.bleep(MOON_BLEEP[moon]); Music.pick(moon);
+  save.moon = moon; persist(); syncMoon(); splashPicked = true; Sfx.bleep(MOON_BLEEP[moon]); Sfx.moonName(moon); Music.pick(moon);
   for (const o of document.querySelectorAll('.splash-moon')) o.setAttribute('aria-pressed', String(o === b));
   $('splashBtn').disabled = false;
 });
@@ -9101,7 +9108,7 @@ function update(dt) {
       player.pose = 'fall';
     }
     else { const u = t - 1.3; player.x = 160; player.y = u < 0.5 ? -30 + 250 * u * u : 32.5 + 250 * (u - 0.5); player.pose = 'fall'; }
-    if (t >= 0.95 && t - dt < 0.95) { Sfx.jump(); Music.leap(); squash(-0.22); }
+    if (t >= 0.95 && t - dt < 0.95) { Sfx.jump(); Music.leap(); squash(-0.22); if (introRunUp) Sfx.shaftLine(); }
     if (t >= 1.3 && t - dt < 1.3) Music.start();
     camY = lerp(camY0, player.y - pilotScreenY, easeInOut(seg(t, 0.9, 2.0)));
     Sfx.wind(seg(t, 1.3, 2.0) * 0.5);
