@@ -236,6 +236,15 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 /* Version 132 (user): every Leviathan shows in full colour, all alike; the hint line keeps the beaten count. (Versions
    108-131 showed beaten ones with a gold frame and name and the rest as dark silhouettes.) */
 #leviBack .row .btn { flex: 1; }
+/* Version 186 (user): the moon whose Leviathans the card shows, between two arrows that step through the moons, so a
+   player can see every Leviathan, not only the current moon's. */
+.levi-moon { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 8px; }
+.levi-arrow { display: grid; place-items: center; height: 38px; border: 0; padding: 0; background: var(--blue); color: var(--dust); box-shadow: 3px 3px 0 var(--dust-dim); cursor: pointer; }
+.levi-arrow:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--dust-dim); }
+.levi-arrow:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+.levi-moon-name { display: flex; align-items: center; justify-content: center; gap: 8px; font: 700 14px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--gold); white-space: nowrap; }
+.levi-moon-name svg { width: 16px; height: 16px; flex: none; }
+@media (max-height: 620px) { #leviBack .levi-pic { height: 38px; padding: 2px; } #leviBack .levi-list { row-gap: 5px; } .levi-arrow { height: 32px; } }   /* room for the moon row on 568 px phones */
 /* Badges (version 108): their own face, opened from the Leviathans card. */
 #badgeBack h2 { text-align: center; }
 #badgeBack { gap: 10px; }
@@ -758,6 +767,11 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <h2>Leviathans</h2>
       <p class="hint" id="leviHint">One hunts you after every second cafe.</p>
       <ul class="levi-list" id="leviList"></ul>
+      <div class="levi-moon" role="group" aria-label="Moon">
+        <button class="levi-arrow" id="leviPrev" type="button" aria-label="Previous moon"><svg viewBox="0 0 5 9" width="10" height="18" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M4 0h1v9h-1zM3 1h1v7h-1zM2 2h1v5h-1zM1 3h1v3h-1zM0 4h1v1h-1z"/></svg></button>
+        <span class="levi-moon-name" id="leviMoonName" aria-live="polite">Dust moon</span>
+        <button class="levi-arrow" id="leviNext" type="button" aria-label="Next moon"><svg viewBox="0 0 5 9" width="10" height="18" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M0 0h1v9h-1zM1 1h1v7h-1zM2 2h1v5h-1zM3 3h1v3h-1zM4 4h1v1h-1z"/></svg></button>
+      </div>
       <div class="row"><button class="btn" id="leviDone" type="button">Done</button></div>
      </div>
      <div class="card face back" id="moonsBack" hidden inert aria-hidden="true">
@@ -932,7 +946,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 185;
+const VERSION = 188;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -4833,7 +4847,7 @@ function setCard(side, instant) {
   if (side === 'unlocks') unlocksFromNews = was === 'news'; else if (side !== 'news') unlocksFromNews = false;
   instant = !!instant || reduceMotion;
   cardSide = side;
-  if (side === 'levi') fillLeviCard();
+  if (side === 'levi' && was !== 'levi') { leviView = moon; fillLeviCard(); }
   if (side === 'badges') fillBadges();
   if (side === 'unlocks') syncToggles();   // version 158: Hard Dive's lock is shown from the save as it is now
   turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack'), levi: $('leviBack'), badges: $('badgeBack'), news: $('newsBack'), unlocks: $('unlocksBack'), moons: $('moonsBack') }, was, side, instant, () => {
@@ -4912,6 +4926,7 @@ function prepLeviPics() {
   }
   later();
 }
+let leviView = 'dust';   // the moon whose Leviathans the card shows (version 186); set to the current moon as it opens
 function fillLeviCard() {
   const won = save.leviBeaten || {}, list = $('leviList');
   if (!leviCardDone) {
@@ -4924,19 +4939,23 @@ function fillLeviCard() {
       li.append(document.createElement('canvas'), n, l); list.append(li);
     }
   }
-  // Only the moon being played's Leviathans show (version 113).
-  let beaten = 0;
-  const set = leviSet();
+  // One moon's Leviathans at a time (version 113): since version 186 the one picked with the arrows, starting at the
+  // moon being played.
+  const set = LEVI_SETS[leviView] || leviSet();
   for (const li of list.children) {
     const kind = li.dataset.kind, w = !!won[kind], name = LEVI_INFO.find(x => x[0] === kind)[1];
     li.hidden = !set.includes(kind);
     if (li.hidden) continue;
-    if (w) beaten++;
     const pic = leviPic(kind);   // full colour whether beaten or not (version 132); painted ahead of time since version 152
-    pic.className = 'levi-pic'; pic.setAttribute('role', 'img'); pic.setAttribute('aria-label', name + (w ? ', beaten' : ', not beaten yet'));
+    pic.className = 'levi-pic'; pic.setAttribute('role', 'img'); pic.setAttribute('aria-label', name + (w ? ', escaped' : ', not escaped yet'));
     if (li.firstChild !== pic) li.replaceChild(pic, li.firstChild);
   }
-  $('leviHint').textContent = (moon !== 'dust' ? MOON_NAMES[moon] + '. ' : '') + 'One hunts you after every second cafe. Beaten: ' + beaten + ' of ' + set.length;
+  // Counts every moon's Leviathans (version 187, user: "1 out of 18"), not only the six shown; the word is "Escaped"
+  // since version 187 too (user), was "Beaten".
+  const all = [...new Set(Object.values(LEVI_SETS).flat())];
+  $('leviHint').textContent = 'One hunts you after every second cafe. Escaped: ' + all.filter(k => won[k]).length + ' of ' + all.length;
+  const nm = $('leviMoonName'), ico = document.querySelector('.splash-moon[data-moon="' + leviView + '"] .moon-ico');
+  nm.textContent = MOON_NAMES[leviView] || ''; if (ico) nm.prepend(ico.cloneNode(true));
 }
 // Version 122: the sticker opens the New features card; its Leviathan chases row opens the Leviathans card.
 $('newsTag').addEventListener('click', () => { if (state === 'title' && !cardSide) setCard('news'); });
@@ -4965,6 +4984,13 @@ function syncMoon() {
 }
 for (const b of document.querySelectorAll('.moon-btn')) b.addEventListener('click', () => setMoon(b.dataset.moon));
 $('leviDone').addEventListener('click', () => setCard('news'));   // version 157: back to New features
+// Version 186: the arrows step through the moons (round and round); the portraits are already painted (prepLeviPics).
+function stepLeviMoon(d) {
+  const ms = Object.keys(LEVI_SETS), i = ms.indexOf(leviView);
+  leviView = ms[(i + d + ms.length) % ms.length]; fillLeviCard(); Sfx.bleep(d > 0 ? 880 : 660);
+}
+$('leviPrev').addEventListener('click', () => stepLeviMoon(-1));
+$('leviNext').addEventListener('click', () => stepLeviMoon(1));
 // Version 133: Badges opens from the main menu (it used to be a button on the Leviathans card).
 $('badgesBtn').addEventListener('click', () => setCard('badges'));
 // Version 135: Unlocks (suit colours for now; more later) opens from the main menu.
@@ -5147,7 +5173,7 @@ function gameOver() {
   const lines = [
     hardRun ? '<b>Terminal Velocity</b>' : '',
     nb.length ? 'New badge' + (nb.length > 1 ? 's' : '') + ': <b>' + nb.join(', ') + '</b>' : '',
-    player.leviRun.length ? 'Beat <b>' + player.leviRun.map(leviName).join(', ') + '</b>' : '',
+    player.leviRun.length ? 'Escaped <b>' + player.leviRun.map(leviName).join(', ') + '</b>' : '',   // "Escaped" since version 188 (user; was "Beat")
     cafesRun ? 'Cafes visited <b>' + cafesRun + '</b>' + (cafesRun && !player.hits ? ', no hits' : '') : '',
     player.closest < Infinity ? 'Closest call <b>' + player.closest + ' px</b> from a ' + (player.closestMine ? 'mine' : 'rock') : '',
     player.bestStreak ? 'Best streak <b>' + player.bestStreak + '</b>' : '',
@@ -5551,7 +5577,7 @@ function baristaLine(C) {
   const m = Math.round(C.Dl / PX_PER_M), ini = /^[A-Z]{3}$/.test(save.initials || '') ? save.initials : '', dives = save.dives || 0;
   const pick = a => a[Math.floor(Math.random() * a.length)];
   if (save.cafeVisits === 1) return 'First time here? Coffee\'s on the house!';
-  if (player.bossWon) { player.bossWon = false; return pick(['Was that crash you? Sit, sit!', 'You beat that thing? Have a refill!']); }
+  if (player.bossWon) { player.bossWon = false; return pick(['Was that crash you? Sit, sit!', 'You escaped that thing? Have a refill!']); }
   if (save.best > 0 && m > save.best) return 'Never seen you this deep!';
   if (!player.hits) return pick(['Not a scratch on you!', 'Clean dive! Nice.']);
   if (cafesRun >= 3) return 'Cafe number ' + cafesRun + '! You\'re a regular.';
@@ -5581,10 +5607,11 @@ const BADGES = [
   ['clean', 'Not a scratch', 'Reach a cafe without a hit'],
   ['deep', '3,000 m', 'Fall 3,000 m in one run'],
   ['streak', 'Streak 24', 'Skim 24 rocks or mines in a row'],
-  ['levi', 'Monster down', 'Beat a Leviathan'],
-  ['all6', 'All six', 'Beat every Leviathan'],
-  ['jungle3', 'Jungle hunter', 'Beat all six Jungle Leviathans'],   // version 113 (three then); six since version 130, and anyone who had it keeps it
-  ['machine6', 'Machine hunter', 'Beat all six Machine Leviathans'],   // version 145
+  // Version 188 (user): Leviathans are escaped, not beaten, in every line the player reads.
+  ['levi', 'Monster down', 'Escape a Leviathan'],
+  ['all6', 'All six', 'Escape every Leviathan'],
+  ['jungle3', 'Jungle hunter', 'Escape all six Jungle Leviathans'],   // version 113 (three then); six since version 130, and anyone who had it keeps it
+  ['machine6', 'Machine hunter', 'Escape all six Machine Leviathans'],   // version 145
 ];
 if (!save.badges || typeof save.badges !== 'object') save.badges = {};
 function award(id) {
