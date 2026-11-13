@@ -885,7 +885,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <button class="hs-tab" id="hsTabLocal" type="button" aria-pressed="false">This device</button>
       </div>
       <div class="hs-tabs hs-kinds" role="group" aria-label="Board">
-        <button class="hs-tab" id="hsKindNormal" type="button" aria-pressed="true">Normal</button>
+        <button class="hs-tab" id="hsKindNormal" type="button" aria-pressed="true">Standard</button>
         <button class="hs-tab" id="hsKindKid" type="button" aria-pressed="false">Kid mode</button>
       </div>
       <ol class="hs-list" id="hsList"></ol>
@@ -987,7 +987,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 198;
+const VERSION = 199;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -5508,7 +5508,7 @@ $('hsDone').addEventListener('click', closeScores);
 $('bestBtn').addEventListener('click', openBoard);
 $('hsTabOnline').addEventListener('click', () => { hsTab = 'online'; hsErr = ''; renderTable(); if (!hsOnline) syncOnline(); });
 $('hsTabLocal').addEventListener('click', () => { hsTab = 'local'; renderTable(); });
-// Version 197: Normal or Kid mode board.
+// Version 197: Standard or Kid mode board (the button said Normal until version 199).
 for (const [id, kid] of [['hsKindNormal', false], ['hsKindKid', true]]) $(id).addEventListener('click', () => {
   if (hsKid === kid) return;
   hsKid = kid; hsOnline = null; hsErr = ''; renderTable(); if (SCORES_URL && hsTab === 'online') syncOnline();
