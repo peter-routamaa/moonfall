@@ -33,7 +33,7 @@ From the profiler's seeded 15 km run at 320 x 694 game pixels. Counts are exact 
 
 | Per frame | Now | Notes |
 |---|---|---|
-| Rectangles on screen, falling | 500-730 (Dust), 540-1,000 (Jungle), 530-880 (Machine), about 1,200 with Jungle vines on screen | |
+| Rectangles on screen, falling | 540-850 (Dust; 500-730 before version 155's geodes and ash vents), 540-1,000 (Jungle), 530-880 (Machine), about 1,200 with Jungle vines on screen | |
 | Images stamped on screen | 120-185 | |
 | Pixels covered by images | 0.74-0.90 million since version 154 (was 0.8-1.1 million) | the cost a phone's graphics chip feels most |
 | Rectangles into off-screen canvases, in a fight | 315-710 | the Leviathan's paints |
@@ -149,7 +149,7 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
 - **Don't stamp see-through pixels.** Drawing a transparent part of an image still costs a phone its pixels. The wall
   overlay is drawn as two strips, one per wall (`t.wl`, `t.wr` in `tile`; version 154): about 20% fewer pixels a frame in a
   fight, 9% falling. Same for a Leviathan's paint canvas (`BOSS_BOX`): size it to the creature's own pixels, measured over
-  many moments (version 154 cut the Machine six by about 15%), keeping each edge's change even (the dither checks) and the
+  many moments (version 154 cut the Machine six by about 15%, version 155 the Dust six by 8-25%; pictures checked identical), keeping each edge's change even (the dither checks) and the
   box symmetric for the ones that don't dive.
 - Every full-width layer adds about 220,000 pixels a frame. The rock and the two back layers are drawn only across the
   strip the shaft spans, and the wall overlay supplies the rest. A new back layer must do the same.

@@ -79,7 +79,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
   }
   document.getElementById('startBtn').click(); await wait(300);
   if (q.get('scene') === 'haz') {   // a contact sheet of the signature hazards; see tools/shoot_hazards.sh
-    M.save.hints = { glaze: 1, crumble: 1, void: 1 };
+    M.save.hints = { glaze: 1, crumble: 1, ash: 1, void: 1 };
     const cv = document.getElementById('cv'), ov = document.getElementById('ov');
     const goTo = (kind, minM) => {
       for (let m = minM; m < 4400; m += 20) {
@@ -97,8 +97,8 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
       }
       M.render();
     };
-    const sheet = document.createElement('canvas'); sheet.width = 640; sheet.height = M.moon === 'dust' ? 400 : 600; const g = sheet.getContext('2d');
-    g.imageSmoothingEnabled = false; g.fillStyle = '#000'; g.fillRect(0, 0, 640, 400);
+    const sheet = document.createElement('canvas'); sheet.width = 640; sheet.height = 600; const g = sheet.getContext('2d');
+    g.imageSmoothingEnabled = false; g.fillStyle = '#000'; g.fillRect(0, 0, 640, 600);
     let slot = 0;
     const grab = (h, label) => {
       const y = Math.round(h.d - M.camY) - 100, sx = (slot % 2) * 320, sy = Math.floor(slot / 2) * 200;
@@ -124,6 +124,13 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     let h = goTo('glaze', 120); pose(h, 0.3); grab(h, 'glaze');
     h = goTo('crumble', 520); pose(h, 1.3); grab(h, 'crumble: shaking');
     pose(h, 0.55, 1); grab(h, 'crumble: boulder');
+    // The ash vent (version 155): quiet, rumbling, blasting. Its phase is set so each shot lands at that point of its cycle.
+    M.save.hints.ash = 1;
+    h = goTo('ash', 1020);
+    const at = u => { h.ph = ((u * 2 - (M.clock + 1 / 60) % 2) % 2 + 2) % 2 + 10; pose(h, 0.6, 1); };
+    at(0.2); grab(h, 'ash vent: quiet');
+    at(0.55); grab(h, 'ash vent: rumbling');
+    at(0.72); grab(h, 'ash vent: blast');
     }
     document.body.innerHTML = ''; document.body.style.cssText = 'margin:0;background:#000';
     sheet.style.cssText = 'display:block;width:640px;height:' + sheet.height + 'px;image-rendering:pixelated'; document.body.appendChild(sheet);

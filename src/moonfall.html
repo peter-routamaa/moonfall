@@ -850,7 +850,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 154;
+const VERSION = 155;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -2529,6 +2529,22 @@ function life(cam) {
       for (let i = 0; i < 5; i++) { const an = i / 5 * Math.PI * 2 + clock * 0.2; disc(fx + Math.cos(an) * 4 * op, fy + Math.sin(an) * 4 * op, 3, i % 2 ? S.lite : S.blue); }
       disc(fx, fy, 2, S.bio); c.fillStyle = P.dust; c.fillRect(Math.round(fx) - 1, Math.round(fy) - 1, 1, 1);
       c.fillStyle = S.moss; c.fillRect(Math.round(ex + side * 4), y + 1, side * 5, 2);
+    } else if (type === 5 && moon === 'dust') {
+      // Version 155: a geode cracked open in the rock face, its crystals in the layer's own colours, a glint running over
+      // them now and then. Set into the rock clear of the shaft's edge and drawn in the rock's own colours (rows, no
+      // stamps), so it reads as part of the wall, not as something in the shaft.
+      const Q = palAt(da), gx = Math.round(ex + side * 12);
+      c.fillStyle = Q.shade;   // two rows at a time: about 14 rectangles for the pocket
+      for (let dy = -6; dy <= 4; dy += 2) { const hw = Math.round(Math.sqrt(1 - ((dy + 1) / 7) ** 2) * 6); c.fillRect(gx - hw - 1, y + dy, 2 * hw + 3, 2); }
+      c.fillStyle = Q.sI;
+      for (let dy = -4; dy <= 2; dy += 2) { const hw = Math.round(Math.sqrt(1 - ((dy + 1) / 7) ** 2) * 6); c.fillRect(gx - hw + 1, y + dy, 2 * hw - 1, 2); }
+      for (let i = 0; i < 5; i++) {
+        const a = i / 5 * Math.PI * 2 + q, cx = Math.round(gx + Math.cos(a) * 3), cy = Math.round(y + Math.sin(a) * 3);
+        c.fillStyle = i % 2 ? Q.cryD : Q.cryL; c.fillRect(cx - 1, cy - 1, 2, 3);
+      }
+      c.fillStyle = Q.cryL; c.fillRect(gx - 1, y - 1, 2, 2);
+      const gl = (clock * 0.5 + q * 0.37) % 1;
+      if (gl < 0.12) { const a = gl / 0.12 * Math.PI * 2 + q, sx = Math.round(gx + Math.cos(a) * 3), sy = Math.round(y + Math.sin(a) * 3); c.fillStyle = '#FFFFFF'; c.fillRect(sx - 1, sy, 3, 1); c.fillRect(sx, sy - 1, 1, 3); }
     } else if (type === 5 && moon === 'machine') {
       // Version 145: a cog half sunk in the wall, turning, and a lamp blinking above it.
       const cx = ex + side * 3, an = clock * 1.4 * side + q;
@@ -2971,6 +2987,55 @@ function machineSkyline(base, T, near) {
     }
   }
 }
+// Version 155: the Dust moon's skyline. Far off, flat-topped mesas and a rock spire stand on the far hills; nearer, a
+// rock arch and an old lander left by an earlier expedition, leaning on its legs, its dish tilted and a red lamp still
+// blinking. Each moves with its hills. Rows are drawn two at a time (about 40 rectangles far, 50 near).
+const DT_FAR = [[24, 0, 15, 12], [110, 1, 4, 30], [196, 0, 20, 9], [286, 0, 11, 16]];   // [where, mesa 0 / spire 1, half-width, height]
+const DT_NEAR = [[80, 0], [250, 1]];   // [where, arch 0 / lander 1]
+const dustCol = { k: '', far: '', cap: '' };
+function dustSkyline(base, T, near) {
+  const span = W + 60;
+  if (dustCol.k !== S.strata) { dustCol.k = S.strata; dustCol.far = mix(S.strata, S.shade, 0.35); dustCol.cap = mix(S.strata, S.dust, 0.3); }
+  if (!near) {
+    for (const [u, kind, w, h] of DT_FAR) {
+      const x = Math.round((((u - T * 6) % span) + span) % span - 30), gy = Math.round(base - (44 + 16 * Math.sin((x + T * 6) * 0.011 + 1) + 9 * Math.sin(x * 0.035)) + 2);
+      c.fillStyle = dustCol.far;
+      if (kind === 0) {   // a mesa: a flat top, its sides sloping out to the foot
+        for (let j = 0; j < h + 6; j += 2) { const hw = w + Math.floor(j * 0.45); c.fillRect(x - hw, gy - h + j, 2 * hw, 2); }
+        c.fillStyle = dustCol.cap; c.fillRect(x - w + 2, gy - h, 2 * w - 4, 1);
+      } else {   // a spire, thin at the top
+        for (let j = 0; j < h + 4; j += 2) { const hw = Math.max(1, Math.round(w * j / h)); c.fillRect(x - hw, gy - h + j, 2 * hw, 2); }
+      }
+    }
+    return;
+  }
+  for (const [u, kind] of DT_NEAR) {
+    const x = Math.round((((u - T * 12) % span) + span) % span - 30), gy = base - hillH(x, T);
+    if (kind === 0) {   // a rock arch: two legs and a curved span, lit on top (the outline first, so it stays outside)
+      for (let pass = 0; pass < 2; pass++) for (let k = -14; k <= 14; k += 2) {
+        const top = gy - 22 + Math.round((k / 14) ** 2 * 7), leg = Math.abs(k) >= 9, bot = leg ? gy : top + 6;
+        if (!pass) { c.fillStyle = S.ink; c.fillRect(x + k - 1, top - 1, 4, bot - top + 2); continue; }
+        c.fillStyle = S.shade; c.fillRect(x + k, top, 2, bot - top);
+        c.fillStyle = S.rock2; c.fillRect(x + k, top, 2, 1);
+      }
+    } else {   // the old lander, leaning a little: splayed legs, a boxy cabin with a window, a tilted dish, a blinking lamp
+      const by = gy - 12;
+      c.fillStyle = S.ink;
+      for (let j = 0; j < 12; j += 2) { c.fillRect(x - 9 - Math.floor(j / 2), by + j, 2, 2); c.fillRect(x + 8 + Math.floor(j / 2), by + j + 1, 2, 2); }
+      c.fillRect(x - 16, gy - 1, 5, 1); c.fillRect(x + 13, gy, 5, 1);   // the feet
+      c.fillRect(x - 10, by - 12, 21, 13);
+      c.fillStyle = S.rock2; c.fillRect(x - 9, by - 11, 19, 11);
+      c.fillStyle = S.shade; c.fillRect(x - 9, by - 3, 19, 3); c.fillRect(x + 6, by - 11, 4, 8);
+      c.fillStyle = S.blue; c.fillRect(x - 6, by - 9, 6, 4);   // the window
+      c.fillStyle = S.lite; c.fillRect(x - 5, by - 9, 2, 1);
+      c.fillStyle = S.ink; c.fillRect(x + 3, by - 20, 1, 8);   // the dish on its mast, tilted
+      for (let i = 0; i < 4; i++) c.fillRect(x + 1 + i, by - 22 - i, 2 + (i === 1 || i === 2 ? 2 : 0), 1);
+      c.fillRect(x + 6, by - 26, 1, 3);
+      if (Math.floor(T * 1.2 + u) % 3 === 0) { c.fillStyle = S.lava; c.fillRect(x - 8, by - 15, 2, 2); }   // the lamp
+      else { c.fillStyle = S.ink; c.fillRect(x - 8, by - 15, 2, 2); }
+    }
+  }
+}
 function drawSky(cam) {
   const T = clock, ys0 = -camY0, sk = cam - camY0, Y = v => Math.round(v - cam);
   c.fillStyle = S.dust; c.fillRect(0, 0, W, Math.min(H, Y(0) + 6));
@@ -2992,10 +3057,12 @@ function drawSky(cam) {
   const hf = Math.round(ys0 - sk * 0.4), hb = Math.round(ys0 - sk * 0.55), Th = paintHills(T);
   if (moon === 'jungle') jungleTrees(hf, Th, false);
   else if (moon === 'machine') machineSkyline(hf, Th, false);
+  else dustSkyline(hf, Th, false);
   c.drawImage(hillFar, 0, hf - HILL_FAR_H);
   if (hf < H) { c.fillStyle = S.strata; c.fillRect(0, hf, W, H - hf); }
   if (moon === 'jungle') jungleTrees(hb, Th, true);
   else if (moon === 'machine') machineSkyline(hb, Th, true);
+  else dustSkyline(hb, Th, true);
   c.drawImage(hillNear, 0, hb - HILL_NEAR_H);
   if (hb + HILL_NEAR_LOW < H) { c.fillStyle = S.hill; c.fillRect(0, hb + HILL_NEAR_LOW, W, H - hb - HILL_NEAR_LOW); }
   const wx = Math.round(W + 30 - ((T * 10) % (W + 70))), gy = hb - hillH(wx, Th);
@@ -3139,6 +3206,15 @@ function paintProps(cam, T) {
       c.fillStyle = S.mossDk; c.fillRect(x, Y(-h), 1, h);
       for (let a = 0; a < 5; a++) { const an = a / 5 * Math.PI * 2 + i; disc(x + sw + Math.cos(an) * 3, Y(-h - 2 + Math.sin(an) * 3), 2, a % 2 ? S.lite : S.blue); }
       disc(x + sw, Y(-h - 2), 1, S.bio);
+    }
+  }
+  if (moon === 'dust') {
+    // Version 155: an earlier expedition's flag by the crash site, faded and torn, stirring in a thin wind.
+    c.fillStyle = S.ink; c.fillRect(170, Y(-30), 1, 30); c.fillRect(169, Y(-31), 3, 1);
+    for (let i = 0; i < 12; i++) {
+      const w = Math.round(Math.sin(T * 3 - i * 0.6) * (i / 12) * 2), x = 171 + i, h = i > 9 ? 6 - (i % 2) * 2 : 8;
+      c.fillStyle = S.lava; c.fillRect(x, Y(-30 + w), 1, h);
+      c.fillStyle = S.dust; c.fillRect(x, Y(-27 + w), 1, 2);
     }
   }
   if (moon === 'machine') {
@@ -3662,6 +3738,10 @@ const Sfx = (() => {
     bossPing() { tone('sine', 1250, 420, 0.55, 0.07); tone('sine', 620, 300, 0.7, 0.04); },
     bossShriek() { tone('sawtooth', 1900, 700, 0.5, 0.05); tone('square', 2600, 1200, 0.35, 0.025); noise(0.45, 'bandpass', 3200, 0.07); },
     crumble() { noise(0.5, 'lowpass', 600, 0.55); noise(0.12, 'bandpass', 1400, 0.3); tone('sine', 90, 50, 0.4, 0.3); },
+    // The ash vents (version 155): a low rumble as one builds, the whoosh of its blast, and a puff when it shoves him.
+    ashRumble() { noise(0.42, 'lowpass', 220, 0.22); tone('sine', 58, 46, 0.42, 0.14); },
+    ashGust() { noise(0.55, 'lowpass', 520, 0.4); noise(0.4, 'bandpass', 1700, 0.08, 0.04); tone('sine', 72, 44, 0.35, 0.16); },
+    ashPuff() { noise(0.22, 'bandpass', 900, 0.3); noise(0.15, 'highpass', 3500, 0.06, 0.03); },
     // The Jungle hazards (version 113): leaves rustling, a branch creaking out of the rock, a pod bursting.
     rustle() { noise(0.18, 'bandpass', 3200, 0.14); noise(0.22, 'highpass', 5000, 0.07, 0.06); },
     thorns() { tone('sawtooth', 120, 70, 0.35, 0.06); noise(0.3, 'bandpass', 900, 0.22); tone('square', 300, 180, 0.08, 0.05, 0.12); },
@@ -4073,6 +4153,13 @@ const Music = (() => {
     if (moon === 'machine') {
       if (i === 3 || i === 11) hit(t, 0.06, 'bandpass', 2800, 0.06);
       if (layer >= 2 && (i === 6 || i === 14)) hit(t, 0.22, 'highpass', 4200, 0.035);
+    }
+    // Dust (version 155): a dry rim click on the off-beats and a soft brush of sand, and low dusty toms once the depth
+    // brings the backbeat in.
+    if (moon === 'dust') {
+      if (i === 6 || i === 14) hit(t, 0.025, 'bandpass', 3600, 0.05);
+      if (i % 4 === 2) hit(t, 0.09, 'bandpass', 5400, 0.02);
+      if (layer >= 2 && (i === 7 || i === 10)) bongo(t, i === 7 ? 147 : 110, 0.13);
     }
     // Jungle: a shaker on every off-beat 16th, and hand drums once the depth brings the backbeat in.
     if (moon === 'jungle') {
@@ -6488,11 +6575,18 @@ addEventListener('keyup', e => {
 // back, over and over), Rust has saw blades running to and fro along a rail out from one wall, and Pipes has laser gates
 // right across the shaft with one gap, marked by its two emitters from the start; the beam warns, then burns. Crushers
 // and saws reach less than half way across, so the other side is always safe.
-const HAZ_KINDS = { dust: ['glaze', 'crumble', null, null, null], jungle: ['vines', 'thorns', 'spores', null, null], machine: ['crusher', 'saw', 'laser', null, null] };   // by MATS index
+// Version 155, the Dust moon's third: Basalt has ash vents, a glowing crack in one wall that rumbles, then blasts a
+// plume of hot ash half way across, over and over. The plume doesn't hurt: it shoves him sideways, away from the vent
+// (never into the far wall), like the glazed ice and the vines.
+const HAZ_KINDS = { dust: ['glaze', 'crumble', 'ash', null, null], jungle: ['vines', 'thorns', 'spores', null, null], machine: ['crusher', 'saw', 'laser', null, null] };   // by MATS index
 const hazKind = i => HAZ_KINDS[moon][i];
-const HAZ_HINT = { glaze: 'GLAZED ICE BOUNCES YOU', crumble: 'LEDGES CRUMBLE INTO BOULDERS', vines: 'VINES TANGLE YOUR STEERING',
+const HAZ_HINT = { glaze: 'GLAZED ICE BOUNCES YOU', crumble: 'LEDGES CRUMBLE INTO BOULDERS', ash: 'ASH VENTS BLOW YOU SIDEWAYS', vines: 'VINES TANGLE YOUR STEERING',
   thorns: 'THORNS GROW OUT OF THE WALL', spores: 'SPORE PODS BURST. STEER CLEAR',
   crusher: 'CRUSHERS SLAM OUT OF THE WALL', saw: 'SAWS RUN ALONG THEIR RAILS', laser: 'LASER GATES. FIND THE GAP' };
+// An ash vent's cycle (s), and where in it (0-1) it starts to rumble, blasts, starts to die down and is quiet again;
+// the shove it gives (sideways speed, and how far it moves where he's steering).
+const ASH_P = 2.0, ASH_RUMBLE = 0.42, ASH_BLOW = 0.64, ASH_HOLD = 0.84, ASH_END = 0.94, ASH_PUSH = 240, ASH_SHIFT = 70;
+const AH = { pl: '#4A4542', pm: '#6E6863', pc: '#9C958E', dim: '#6A2A1C', rim: '#2A1A16' };   // ash plume dark, mid, light; the crack's dim glow and lip
 const CRUSH_P = 1.7, SAW_P = 2.3, SAW_R = 11;   // s per crusher stroke and per saw run there and back; the blade's radius
 const LASER_WARN = 2.2, LASER_ON = 1.0, LASER_GAP = 50;   // s before he reaches it: the beam blinks, then burns; gap px
 const MH = { stripe: '#E8B83A', stripeK: '#1A1C21', steel: '#7D8794', steelL: '#C4CCD6', steelD: '#3E454F', blade: '#D8DEE6', bladeD: '#6E7884',
@@ -6524,12 +6618,13 @@ function placeHazard(k, d0) {
     if (w < 120) return false;
     h.gx = Math.round(e.L + 30 + LASER_GAP / 2 + r() * (w - 60 - LASER_GAP));
   }
-  if (kind === 'crusher' || kind === 'saw') h.ph = r() * 10;
-  if (kind === 'thorns' || kind === 'spores' || kind === 'vines' || kind === 'crusher' || kind === 'saw') {
+  if (kind === 'crusher' || kind === 'saw' || kind === 'ash') h.ph = r() * 10;
+  if (kind === 'thorns' || kind === 'spores' || kind === 'vines' || kind === 'crusher' || kind === 'saw' || kind === 'ash') {
     // How far it reaches in from the wall: under half the shaft, always leaving him a wide way past.
     let w = 999;
     for (let dd = d - 30; dd <= d + (h.len || 0) + 30; dd += 10) { const e = edgeAt(dd); w = Math.min(w, e.R - e.L); }
-    h.reach = Math.min(Math.round(w * (kind === 'vines' ? 0.36 : kind === 'crusher' || kind === 'saw' ? 0.4 : 0.42)), w - 2 * HIT_HALF_W - 34);
+    h.reach = Math.min(Math.round(w * (kind === 'vines' ? 0.36 : kind === 'crusher' || kind === 'saw' ? 0.4 : kind === 'ash' ? 0.5 : 0.42)), w - 2 * HIT_HALF_W - 34);
+    if (kind === 'ash') h.reach -= 10;   // its plume starts at the chimney's mouth, 10 px out, so it still ends half way across
     if (h.reach < 22) return false;
     if (kind === 'spores') h.r = Math.min(46, Math.round(h.reach * 0.62));
   }
@@ -6568,6 +6663,19 @@ function updateHazards(dt) {
     } else if (h.kind === 'crusher') {
       const was = h.ext || 0; h.ext = crushExt(h);
       if (seen && h.ext > 0.9 && was <= 0.9) { Sfx.crush(); const { L, R } = edgeAt(h.d); sparks(h.side < 0 ? L + h.reach : R - h.reach, h.d, [MH.steelL, P.dust, MH.stripe], 5, 6); }
+    } else if (h.kind === 'ash') {
+      // Its place in the cycle: quiet, rumbling (the crack glows brighter and spits embers), blasting, dying down.
+      const tt = clock + h.ph, u = (tt % ASH_P) / ASH_P, cyc = Math.floor(tt / ASH_P);
+      h.glow = u < ASH_RUMBLE || u >= ASH_END ? 0 : u < ASH_BLOW ? (u - ASH_RUMBLE) / (ASH_BLOW - ASH_RUMBLE) : 1;
+      h.ext = u < ASH_BLOW || u >= ASH_END ? 0 : smoothstep((u - ASH_BLOW) / 0.05);
+      h.fade = u < ASH_HOLD ? 1 : 1 - smoothstep((u - ASH_HOLD) / (ASH_END - ASH_HOLD));
+      h.cyc = cyc;
+      if (seen && h.glow > 0 && h.rumbled !== cyc) { h.rumbled = cyc; Sfx.ashRumble(); }
+      if (seen && h.ext > 0 && h.gusted !== cyc) { h.gusted = cyc; Sfx.ashGust(); }
+      if (seen && h.glow > 0 && h.ext === 0 && Math.random() < dt * 12) {
+        const { L, R } = edgeAt(h.d);
+        particles.push({ x: h.side < 0 ? L + 2 : R - 3, d: h.d + (Math.random() - 0.5) * 8, vx: -h.side * (20 + 30 * Math.random()), vy: -25, t: 0, life: 0.45, col: Math.random() < 0.5 ? P.hot : P.lava, z: 1 });
+      }
     } else if (h.kind === 'saw') {
       if (seen && !h.heard) { h.heard = true; Sfx.saw(); }
       if (seen && Math.random() < dt * 8) { const [sx] = sawAt(h); particles.push({ x: sx, d: h.d + SAW_R - 2, vx: (Math.random() - 0.5) * 60, vy: 40, t: 0, life: 0.35, col: Math.random() < 0.5 ? P.hot : MH.stripe, z: 1 }); }
@@ -6606,6 +6714,20 @@ function bounceOff(side, edge, cd, fresh) {
   player.x = side < 0 ? edge + HIT_HALF_W + 2 : edge - HIT_HALF_W - 2;
   player.vx = -side * 330; player.aim = player.x - side * 80; player.touch = true;
   if (fresh) { sparks(edge, cd, ['#FFFFFF', ICE_GLAZE, P.lite], 9); Sfx.ice(); Buzz.orb(); }
+}
+// The Dust moon's ash vents touching him (called from collide, version 155): a shove away from the vent, once per blast,
+// steering him toward the middle but never closer than 14 px to the far wall. No damage.
+function ashHits(cd) {
+  for (const h of hazards) {
+    if (h.kind !== 'ash' || !(h.ext > 0.4) || !(h.fade > 0.4) || h.blown === h.cyc || Math.abs(cd - h.d) > 24) continue;
+    const { L, R } = edgeAt(h.d), dist = Math.max(0, h.side < 0 ? player.x - HIT_HALF_W - L : R - player.x - HIT_HALF_W);
+    if (dist > 10 + h.reach * h.ext || Math.abs(cd - h.d) > 5 + 9 * dist / h.reach + 8) continue;
+    h.blown = h.cyc;
+    player.vx = -h.side * ASH_PUSH; player.touch = true;
+    const far = h.side < 0 ? R - HIT_HALF_W - 14 : L + HIT_HALF_W + 14;
+    player.aim = h.side < 0 ? Math.min(far, player.x + ASH_SHIFT) : Math.max(far, player.x - ASH_SHIFT);
+    sparks(player.x, cd, [AH.pc, AH.pm, P.hot], 8); Sfx.ashPuff(); Buzz.orb();
+  }
 }
 // The Machine hazards (version 145). A crusher's ram, 0 (in) to 1 (out): slams out in a tenth of a stroke, holds, then
 // pulls back slowly and waits. A saw blade's middle on its rail. Both run on the clock from their own phase.
@@ -6792,6 +6914,47 @@ function drawJungleHazard(h, cam, y, L, R) {
   }
 }
 const CRACKS = [[2, -10, 5], [4, 8, 6], [1, -4, 3], [6, 2, 4], [3, 12, 3]];   // [in from the edge, rows from the middle, length]
+// An ash vent (version 155): a squat chimney of dark rock standing out of the wall with a glowing crack in its mouth,
+// dim while quiet (a wisp of smoke rising), pulsing hot as it rumbles. When it blasts: a see-through plume of ash
+// widening out across the shaft, warm near the mouth, with streaks of wind rushing out through it and embers, thinning
+// as it dies down. Discs come in a few fixed sizes and colours (from the store); about 20 stamps and 30 rectangles.
+const AH_PUFF = ['#C9774A', '#B49A86', '#8E857C', '#6E6863'];   // the plume from the mouth outward: warm, then ash greys
+function drawAshVent(h, y, L, R, Q) {
+  const s = h.side, base = s < 0 ? L : R, j = h.glow > 0.5 && h.ext === 0 ? (Math.floor(clock * 24) % 2 ? 1 : 0) : 0;
+  for (let k = -4; k < 11; k += 2) {   // the chimney, from inside the wall to 11 px out, in the layer's rock, narrowing to its mouth
+    const hh = 13 - Math.max(0, k), x = s < 0 ? base + k : base - k - 2;
+    c.fillStyle = P.ink; c.fillRect(x, y - hh - 1 + j, 2, 2 * hh + 2);
+    if (k < 9) { c.fillStyle = Q.b1; c.fillRect(x, y - hh + j, 2, 2 * hh); c.fillStyle = Q.hi; c.fillRect(x, y - hh + j, 2, 1); c.fillStyle = Q.shade; c.fillRect(x, y + hh - 3 + j, 2, 3); }
+  }
+  const mx = s < 0 ? base + 10 : base - 10;   // the mouth
+  if (h.glow > 0 || h.ext) { c.globalAlpha = 0.15 + 0.25 * Math.min(1, h.glow || 1); disc(mx, y + j, 6, P.lava); c.globalAlpha = 1; }
+  const hot = h.glow >= 1 || h.ext ? P.hot : h.glow > 0 ? (Math.floor(clock * 14) % 2 ? P.hot : P.lava) : AH.dim;
+  c.fillStyle = hot; c.fillRect(mx - 1, y - 4 + j, 2, 8);
+  c.fillStyle = P.ink; c.fillRect(mx - 1, y - 1 + j, 2, 2);
+  if (!h.ext) {
+    if (h.glow > 0) return;
+    c.fillStyle = AH.pc;   // the quiet wisp: specks rising and drifting out
+    for (let i = 0; i < 4; i++) { const a = (clock * 0.7 + i / 4 + h.ph) % 1; c.fillRect(Math.round(mx - s * a * 12), Math.round(y - 4 - a * 22), i === 0 ? 2 : 1, 1); }
+    return;
+  }
+  const tip = h.reach * h.ext, sh = 0.55 + 0.45 * h.fade;
+  c.globalAlpha = 0.78 * (0.4 + 0.6 * h.fade);
+  for (let i = 0; i < 9; i++) {   // puffs either side of the middle, spreading wider and bigger as they go
+    const f = i / 8, x = mx - s * (2 + f * (tip - 4)), r = Math.round((3 + 6 * f) * sh), side = i % 2 ? 1 : -1;
+    const yy = y + Math.round(side * (1 + 5 * f) + Math.sin(clock * 9 + i * 1.7) * (1 + 2 * f));
+    disc(x, yy, r, AH_PUFF[Math.min(3, Math.floor(f * 4))]);
+  }
+  c.globalAlpha = 1;
+  c.fillStyle = AH.pc;   // wind streaks rushing out through it
+  for (let i = 0; i < 5; i++) {
+    const f = (clock * 2.6 + i * 0.29) % 1, len = Math.round(6 + 8 * f), x = mx - s * (4 + f * (tip - len)), yy = y + (i - 2) * 3 + Math.round((i - 2) * 2 * f);
+    c.fillRect(Math.round(s < 0 ? x : x - len), yy, len, 1);
+  }
+  if (h.fade > 0.5) for (let i = 0; i < 6; i++) {   // embers in the plume
+    const f = (clock * 1.8 + i * 0.37) % 1, x = Math.round(mx - s * f * tip), yy = Math.round(y + Math.sin(i * 2.3 + clock * 5) * (2 + 7 * f));
+    c.fillStyle = i % 2 ? P.hot : P.lava; c.fillRect(x, yy, 2, 1);
+  }
+}
 function drawHazards(cam) {
   for (const h of hazards) {
     const y = Math.round(h.d - cam);
@@ -6816,7 +6979,8 @@ function drawHazards(cam) {
       c.fillStyle = Q.ink;
       for (const [dx, dy, l] of CRACKS) c.fillRect(h.side < 0 ? L - dx - l : R + dx, y + dy, l, 1);
       drawRock((h.side < 0 ? L + rr - 5 : R - rr + 5) + j, y, h.size);
-    } else if (h.kind === 'crusher' || h.kind === 'saw' || h.kind === 'laser') drawMachineHazard(h, cam, y, L, R);
+    } else if (h.kind === 'ash') drawAshVent(h, y, L, R, Q);
+    else if (h.kind === 'crusher' || h.kind === 'saw' || h.kind === 'laser') drawMachineHazard(h, cam, y, L, R);
     else if (h.kind !== 'crumble') drawJungleHazard(h, cam, y, L, R);
   }
 }
@@ -8365,7 +8529,9 @@ const BOSS_ART = { whale: artWhale, elder: artElder, jelly: artJelly, angler: ar
 // painted into a canvas only as big as the creature (BOSS_BOX: its extent around its middle, facing right), in three
 // steps spread over three frames, into the back one of two buffers, which then swaps to the front: so the creature
 // animates at a third of the frame rate (40 fps on a 120 Hz phone) and every frame just stamps the front buffer.
-const BOSS_BOX = { whale: [-132, -44, 132, 50], elder: [-124, -94, 124, 100], jelly: [-76, -110, 76, 110], angler: [-134, -110, 94, 94], manta: [-220, -120, 64, 120], nautilus: [-94, -84, 120, 120],
+// The Dust six's measured the same way in version 155 (8-25% smaller; the nautilus's left edge grew by 6 px, as its shell
+// reached within a pixel of the old one).
+const BOSS_BOX = { whale: [-134, -38, 128, 30], elder: [-114, -94, 114, 82], jelly: [-66, -104, 66, 100], angler: [-126, -86, 94, 82], manta: [-218, -114, 56, 114], nautilus: [-100, -84, 102, 110],
   centipede: [-150, -62, 152, 46], flytrap: [-104, -200, 104, 104], moth: [-136, -88, 136, 74],
   spider: [-128, -200, 128, 100], frog: [-130, -68, 130, 96], mantis: [-128, -110, 128, 104],
   // The Machine six's, measured from their own pixels over many moments (version 154): about 15% smaller than first
@@ -8720,6 +8886,7 @@ function collide(prevX) {
   }
   if (isJungle()) jungleHits(cd);
   else if (isMachine()) machineHits(cd);
+  else ashHits(cd);
   for (const it of items) {
     if (!it.dead && Math.abs(it.d - cd) < 18 && Math.abs(it.x - player.x) < 17) collect(it);
   }

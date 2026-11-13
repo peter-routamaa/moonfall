@@ -27,7 +27,7 @@ import same_pixels, test_pages
 # The game's functions that get a timer (time inside them, including what they call).
 TIMED = """update render prepaint updateFace drawCinema cineCaps drawSky drawShaft drawProps drawFireworks dropList life motes
 speedLines critters drawFlags drawCafeSigns drawCafe drawHazards drawDrops drawIntroPilot drawBoss drawBossShots drawFlyers
-drawManSquashed drawBack drawSpurs leviathans paintTile readyTile backTile paintMid paintFar wedgeImg spurImg wallArt wallTile
+drawManSquashed drawBack drawSpurs drawAshVent dustSkyline machineSkyline drawMachineHazard leviathans paintTile readyTile backTile paintMid paintFar wedgeImg spurImg wallArt wallTile
 bossStage bossBuf updateBoss updateBossShots bossFire updateHazards collide genSeg passFlags checkCafe updateCafe
 updateOpening updateLaunch updateFireworks drawOpeningBridge drawIntroSpace drawSpace drawPullback drawBridge repairScene
 drawRepairTools paintHills paintProps jungleTrees drawPlanet drawMoonAt drawShipAt cafeLayers cafeSignArt flagArt setDepth
