@@ -6,6 +6,7 @@
 //   POST -> { ok }                  body { event: "end", player, run, depth, secs, how, orbs, parts, cafes, initials,
 //                                         fps, worst, device, os, screen, treats, streak, sound, music, repair, intro, ver }; how it went
 //                                   (ver: the game's version number, e.g. 106; moon: dust, jungle or machine, version 113; both optional)
+//                                   Both run pings may carry hard, droneOpen, drone (booleans, version 190; optional).
 // The game only knows this function's URL. The secret key comes from the function's own
 // environment (Supabase provides SUPABASE_URL plus SUPABASE_SECRET_KEYS on newer projects and
 // SUPABASE_SERVICE_ROLE_KEY on all), so no key is ever in the game file.
@@ -80,6 +81,9 @@ const whole = (v: unknown, max: number) => Number.isInteger(v) && (v as number) 
 const version = (v: unknown) => (whole(v, 100000) && (v as number) >= 1 ? v : null);
 // Which moon (version 113): the original Dust moon, the Jungle moon or (version 145) the Machine moon; empty from older copies.
 const moonOf = (v: unknown) => (v === 'dust' || v === 'jungle' || v === 'machine' ? v : null);
+// Version 190: Terminal Velocity run, helper drone unlocked on the device, drone flying this run.
+const bool = (v: unknown) => (typeof v === 'boolean' ? v : null);
+const flags = (b: Record<string, unknown>) => ({ hard: bool(b.hard), drone_open: bool(b.droneOpen), drone: bool(b.drone) });
 
 // The extra run stats are optional (older copies of the game don't send them); anything missing or malformed is stored as empty.
 function extras(b: Record<string, unknown>) {
@@ -92,7 +96,7 @@ function extras(b: Record<string, unknown>) {
     treats, streak: whole(b.streak, 100000) ? b.streak : null,
     sound: typeof b.sound === 'boolean' ? b.sound : null, music: typeof b.music === 'boolean' ? b.music : null,
     repair: whole(b.repair, 100) ? b.repair : null, intro: b.intro === 'watched' || b.intro === 'skipped' ? b.intro : null,
-    ver: version(b.ver), moon: moonOf(b.moon),
+    ver: version(b.ver), moon: moonOf(b.moon), ...flags(b),
   };
 }
 
@@ -115,7 +119,7 @@ Deno.serve(async req => {
       if (!HEX16.test(player)) return reply({ error: 'bad player id' }, 400);
       const run = typeof body.run === 'string' && HEX16.test(body.run) ? body.run : null;
       const since = new Date(Date.now() - PLAY_GAP_MS).toISOString();
-      if (await count('plays', `player=eq.${player}&created_at=gt.${encodeURIComponent(since)}`) === 0) await insert('plays', { player, run, ver: version(body.ver), moon: moonOf(body.moon) }, false);
+      if (await count('plays', `player=eq.${player}&created_at=gt.${encodeURIComponent(since)}`) === 0) await insert('plays', { player, run, ver: version(body.ver), moon: moonOf(body.moon), ...flags(body) }, false);
       return reply({ ok: true });
     }
 

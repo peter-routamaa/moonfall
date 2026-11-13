@@ -5060,13 +5060,15 @@ function countPlay() {
   if (!/^[0-9a-f]{16}$/.test(save.playerId || '')) { save.playerId = hex16(); persist(); }
   runId = hex16(); runSecs = 0; cafesRun = 0; lastHit = ''; fasterN = 0; runFrames = 0; runRaw = 0; runWorst = 0;
   if (!introDone) { introDone = true; introRun = runId; }
-  statPing({ event: 'play', player: save.playerId, run: runId, ver: VERSION, moon });
+  statPing({ event: 'play', player: save.playerId, run: runId, ver: VERSION, moon, ...runFlags() });
 }
 // how: wall, rock, mine or lava (what took the last health), quit (Main menu from pause) or left (the game was hidden
 // mid-run; sent again with the real ending if they come back).
 // The last ended run's report, kept so it can be sent again with the initials typed on the high score entry (version 105:
 // the run ends before the entry opens, so its report carried the old initials, or none on a first high score).
 let lastEnd = null;
+// Version 190 (owner's stats): a Terminal Velocity run, the drone unlocked on this device, the drone flying this run.
+const runFlags = () => ({ hard: hardRun, droneOpen: droneOpen(), drone: droneRun });
 function endRun(how) {
   if (!runId) return;
   const total = Object.values(runParts).reduce((n, v) => n + v, 0);
@@ -5075,7 +5077,7 @@ function endRun(how) {
     fps: runRaw > 0 ? Math.round(runFrames / runRaw * 10) / 10 : null, worst: Math.round(runWorst * 1000),
     device: DEVICE, os: OS, screen: screen.width + 'x' + screen.height + '@' + Math.round(devicePixelRatio * 100) / 100,
     treats: player.bought.slice(0, 20), streak: player.bestStreak || 0, sound: !!save.snd, music: !!save.mus, repair: Math.round(repairFrac() * 100),
-    intro: runId === introRun && introHow ? introHow : null });
+    intro: runId === introRun && introHow ? introHow : null, ...runFlags() });
   if (how !== 'left') runId = '';
 }
 // -- Hard Dive (version 112, idea 13): unlocked once the ship has been fixed (a finished mission). The run starts with 4
