@@ -926,7 +926,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 187;
+const VERSION = 188;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -5153,7 +5153,7 @@ function gameOver() {
   const lines = [
     hardRun ? '<b>Terminal Velocity</b>' : '',
     nb.length ? 'New badge' + (nb.length > 1 ? 's' : '') + ': <b>' + nb.join(', ') + '</b>' : '',
-    player.leviRun.length ? 'Beat <b>' + player.leviRun.map(leviName).join(', ') + '</b>' : '',
+    player.leviRun.length ? 'Escaped <b>' + player.leviRun.map(leviName).join(', ') + '</b>' : '',   // "Escaped" since version 188 (user; was "Beat")
     cafesRun ? 'Cafes visited <b>' + cafesRun + '</b>' + (cafesRun && !player.hits ? ', no hits' : '') : '',
     player.closest < Infinity ? 'Closest call <b>' + player.closest + ' px</b> from a ' + (player.closestMine ? 'mine' : 'rock') : '',
     player.bestStreak ? 'Best streak <b>' + player.bestStreak + '</b>' : '',
@@ -5557,7 +5557,7 @@ function baristaLine(C) {
   const m = Math.round(C.Dl / PX_PER_M), ini = /^[A-Z]{3}$/.test(save.initials || '') ? save.initials : '', dives = save.dives || 0;
   const pick = a => a[Math.floor(Math.random() * a.length)];
   if (save.cafeVisits === 1) return 'First time here? Coffee\'s on the house!';
-  if (player.bossWon) { player.bossWon = false; return pick(['Was that crash you? Sit, sit!', 'You beat that thing? Have a refill!']); }
+  if (player.bossWon) { player.bossWon = false; return pick(['Was that crash you? Sit, sit!', 'You escaped that thing? Have a refill!']); }
   if (save.best > 0 && m > save.best) return 'Never seen you this deep!';
   if (!player.hits) return pick(['Not a scratch on you!', 'Clean dive! Nice.']);
   if (cafesRun >= 3) return 'Cafe number ' + cafesRun + '! You\'re a regular.';
@@ -5587,10 +5587,11 @@ const BADGES = [
   ['clean', 'Not a scratch', 'Reach a cafe without a hit'],
   ['deep', '3,000 m', 'Fall 3,000 m in one run'],
   ['streak', 'Streak 24', 'Skim 24 rocks or mines in a row'],
-  ['levi', 'Monster down', 'Beat a Leviathan'],
-  ['all6', 'All six', 'Beat every Leviathan'],
-  ['jungle3', 'Jungle hunter', 'Beat all six Jungle Leviathans'],   // version 113 (three then); six since version 130, and anyone who had it keeps it
-  ['machine6', 'Machine hunter', 'Beat all six Machine Leviathans'],   // version 145
+  // Version 188 (user): Leviathans are escaped, not beaten, in every line the player reads.
+  ['levi', 'Monster down', 'Escape a Leviathan'],
+  ['all6', 'All six', 'Escape every Leviathan'],
+  ['jungle3', 'Jungle hunter', 'Escape all six Jungle Leviathans'],   // version 113 (three then); six since version 130, and anyone who had it keeps it
+  ['machine6', 'Machine hunter', 'Escape all six Machine Leviathans'],   // version 145
 ];
 if (!save.badges || typeof save.badges !== 'object') save.badges = {};
 function award(id) {
