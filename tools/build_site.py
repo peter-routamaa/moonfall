@@ -10,8 +10,8 @@ web page (doctype, head, the same base styles the claude.ai page adds), fills in
 It refuses to build a game that should not go live, so a release cannot skip these checks whoever runs it:
   - TEST_START_M must be 0 (a test copy that starts deep in the moon must never reach the website);
   - tools/levi_budget.py must say OK (every Leviathan inside the drawing budgets in PERFORMANCE.md);
-  - tools/fight_makes.py must say OK (no canvas made in the middle of a Leviathan fight; it plays all of them, about
-    a minute).
+  - tools/fight_makes.py must say OK (no canvas made in the middle of a Leviathan fight, and no burst of them in a
+    frame while he is moving; it plays all the fights, about a minute).
 """
 import os, re, shutil, subprocess, sys
 
@@ -35,7 +35,7 @@ makes = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'fight_makes
 if makes.returncode != 0:
     print(makes.stdout + makes.stderr)
     sys.exit('build_site: stopped. tools/fight_makes.py did not pass (above): something makes a canvas in the middle '
-             'of a Leviathan fight. Make it in the thin shaft instead (PERFORMANCE.md, rule 11), then build again.')
+             'of a Leviathan fight, or several in one frame of the fall. See PERFORMANCE.md, rules 11 and 12, then build again.')
 print(makes.stdout.strip().splitlines()[-1])
 cut = game.index('</style>') + len('</style>')
 head, body = game[:cut], game[cut:].lstrip('\n')

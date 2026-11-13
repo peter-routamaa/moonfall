@@ -29,6 +29,8 @@ never building anything in the middle of play.
 11. **A Leviathan fight makes no canvas at all** (version 179). Everything it stamps is made in the thin shaft before
     it. `python3 tools/fight_makes.py` plays all eighteen fights and fails naming the function that made one; the
     website build runs it.
+12. **Nothing makes a burst of images** (version 180). One new disc or ring image a frame, everywhere; the rest are
+    drawn direct that frame. The same script fails if a frame in which the pilot is moving makes more than 6 canvases.
 
 ## Budgets (what the game costs now; stay inside these)
 
@@ -40,7 +42,7 @@ From the profiler's seeded 15 km run at 320 x 694 game pixels. Counts are exact 
 | Images stamped on screen | 120-185 | |
 | Pixels covered by images | 0.74-0.90 million since version 154 (was 0.8-1.1 million) | the cost a phone's graphics chip feels most |
 | Rectangles into off-screen canvases, in a fight | 315-710 | the Leviathan's paints |
-| Canvases created | **0 in steady play, 0 in a fight** | about 1,000 over a whole run, nearly all first-time use; 20-62 in the approach to a fight, at most 7 in one frame (before version 179: 22-59 in the fight itself) |
+| Canvases created | **0 in steady play, 0 in a fight, at most 5 in one moving frame** | 510-600 over a 15 km run since version 180 (640-730 before), nearly all first-time use and now one a frame: 13-22 frames make 3 or more (80-101 before, the worst 21 at once); 20-62 in the approach to a fight (before version 179: 22-59 in the fight itself); 8 at a cafe counter with a Leviathan below (its paint canvases and the shop's icons, while nothing moves) |
 | Page changes | about 1 | the depth read-out and the smooth-scroll nudge |
 | Page measurements (forced layouts) | 0 in the fall | 3.4 at a cafe counter (`placeSay`), tolerated |
 | Wall maths while falling | `hash` 430-620, `bossAt` 120-210, `voidAt` 77-110 calls | |
@@ -88,8 +90,20 @@ brought it back inside; `levi_budget.py` would have failed version 137 on all th
   second before its first shot (the charge glow alone was twelve, across four frames), the rest whenever the rock's
   colour changed or the art reached a new size. Anything new that a fight stamps must go through `mayStamp()` and be
   made in `bossWarmStep`.
-- **Build at a quiet moment.** A fight's five paint canvases are made in the thin shaft, with the music (`bossBufs`),
-  not on the fight's first frame. Wall tiles are painted a few rows a frame ahead of the camera (`prepaint`, 24 rows a
+- **One new image a frame** (version 180; the owner felt hitches when a background Leviathan, a hazard or an explosion
+  was seen for the first time: 12-21 images in one frame). `frame` sets `stampAllow` to 1 outside a fight, so `disc`,
+  `ring`, `shot` and the elder's body make at most one image a frame between them and draw the rest direct, the same
+  pixels (a see-through one within 2 in 255). A direct draw outside a paint puts the canvas's fill colour back, as a
+  stamp leaves it alone. The price: for about a third of a second after a background creature first comes near, its
+  discs are rows (up to 900 more rectangles in a frame, about 2,300 at worst) until their images exist. Tools that
+  paint outside the frame loop must set the allowance themselves (`levi_budget.py` does).
+- **Make ahead what is known ahead.** A big ring drawn direct is hundreds of squares, and an explosion's or a pickup's
+  rings grow through every size, so their 140 images are queued at start-up (`ringsAhead`) and made one a frame on
+  frames that make nothing else: they are all there before the first run. Queue anything similar the same way.
+- **Reuse, don't remake.** A cafe's two full-width canvases are taken over from the cafe before last (`cafeRetire`,
+  `cafeSpare`); before version 180 every cafe made two new ones as it came into view.
+- **Build at a quiet moment.** A fight's five paint canvases are made while he stands at the cafe counter above it
+  (version 180; in the thin shaft, with the music, if he never landed: `bossBufs`), not on the fight's first frame. Wall tiles are painted a few rows a frame ahead of the camera (`prepaint`, 24 rows a
   frame). Anything big that a new feature needs should be made at a cafe, in the thin shaft, or spread the same way.
 
 ### 2. Colours that change
@@ -204,8 +218,11 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
 5. For what a fight builds and when: `python3 tools/fight_makes.py [game.html] [moon ...]` (headless, about 16 s a moon).
    For each fight: canvases made in the approach, before the first shot, in the first 2 s of shots and later, with
    their makers; and what a settled fight costs a frame, to compare two builds. `--fp=3` fingerprints the whole run.
-   Headless, a build's fingerprints differ from its own between runs in 160-670 of about 9,900 samples (2-7%, whole
-   stretches at a time), so compare three or four runs and look for frames that differ every time.
+   Headless, a build's fingerprints differ from its own between runs in 0-670 of about 9,900 samples (whole
+   stretches at a time: one run in two or three is an outlier for a stretch, most often the first fight from 16 s
+   in, and the cause is not known). "Differs in every pairing of two runs each" is not enough: for version 180 that
+   flagged 225-288 samples that were outliers. Capture the pixels of the flagged frames from two runs of each build
+   and group the four by identical picture: if any new run matches an old one exactly, the frame is unchanged.
 6. **Picture unchanged?** Run both builds with `&fp=3` and compare the fingerprint lists; for frames that differ, add
    `&shot=<frame numbers>` to both (without `&fp`, so it draws the way a phone does) and compare the pictures pixel
    for pixel. Two things to know: a build differs from itself in a few 0.4 s windows from run to run (about 1% of
@@ -219,7 +236,7 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
 ## Before publishing a heavy change: checklist
 
 - [ ] `python3 tools/levi_budget.py` says OK (any change a Leviathan draws).
-- [ ] `python3 tools/fight_makes.py` says OK (anything drawn in a fight: no canvas made after it starts).
+- [ ] `python3 tools/fight_makes.py` says OK (no canvas made after a fight starts; no more than 6 in one moving frame).
 
 - [ ] Profiler run on every moon finishes with no errors.
 - [ ] No function new to this change appears high in `makers`; canvases per fight and per rock layer are in the table's range.

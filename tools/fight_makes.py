@@ -7,7 +7,9 @@ A phone stutters when a frame has to build something (PERFORMANCE.md rule 1). Th
 fight the building happens; this lists it against the fight's own clock. It plays the real game headless in Chrome on
 the profiler's seeded run (every cafe landed on, each of the moon's Leviathans fought in turn, the pilot unhurt) and
 prints, for each fight, the canvases made per stretch of the fight and their makers. Exits 1 if any fight makes a
-canvas after it has started (the thin shaft before it is where a fight's images belong).
+canvas after it has started (the thin shaft before it is where a fight's images belong), or if any frame of the run
+in which the pilot is moving makes more than BURST canvases (version 180: one new disc or ring image a frame; before,
+a creature or hazard seen for the first time made up to 21 at once). Standing at a cafe counter doesn't count.
 
 It also prints what a settled fight costs a frame (rectangles and stamps, on screen and into the paint canvases), to
 compare with another build: python3 tools/fight_makes.py /tmp/old.html. With --fp=3 it fingerprints the picture every
@@ -19,6 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import same_pixels, test_pages
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BURST = 6   # canvases in one frame while he is moving (version 180 makes at most 5)
 CHROME = os.environ.get('CHROME', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
 
 HOOK = "window.__fm = { kinds() { return leviSet(); }, bossAt, get warm() { return typeof bossWarm === 'undefined' ? null : bossWarm; } };"
@@ -27,7 +30,7 @@ DRIVER = r"""<script>
 (async () => {
   const M = window.__mf, X = window.__fm, P = M.player, q = new URLSearchParams(location.search);
   const wait = ms => new Promise(f => setTimeout(f, ms)), $ = id => document.getElementById(id);
-  const moon = q.get('moon') || 'dust', FP = +(q.get('fp') || 0), out = { moon, fights: [], errors: [], fp: [] };
+  const moon = q.get('moon') || 'dust', FP = +(q.get('fp') || 0), out = { moon, fights: [], errors: [], fp: [], burst: { n: 0 }, busy: 0 };
   const fpOf = () => { let h = 2166136261; for (const id of ['cv', 'ov']) { const cv = $(id), d = new Uint32Array(cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data.buffer);
     for (let i = 0; i < d.length; i++) { h ^= d[i]; h = Math.imul(h, 16777619); } } return (h >>> 0).toString(36); };
   window.addEventListener('error', e => out.errors.push(String(e.message)));
@@ -63,8 +66,10 @@ DRIVER = r"""<script>
       else P.aim = e.iR ? (P.x < (e.iL + e.iR) / 2 ? (e.L + e.iL) / 2 : (e.iR + e.R) / 2) : (e.L + e.R) / 2;
       if (M.state === 'cafe') { if (++atCafe > 300) { $('shopGo').click(); atCafe = 0; } }
       made = []; n.rect = n.img = n.offRect = n.offImg = 0;
-      const before = M.bossShots.length;
+      const before = M.bossShots.length, was = M.state;
       step();
+      if (was !== 'cafe' && made.length > out.burst.n) out.burst = { n: made.length, m: Math.round(P.y / 8), state: was, who: made.slice() };
+      if (was !== 'cafe' && made.length >= 3) out.busy++;
       const b = M.boss;
       if (b && !cur) cur = { kind: b.kind, shaft, shaftFrames, shaftMax, shaftCost: { ...sc }, warm: X.warm ? X.warm.paints : -1, cost: { frames: 0, rect: 0, img: 0, offRect: 0, offImg: 0 }, first: -1, volleys: [], makes: [], secs: 0 };
       if (!b && X.bossAt(P.y + 200)) { shaft = shaft.concat(made); shaftFrames++; shaftMax = Math.max(shaftMax, made.length); for (const k in n) sc[k] += n[k]; }   // the thin shaft before it: where its images belong
@@ -116,7 +121,7 @@ def main():
     moons = args or re.findall(r"(\w+): ", re.search(r'const LEVI_SETS = \{(.*?)\};', game, re.S).group(1))
     if not os.path.exists(CHROME):
         print('fight_makes: Chrome not found at ' + CHROME + '; set CHROME to its path'); sys.exit(2)
-    bad = 0
+    bad = burst = 0
     for moon in moons:
         res = run(src, moon, fp)
         if fp:
@@ -126,6 +131,11 @@ def main():
             print(f"{moon}: picture fingerprint {hashlib.sha1(json.dumps(res['fp']).encode()).hexdigest()[:12]} over {len(res['fp'])} frames")
         for e in res['errors']: print('ERROR', moon, e)
         print(f"\n{moon}: {len(res['fights'])} fights, reached {res.get('reached')} m")
+        b = res['burst']; burst = max(burst, b['n'])
+        if b['n']:
+            who = {}
+            for w in b['who']: who[w] = who.get(w, 0) + 1
+            print(f"  most canvases in one moving frame: {b['n']} (at {b['m']} m, {b['state']}: " + ', '.join(f'{n} x {k}' for k, n in who.items()) + f"); frames with 3 or more: {res['busy']}")
         for f in res['fights']:
             first = f['first']
             enter = [m for m in f['makes'] if first < 0 or m['t'] < first]
@@ -146,8 +156,8 @@ def main():
             if f['makes']:
                 times = sorted(set(m['t'] for m in f['makes']))
                 print('      at ' + ' '.join(f'{t:g}' for t in times[:24]) + (' ...' if len(times) > 24 else ''))
-    print(f"\n{'FAIL' if bad else 'OK'}: {bad} canvases made after a fight started")
-    sys.exit(1 if bad else 0)
+    print(f"\n{'FAIL' if bad or burst > BURST else 'OK'}: {bad} canvases made after a fight started; at most {burst} in one moving frame (limit {BURST})")
+    sys.exit(1 if bad or burst > BURST else 0)
 
 
 if __name__ == '__main__':

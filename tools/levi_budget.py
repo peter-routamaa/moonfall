@@ -26,11 +26,15 @@ BUDGET = {'background': 750, 'paint_rect': 2172, 'paint_img': 195, 'fading_rect'
 
 HOOK = """window.__lb = { LEVI_DRAW, LEVI_SETS, bossBuf, bossStage, applyMoon, palAt, setC(g) { const w = c; c = g; return w; },
   setBossTmp(cv) { bossTmp = cv; bossTmpG = cv.getContext('2d'); },
-  setClock(v) { clock = v; }, setDirect(v) { stampDirect = v; }, get camY() { return camY; } };"""
+  setClock(v) { clock = v; }, setDirect(v) { stampDirect = v; }, get camY() { return camY; },
+  allow(v) { if (typeof stampAllow !== 'undefined') stampAllow = v; } };"""
 
 PAGE = r"""<script>
 window.addEventListener('load', () => setTimeout(() => {
   const L = window.__lb, out = { rows: [], errors: [] };
+  // The settled state is what is measured: every disc and ring has its image. In the game one image is made a frame
+  // (version 180) and a fight's are made in the thin shaft; here they may all be made at once.
+  L.allow(Infinity);
   const P = CanvasRenderingContext2D.prototype, n = { rect: 0, img: 0 }, fr = P.fillRect, di = P.drawImage;
   P.fillRect = function (...a) { n.rect++; return fr.apply(this, a); };
   P.drawImage = function (...a) { n.img++; return di.apply(this, a); };
