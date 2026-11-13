@@ -907,7 +907,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 165;
+const VERSION = 166;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -7343,9 +7343,19 @@ const droneRoll = it => hash(it.d * 0.37 + it.x * 1.3 + SEED) < DRONE_CHANCE;
 // once unlocked and switched on, it hovers by the pilot at the crash site on the main menu, drifting a little, and goes
 // with him on the run-up and the leap.
 const droneShown = () => state === 'title' ? !!save.drone && droneOpen() : droneRun;
+// Version 166 (user: "make the drone bob a little or move from side to side more often ... He's a bit static"): where it
+// idles beside him: a sway side to side and a bob (two waves each, so it never looks like a loop), plus a wander, a new
+// little spot nearby every 0.8-2.2 s that it glides to.
+function droneIdle() {
+  const D = drone;
+  if (!(D.wanderAt > clock)) { D.wx = (Math.random() * 2 - 1) * 10; D.wy = (Math.random() * 2 - 1) * 8; D.wanderAt = clock + 0.8 + Math.random() * 1.4; }
+  const side = player.x > W / 2 ? -1 : 1;
+  return [side * (24 + Math.sin(clock * 2.6) * 6) + Math.sin(clock * 1.1 + 1) * 4 + (D.wx || 0),
+          -20 + Math.sin(clock * 4.6) * 4 + Math.sin(clock * 1.7) * 2 + (D.wy || 0)];
+}
 function droneHover(dt) {
-  const D = drone, tx = (player.x > W / 2 ? -1 : 1) * (24 + Math.sin(clock * 0.7) * 5), ty = -20 + Math.sin(clock * 3) * 3, k = Math.min(1, dt * 6);
-  D.ox += (tx - D.ox) * k; D.oy += (ty - D.oy) * k; D.mode = 'follow'; D.it = null; D.lock = null;
+  const D = drone, [tx, ty] = droneIdle(), k = Math.min(1, dt * 4), x0 = D.ox;
+  D.ox += (tx - D.ox) * k; D.oy += (ty - D.oy) * k; D.vx = (D.ox - x0) / Math.max(dt, 1e-3); D.mode = 'follow'; D.it = null; D.lock = null;
 }   // fixed per item, so a replay is the same
 function updateDrone(dt) {
   const D = drone, cd = player.y + PILOT_CY;
@@ -7362,6 +7372,7 @@ function updateDrone(dt) {
     else {
       tx = it.x - player.x; ty = it.d - cd;
       const dx = tx - D.ox, dy = ty - D.oy, n = Math.hypot(dx, dy), step = (DRONE_SPEED + player.v) * dt;
+      D.vx = dx / n * (DRONE_SPEED + player.v);
       if (n <= step + 4) { D.ox = tx; D.oy = ty; collect(it); D.caught++; Sfx.droneGot(); sparks(it.x, it.d, [P.dust, '#7FF4E6', P.lite], 6); D.mode = 'back'; D.it = null; }
       else { D.ox += dx / n * step; D.oy += dy / n * step; }
       return;
@@ -7370,11 +7381,10 @@ function updateDrone(dt) {
   if (player.hp < D.hp) Sfx.droneWorry();   // he was hit
   D.hp = player.hp;
   if (!(D.chatAt > clock)) { if (D.chatAt) Sfx.droneChat(); D.chatAt = clock + 7 + Math.random() * 9; }   // a babble every 7-16 s
-  const side = player.x > W / 2 ? -1 : 1;
-  tx = side * 24; ty = -20 + Math.sin(clock * 3) * 3;
-  const k = Math.min(1, dt * (D.mode === 'back' ? 6 : 8));
-  D.ox += (tx - D.ox) * k; D.oy += (ty - D.oy) * k;
-  if (D.mode === 'back' && Math.abs(tx - D.ox) < 2 && Math.abs(ty - D.oy) < 2) D.mode = 'follow';
+  [tx, ty] = droneIdle();
+  const k = Math.min(1, dt * (D.mode === 'back' ? 6 : 4)), x0 = D.ox;
+  D.ox += (tx - D.ox) * k; D.oy += (ty - D.oy) * k; D.vx = (D.ox - x0) / Math.max(dt, 1e-3);
+  if (D.mode === 'back' && Math.abs(tx - D.ox) < 3 && Math.abs(ty - D.oy) < 3) D.mode = 'follow';
 }
 // About 12 rectangles: a rounded steel body, a cyan eye that blinks, a rotor flickering above and a small thruster glow.
 function drawDrone(my) {
@@ -7392,7 +7402,8 @@ function drawDrone(my) {
   c.fillStyle = P.ink; c.fillRect(x - 6, y - 3, 13, 7); c.fillRect(x - 5, y - 4, 11, 9);
   c.fillStyle = '#7D8794'; c.fillRect(x - 5, y - 3, 11, 7);
   c.fillStyle = '#C4CCD6'; c.fillRect(x - 4, y - 3, 9, 2);
-  c.fillStyle = Math.floor(clock * 1.5) % 4 ? '#7FF4E6' : P.ink; c.fillRect(x - 1, y - 1, 3, 2);   // the eye, blinking
+  const look = Math.max(-2, Math.min(2, Math.round((drone.vx || 0) / 25)));   // version 166: the eye glances the way it's moving
+  c.fillStyle = Math.floor(clock * 1.5) % 4 ? '#7FF4E6' : P.ink; c.fillRect(x - 1 + look, y - 1, 3, 2);   // the eye, blinking
   c.fillStyle = P.ink; c.fillRect(x, y - 7, 1, 3);
   c.fillStyle = '#C4CCD6'; c.fillRect(f ? x - 5 : x - 2, y - 8, f ? 11 : 5, 1);   // the rotor
   c.fillStyle = f ? P.hot : P.lava; c.fillRect(x - 1, y + 5, 3, 1 + f);
