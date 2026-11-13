@@ -1018,7 +1018,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 205;
+const VERSION = 207;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -1474,12 +1474,14 @@ function voidAt(d) {
 // After every second cafe a boss fight (see bossCafe and the boss section). Below the cafe's
 // cavern the shaft closes to a thin shaft (50 m), which breaks wide open into a giant empty cavern where that cafe's
 // creature chases him. A slow funnel then leads into a thin neck (20 m) it can't follow, and the shaft is back to normal
-// for the last 800 m to the next cafe (BOSS_AFTER; 200 m until version 91, when the cafes were 1,000 m apart), with a
-// void and a passing creature in it like the first kilometre. The cavern is about 585 m: the fall eases to whatever
-// speed makes it last BOSS_TIME seconds (about 30 m/s, a little slower than usual).
+// for the last 650 m to the next cafe (BOSS_AFTER; 200 m until version 91, when the cafes were 1,000 m apart; 800 m until
+// version 207), with a void and a passing creature in it like the first kilometre. The cavern is about 745 m: the fall
+// eases to whatever speed makes it last BOSS_TIME seconds (about 30 m/s, a little slower than usual). Version 207
+// (user: "make the Leviathan chases approximately 5 seconds longer, or whatever depth that would be at standard speed"):
+// 25 s (was 20) over 150 m more cavern, so the speed in it is unchanged.
 // Depths, in px: T0 the thin shaft's top, A0 the cavern's top, F0 the funnel's top, N0..N1 the neck, E back to normal.
-const BOSS_THIN = 50 * PX_PER_M, BOSS_OPEN = 80, BOSS_FUNNEL = 60 * PX_PER_M, BOSS_NECK = 20 * PX_PER_M, BOSS_BACK = 240, BOSS_AFTER = 800 * PX_PER_M;
-const BOSS_TIME = 20, BOSS_HW = W / 2 - 8, BOSS_THIN_HW = 30, BOSS_NECK_HW = 26;
+const BOSS_THIN = 50 * PX_PER_M, BOSS_OPEN = 80, BOSS_FUNNEL = 60 * PX_PER_M, BOSS_NECK = 20 * PX_PER_M, BOSS_BACK = 240, BOSS_AFTER = 650 * PX_PER_M;
+const BOSS_TIME = 25, BOSS_HW = W / 2 - 8, BOSS_THIN_HW = 30, BOSS_NECK_HW = 26;
 // Which cafes have a boss after them: every second one, starting with the first (1, 3, 5 ...; version 96). Every
 // cafe had one in versions 91-95. The even ones are followed by the standard 1,000 m of shaft (cafeD).
 const bossCafe = k => k >= 1 && k % 2 === 1;
@@ -6173,6 +6175,7 @@ function drawFlags(cam) {
   }
 }
 // ---------- the opening film: coffee on the bridge, the asteroid, the crash, the landing ----------
+const EJECT_LEAD = 0.75;
 const OPEN = { pre: 5.6, coffee: 4.0, pull: 3.6, warn: 2.6, hit: 5.0, dive: 10.0, eject: 11.8, chute: 12.2, crash: 12.6, land: 16.2, end: 17.0 };
 let openT = 0, introShip = null, introAst = null, introFx = [], introCrashed = false, astCanvas = null, introPilot = null;
 function startOpening() {
@@ -6237,9 +6240,12 @@ function updateOpening(dt) {
       t: 0, life: 0.9 + Math.random() * 1.1, col: [P.shade, P.strata, P.hill, P.lava][i % 4], z: 3 + (i % 2)
     });
   }
+  // Version 206 (user: it "seems to happen after he has ejected"): the line is two shouts, at 0.0-0.3 s and 0.7-1.0 s
+  // into the clip, so it starts 0.75 s early, in the dive, and the second "eject" lands on the ejection.
+  if (crossed(O.eject - EJECT_LEAD) && introShip) Sfx.ejectLine();
   if (crossed(O.eject) && introShip) {
     introPilot = { x: introShip.x, y: introShip.y - 30, vx: -30, vy: -380, x0: 0, y0: 0 };
-    sparks(introShip.x, introShip.y - 10, [P.dust, P.hot, P.lava], 14); Sfx.eject(); Sfx.ejectLine();
+    sparks(introShip.x, introShip.y - 10, [P.dust, P.hot, P.lava], 14); Sfx.eject();
     cineStreaks.push({ x: introShip.x, wy: introShip.y - 6, t: 0, life: 0.5, len: 80, col: '#F6D46A' });
   }
   if (crossed(O.chute) && introPilot) { introPilot.x0 = introPilot.x; introPilot.y0 = introPilot.y; Sfx.chute(); }
@@ -7770,6 +7776,8 @@ const BOSS_SHOT = {
   drill: [P.ink, '#E0702A', '#FFD9A0'], sentinel: [P.ink, '#E83A4A', '#FFC0C8'], crab: [P.ink, '#D8542A', '#FFC890'],
   wasp: [P.ink, '#E8A820', '#FFF2A8'], beetle: [P.ink, '#F06A1A', '#FFE08A'], gear: [P.ink, '#C8402A', '#F8B898'],
 };
+const BOSS_AMMO = 1.25;   // version 207: volleys per attack, against version 206
+const BOSS_PAUSE = 0.6;   // version 207: the pause between attacks, against version 206 (so the shots a second go up by about 25%, not only the volleys)
 const BOSS_ENTER = 1.8, BOSS_LIFT = 1.6;   // s to come forward (and turn to dive); s of fall before the funnel when it stops firing
 const BOSS_ORBS = [4.5, 9.5, 14];                              // s into the fight when a crystal rises past
 const BOSS_RAGE = 7.5, BOSS_TURN = 0.55;                       // s into the fight when it starts doubling up its patterns; s to turn round
@@ -7857,24 +7865,27 @@ function bossFire(kind) {
   const glob = (x, y, ang, v, r) => bossShot({ type: 'glob', x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, r: r || 4, t: 0 });
   // Aimed shots lead him a little: they go where he's heading, not only where he is.
   const aim = (x, y, lead) => Math.atan2(pilotNow + PILOT_CY - y, player.x + (lead ? player.vx * 0.3 : 0) - x);
+  // Version 207 (user: "make the Leviathans fire, let's say, 25% more ammunition"): every attack has 25% more volleys
+  // (rows, rings, bursts, arcs, beams ...), the fractions carried over (b.more), so each volley keeps its gaps.
+  const more = n => { b.more = (b.more || 0) + n * (BOSS_AMMO - 1); const k = Math.floor(b.more + 1e-9); b.more -= k; return n + k; };
   b.charge = b.t + 0.45; Sfx.bossCharge();
   if (kind === 'aimed') {   // a quick burst of shots at him, leading him
-    const N = 4 + Math.floor(lv / 2);
+    const N = more(4 + Math.floor(lv / 2));
     for (let i = 0; i < N; i++) later(0.45 + i * 0.15, () => { const [x, y] = mouth(); glob(x, y, aim(x, y, true), 235 * sp); Sfx.bossShot(); });
     return 0.45 + N * 0.15;
   }
   if (kind === 'fan') {   // spreads aimed at him, each turned a little from the last
-    const N = 7 + Math.min(2, lv - 1), waves = lv >= 3 ? 3 : 2;
+    const N = 7 + Math.min(2, lv - 1), waves = more(lv >= 3 ? 3 : 2);
     for (let w = 0; w < waves; w++) later(0.45 + w * 0.5, () => { const [x, y] = mouth(), a = aim(x, y) + (w % 2 ? 0.085 : 0); for (let i = 0; i < N; i++) glob(x, y, a + (i - (N - 1) / 2) * 0.17, 180 * sp); Sfx.bossShot(); });
     return 0.45 + waves * 0.5;
   }
   if (kind === 'ring') {   // three rings bursting out of it, each turned half a step
-    const N = 16 + 2 * Math.min(3, lv - 1);
-    for (let w = 0; w < 3; w++) later(0.45 + w * 0.32, () => { for (let i = 0; i < N; i++) glob(b.x, b.y + 10, (i + w * 0.5) / N * Math.PI * 2 + b.t * 0.3, 150 * sp); Sfx.bossShot(true); });
-    return 1.3;
+    const N = 16 + 2 * Math.min(3, lv - 1), R = more(3);
+    for (let w = 0; w < R; w++) later(0.45 + w * 0.32, () => { for (let i = 0; i < N; i++) glob(b.x, b.y + 10, (i + w * 0.5) / N * Math.PI * 2 + b.t * 0.3, 150 * sp); Sfx.bossShot(true); });
+    return 0.34 + R * 0.32;
   }
   if (kind === 'curtain') {   // rows across the cavern, each with one narrow gap, a short way from the last row's gap
-    const rows = lv >= 3 ? 3 : 2;
+    const rows = more(lv >= 3 ? 3 : 2);
     let gx = 44 + Math.random() * (W - 88);
     for (let j = 0; j < rows; j++) later(0.45 + j * 0.85, () => {
       if (j) gx = Math.max(40, Math.min(W - 40, gx + (Math.random() < 0.5 ? -1 : 1) * (60 + Math.random() * 60)));
@@ -7884,12 +7895,12 @@ function bossFire(kind) {
     return 0.45 + rows * 0.85;
   }
   if (kind === 'beam') {   // beams down the cavern: a warning line first, then it fires; the first is where he is
-    const N = 3 + Math.min(2, lv - 1);
+    const N = more(3 + Math.min(2, lv - 1));
     for (let i = 0; i < N; i++) later(0.3 + i * 0.38, () => bossShot({ type: 'beam', x: i ? Math.max(16, Math.min(W - 16, player.x + (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 60))) : player.x + player.vx * 0.25, y: mouth()[1] + 6, t: 0, warn: 0.7, dur: 0.35 }));
     return 0.3 + N * 0.38 + 1;
   }
   if (kind === 'wave') {   // snakes of spores wriggling down
-    const S = 3 + (lv >= 3 ? 1 : 0);
+    const S = more(3 + (lv >= 3 ? 1 : 0));
     for (let k = 0; k < S; k++) {
       const x0 = 36 + Math.random() * (W - 72);
       for (let i = 0; i < 7; i++) later(0.45 + k * 0.3 + i * 0.11, () => { bossShot({ type: 'wave', x0, x: x0, y: mouth()[1] + 6, vy: 160 * sp, amp: 40, f: 3.4, ph: k * 2, t: 0, r: 3 }); if (!i) Sfx.bossShot(); });
@@ -7897,7 +7908,7 @@ function bossFire(kind) {
     return 0.45 + S * 0.3 + 0.8;
   }
   if (kind === 'sonar') {   // whale: arcs of shots spreading down from its mouth, each with a gap that swings across
-    const n = lv >= 3 ? 3 : 2;
+    const n = more(lv >= 3 ? 3 : 2);
     let gx = player.x + (Math.random() < 0.5 ? -1 : 1) * (50 + Math.random() * 40);
     for (let w = 0; w < n; w++) later(0.45 + w * 0.75, () => {
       const [x, y] = mouth();
@@ -7910,7 +7921,7 @@ function bossFire(kind) {
     return 0.45 + n * 0.75 + 0.3;
   }
   if (kind === 'shriek') {   // elder: rings of sound from its mouth, each with two gaps (one near him), shifting each ring
-    const n = lv >= 2 ? 3 : 2;
+    const n = more(lv >= 2 ? 3 : 2);
     for (let w = 0; w < n; w++) later(0.5 + w * 0.6, () => {
       const [x, y] = mouth(), px = player.x, py = pilotNow + PILOT_CY, D = Math.max(120, Math.hypot(px - x, py - y));
       const side = Math.random() < 0.5 ? -1 : 1, g1 = Math.max(30, Math.min(W - 30, px + side * (45 + Math.random() * 45)));
@@ -7930,7 +7941,7 @@ function bossFire(kind) {
     return 1.7;
   }
   if (kind === 'lure') {   // angler: a lure that pulls him toward it, then the jaws snap down where it hangs
-    const n = lv >= 3 ? 2 : 1;
+    const n = more(lv >= 3 ? 2 : 1);
     for (let i = 0; i < n; i++) later(0.35 + i * 1.9, () => {
       let dx = (Math.random() < 0.5 ? -1 : 1) * (60 + Math.random() * 50);
       if (player.x + dx < 30 || player.x + dx > W - 30) dx = -dx;
@@ -7939,7 +7950,7 @@ function bossFire(kind) {
     return 0.35 + n * 1.9 + 0.4;
   }
   if (kind === 'sweep') {   // manta: a wide band down one side (his side first), then the other; the split moves
-    const n = lv >= 3 ? 3 : 2;
+    const n = more(lv >= 3 ? 3 : 2);
     let side = player.x < W / 2 ? -1 : 1;
     for (let j = 0; j < n; j++) later(0.45 + j * 0.85, () => {
       bossShot({ type: 'sweep', side, split: Math.round(W / 2 + (Math.random() - 0.5) * 80), y: mouth()[1] + 8, vy: 175 * sp, t: 0 });
@@ -7948,12 +7959,12 @@ function bossFire(kind) {
     return 0.45 + n * 0.85 + 0.6;
   }
   if (kind === 'spiral') {   // nautilus: two arms of shots winding out of its shell
-    const n = 22 + 2 * Math.min(3, lv - 1), turn = (Math.random() < 0.5 ? -1 : 1) * 0.21, a0 = Math.random() * 6.28;
+    const n = more(22 + 2 * Math.min(3, lv - 1)), turn = (Math.random() < 0.5 ? -1 : 1) * 0.21, a0 = Math.random() * 6.28;
     for (let i = 0; i < n; i++) later(0.4 + i * 0.07, () => { for (let arm = 0; arm < 2; arm++) glob(b.x, b.y + 10, a0 + arm * Math.PI + i * turn, 125 * sp, 3); if (i % 4 === 0) Sfx.bossShot(); });
     return 0.4 + n * 0.07 + 0.3;
   }
   if (kind === 'pincer') {   // centipede: from both walls at once, shots aimed along his row, one gap left; the gap moves
-    const n = lv >= 3 ? 3 : 2, py = pilotNow + PILOT_CY;
+    const n = more(lv >= 3 ? 3 : 2), py = pilotNow + PILOT_CY;
     let gx = player.x + (Math.random() < 0.5 ? -1 : 1) * (35 + Math.random() * 45);
     for (let w = 0; w < n; w++) later(0.45 + w * 0.9, () => {
       if (w) gx = gx + (gx < W / 2 ? 1 : -1) * (60 + Math.random() * 50);
@@ -7969,7 +7980,7 @@ function bossFire(kind) {
     return 0.45 + n * 0.9 + 0.5;
   }
   if (kind === 'snap') {   // flytrap: jaws closing across his row, all but a gap; they show for a moment, then slam
-    const n = lv >= 3 ? 2 : 1;
+    const n = more(lv >= 3 ? 2 : 1);
     for (let i = 0; i < n; i++) later(0.35 + i * 1.9, () => {
       let dx = (Math.random() < 0.5 ? -1 : 1) * (45 + Math.random() * 45);
       if (player.x + dx < 40 || player.x + dx > W - 40) dx = -dx;
@@ -7979,7 +7990,7 @@ function bossFire(kind) {
     return 0.35 + n * 1.9 + 0.4;
   }
   if (kind === 'scales') {   // moth: an arc of scales from each wing, both leaving the same gap at his row
-    const n = lv >= 3 ? 3 : 2, py = pilotNow + PILOT_CY;
+    const n = more(lv >= 3 ? 3 : 2), py = pilotNow + PILOT_CY;
     let gx = player.x + (Math.random() < 0.5 ? -1 : 1) * (40 + Math.random() * 40);
     for (let w = 0; w < n; w++) later(0.45 + w * 0.75, () => {
       if (w) gx = W - gx + (Math.random() - 0.5) * 50;
@@ -7997,7 +8008,7 @@ function bossFire(kind) {
     return 0.45 + n * 0.75 + 0.4;
   }
   if (kind === 'web') {   // spider: a sheet of web drifting down the cavern, with one hole that slides from side to side
-    const n = lv >= 3 ? 2 : 1;
+    const n = more(lv >= 3 ? 2 : 1);
     for (let i = 0; i < n; i++) later(0.4 + i * 1.5, () => {
       const hx = 60 + Math.random() * (W - 120);
       bossShot({ type: 'web', x: hx, hx, y: mouth()[1] + 14, vy: 105 * sp, amp: 34 + Math.random() * 22, f: 1.1 + Math.random() * 0.5, ph: Math.random() * 6.28, R: 27, t: 0 });
@@ -8006,7 +8017,7 @@ function bossFire(kind) {
     return 0.4 + n * 1.5 + 0.8;
   }
   if (kind === 'tongue') {   // frog: a line from its mouth to where he is (and a little where he's heading); then the lash
-    const n = lv >= 3 ? 3 : 2;
+    const n = more(lv >= 3 ? 3 : 2);
     for (let i = 0; i < n; i++) later(0.35 + i * 0.85, () => {
       const [x, y] = mouth(), tx = Math.max(12, Math.min(W - 12, player.x + player.vx * 0.2)), ty = pilotNow + PILOT_CY;
       bossShot({ type: 'tongue', x: tx, y: ty, mx: x, my: y, a: Math.atan2(ty - y, tx - x), L: Math.hypot(tx - x, ty - y) + 70, t: 0, warn: 0.6, out: 0.12, hold: 0.14, back: 0.16 });
@@ -8015,7 +8026,7 @@ function bossFire(kind) {
     return 0.35 + n * 0.85 + 0.6;
   }
   if (kind === 'sickle') {   // mantis: a blade from each arm, curving out and back in to cross where he is (a quadratic curve)
-    const n = lv >= 3 ? 4 : 3;
+    const n = more(lv >= 3 ? 4 : 3);
     for (let w = 0; w < n; w++) later(0.4 + w * 0.6, () => {
       const T = [Math.max(24, Math.min(W - 24, player.x + player.vx * 0.3)), pilotNow + PILOT_CY];
       for (const side of [-1, 1]) {
@@ -8027,7 +8038,7 @@ function bossFire(kind) {
     return 0.4 + n * 0.6 + 0.6;
   }
   if (kind === 'corkscrew') {   // drill: pairs of bolts twisting round each other along a line at him (where he's heading)
-    const n = lv >= 3 ? 4 : 3;
+    const n = more(lv >= 3 ? 4 : 3);
     for (let w = 0; w < n; w++) later(0.45 + w * 0.5, () => {
       const [x, y] = mouth(), a = aim(x, y, true), v = 170 * sp, ph = Math.random() * 6.28;
       for (let i = 0; i < 2; i++) bossShot({ type: 'screw', cx: x, cy: y, x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, nx: -Math.sin(a), ny: Math.cos(a), ph: ph + i * Math.PI, R: 15, r: 4, t: 0 });
@@ -8036,7 +8047,7 @@ function bossFire(kind) {
     return 0.45 + n * 0.5 + 0.4;
   }
   if (kind === 'scan') {   // sentinel: a sweep from one side to the other; it locks where it crosses him, then fires there
-    const n = lv >= 3 ? 2 : 1;
+    const n = more(lv >= 3 ? 2 : 1);
     for (let i = 0; i < n; i++) later(0.35 + i * 1.7, () => {
       const side = player.x < b.x ? 1 : -1;   // it sweeps toward him from his far side
       bossShot({ type: 'scan', a0: Math.PI / 2 + side * 1.15, a1: Math.PI / 2 - side * 1.15, sweep: 0.95 / sp, x: b.x, y: b.y, lock: -1, lx: 0, ly: 0, aim: 0.55, dur: 0.3, t: 0 });
@@ -8045,13 +8056,13 @@ function bossFire(kind) {
     return 0.35 + n * 1.7 + 0.6;
   }
   if (kind === 'mortar') {   // crab: markers round his row (one where he's heading); a moment later, a shell bursts on each
-    const N = lv >= 3 ? 4 : 3, py = pilotNow + PILOT_CY, xs = [Math.max(24, Math.min(W - 24, player.x + player.vx * 0.3))];
+    const N = more(lv >= 3 ? 4 : 3), py = pilotNow + PILOT_CY, xs = [Math.max(24, Math.min(W - 24, player.x + player.vx * 0.3))];
     for (let tries = 0; xs.length < N && tries < 40; tries++) { const x = 26 + Math.random() * (W - 52); if (xs.every(q => Math.abs(q - x) > 62)) xs.push(x); }
     xs.forEach((x, i) => later(0.3 + i * 0.22, () => { bossShot({ type: 'mortar', x, y: py + (Math.random() - 0.5) * 24, R: 24, t: 0, warn: 1.15, dur: 0.22 }); if (!i) Sfx.bossCharge(); }));
     return 0.3 + N * 0.22 + 1.6;
   }
   if (kind === 'drones') {   // wasp: drones that steer after him for a moment, then dart on in a straight line
-    const N = lv >= 3 ? 4 : 3;
+    const N = more(lv >= 3 ? 4 : 3);
     for (let i = 0; i < N; i++) later(0.4 + i * 0.28, () => {
       const [x, y] = mouth(), a = Math.PI / 2 + (i % 2 ? 1 : -1) * (0.9 + Math.random() * 0.4);
       bossShot({ type: 'drone', x, y, a, v: 105 * sp, dart: 245 * sp, home: 1.5, r: 5, t: 0 });
@@ -8060,12 +8071,12 @@ function bossFire(kind) {
     return 0.4 + N * 0.28 + 1.4;
   }
   if (kind === 'slag') {   // beetle: three streams of slag pour down the cavern, drifting sideways together
-    const drift = (Math.random() < 0.5 ? -1 : 1) * (14 + Math.random() * 12), dur = lv >= 3 ? 2.6 : 2.1, off = (Math.random() - 0.5) * 30;
+    const drift = (Math.random() < 0.5 ? -1 : 1) * (14 + Math.random() * 12), dur = (lv >= 3 ? 2.6 : 2.1) * BOSS_AMMO, off = (Math.random() - 0.5) * 30;
     later(0.4, () => { for (let i = 0; i < 3; i++) bossShot({ type: 'slag', x: W * (i + 1) / 4 + off, vx: drift, y: mouth()[1] + 6, t: 0, warn: 0.6, dur, w: 12 }); Sfx.bossShot(true); });
     return 0.4 + 0.6 + dur + 0.3;
   }
   if (kind === 'cogs') {   // gear: cogs flung out to the sides, bouncing off the cavern walls on their way down
-    const n = lv >= 3 ? 3 : 2;
+    const n = more(lv >= 3 ? 3 : 2);
     for (let w = 0; w < n; w++) later(0.45 + w * 0.6, () => {
       const [x, y] = mouth();
       for (const side of [-1, 1]) bossShot({ type: 'cog', x, y, vx: side * (150 + Math.random() * 70) * sp, vy: (95 + Math.random() * 30) * sp, r: 8, t: 0, spin: side, hits: 0 });
@@ -8074,7 +8085,7 @@ function bossFire(kind) {
     return 0.45 + n * 0.6 + 1.0;
   }
   // bomb: slow, big shots lobbed toward him that burst into a ring of small ones
-  const N = 3 + (lv >= 3 ? 1 : 0);
+  const N = more(3 + (lv >= 3 ? 1 : 0));
   for (let i = 0; i < N; i++) later(0.45 + i * 0.45, () => { const [x, y] = mouth(); bossShot({ type: 'bomb', x, y, vx: (player.x - x) * 0.45, vy: 120 * sp, r: 7, t: 0, fuse: 1.35 + Math.random() * 0.25 }); Sfx.bossShot(true); });
   return 0.45 + N * 0.45 + 0.8;
 }
@@ -8126,7 +8137,7 @@ function updateBoss(dt) {
             const more = pool.filter(p => p !== pick && !(BOSS_ZONE[p] && BOSS_ZONE[pick]));
             if (more.length) dur = Math.max(dur, bossFire(more[Math.floor(Math.random() * more.length)]));
           }
-          b.last = pick; b.next = dur + Math.max(0.45, 0.95 - 0.1 * (b.n - 1)) * (b.rage ? 0.8 : 1);
+          b.last = pick; b.next = dur + Math.max(0.45, 0.95 - 0.1 * (b.n - 1)) * (b.rage ? 0.8 : 1) * BOSS_PAUSE;
         }
         if (b.orbs < BOSS_ORBS.length && b.pt >= BOSS_ORBS[b.orbs]) {
           b.orbs++;
