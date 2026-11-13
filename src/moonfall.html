@@ -266,7 +266,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
    Since version 157 these rules only set --aside: syncAside flips the panel up and away (folding its height) and back
    down when the card closes, instead of it vanishing; .aside is where it rests while away. */
 #titleScreen .repair.aside, #titleScreen .news.aside { display: none; }
-@media (max-height: 600px) { #titleScreen.reading .repair { --aside: 1; } }
+#titleScreen.reading .repair { --aside: 1; }   /* every card, every phone since version 161 (user); the per-card rules below are older and now covered */
 /* The Leviathans card is taller: the panel steps aside for it on phones up to 760 px tall (version 102). */
 @media (max-height: 760px) { #titleScreen.reading.levi .repair { --aside: 1; } }
 /* And for the moons card (version 153) up to 800 px tall. */
@@ -899,7 +899,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 160;
+const VERSION = 161;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -4807,17 +4807,19 @@ function syncAside(instant) {
     anims[0].onfinish = done; setTimeout(done, ASIDE_MS + 150);   // the timer too, in case the animation stalls (a page in the background)
   }
 }
-addEventListener('resize', () => { syncAside(true); if (cardSide === 'news') placeNews('news', true); });
+addEventListener('resize', () => { syncAside(true); if (cardSide) placeNews(cardSide, true); });
 // The main menu's card: Settings and Instructions on the back.
 let unlocksFromNews = false;   // the Unlocks card was opened from New features (version 160): its Done goes back there
 // Version 160 (user: "center the list of new features on the screen"): while New features is open the card slides up to
-// the middle of the screen (not above the tagline), and back down when it turns to anything else.
+// the middle of the screen (not above the tagline), and back down when it closes. Since version 161 every card does
+// (user: "When any card is opened, center it on screen"), each measured by its own face.
+const CARD_FACE = { settings: 'titleBack', how: 'howBack', levi: 'leviBack', badges: 'badgeBack', news: 'newsBack', unlocks: 'unlocksBack', moons: 'moonsBack' };
 function placeNews(side, instant) {
   const fl = $('titleFlip'), ts = $('titleScreen');
   let lift = 0;
-  if (side === 'news') {
+  if (CARD_FACE[side]) {
     // From steady layout, not from boxes caught mid-turn: the card sits on the screen's bottom padding; its full height.
-    const r = ts.getBoundingClientRect(), bottom = r.bottom - (parseFloat(getComputedStyle(ts).paddingBottom) || 0), h = $('newsBack').scrollHeight;
+    const r = ts.getBoundingClientRect(), bottom = r.bottom - (parseFloat(getComputedStyle(ts).paddingBottom) || 0), h = $(CARD_FACE[side]).scrollHeight;
     const top = ts.querySelector('.tag').getBoundingClientRect().bottom + 10;
     lift = Math.max(0, Math.round(Math.min(bottom - h / 2 - innerHeight / 2, bottom - h - top)));
   }
