@@ -926,7 +926,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 186;
+const VERSION = 187;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -4923,18 +4923,19 @@ function fillLeviCard() {
   }
   // One moon's Leviathans at a time (version 113): since version 186 the one picked with the arrows, starting at the
   // moon being played.
-  let beaten = 0;
   const set = LEVI_SETS[leviView] || leviSet();
   for (const li of list.children) {
     const kind = li.dataset.kind, w = !!won[kind], name = LEVI_INFO.find(x => x[0] === kind)[1];
     li.hidden = !set.includes(kind);
     if (li.hidden) continue;
-    if (w) beaten++;
     const pic = leviPic(kind);   // full colour whether beaten or not (version 132); painted ahead of time since version 152
-    pic.className = 'levi-pic'; pic.setAttribute('role', 'img'); pic.setAttribute('aria-label', name + (w ? ', beaten' : ', not beaten yet'));
+    pic.className = 'levi-pic'; pic.setAttribute('role', 'img'); pic.setAttribute('aria-label', name + (w ? ', escaped' : ', not escaped yet'));
     if (li.firstChild !== pic) li.replaceChild(pic, li.firstChild);
   }
-  $('leviHint').textContent = 'One hunts you after every second cafe. Beaten: ' + beaten + ' of ' + set.length;
+  // Counts every moon's Leviathans (version 187, user: "1 out of 18"), not only the six shown; the word is "Escaped"
+  // since version 187 too (user), was "Beaten".
+  const all = [...new Set(Object.values(LEVI_SETS).flat())];
+  $('leviHint').textContent = 'One hunts you after every second cafe. Escaped: ' + all.filter(k => won[k]).length + ' of ' + all.length;
   const nm = $('leviMoonName'), ico = document.querySelector('.splash-moon[data-moon="' + leviView + '"] .moon-ico');
   nm.textContent = MOON_NAMES[leviView] || ''; if (ico) nm.prepend(ico.cloneNode(true));
 }
