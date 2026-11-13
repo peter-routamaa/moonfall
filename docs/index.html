@@ -157,6 +157,38 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .hard-box { gap: 8px; }
 .hard-box .set-tog { padding: 10px 7px 10px 9px; font-size: 12px; }
 .hard-how { margin: 0; font-size: 17px; line-height: 1.1; color: var(--dust-dim); }
+/* Version 197 (user): Kid mode. A tile in the Settings grid's empty slot (its badge says ON while any setting is off
+   normal) opens its own face: sliders in 25% steps, the cafe speed-up switch, Revert to standard mode and Done. */
+.set-tog.kid-tog[data-on="true"] { border-color: var(--green); background: transparent; }
+.set-tog.kid-tog[data-on="true"]::after { content: 'ON'; background: var(--green); color: var(--ink); }
+#kidBack h2 { text-align: center; }
+#kidBack { gap: 12px; }
+.kid-how { margin: 0; font-size: 17px; line-height: 1.1; color: var(--dust-dim); text-align: center; }
+.kid-sliders { display: flex; flex-direction: column; gap: 10px; padding: 10px 12px 12px; box-shadow: inset 0 0 0 2px var(--blue); }
+.kid-sl { display: grid; grid-template-columns: 1fr auto; align-items: center; row-gap: 6px; cursor: pointer; }
+.kid-lbl { font: 700 10px/1 var(--display); letter-spacing: .06em; color: var(--dust); text-transform: uppercase; }
+.kid-sl output { font: 700 11px/1 var(--display); color: var(--gold); min-width: 3.4em; text-align: right; }
+.kid-sl output.normal { color: var(--dust-dim); }
+.kid-sl output .pct { width: .82em; height: .91em; margin-left: .12em; vertical-align: -.04em; }
+.kid-sl input { grid-column: 1 / -1; width: 100%; margin: 0; height: 22px; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; }
+.kid-sl input::-webkit-slider-runnable-track { height: 6px; background: linear-gradient(to right, var(--blue) var(--fill, 0%), var(--ink-soft) var(--fill, 0%)); }
+.kid-sl input::-moz-range-track { height: 6px; background: linear-gradient(to right, var(--blue) var(--fill, 0%), var(--ink-soft) var(--fill, 0%)); }
+.kid-sl input::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 18px; margin-top: -6px; background: var(--gold); border: 0; border-radius: 0; box-shadow: inset -2px -2px 0 #B8862A; }
+.kid-sl input::-moz-range-thumb { width: 16px; height: 18px; background: var(--gold); border: 0; border-radius: 0; box-shadow: inset -2px -2px 0 #B8862A; }
+.kid-sl input:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+#kidSpeedT { font-size: 11px; padding: 10px 7px 10px 9px; }
+#titleScreen.reading.kid .repair { --aside: 1; }
+@media (max-width: 360px) { #kidReset { font-size: 11px; letter-spacing: .02em; padding-inline: 6px; } }   /* one line at 320 px (version 200) */
+#kidReset:disabled { background: transparent; opacity: .45; box-shadow: inset 0 0 0 2px var(--ink-soft); }
+@media (max-height: 700px) {
+  #kidBack { gap: 7px; padding: 10px 12px; }
+  #kidBack h2 { margin: 0; }
+  .kid-how { font-size: 15px; }
+  .kid-sliders { gap: 6px; padding: 8px 10px 9px; }
+  .kid-sl { row-gap: 3px; }
+  #kidSpeedT { padding: 8px 7px 8px 9px; }
+  #kidReset { padding: 9px 14px 7px; }
+}
 #badgesBtn small { font: inherit; font-size: 11px; color: color-mix(in srgb, var(--dust) 75%, var(--blue)); }
 @media (max-width: 360px) { #titleFront .card-nav { column-gap: 8px; } #titleFront .card-nav .btn.settings { font-size: 11px; gap: 4px; padding-inline: 3px; letter-spacing: 0; } #titleFront .card-nav .btn.settings > svg { width: 12px; height: 12px; } }
 .best.best-big b { font-size: 22px; color: var(--gold); letter-spacing: .03em; }
@@ -214,6 +246,9 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .news-ico.big svg { width: 32px; height: 32px; }
 .news-name { font: 700 12px/1.1 var(--display); letter-spacing: .08em; color: var(--gold); }
 .news-how { margin-top: 3px; font: 400 18px/.95 var(--body); color: var(--dust-dim); }
+/* Four rows since version 201 (Kid mode): tighter on shorter phones so Done stays 50 px up (DONE_FROM_BOTTOM). */
+@media (max-height: 760px) { #newsBack { gap: 8px; } #newsBack .news-list { gap: 7px; } #newsBack .news-item { padding: 7px 10px 6px; } }
+@media (max-height: 660px) { #newsBack .news-how { font-size: 16px; } #newsBack .news-list { gap: 6px; } }
 /* Version 153 (user): the moons card, opened from the New moons row like the Leviathans card: each moon's icon, name and
    a short description. */
 #moonsBack h2 { text-align: center; }
@@ -407,6 +442,19 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .hs-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .hs-tab { font: 700 11px/1 var(--display); letter-spacing: .05em; padding: 9px 6px 8px; border: 2px solid var(--ink-soft); background: transparent; color: var(--dust-dim); cursor: pointer; }
 .hs-tab[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: var(--dust); }
+/* Version 197: Normal / Kid mode boards, in gold so it reads apart from Online / This device. */
+/* Version 197: with Kid mode on the menu shows KID BEST, small on two lines so the number keeps to one line at 320 px. */
+#bestTitle { white-space: nowrap; }
+.best-lbl.kid { font-size: 9px; line-height: 1; margin: -4px 0; width: min-content; text-align: center; color: var(--gold); }
+.hs-kinds .hs-tab[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--ink); }
+/* With the second row of switches a full online board ran off short phones (Done at 610 of 568; 587 before v197): tighter there. */
+@media (max-height: 640px) {
+  #hsTable { gap: 8px; }
+  #hsTable h2 { margin: 0; }
+  .hs-tab { padding: 6px 6px 5px; }
+  .hs-list li { padding: 3px 8px 2px; }
+  .hs-list .esc svg { width: 11px; height: 14px; margin: -2px 0 -1px; }
+}
 .best-btn { width: 100%; border: 0; background: transparent; padding: 2px 0; align-items: center; cursor: pointer; }
 .best-btn:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 .best-more { display: inline-flex; align-items: center; gap: 6px; font: 700 11px/1 var(--display); letter-spacing: .06em; padding: 7px 9px 6px; background: var(--blue); color: var(--dust); box-shadow: 3px 3px 0 var(--dust-dim); }
@@ -695,7 +743,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
      <div class="flip-inner">
      <div class="card face front" id="titleFront">
       <span class="ver" id="verTag"></span>
-      <button class="best best-big best-btn" id="bestBtn" type="button">BEST <b id="bestTitle">0000 m</b><span class="best-more">TOP 10</span></button>
+      <button class="best best-big best-btn" id="bestBtn" type="button"><span class="best-lbl" id="bestLbl">BEST</span> <b id="bestTitle">0000 m</b><span class="best-more">TOP 10</span></button>
       <button class="btn launch" id="launchBtn" type="button" hidden>Launch the ship</button>
       <button class="btn" id="startBtn" type="button">Jump in</button>
       <div class="card-nav">
@@ -713,6 +761,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <button class="set-tog" id="vibT" type="button" aria-pressed="true" aria-label="Vibration"><span>Vibration</span></button>
         <button class="set-tog" id="fpsT" type="button" aria-pressed="false" aria-label="Display FPS"><span>Display<br>FPS</span></button>
         <button class="set-tog" id="invT" type="button" aria-pressed="false" aria-label="Invert thruster controls"><span>Invert<br>thruster<br>controls</span></button>
+        <button class="set-tog kid-tog" id="kidBtn" type="button" data-on="false" aria-haspopup="true" aria-label="Kid mode, off"><span>Kid<br>mode</span></button>
       </div>
       <div class="suit-row moon-row" role="group" aria-label="Moon"><span>MOON</span>
         <button class="moon-btn" type="button" data-moon="dust" aria-pressed="true"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Dust</span></button>
@@ -721,6 +770,20 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       </div>
       <button class="btn quiet warn" id="resetBtn" type="button">Reset ship repair</button>
       <button class="btn" id="settingsDone" type="button">Done</button>
+     </div>
+     <div class="card face back" id="kidBack" hidden inert aria-hidden="true">
+      <h2>Kid mode</h2>
+      <p class="kid-how">Make the dive easier. Changes start on the next dive.</p>
+      <div class="kid-sliders">
+        <label class="kid-sl"><span class="kid-lbl">Mines</span><output id="kidMinesV"></output><input type="range" id="kidMines" min="0" max="100" step="25" data-key="mines"></label>
+        <label class="kid-sl"><span class="kid-lbl">Parts &amp; crystals</span><output id="kidDropsV"></output><input type="range" id="kidDrops" min="100" max="200" step="25" data-key="drops"></label>
+        <label class="kid-sl"><span class="kid-lbl">Health</span><output id="kidHpV"></output><input type="range" id="kidHp" min="100" max="200" step="25" data-key="hp"></label>
+        <label class="kid-sl"><span class="kid-lbl">Fall speed</span><output id="kidFallV"></output><input type="range" id="kidFall" min="50" max="100" step="25" data-key="fall"></label>
+        <label class="kid-sl"><span class="kid-lbl">Leviathan shots</span><output id="kidShotsV"></output><input type="range" id="kidShots" min="0" max="100" step="25" data-key="shots"></label>
+      </div>
+      <button class="set-tog" id="kidSpeedT" type="button" aria-pressed="true" aria-label="Speed up after cafes"><span>Speed up after cafes</span></button>
+      <button class="btn quiet" id="kidReset" type="button">Revert to standard mode</button>
+      <button class="btn" id="kidDone" type="button">Done</button>
      </div>
      <div class="card face back" id="howBack" hidden inert aria-hidden="true">
       <h2>Instructions</h2>
@@ -760,6 +823,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <li><button class="news-item" id="newsLevi" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#C64B3B" d="M2 0h4v1h-4zM1 1h6v1h-6zM0 2h8v3h-8zM1 5h6v1h-6zM2 6h4v1h-4z"/><path fill="#F2C14E" d="M3 2h2v3h-2z"/><path fill="#1A1E2C" d="M3 3h1v1h-1z"/></svg></span><span class="news-name">Leviathan chases</span><span class="news-how">Giant creatures hunt you after every second cafe. Each moon has its own creatures. Tap to meet them!</span></button></li>
         <li><button class="news-item" id="newsMoons" type="button"><span class="news-ico"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><svg class="moon-ico machine" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg></span><span class="news-name">The new moons</span><span class="news-how">Fall into the Dust moon, the Jungle moon or the Machine moon. Swap any time in Settings. Tap to learn more.</span></button></li>
         <li><button class="news-item" id="newsHard" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#E8B83A" d="M0 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1zM3 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1z"/></svg></span><span class="news-name">Terminal Velocity</span><span class="news-how">Fix the ship once to earn it: 4 health, 15% faster and raging Leviathans. Tap to see Unlocks.</span></button></li>
+        <li><button class="news-item" id="newsKid" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#E8708A" d="M1 0h2v1h-2zM5 0h2v1h-2zM0 1h8v2h-8zM1 3h6v1h-6zM2 4h4v1h-4zM3 5h2v1h-2z"/><path fill="#F7B6C4" d="M1 1h1v1h-1z"/></svg></span><span class="news-name">Kid mode</span><span class="news-how">An easier dive for younger pilots, with its own high scores. Tap to set it up.</span></button></li>
       </ul>
       <button class="btn" id="newsDone" type="button">Done</button>
      </div>
@@ -846,6 +910,10 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <div class="hs-tabs" id="hsTabs" hidden>
         <button class="hs-tab" id="hsTabOnline" type="button" aria-pressed="true">Online</button>
         <button class="hs-tab" id="hsTabLocal" type="button" aria-pressed="false">This device</button>
+      </div>
+      <div class="hs-tabs hs-kinds" role="group" aria-label="Board">
+        <button class="hs-tab" id="hsKindNormal" type="button" aria-pressed="true">Standard</button>
+        <button class="hs-tab" id="hsKindKid" type="button" aria-pressed="false">Kid mode</button>
       </div>
       <ol class="hs-list" id="hsList"></ol>
       <p class="hs-where" id="hsWhere">Saved on this device</p>
@@ -946,7 +1014,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 196;
+const VERSION = 201;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3416,11 +3484,13 @@ const cafesPassed = d => { const k = cafeAbove(d - 40); return k < 1 ? 0 : k - 1
 // How many cafe ledges lie above depth d, counted the moment he passes each one (pops and treats use this).
 const ledgesPassed = d => Math.max(0, cafeAbove(d - 40));
 function speedAt(d) {
-  const s = (FALL_SPEED + SPEED_RAMP * smoothstep(d / 26000)) * (1 + Math.min(CAFE_SPEED_MAX, CAFE_SPEEDUP * cafesPassed(d))) * (hardRun ? HARD_SPEED : 1), B = bossAt(d);
+  const s0 = (FALL_SPEED + SPEED_RAMP * smoothstep(d / 26000)) * (kidRun.speed ? 1 + Math.min(CAFE_SPEED_MAX, CAFE_SPEEDUP * cafesPassed(d)) : 1) * (hardRun ? HARD_SPEED : 1);
+  const s = s0 * kidRun.fall, B = bossAt(d);
   if (!B) return s;
   // Through a boss cavern (version 87) the fall eases to the speed that makes it last BOSS_TIME, then back after the neck.
   const u = d < B.A0 ? smoothstep((d - B.A0 + 240) / 240) : d < B.N1 ? 1 : 1 - smoothstep((d - B.N1) / BOSS_BACK);
-  return lerp(s, Math.min(s, B.speed), u);
+  // Kid mode's slower fall (version 201, owner) eases to the usual fight speed, so a fight lasts as long as in the standard game.
+  return lerp(s, Math.min(s0, B.speed), u);
 }
 
 // ---------- saved settings ----------
@@ -3434,6 +3504,29 @@ const NAV_PRICE = 50;   // 40 in version 80, 30 in 81, 50 since 82 (user)
 if (!Number.isFinite(save.nav)) save.nav = 0;
 const navDone = () => save.nav >= NAV_PRICE;
 const canLaunch = () => repairFrac() >= 1 && navDone();
+// Kid mode (version 197, user): mines and Leviathan shots 0-100%, ship parts and health crystals 100-200%, in 25% steps,
+// and the cafe speed-up on or off. Saved as save.kid; fixed for the whole run at its start (kidRun), like Terminal Velocity.
+// Version 201 (owner): ship parts and crystals share one slider (drops), and Health adds to the pilot's health: 100-200%
+// of 5 (4 on Terminal Velocity), rounded: 5, 6, 8, 9, 10.
+const KID_NORMAL = { mines: 100, drops: 100, hp: 100, fall: 100, shots: 100, speed: true };
+// Fall speed (version 200, owner: "a slider to slow fall speed"): 50-100%, the whole fall, cafe speed-ups and fights included.
+const KID_RANGE = { mines: [0, 100], drops: [100, 200], hp: [100, 200], fall: [50, 100], shots: [0, 100] };
+function kidSettings() {
+  const k = Object.assign({}, KID_NORMAL, save.kid);
+  if (save.kid && save.kid.drops == null && (save.kid.parts || save.kid.health)) k.drops = Math.max(+save.kid.parts || 100, +save.kid.health || 100);   // v197-200 saves
+  for (const key in KID_RANGE) { const [lo, hi] = KID_RANGE[key], v = Math.round(+k[key] / 25) * 25; k[key] = Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : KID_NORMAL[key]; }
+  k.speed = k.speed !== false;
+  return k;
+}
+const kidOn = k => Object.keys(KID_NORMAL).some(key => k[key] !== KID_NORMAL[key]);
+// The best depth this run is measured against: Kid mode runs have their own (version 197).
+const bestNow = () => kidRun.on ? save.kidBest || 0 : save.best;
+// What this run uses, as fractions (mines 0.5 = half the mines). Normal until a run starts.
+let kidRun = { mines: 1, parts: 1, health: 1, hp: 1, fall: 1, shots: 1, speed: true, on: false }, kidShotAcc = 0;
+// A fixed roll in [0, 1) for one place in the shaft, so leaving out mines doesn't change the rest of the seeded layout.
+const kidRoll = n => { const x = Math.sin(n * 12.9898 + SEED * 78.233) * 43758.5453; return x - Math.floor(x); };
+// Leviathan shots are thinned evenly (at 50% every other one is fired, at 25% one in four), not at random.
+function bossShot(s) { kidShotAcc += kidRun.shots; if (kidShotAcc >= 0.999) { kidShotAcc -= 1; bossShots.push(s); } }
 function persist() { if (perfOn) return; try { localStorage.setItem('moonfall.v1', JSON.stringify(save)); } catch (e) {} }
 // Switches the game over to a moon (version 113): its rock layers and scenery colours, and everything painted from them
 // is thrown away to be painted again (the shaft's tiles and back layers, the hills and the surface props). The hazards,
@@ -4713,7 +4806,11 @@ function syncToggles() {
   $('buzzNote').hidden = Buzz.canVibrate || !save.vib;
   // Version 181 (user: the "m" is "a bit difficult to read"): the main menu's BEST uses a drawn pixel m as tall as the
   // digits (M_ICON), like the percent sign on the speed-up banner.
-  $('bestTitle').innerHTML = fmtM(save.best) + ' ' + M_ICON; $('bestPause').firstChild.nodeValue = fmtM(save.best);
+  // Version 197: with Kid mode on, the menu's BEST is Kid mode's (and opens its board); pause shows this run's kind.
+  const kidMenu = kidOn(kidSettings());
+  $('bestLbl').textContent = kidMenu ? 'KID BEST' : 'BEST'; $('bestLbl').classList.toggle('kid', kidMenu);
+  $('bestTitle').innerHTML = fmtM(kidMenu ? save.kidBest : save.best) + ' ' + M_ICON; $('bestPause').firstChild.nodeValue = fmtM(bestNow());
+  $('bestPause').parentNode.firstChild.nodeValue = kidRun.on ? 'KID BEST ' : 'BEST ';
 }
 function toggleSound() { save.snd = !save.snd; Sfx.init(); Sfx.setOn(save.snd); persist(); syncToggles(); }
 function toggleVib() { save.vib = !save.vib; persist(); syncToggles(); if (save.vib) Buzz.test(); }
@@ -4751,6 +4848,7 @@ function resetRun() {
   drone.ox = 24; drone.oy = -20; drone.mode = 'follow'; drone.it = null; drone.lock = null; drone.caught = 0; drone.hp = undefined; drone.chatAt = 0;
   $('partsRun').textContent = '0'; repair = repairFrac(); repairStart = repair; readyStart = canLaunch();
   Object.assign(player, playerStart());
+  player.hp = player.max = Math.round(player.max * kidRun.hp);   // Kid mode health (version 201)
   cafeVisited.clear(); cafeRetire(); signArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
   buildHP(); $('spareRun').textContent = '0'; spareHud.hidden = true; streakFlash.classList.remove('on'); speedFlash.classList.remove('on'); speedRush = 0; buildFlags(); refreshBoard();
   Music.reset();
@@ -4823,6 +4921,7 @@ function syncAside(instant) {
 }
 addEventListener('resize', () => { syncAside(true); if (cardSide) placeNews(cardSide, true); });
 // The main menu's card: Settings and Instructions on the back.
+let kidFromNews = false;   // the Kid mode card was opened from New features (version 201): its Done goes back there
 let unlocksFromNews = false;   // the Unlocks card was opened from New features (version 160): its Done goes back there
 // Version 162 (user: "the 'done' button should always be at the same height on every screen ... something like 50
 // pixels up from the bottom"): while a card is open it slides up so its Done button's bottom edge is DONE_FROM_BOTTOM px
@@ -4830,7 +4929,7 @@ let unlocksFromNews = false;   // the Unlocks card was opened from New features 
 // that far, and dataset.short says by how much it fell short). Back down when it closes. (Versions 160-161 centred the
 // card instead.) Measured from steady layout, not from boxes caught mid-turn.
 const DONE_FROM_BOTTOM = 50;
-const CARD_FACE = { settings: 'titleBack', how: 'howBack', levi: 'leviBack', badges: 'badgeBack', news: 'newsBack', unlocks: 'unlocksBack', moons: 'moonsBack' };
+const CARD_FACE = { settings: 'titleBack', how: 'howBack', levi: 'leviBack', badges: 'badgeBack', news: 'newsBack', unlocks: 'unlocksBack', moons: 'moonsBack', kid: 'kidBack' };
 function placeNews(side, instant) {
   const fl = $('titleFlip'), ts = $('titleScreen');
   let lift = 0;
@@ -4849,20 +4948,22 @@ function placeNews(side, instant) {
 function setCard(side, instant) {
   const was = cardSide;
   if (side === 'unlocks') unlocksFromNews = was === 'news'; else if (side !== 'news') unlocksFromNews = false;
+  if (side === 'kid') kidFromNews = was === 'news'; else if (side !== 'news') kidFromNews = false;
   instant = !!instant || reduceMotion;
   cardSide = side;
   if (side === 'levi' && was !== 'levi') { leviView = moon; fillLeviCard(); }
   if (side === 'badges') fillBadges();
   if (side === 'unlocks') syncToggles();   // version 158: Hard Dive's lock is shown from the save as it is now
-  turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack'), levi: $('leviBack'), badges: $('badgeBack'), news: $('newsBack'), unlocks: $('unlocksBack'), moons: $('moonsBack') }, was, side, instant, () => {
+  if (side === 'kid') syncKid();   // version 197
+  turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack'), levi: $('leviBack'), badges: $('badgeBack'), news: $('newsBack'), unlocks: $('unlocksBack'), moons: $('moonsBack'), kid: $('kidBack') }, was, side, instant, () => {
     const ts = $('titleScreen');
     clearTimeout(readTimer);
-    if (side) { ts.classList.toggle('levi', side === 'levi'); ts.classList.toggle('how', side === 'how'); ts.classList.toggle('settings', side === 'settings'); ts.classList.toggle('badges', side === 'badges'); ts.classList.toggle('moons', side === 'moons'); ts.classList.toggle('unlocks', side === 'unlocks'); ts.classList.toggle('newsopen', side === 'news'); }   // not 'news': that's the sticker's own class (see version 146)
+    if (side) { ts.classList.toggle('levi', side === 'levi'); ts.classList.toggle('how', side === 'how'); ts.classList.toggle('settings', side === 'settings'); ts.classList.toggle('badges', side === 'badges'); ts.classList.toggle('moons', side === 'moons'); ts.classList.toggle('unlocks', side === 'unlocks'); ts.classList.toggle('kid', side === 'kid'); ts.classList.toggle('newsopen', side === 'news'); }   // not 'news': that's the sticker's own class (see version 146)
     placeNews(side, instant);
     if (side || instant) { ts.classList.toggle('reading', !!side); syncAside(instant); }   // Settings too since version 84 (one more row)
     else readTimer = setTimeout(() => { ts.classList.remove('reading'); syncAside(); }, 480);
   });
-  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $('sndT') : side === 'how' ? $('howDone') : side === 'news' ? $(was === 'moons' ? 'newsMoons' : was === 'unlocks' ? 'newsHard' : 'newsLevi') : side === 'unlocks' ? $('unlocksDone') : side === 'levi' ? $('leviDone') : side === 'moons' ? $('moonsDone') : side === 'badges' ? $('badgeDone') : $(was === 'how' ? 'howBtn' : was === 'badges' ? 'badgesBtn' : was === 'unlocks' ? 'unlocksBtn' : was === 'levi' || was === 'news' || was === 'moons' ? 'startBtn' : 'settingsBtn')), 460);
+  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $(was === 'kid' ? 'kidBtn' : 'sndT') : side === 'kid' ? $('kidMines') : side === 'how' ? $('howDone') : side === 'news' ? $(was === 'moons' ? 'newsMoons' : was === 'unlocks' ? 'newsHard' : was === 'kid' ? 'newsKid' : 'newsLevi') : side === 'unlocks' ? $('unlocksDone') : side === 'levi' ? $('leviDone') : side === 'moons' ? $('moonsDone') : side === 'badges' ? $('badgeDone') : $(was === 'how' ? 'howBtn' : was === 'badges' ? 'badgesBtn' : was === 'unlocks' ? 'unlocksBtn' : was === 'levi' || was === 'news' || was === 'moons' ? 'startBtn' : 'settingsBtn')), 460);
 }
 // -- the Leviathans card (version 102): the NEW sticker opens it. Each creature's name, its signature attack in a line,
 // and a portrait painted with its fight art (bossStage), facing right and looking down at the viewer.
@@ -4975,6 +5076,7 @@ $('menuStart').addEventListener('click', openMenu);
 $('newsLevi').addEventListener('click', () => setCard('levi'));
 $('newsMoons').addEventListener('click', () => setCard('moons'));   // version 153
 $('newsHard').addEventListener('click', () => setCard('unlocks'));   // version 160: Hard Dive lives on the Unlocks card
+$('newsKid').addEventListener('click', () => setCard('kid'));   // version 201
 // Version 157: Done on the Moons or Leviathans card goes back one step, to New features, so the other row can be opened.
 $('moonsDone').addEventListener('click', () => setCard('news'));
 $('newsDone').addEventListener('click', () => setCard(null));
@@ -5060,6 +5162,32 @@ confirmDlg.addEventListener('close', () => { $(confirmFrom).focus({ preventScrol
 $('settingsBtn').addEventListener('click', () => setCard('settings'));
 $('howDone').addEventListener('click', () => setCard(null));
 $('settingsDone').addEventListener('click', () => setCard(null));
+// Kid mode (version 197): its tile in Settings opens the kid card; Done goes back to Settings.
+const KID_SLIDERS = { mines: 'kidMines', drops: 'kidDrops', hp: 'kidHp', fall: 'kidFall', shots: 'kidShots' };
+function syncKid() {
+  const k = kidSettings();
+  for (const key in KID_SLIDERS) {
+    const el = $(KID_SLIDERS[key]), out = $(KID_SLIDERS[key] + 'V'), [lo, hi] = KID_RANGE[key];
+    el.value = k[key]; el.style.setProperty('--fill', (k[key] - lo) / (hi - lo) * 100 + '%');
+    // Version 200 (owner: the % signs were hard to read): the drawn pixel percent, as on the speed-up banner.
+    const word = k[key] === KID_NORMAL[key] ? 'NORMAL' : k[key] === 0 ? 'NONE' : '';
+    out.innerHTML = word || k[key] + PCT_ICON;
+    out.classList.toggle('normal', k[key] === KID_NORMAL[key]);
+    el.setAttribute('aria-valuetext', word || k[key] + '%');
+  }
+  $('kidSpeedT').setAttribute('aria-pressed', String(k.speed));
+  const on = kidOn(k), kb = $('kidBtn');
+  kb.dataset.on = String(on); kb.setAttribute('aria-label', 'Kid mode, ' + (on ? 'on' : 'off'));
+  $('kidReset').disabled = !on;
+}
+for (const key in KID_SLIDERS) $(KID_SLIDERS[key]).addEventListener('input', e => {
+  save.kid = Object.assign(kidSettings(), { [key]: +e.target.value }); persist(); syncKid(); syncToggles();
+});
+$('kidSpeedT').addEventListener('click', () => { const k = kidSettings(); save.kid = Object.assign(k, { speed: !k.speed }); persist(); syncKid(); syncToggles(); });
+$('kidReset').addEventListener('click', () => { save.kid = Object.assign({}, KID_NORMAL); persist(); syncKid(); syncToggles(); Sfx.bleep(330); });
+$('kidBtn').addEventListener('click', () => setCard('kid'));
+$('kidDone').addEventListener('click', () => setCard(kidFromNews ? 'news' : 'settings'));   // version 201: back to New features if opened there
+syncKid();
 // Private stats for the owner's Supabase dashboard: a random ID made once per device (no name, nothing personal),
 // one ping when a run starts and one when it ends with how long it lasted, how deep it got and how it ended.
 // Both pings carry the game's VERSION (version 106), so the stats can be split by version.
@@ -5113,7 +5241,7 @@ function countPlay() {
 // the run ends before the entry opens, so its report carried the old initials, or none on a first high score).
 let lastEnd = null;
 // Version 190 (owner's stats): a Terminal Velocity run, the drone unlocked on this device, the drone flying this run.
-const runFlags = () => ({ hard: hardRun, droneOpen: droneOpen(), drone: droneRun });
+const runFlags = () => ({ hard: hardRun, droneOpen: droneOpen(), drone: droneRun, kid: kidRun.on });   // kid: version 197
 // Version 192 (owner's stats, user picked them 2026-11-13): game errors, Leviathans fought and escaped, progress on the
 // device, cafes passed and drone catches, and how the game is played (installed or in a browser, which browser, pauses).
 // Errors: how many since the last finished run's report (so ones on the title screen count too) and the first one's
@@ -5157,6 +5285,7 @@ const HARD_SPEED = 1.15, hardOpen = () => missionsDone() > 0;
 let introRunUp = false;   // version 176: Jump in (the full run-up), not Play again, gets the shaft line
 function startRun(quick) {
   hardRun = !!save.hard && hardOpen();
+  { const k = kidSettings(); kidRun = { mines: k.mines / 100, parts: k.drops / 100, health: k.drops / 100, hp: k.hp / 100, fall: k.fall / 100, shots: k.shots / 100, speed: k.speed, on: kidOn(k) }; }   // version 197
   droneRun = !!save.drone && droneOpen();
   Sfx.init(); Music.stop(0.4); setCard(null, true);
   resetRun(); countPlay();
@@ -5216,9 +5345,10 @@ function die() {
 }
 function gameOver() {
   setState('over'); endRun(lastHit || 'wall');
-  const m = depthM(), isBest = m > save.best;
-  if (isBest) { save.best = m; persist(); }
-  $('oDepth').firstChild.nodeValue = m; $('oBest').firstChild.nodeValue = save.best; $('oOrbs').textContent = player.orbs;
+  const m = depthM(), kb = kidRun.on, isBest = m > bestNow();   // a Kid mode run has its own best and board (version 197)
+  if (isBest) { if (kb) save.kidBest = m; else save.best = m; persist(); }
+  hsKid = kb; $('oBest').previousElementSibling.textContent = kb ? 'KID BEST' : 'BEST';
+  $('oDepth').firstChild.nodeValue = m; $('oBest').firstChild.nodeValue = bestNow(); $('oOrbs').textContent = player.orbs;
   $('newBest').hidden = !isBest;
   renderRunParts();
   // Run highlights (version 108), one per line, the rarest first; at most four, then the treats.
@@ -5251,12 +5381,17 @@ const BAD_INITIALS = new Set(['ARS', 'ASS', 'BCH', 'CNT', 'COC', 'COK', 'CUM', '
 const showName = i => BAD_INITIALS.has(i) ? '???' : i;
 if (!Array.isArray(save.scores)) save.scores = save.best > 0 ? [{ i: '???', m: save.best, t: 0 }] : [];
 if (!Array.isArray(save.outbox)) save.outbox = [];
+// Kid mode's own board (version 197, owner: "a separate score board for kid mode"): its own top 10 on this device, its own
+// best and its own online board (the function's ?kid=1). A run counts as Kid mode when any kid setting was off normal.
+if (!Array.isArray(save.kidScores)) save.kidScores = [];
+if (!Number.isFinite(save.kidBest)) save.kidBest = 0;
 let scoreOpen = false, hsPending = 0, hsSlot = 0, hsNew = -1, hsHold = 0, hsFrom = 'over';
-let hsTab = 'local', hsOnline = null, hsBusy = false, hsErr = '';
+let hsTab = 'local', hsOnline = null, hsBusy = false, hsErr = '', hsKid = false, hsNewKid = false;   // hsKid: the Kid mode board is showing
+const hsScores = () => hsKid ? save.kidScores : save.scores;
 const hsInit = (typeof save.initials === 'string' && /^[A-Z]{3}$/.test(save.initials) ? save.initials : 'AAA').split('');
 const hsSlots = [...document.querySelectorAll('#initials .slot')];
-const qualifies = m => m > 0 && (save.scores.length < HS_MAX || m > save.scores[HS_MAX - 1].m);
-function hsRankOf(m) { const k = save.scores.findIndex(s => m > s.m); return (k < 0 ? save.scores.length : k) + 1; }
+const qualifies = m => { const list = hsScores(); return m > 0 && (list.length < HS_MAX || m > list[HS_MAX - 1].m); };
+function hsRankOf(m) { const list = hsScores(), k = list.findIndex(s => m > s.m); return (k < 0 ? list.length : k) + 1; }
 function hsDraw() {
   const hint = $('hsHint'); hint.textContent = 'Enter your initials'; hint.classList.remove('bad');
   hsSlots.forEach((el, k) => { el.querySelector('.letter').textContent = hsInit[k]; el.classList.toggle('on', k === hsSlot); });
@@ -5277,7 +5412,7 @@ function showScores(m) {
 }
 // The TOP 10 button on the main menu opens the table on its own.
 function openBoard() {
-  scoreOpen = true; hsFrom = 'title'; hsNew = -1; hsOnline = null;
+  scoreOpen = true; hsFrom = 'title'; hsNew = -1; hsOnline = null; hsKid = kidOn(kidSettings());   // Kid mode on: its board first
   $('hsEntry').hidden = true; $('hsDone').textContent = 'Done';
   openTable(); showScreen('score');
   $('hsDone').focus({ preventScroll: true });
@@ -5291,9 +5426,10 @@ function saveScore() {
   }
   const entry = { i: hsInit.join(''), m: hsPending, t: Date.now(), e: escapedNow(), o: moon };
   save.initials = entry.i;
-  save.scores.splice(hsRankOf(entry.m) - 1, 0, entry); save.scores.length = Math.min(save.scores.length, HS_MAX);
-  hsNew = save.scores.indexOf(entry);
-  if (SCORES_URL) { save.outbox.push({ i: entry.i, m: entry.m, e: entry.e, o: entry.o }); hsOnline = null; }
+  const list = hsScores();
+  list.splice(hsRankOf(entry.m) - 1, 0, entry); list.length = Math.min(list.length, HS_MAX);
+  hsNew = list.indexOf(entry); hsNewKid = hsKid;
+  if (SCORES_URL) { save.outbox.push(Object.assign({ i: entry.i, m: entry.m, e: entry.e, o: entry.o }, hsKid ? { k: true } : {})); hsOnline = null; }
   if (lastEnd && lastEnd.depth === entry.m) { lastEnd.initials = entry.i; statPing(lastEnd); }   // this run's stats row gets these initials
   lastEnd = null;
   persist(); Sfx.orb();
@@ -5312,9 +5448,10 @@ const escapedNow = () => !readyStart && canLaunch();
 const ROCKET_SVG = '<svg viewBox="0 0 7 9" width="14" height="18" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1h-1zM2 1h3v6h-3zM1 4h1v3h-1zM5 4h1v3h-1zM0 6h1v2h-1zM6 6h1v2h-1zM3 7h1v2h-1z"/></svg>';
 function renderTable() {
   $('hsTabOnline').setAttribute('aria-pressed', hsTab === 'online'); $('hsTabLocal').setAttribute('aria-pressed', hsTab === 'local');
+  $('hsKindNormal').setAttribute('aria-pressed', !hsKid); $('hsKindKid').setAttribute('aria-pressed', hsKid);
   let rows = [], note;
   if (hsTab === 'local') {
-    rows = save.scores.map((s, k) => ({ n: k + 1, i: showName(s.i), m: s.m, e: s.e, o: s.o, you: k === hsNew }));
+    rows = hsScores().map((s, k) => ({ n: k + 1, i: showName(s.i), m: s.m, e: s.e, o: s.o, you: k === hsNew && hsKid === hsNewKid }));
     note = hsErr || (rows.length ? 'Saved on this device' : 'No runs yet');
   } else if (!hsOnline) note = 'Loading the online board…';
   else {
@@ -5353,10 +5490,11 @@ function renderTable() {
   }
   $('hsWhere').textContent = note;
 }
-async function scoresFetch(init) {
+// kid: GET the Kid mode board (version 197).
+async function scoresFetch(init, kid) {
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 8000);
   try {
-    const r = await fetch(SCORES_URL, Object.assign({ signal: ctl.signal }, init));
+    const r = await fetch(SCORES_URL + (kid ? '?kid=1' : ''), Object.assign({ signal: ctl.signal }, init));
     if (!r.ok) throw Object.assign(new Error('scores ' + r.status), { status: r.status });
     return await r.json();
   } finally { clearTimeout(timer); }
@@ -5370,14 +5508,17 @@ async function syncOnline() {
     while (save.outbox.length) {
       const s = save.outbox[0];
       try {
-        got = await scoresFetch({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initials: s.i, depth: s.m, escaped: typeof s.e === 'boolean' ? s.e : null, moon: MOON_NAMES[s.o] ? s.o : null }) });
+        got = await scoresFetch({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initials: s.i, depth: s.m, escaped: typeof s.e === 'boolean' ? s.e : null, moon: MOON_NAMES[s.o] ? s.o : null, kid: !!s.k }) });
         got.me = s;
       }
       catch (e) { if (e.status !== 400) throw e; got = null; }
       save.outbox.shift(); persist();
     }
-    hsOnline = got || await scoresFetch();
-    save.boardCache = { top: hsOnline.top, at: Date.now() }; persist();
+    // The last score sent answers with its own board; if that's the other board, fetch the one showing.
+    const kid = hsKid;
+    hsOnline = got && !!got.me.k === kid ? got : await scoresFetch(undefined, kid);
+    if (kid !== hsKid) { hsOnline = null; hsBusy = false; syncOnline(); return; }   // switched boards while it loaded
+    save[kid ? 'kidBoardCache' : 'boardCache'] = { top: hsOnline.top, at: Date.now() }; persist();
   } catch (e) {
     hsErr = save.outbox.length ? 'Couldn’t reach the online board. Your run is saved here and will be sent next time.' : 'Couldn’t reach the online board.';
     if (scoreOpen && hsTab === 'online') hsTab = 'local';
@@ -5406,6 +5547,11 @@ $('hsDone').addEventListener('click', closeScores);
 $('bestBtn').addEventListener('click', openBoard);
 $('hsTabOnline').addEventListener('click', () => { hsTab = 'online'; hsErr = ''; renderTable(); if (!hsOnline) syncOnline(); });
 $('hsTabLocal').addEventListener('click', () => { hsTab = 'local'; renderTable(); });
+// Version 197: Standard or Kid mode board (the button said Normal until version 199).
+for (const [id, kid] of [['hsKindNormal', false], ['hsKindKid', true]]) $(id).addEventListener('click', () => {
+  if (hsKid === kid) return;
+  hsKid = kid; hsOnline = null; hsErr = ''; renderTable(); if (SCORES_URL && hsTab === 'online') syncOnline();
+});
 // Typing works too: letters fill the slots, arrows move and change them, Enter saves.
 function scoreKey(e) {
   const k = e.key, onBtn = document.activeElement && document.activeElement.tagName === 'BUTTON';
@@ -5631,13 +5777,13 @@ function baristaLine(C) {
   const pick = a => a[Math.floor(Math.random() * a.length)];
   if (save.cafeVisits === 1) return 'First time here? Coffee\'s on the house!';
   if (player.bossWon) { player.bossWon = false; return pick(['Was that crash you? Sit, sit!', 'You escaped that thing? Have a refill!']); }
-  if (save.best > 0 && m > save.best) return 'Never seen you this deep!';
+  if (bestNow() > 0 && m > bestNow()) return 'Never seen you this deep!';
   if (!player.hits) return pick(['Not a scratch on you!', 'Clean dive! Nice.']);
   if (cafesRun >= 3) return 'Cafe number ' + cafesRun + '! You\'re a regular.';
   return pick([
     ini ? 'Hey ' + ini + '! The usual?' : 'Hey pilot! The usual?',
     'Dive ' + dives + ' already? Fresh pot\'s on.',
-    save.best ? 'Your best is ' + fmtM(save.best) + ' m. Go beat it!' : 'Mind the walls out there.',
+    bestNow() ? 'Your best is ' + fmtM(bestNow()) + ' m. Go beat it!' : 'Mind the walls out there.',
     'Mind the walls out there.',
   ]);
 }
@@ -5756,7 +5902,7 @@ function updateCafe(dt) {
 // -- the shop: spend spare crystals on one perk per cafe
 const PERKS = [
   { id: 'magnet', name: 'Magnet', desc: 'Pulls in crystals', cost: 3, once: true },
-  { id: 'tough', name: 'Tough suit', desc: '+1 max health', cost: 4, ok: () => player.max < 7 },
+  { id: 'tough', name: 'Tough suit', desc: '+1 max health', cost: 4, ok: () => player.max - player.toughN < 5 ? player.max < 7 : player.toughN < 2 },   // kid health above 5: still up to +2 (v201)
   { id: 'longshield', name: 'Long shield', desc: 'Shields last 5 s more', cost: 2, once: true },
   { id: 'turbo', name: 'Turbo', desc: 'Faster thrusters', cost: 3, once: true },
   { id: 'bubble', name: 'Bubble to go', desc: 'Shield as you leave', cost: 2, ok: () => player.shield <= 0 },
@@ -5951,8 +6097,9 @@ function drawCafeSigns(cam) {
 // ---------- board flags: where runs on the high score board ended, marked by a gravestone on the shaft wall ----------
 let flags = [], nextFlag = 0;
 function boardRows() {
-  const cache = SCORES_URL && save.boardCache && Array.isArray(save.boardCache.top) ? save.boardCache.top : null;
-  const rows = cache ? cache.map(s => ({ i: showName(String(s.initials).slice(0, 3)), m: s.depth })) : save.scores.map(s => ({ i: s.i === '???' ? 'BEST' : showName(s.i), m: s.m }));
+  const kid = kidRun.on, bc = save[kid ? 'kidBoardCache' : 'boardCache'];   // a Kid mode run passes the Kid board's stones (version 197)
+  const cache = SCORES_URL && bc && Array.isArray(bc.top) ? bc.top : null;
+  const rows = cache ? cache.map(s => ({ i: showName(String(s.initials).slice(0, 3)), m: s.depth })) : (kid ? save.kidScores : save.scores).map(s => ({ i: s.i === '???' ? 'BEST' : showName(s.i), m: s.m }));
   // One tombstone per player, at their best score (version 83: several runs by the same initials made a crowd of stones).
   const best = new Map();
   for (const r of rows) if (Number.isFinite(r.m) && r.m >= 30 && !(best.get(r.i)?.m >= r.m)) best.set(r.i, r);
@@ -5968,8 +6115,9 @@ function buildFlags() {
 // With an online board, fetch the latest top 10 at the start of each run (in the background) so the flags are fresh.
 function refreshBoard() {
   if (!SCORES_URL) return;
-  if (save.boardCache && Date.now() - save.boardCache.at < 120000) return;
-  scoresFetch().then(r => { if (r && Array.isArray(r.top)) { save.boardCache = { top: r.top, at: Date.now() }; persist(); buildFlags(); } }, () => {});
+  const kid = kidRun.on, key = kid ? 'kidBoardCache' : 'boardCache';
+  if (save[key] && Date.now() - save[key].at < 120000) return;
+  scoresFetch(undefined, kid).then(r => { if (r && Array.isArray(r.top)) { save[key] = { top: r.top, at: Date.now() }; persist(); if (kidRun.on === kid) buildFlags(); } }, () => {});
 }
 function passFlags() {
   while (nextFlag < flags.length && flags[nextFlag].d <= player.y + PILOT_CY) {
@@ -6704,7 +6852,7 @@ function showEnd() {
   if (save.droneNew) { lines.push('Helper drone unlocked!'); save.droneNew = false; persist(); }   // version 160
   $('eUnlock').textContent = lines.length ? lines.join(' ') + ' (Unlocks)' : '';   // "(Unlocks)" since version 160 (they moved off Settings)
   $('eUnlock').hidden = !$('eUnlock').textContent;
-  $('eBest').firstChild.nodeValue = save.best;
+  $('eBest').firstChild.nodeValue = bestNow(); $('eBest').previousElementSibling.textContent = kidRun.on ? 'KID BEST' : 'BEST';
   $('eParts').textContent = PARTS.reduce((n, pt) => n + pt.need, 0);
   $('eLaunch').textContent = save.launches;
   $('eDives').textContent = save.dives || 0;
@@ -6812,7 +6960,7 @@ addEventListener('keydown', e => {
     e.preventDefault();
     if (cafeT > 1.6) leaveCafe();
   }
-  else if (k === 'Escape' && state === 'title' && cardSide) setCard(cardSide === 'levi' || cardSide === 'moons' || (cardSide === 'unlocks' && unlocksFromNews) ? 'news' : null);   // one step back (version 157)
+  else if (k === 'Escape' && state === 'title' && cardSide) setCard(cardSide === 'kid' ? (kidFromNews ? 'news' : 'settings') : cardSide === 'levi' || cardSide === 'moons' || (cardSide === 'unlocks' && unlocksFromNews) ? 'news' : null);   // one step back (version 157)
   else if (k === 'Escape' || k === 'p' || k === 'P') { if (state === 'paused') resume(); else pause(); }
   else if ((k === ' ' || k === 'Enter') && state === 'title' && document.activeElement === document.body) { e.preventDefault(); if (screens.title.classList.contains('clean')) openMenu(); else startRun(false); }
   else return;
@@ -7273,13 +7421,13 @@ function genSeg(k) {
           // Only 30% of the plain boulders are kept (version 92: the user still found the shaft busy; half were kept
           // from version 75, all of them before). Only the big mines are kept (version 94: the user asked for the
           // small ones to go).
-          if (isMine ? size === 2 : r() < 0.3) { rocks.push({ d, x0: x, x, size, rr, amp, ph, sp, isMine, dead: false }); lastRockD = d; }
+          if (isMine ? size === 2 && (kidRun.mines >= 1 || kidRoll(k * 3 + 1) < kidRun.mines) : r() < 0.3) { rocks.push({ d, x0: x, x, size, rr, amp, ph, sp, isMine, dead: false }); lastRockD = d; }
         }
       }
     }
   }
   // About 30% fewer crystals since version 81 (the user found too much health about): 0.16 + 0.03 per missing chunk before.
-  if (d0 > 760 && r() < (0.11 + (player.max - player.hp) * 0.02) * (player.perks.lucky ? 1.4 : 1)) {
+  if (d0 > 760 && r() < (0.11 + (player.max - player.hp) * 0.02) * (player.perks.lucky ? 1.4 : 1) * kidRun.health) {
     const d = d0 + 15 + r() * (SEG_LEN - 30);
     if (Math.abs(d - lastRockD) > 36) {
       const sp = spans(d), pick = sp[sp.length > 1 && r() < 0.5 ? 1 : 0];
@@ -7294,7 +7442,7 @@ function genSeg(k) {
     }
   }
   // A quarter fewer ship parts since version 98 (0.2 a segment, 0.3 with the finder perk, before).
-  if (d0 > 640 && r() < (player.perks.finder ? 0.225 : 0.15)) {
+  if (d0 > 640 && r() < (player.perks.finder ? 0.225 : 0.15) * kidRun.parts) {
     const pt = pickPart(r, d0 / 8);
     if (pt) {
       const d = d0 + 20 + r() * (SEG_LEN - 40);
@@ -7321,14 +7469,17 @@ function voidContents(V, d0) {
     if (d < d0 || d >= d0 + SEG_LEN) continue;
     const r = rng32(Math.floor(SEED * 1000) + V.j * 977 + i * 31 + 5);
     // Every mine here is a big one since version 94 (half were small); r() is still drawn so the rest of the row stays the same.
-    const mine = x => { r(); const size = 2; rocks.push({ d, x0: x, x, size, rr: ROCK_R[size], amp: r() < 0.4 ? 10 + r() * 20 : 0, ph: r() * 6.28, sp: 0.8 + r(), isMine: true, dead: false }); };
+    // Kid mode (version 197): a mine left out still makes the same random draws, so the rest of the row stays the same.
+    const mine = (x, m) => { r(); const size = 2; if (kidRun.mines < 1 && kidRoll(V.j * 977 + i * 31 + m) >= kidRun.mines) { if (r() < 0.4) r(); r(); r(); return; } rocks.push({ d, x0: x, x, size, rr: ROCK_R[size], amp: r() < 0.4 ? 10 + r() * 20 : 0, ph: r() * 6.28, sp: 0.8 + r(), isMine: true, dead: false }); };
     const x1 = 40 + r() * (W - 80);
-    mine(x1);
-    if (r() < 0.35) mine(x1 < W / 2 ? x1 + 90 + r() * (W - 130 - x1 - 90) : 40 + r() * (x1 - 130));
+    mine(x1, 1);
+    if (r() < 0.35) mine(x1 < W / 2 ? x1 + 90 + r() * (W - 130 - x1 - 90) : 40 + r() * (x1 - 130), 2);
     const di = d + 70, xi = 36 + r() * (W - 72);
     // Three in four of the part rows have one since version 98 (all of them before).
-    if (i % 2 === 0) { const pt = pickPart(r, di / PX_PER_M); if (pt && r() < 0.75) items.push({ d: di, x: xi, kind: 'part', part: pt, dead: false }); }
+    if (i % 2 === 0) { const pt = pickPart(r, di / PX_PER_M); if (pt && r() < 0.75 * kidRun.parts) items.push({ d: di, x: xi, kind: 'part', part: pt, dead: false }); }
     else items.push({ d: di, x: xi, kind: 'orb', dead: false });
+    // Kid mode: more crystals add one beside some part rows (the extra above 100%, as a chance).
+    if (i % 2 === 0 && kidRun.health > 1 && kidRoll(V.j * 977 + i * 31 + 3) < kidRun.health - 1) items.push({ d: di + 34, x: W - xi, kind: 'orb', dead: false });
   }
   lastRockD = Math.max(lastRockD, V.B);
 }
@@ -7669,7 +7820,7 @@ function startBoss(B) {
   const x0 = W / 2 + dir * (mid - A) * 0.14, y0 = Math.max(-170, H / 2 + (A - mid) * LEVI_PARALLAX);
   boss = { B, kind, k2, n: (B.k + 1) / 2, dir, rot: 0, turnT: -1, turnFrom: dir, sideT: 0, lastTurn: 0, kick: 0, rage: false,
     phase: 'enter', t: 0, pt: 0, x0, y0, x: x0, y: y0, next: 0.6, queue: [], charge: 0, last: '', orbs: 0, d: 0, sil: mix(palAt(A).sO, P.ink, 0.42) };
-  bossShots.length = 0; bossFresh = true; stampAllow = 0;
+  bossShots.length = 0; kidShotAcc = 0.5; bossFresh = true; stampAllow = 0;
   hud.classList.add('boss'); coach.classList.add('gone');
   Sfx.groan(kind); Sfx.bossRoar(); Sfx.leviHello(); Buzz.mine(); shake = Math.max(shake, 1.6);
   bossMusic(B); Music.heat(1);
@@ -7692,7 +7843,7 @@ function bossFire(kind) {
   const b = boss, lv = Math.min(5, Math.ceil(b.n)), sp = 1.12 + 0.08 * (b.n - 1) + (b.rage ? 0.08 : 0);
   const mouth = () => { const [dx, dy] = bossMouth(b); return [b.x + dx, b.y + dy - 5 * b.kick]; };
   const later = (dt, fn) => b.queue.push({ at: b.t + dt, fn: () => { b.kick = 1; fn(); } });
-  const glob = (x, y, ang, v, r) => bossShots.push({ type: 'glob', x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, r: r || 4, t: 0 });
+  const glob = (x, y, ang, v, r) => bossShot({ type: 'glob', x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, r: r || 4, t: 0 });
   // Aimed shots lead him a little: they go where he's heading, not only where he is.
   const aim = (x, y, lead) => Math.atan2(pilotNow + PILOT_CY - y, player.x + (lead ? player.vx * 0.3 : 0) - x);
   b.charge = b.t + 0.45; Sfx.bossCharge();
@@ -7723,14 +7874,14 @@ function bossFire(kind) {
   }
   if (kind === 'beam') {   // beams down the cavern: a warning line first, then it fires; the first is where he is
     const N = 3 + Math.min(2, lv - 1);
-    for (let i = 0; i < N; i++) later(0.3 + i * 0.38, () => bossShots.push({ type: 'beam', x: i ? Math.max(16, Math.min(W - 16, player.x + (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 60))) : player.x + player.vx * 0.25, y: mouth()[1] + 6, t: 0, warn: 0.7, dur: 0.35 }));
+    for (let i = 0; i < N; i++) later(0.3 + i * 0.38, () => bossShot({ type: 'beam', x: i ? Math.max(16, Math.min(W - 16, player.x + (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 60))) : player.x + player.vx * 0.25, y: mouth()[1] + 6, t: 0, warn: 0.7, dur: 0.35 }));
     return 0.3 + N * 0.38 + 1;
   }
   if (kind === 'wave') {   // snakes of spores wriggling down
     const S = 3 + (lv >= 3 ? 1 : 0);
     for (let k = 0; k < S; k++) {
       const x0 = 36 + Math.random() * (W - 72);
-      for (let i = 0; i < 7; i++) later(0.45 + k * 0.3 + i * 0.11, () => { bossShots.push({ type: 'wave', x0, x: x0, y: mouth()[1] + 6, vy: 160 * sp, amp: 40, f: 3.4, ph: k * 2, t: 0, r: 3 }); if (!i) Sfx.bossShot(); });
+      for (let i = 0; i < 7; i++) later(0.45 + k * 0.3 + i * 0.11, () => { bossShot({ type: 'wave', x0, x: x0, y: mouth()[1] + 6, vy: 160 * sp, amp: 40, f: 3.4, ph: k * 2, t: 0, r: 3 }); if (!i) Sfx.bossShot(); });
     }
     return 0.45 + S * 0.3 + 0.8;
   }
@@ -7753,7 +7904,7 @@ function bossFire(kind) {
       const [x, y] = mouth(), px = player.x, py = pilotNow + PILOT_CY, D = Math.max(120, Math.hypot(px - x, py - y));
       const side = Math.random() < 0.5 ? -1 : 1, g1 = Math.max(30, Math.min(W - 30, px + side * (45 + Math.random() * 45)));
       const g2 = Math.max(30, Math.min(W - 30, px - side * (100 + Math.random() * 60)));
-      bossShots.push({ type: 'shriek', x, y, r: 6, v: 150 * sp, t: 0, gw: 34 / D, gaps: [Math.atan2(py - y, g1 - x), Math.atan2(py - y, g2 - x)].sort((a, b) => a - b) });
+      bossShot({ type: 'shriek', x, y, r: 6, v: 150 * sp, t: 0, gw: 34 / D, gaps: [Math.atan2(py - y, g1 - x), Math.atan2(py - y, g2 - x)].sort((a, b) => a - b) });
       Sfx.bossShriek(); shake = Math.max(shake, 0.8);
     });
     return 0.5 + n * 0.6 + 0.5;
@@ -7763,7 +7914,7 @@ function bossFire(kind) {
     let alive = 0; for (const q of bossShots) if (q.type === 'sting') alive++;
     if (alive > 6) return 0.6;   // the last lot is still drifting down
     for (let i = 0; i < N; i++) if (i !== skip) later(0.4 + i * 0.1, () => { const [x, y] = mouth();
-      bossShots.push({ type: 'sting', sx: x, lx: 20 + lane * (i + 0.5), x, y, vy: 72 * sp, amp: 8 + Math.random() * 8, ph: Math.random() * 6.28, t: 0, r: 5 }); });
+      bossShot({ type: 'sting', sx: x, lx: 20 + lane * (i + 0.5), x, y, vy: 72 * sp, amp: 8 + Math.random() * 8, ph: Math.random() * 6.28, t: 0, r: 5 }); });
     Sfx.bossShot(true);
     return 1.7;
   }
@@ -7772,7 +7923,7 @@ function bossFire(kind) {
     for (let i = 0; i < n; i++) later(0.35 + i * 1.9, () => {
       let dx = (Math.random() < 0.5 ? -1 : 1) * (60 + Math.random() * 50);
       if (player.x + dx < 30 || player.x + dx > W - 30) dx = -dx;
-      bossShots.push({ type: 'lure', x: Math.max(30, Math.min(W - 30, player.x + dx)), y: pilotNow + PILOT_CY - 130, t: 0, warn: 1.5, dur: 0.3, w: 34 });
+      bossShot({ type: 'lure', x: Math.max(30, Math.min(W - 30, player.x + dx)), y: pilotNow + PILOT_CY - 130, t: 0, warn: 1.5, dur: 0.3, w: 34 });
     });
     return 0.35 + n * 1.9 + 0.4;
   }
@@ -7780,7 +7931,7 @@ function bossFire(kind) {
     const n = lv >= 3 ? 3 : 2;
     let side = player.x < W / 2 ? -1 : 1;
     for (let j = 0; j < n; j++) later(0.45 + j * 0.85, () => {
-      bossShots.push({ type: 'sweep', side, split: Math.round(W / 2 + (Math.random() - 0.5) * 80), y: mouth()[1] + 8, vy: 175 * sp, t: 0 });
+      bossShot({ type: 'sweep', side, split: Math.round(W / 2 + (Math.random() - 0.5) * 80), y: mouth()[1] + 8, vy: 175 * sp, t: 0 });
       side = -side; Sfx.bossShot(true);
     });
     return 0.45 + n * 0.85 + 0.6;
@@ -7811,7 +7962,7 @@ function bossFire(kind) {
     for (let i = 0; i < n; i++) later(0.35 + i * 1.9, () => {
       let dx = (Math.random() < 0.5 ? -1 : 1) * (45 + Math.random() * 45);
       if (player.x + dx < 40 || player.x + dx > W - 40) dx = -dx;
-      bossShots.push({ type: 'snap', x: Math.max(40, Math.min(W - 40, player.x + dx)), y: pilotNow + PILOT_CY, t: 0, warn: 1.25, dur: 0.32, w: 52 });
+      bossShot({ type: 'snap', x: Math.max(40, Math.min(W - 40, player.x + dx)), y: pilotNow + PILOT_CY, t: 0, warn: 1.25, dur: 0.32, w: 52 });
       Sfx.bossCharge();
     });
     return 0.35 + n * 1.9 + 0.4;
@@ -7838,7 +7989,7 @@ function bossFire(kind) {
     const n = lv >= 3 ? 2 : 1;
     for (let i = 0; i < n; i++) later(0.4 + i * 1.5, () => {
       const hx = 60 + Math.random() * (W - 120);
-      bossShots.push({ type: 'web', x: hx, hx, y: mouth()[1] + 14, vy: 105 * sp, amp: 34 + Math.random() * 22, f: 1.1 + Math.random() * 0.5, ph: Math.random() * 6.28, R: 27, t: 0 });
+      bossShot({ type: 'web', x: hx, hx, y: mouth()[1] + 14, vy: 105 * sp, amp: 34 + Math.random() * 22, f: 1.1 + Math.random() * 0.5, ph: Math.random() * 6.28, R: 27, t: 0 });
       Sfx.bossShot(true);
     });
     return 0.4 + n * 1.5 + 0.8;
@@ -7847,7 +7998,7 @@ function bossFire(kind) {
     const n = lv >= 3 ? 3 : 2;
     for (let i = 0; i < n; i++) later(0.35 + i * 0.85, () => {
       const [x, y] = mouth(), tx = Math.max(12, Math.min(W - 12, player.x + player.vx * 0.2)), ty = pilotNow + PILOT_CY;
-      bossShots.push({ type: 'tongue', x: tx, y: ty, mx: x, my: y, a: Math.atan2(ty - y, tx - x), L: Math.hypot(tx - x, ty - y) + 70, t: 0, warn: 0.6, out: 0.12, hold: 0.14, back: 0.16 });
+      bossShot({ type: 'tongue', x: tx, y: ty, mx: x, my: y, a: Math.atan2(ty - y, tx - x), L: Math.hypot(tx - x, ty - y) + 70, t: 0, warn: 0.6, out: 0.12, hold: 0.14, back: 0.16 });
       Sfx.bossCharge();
     });
     return 0.35 + n * 0.85 + 0.6;
@@ -7858,7 +8009,7 @@ function bossFire(kind) {
       const T = [Math.max(24, Math.min(W - 24, player.x + player.vx * 0.3)), pilotNow + PILOT_CY];
       for (const side of [-1, 1]) {
         const O = [b.x + side * 54, b.y - 20], C = [Math.max(8, Math.min(W - 8, O[0] + side * (90 + Math.random() * 30))), lerp(O[1], T[1], 0.45)];
-        bossShots.push({ type: 'sickle', O, C, T, dur: 1.5 / sp, x: O[0], y: O[1], r: 8, t: 0, spin: side });
+        bossShot({ type: 'sickle', O, C, T, dur: 1.5 / sp, x: O[0], y: O[1], r: 8, t: 0, spin: side });
       }
       Sfx.bossShot();
     });
@@ -7868,7 +8019,7 @@ function bossFire(kind) {
     const n = lv >= 3 ? 4 : 3;
     for (let w = 0; w < n; w++) later(0.45 + w * 0.5, () => {
       const [x, y] = mouth(), a = aim(x, y, true), v = 170 * sp, ph = Math.random() * 6.28;
-      for (let i = 0; i < 2; i++) bossShots.push({ type: 'screw', cx: x, cy: y, x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, nx: -Math.sin(a), ny: Math.cos(a), ph: ph + i * Math.PI, R: 15, r: 4, t: 0 });
+      for (let i = 0; i < 2; i++) bossShot({ type: 'screw', cx: x, cy: y, x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, nx: -Math.sin(a), ny: Math.cos(a), ph: ph + i * Math.PI, R: 15, r: 4, t: 0 });
       Sfx.bossShot();
     });
     return 0.45 + n * 0.5 + 0.4;
@@ -7877,7 +8028,7 @@ function bossFire(kind) {
     const n = lv >= 3 ? 2 : 1;
     for (let i = 0; i < n; i++) later(0.35 + i * 1.7, () => {
       const side = player.x < b.x ? 1 : -1;   // it sweeps toward him from his far side
-      bossShots.push({ type: 'scan', a0: Math.PI / 2 + side * 1.15, a1: Math.PI / 2 - side * 1.15, sweep: 0.95 / sp, x: b.x, y: b.y, lock: -1, lx: 0, ly: 0, aim: 0.55, dur: 0.3, t: 0 });
+      bossShot({ type: 'scan', a0: Math.PI / 2 + side * 1.15, a1: Math.PI / 2 - side * 1.15, sweep: 0.95 / sp, x: b.x, y: b.y, lock: -1, lx: 0, ly: 0, aim: 0.55, dur: 0.3, t: 0 });
       Sfx.laserWarn();
     });
     return 0.35 + n * 1.7 + 0.6;
@@ -7885,35 +8036,35 @@ function bossFire(kind) {
   if (kind === 'mortar') {   // crab: markers round his row (one where he's heading); a moment later, a shell bursts on each
     const N = lv >= 3 ? 4 : 3, py = pilotNow + PILOT_CY, xs = [Math.max(24, Math.min(W - 24, player.x + player.vx * 0.3))];
     for (let tries = 0; xs.length < N && tries < 40; tries++) { const x = 26 + Math.random() * (W - 52); if (xs.every(q => Math.abs(q - x) > 62)) xs.push(x); }
-    xs.forEach((x, i) => later(0.3 + i * 0.22, () => { bossShots.push({ type: 'mortar', x, y: py + (Math.random() - 0.5) * 24, R: 24, t: 0, warn: 1.15, dur: 0.22 }); if (!i) Sfx.bossCharge(); }));
+    xs.forEach((x, i) => later(0.3 + i * 0.22, () => { bossShot({ type: 'mortar', x, y: py + (Math.random() - 0.5) * 24, R: 24, t: 0, warn: 1.15, dur: 0.22 }); if (!i) Sfx.bossCharge(); }));
     return 0.3 + N * 0.22 + 1.6;
   }
   if (kind === 'drones') {   // wasp: drones that steer after him for a moment, then dart on in a straight line
     const N = lv >= 3 ? 4 : 3;
     for (let i = 0; i < N; i++) later(0.4 + i * 0.28, () => {
       const [x, y] = mouth(), a = Math.PI / 2 + (i % 2 ? 1 : -1) * (0.9 + Math.random() * 0.4);
-      bossShots.push({ type: 'drone', x, y, a, v: 105 * sp, dart: 245 * sp, home: 1.5, r: 5, t: 0 });
+      bossShot({ type: 'drone', x, y, a, v: 105 * sp, dart: 245 * sp, home: 1.5, r: 5, t: 0 });
       Sfx.bossShot();
     });
     return 0.4 + N * 0.28 + 1.4;
   }
   if (kind === 'slag') {   // beetle: three streams of slag pour down the cavern, drifting sideways together
     const drift = (Math.random() < 0.5 ? -1 : 1) * (14 + Math.random() * 12), dur = lv >= 3 ? 2.6 : 2.1, off = (Math.random() - 0.5) * 30;
-    later(0.4, () => { for (let i = 0; i < 3; i++) bossShots.push({ type: 'slag', x: W * (i + 1) / 4 + off, vx: drift, y: mouth()[1] + 6, t: 0, warn: 0.6, dur, w: 12 }); Sfx.bossShot(true); });
+    later(0.4, () => { for (let i = 0; i < 3; i++) bossShot({ type: 'slag', x: W * (i + 1) / 4 + off, vx: drift, y: mouth()[1] + 6, t: 0, warn: 0.6, dur, w: 12 }); Sfx.bossShot(true); });
     return 0.4 + 0.6 + dur + 0.3;
   }
   if (kind === 'cogs') {   // gear: cogs flung out to the sides, bouncing off the cavern walls on their way down
     const n = lv >= 3 ? 3 : 2;
     for (let w = 0; w < n; w++) later(0.45 + w * 0.6, () => {
       const [x, y] = mouth();
-      for (const side of [-1, 1]) bossShots.push({ type: 'cog', x, y, vx: side * (150 + Math.random() * 70) * sp, vy: (95 + Math.random() * 30) * sp, r: 8, t: 0, spin: side, hits: 0 });
+      for (const side of [-1, 1]) bossShot({ type: 'cog', x, y, vx: side * (150 + Math.random() * 70) * sp, vy: (95 + Math.random() * 30) * sp, r: 8, t: 0, spin: side, hits: 0 });
       Sfx.bossShot(true);
     });
     return 0.45 + n * 0.6 + 1.0;
   }
   // bomb: slow, big shots lobbed toward him that burst into a ring of small ones
   const N = 3 + (lv >= 3 ? 1 : 0);
-  for (let i = 0; i < N; i++) later(0.45 + i * 0.45, () => { const [x, y] = mouth(); bossShots.push({ type: 'bomb', x, y, vx: (player.x - x) * 0.45, vy: 120 * sp, r: 7, t: 0, fuse: 1.35 + Math.random() * 0.25 }); Sfx.bossShot(true); });
+  for (let i = 0; i < N; i++) later(0.45 + i * 0.45, () => { const [x, y] = mouth(); bossShot({ type: 'bomb', x, y, vx: (player.x - x) * 0.45, vy: 120 * sp, r: 7, t: 0, fuse: 1.35 + Math.random() * 0.25 }); Sfx.bossShot(true); });
   return 0.45 + N * 0.45 + 0.8;
 }
 // Each frame of a run, before the camera is placed: start the music and the fight, move it, end it, and set where he
@@ -7969,6 +8120,7 @@ function updateBoss(dt) {
         if (b.orbs < BOSS_ORBS.length && b.pt >= BOSS_ORBS[b.orbs]) {
           b.orbs++;
           items.push({ d: camY + H + 14, x: 40 + Math.random() * (W - 80), kind: 'orb', dead: false, drift: 0.82 });
+          if (Math.random() < kidRun.health - 1) items.push({ d: camY + H + 50, x: 40 + Math.random() * (W - 80), kind: 'orb', dead: false, drift: 0.82 });   // kid mode
         }
         if (cd >= B.F0 - BOSS_LIFT * B.speed) { b.phase = 'chase'; b.pt = 0; b.queue.length = 0; b.charge = 0; Music.heat(3); }
       }
@@ -9392,7 +9544,7 @@ function update(dt) {
     if (ledgesPassed(player.y + PILOT_CY) > fasterN) {
       fasterN++; expireTreats(fasterN);
       const top = Math.round(CAFE_SPEED_MAX / CAFE_SPEEDUP);
-      if (fasterN <= top) speedUp(fasterN === top, fasterN * CAFE_SPEEDUP);   // version 142: banner, rush and whoosh (was a small 'FALL +5%' pop)
+      if (fasterN <= top && kidRun.speed) speedUp(fasterN === top, fasterN * CAFE_SPEEDUP);   // version 142: banner, rush and whoosh (was a small 'FALL +5%' pop)
     }
     if (state === 'play') checkCafe();
     Sfx.wind(0.5 + 0.5 * smoothstep((player.v - 250) / 200));
