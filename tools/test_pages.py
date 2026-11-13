@@ -76,7 +76,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     }
     if (q.get('kid')) {   // version 197: Kid mode on (mines at 50%) through its real slider, then back to the menu
       const g = id => document.getElementById(id); g('settingsBtn').click(); await wait(600); g('kidBtn').click(); await wait(600);
-      g('kidMines').value = 50; g('kidMines').dispatchEvent(new Event('input'));
+      for (const [id, v] of [['kidMines', 50], ['kidHp', 150]]) { g(id).value = v; g(id).dispatchEvent(new Event('input')); }
       if (q.get('card') !== 'kid') { g('kidDone').click(); await wait(600); g('settingsDone').click(); await wait(800); }
     }
     if (q.get('card') === 'kid') { if (!q.get('kid')) { document.getElementById('settingsBtn').click(); await wait(600); document.getElementById('kidBtn').click(); await wait(800); } }

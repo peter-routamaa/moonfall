@@ -756,8 +756,8 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <p class="kid-how">Make the dive easier. Changes start on the next dive.</p>
       <div class="kid-sliders">
         <label class="kid-sl"><span class="kid-lbl">Mines</span><output id="kidMinesV"></output><input type="range" id="kidMines" min="0" max="100" step="25" data-key="mines"></label>
-        <label class="kid-sl"><span class="kid-lbl">Ship parts</span><output id="kidPartsV"></output><input type="range" id="kidParts" min="100" max="200" step="25" data-key="parts"></label>
-        <label class="kid-sl"><span class="kid-lbl">Health crystals</span><output id="kidHealthV"></output><input type="range" id="kidHealth" min="100" max="200" step="25" data-key="health"></label>
+        <label class="kid-sl"><span class="kid-lbl">Parts &amp; crystals</span><output id="kidDropsV"></output><input type="range" id="kidDrops" min="100" max="200" step="25" data-key="drops"></label>
+        <label class="kid-sl"><span class="kid-lbl">Health</span><output id="kidHpV"></output><input type="range" id="kidHp" min="100" max="200" step="25" data-key="hp"></label>
         <label class="kid-sl"><span class="kid-lbl">Fall speed</span><output id="kidFallV"></output><input type="range" id="kidFall" min="50" max="100" step="25" data-key="fall"></label>
         <label class="kid-sl"><span class="kid-lbl">Leviathan shots</span><output id="kidShotsV"></output><input type="range" id="kidShots" min="0" max="100" step="25" data-key="shots"></label>
       </div>
@@ -3464,11 +3464,13 @@ const cafesPassed = d => { const k = cafeAbove(d - 40); return k < 1 ? 0 : k - 1
 // How many cafe ledges lie above depth d, counted the moment he passes each one (pops and treats use this).
 const ledgesPassed = d => Math.max(0, cafeAbove(d - 40));
 function speedAt(d) {
-  const s = (FALL_SPEED + SPEED_RAMP * smoothstep(d / 26000)) * (kidRun.speed ? 1 + Math.min(CAFE_SPEED_MAX, CAFE_SPEEDUP * cafesPassed(d)) : 1) * (hardRun ? HARD_SPEED : 1) * kidRun.fall, B = bossAt(d);
+  const s0 = (FALL_SPEED + SPEED_RAMP * smoothstep(d / 26000)) * (kidRun.speed ? 1 + Math.min(CAFE_SPEED_MAX, CAFE_SPEEDUP * cafesPassed(d)) : 1) * (hardRun ? HARD_SPEED : 1);
+  const s = s0 * kidRun.fall, B = bossAt(d);
   if (!B) return s;
   // Through a boss cavern (version 87) the fall eases to the speed that makes it last BOSS_TIME, then back after the neck.
   const u = d < B.A0 ? smoothstep((d - B.A0 + 240) / 240) : d < B.N1 ? 1 : 1 - smoothstep((d - B.N1) / BOSS_BACK);
-  return lerp(s, Math.min(s, B.speed), u);
+  // Kid mode's slower fall (version 201, owner) eases to the usual fight speed, so a fight lasts as long as in the standard game.
+  return lerp(s, Math.min(s0, B.speed), u);
 }
 
 // ---------- saved settings ----------
@@ -3484,11 +3486,14 @@ const navDone = () => save.nav >= NAV_PRICE;
 const canLaunch = () => repairFrac() >= 1 && navDone();
 // Kid mode (version 197, user): mines and Leviathan shots 0-100%, ship parts and health crystals 100-200%, in 25% steps,
 // and the cafe speed-up on or off. Saved as save.kid; fixed for the whole run at its start (kidRun), like Terminal Velocity.
-const KID_NORMAL = { mines: 100, parts: 100, health: 100, fall: 100, shots: 100, speed: true };
+// Version 201 (owner): ship parts and crystals share one slider (drops), and Health adds to the pilot's health: 100-200%
+// of 5 (4 on Terminal Velocity), rounded: 5, 6, 8, 9, 10.
+const KID_NORMAL = { mines: 100, drops: 100, hp: 100, fall: 100, shots: 100, speed: true };
 // Fall speed (version 200, owner: "a slider to slow fall speed"): 50-100%, the whole fall, cafe speed-ups and fights included.
-const KID_RANGE = { mines: [0, 100], parts: [100, 200], health: [100, 200], fall: [50, 100], shots: [0, 100] };
+const KID_RANGE = { mines: [0, 100], drops: [100, 200], hp: [100, 200], fall: [50, 100], shots: [0, 100] };
 function kidSettings() {
   const k = Object.assign({}, KID_NORMAL, save.kid);
+  if (save.kid && save.kid.drops == null && (save.kid.parts || save.kid.health)) k.drops = Math.max(+save.kid.parts || 100, +save.kid.health || 100);   // v197-200 saves
   for (const key in KID_RANGE) { const [lo, hi] = KID_RANGE[key], v = Math.round(+k[key] / 25) * 25; k[key] = Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : KID_NORMAL[key]; }
   k.speed = k.speed !== false;
   return k;
@@ -3497,7 +3502,7 @@ const kidOn = k => Object.keys(KID_NORMAL).some(key => k[key] !== KID_NORMAL[key
 // The best depth this run is measured against: Kid mode runs have their own (version 197).
 const bestNow = () => kidRun.on ? save.kidBest || 0 : save.best;
 // What this run uses, as fractions (mines 0.5 = half the mines). Normal until a run starts.
-let kidRun = { mines: 1, parts: 1, health: 1, fall: 1, shots: 1, speed: true, on: false }, kidShotAcc = 0;
+let kidRun = { mines: 1, parts: 1, health: 1, hp: 1, fall: 1, shots: 1, speed: true, on: false }, kidShotAcc = 0;
 // A fixed roll in [0, 1) for one place in the shaft, so leaving out mines doesn't change the rest of the seeded layout.
 const kidRoll = n => { const x = Math.sin(n * 12.9898 + SEED * 78.233) * 43758.5453; return x - Math.floor(x); };
 // Leviathan shots are thinned evenly (at 50% every other one is fired, at 25% one in four), not at random.
@@ -4823,6 +4828,7 @@ function resetRun() {
   drone.ox = 24; drone.oy = -20; drone.mode = 'follow'; drone.it = null; drone.lock = null; drone.caught = 0; drone.hp = undefined; drone.chatAt = 0;
   $('partsRun').textContent = '0'; repair = repairFrac(); repairStart = repair; readyStart = canLaunch();
   Object.assign(player, playerStart());
+  player.hp = player.max = Math.round(player.max * kidRun.hp);   // Kid mode health (version 201)
   cafeVisited.clear(); cafeRetire(); signArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
   buildHP(); $('spareRun').textContent = '0'; spareHud.hidden = true; streakFlash.classList.remove('on'); speedFlash.classList.remove('on'); speedRush = 0; buildFlags(); refreshBoard();
   Music.reset();
@@ -5137,7 +5143,7 @@ $('settingsBtn').addEventListener('click', () => setCard('settings'));
 $('howDone').addEventListener('click', () => setCard(null));
 $('settingsDone').addEventListener('click', () => setCard(null));
 // Kid mode (version 197): its tile in Settings opens the kid card; Done goes back to Settings.
-const KID_SLIDERS = { mines: 'kidMines', parts: 'kidParts', health: 'kidHealth', fall: 'kidFall', shots: 'kidShots' };
+const KID_SLIDERS = { mines: 'kidMines', drops: 'kidDrops', hp: 'kidHp', fall: 'kidFall', shots: 'kidShots' };
 function syncKid() {
   const k = kidSettings();
   for (const key in KID_SLIDERS) {
@@ -5259,7 +5265,7 @@ const HARD_SPEED = 1.15, hardOpen = () => missionsDone() > 0;
 let introRunUp = false;   // version 176: Jump in (the full run-up), not Play again, gets the shaft line
 function startRun(quick) {
   hardRun = !!save.hard && hardOpen();
-  { const k = kidSettings(); kidRun = { mines: k.mines / 100, parts: k.parts / 100, health: k.health / 100, fall: k.fall / 100, shots: k.shots / 100, speed: k.speed, on: kidOn(k) }; }   // version 197
+  { const k = kidSettings(); kidRun = { mines: k.mines / 100, parts: k.drops / 100, health: k.drops / 100, hp: k.hp / 100, fall: k.fall / 100, shots: k.shots / 100, speed: k.speed, on: kidOn(k) }; }   // version 197
   droneRun = !!save.drone && droneOpen();
   Sfx.init(); Music.stop(0.4); setCard(null, true);
   resetRun(); countPlay();
@@ -5876,7 +5882,7 @@ function updateCafe(dt) {
 // -- the shop: spend spare crystals on one perk per cafe
 const PERKS = [
   { id: 'magnet', name: 'Magnet', desc: 'Pulls in crystals', cost: 3, once: true },
-  { id: 'tough', name: 'Tough suit', desc: '+1 max health', cost: 4, ok: () => player.max < 7 },
+  { id: 'tough', name: 'Tough suit', desc: '+1 max health', cost: 4, ok: () => player.max - player.toughN < 5 ? player.max < 7 : player.toughN < 2 },   // kid health above 5: still up to +2 (v201)
   { id: 'longshield', name: 'Long shield', desc: 'Shields last 5 s more', cost: 2, once: true },
   { id: 'turbo', name: 'Turbo', desc: 'Faster thrusters', cost: 3, once: true },
   { id: 'bubble', name: 'Bubble to go', desc: 'Shield as you leave', cost: 2, ok: () => player.shield <= 0 },
