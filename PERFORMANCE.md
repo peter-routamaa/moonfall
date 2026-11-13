@@ -204,6 +204,22 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
   phone will take has not been tested, so treat today's figures as the ceiling: a new track should not go above them.
   If crackling is ever heard at a fight's end, that lunge is the place to thin out.
 
+### The 60 FPS cap (version 208)
+
+- Phones with 120 Hz screens change rate on their own: Android raises the screen to its high rate when it's touched and
+  lets it fall back to 60 afterwards. The game drew one frame per refresh, so its pace jumped between 60 and 120 with
+  every touch, which the owner felt as stutter. Every self-test run at 60 had no frame over one refresh, fights included.
+- `frame()` now skips a refresh unless `CAP_MS` (12.7 ms) have passed since the last drawn frame, when the screen is
+  faster than `CAP_FAST_MS` (9.5 ms a refresh) and `save.cap` isn't off (Settings, "Cap at 60 FPS", on by default).
+  120 Hz draws 60, 144 draws 72, 240 draws 60, 60 Hz draws every refresh. 90 and 100 Hz are left alone: 60 can't be shown
+  evenly there.
+- `refAvg` follows the gap between all callbacks, drawn or not: quick to see a faster screen (a touch), slow to give it
+  up, so a switch from 60 to 120 costs at most two extra frames.
+- Anything that measures frames now has two clocks: drawn frames (`runGap*`, the self-test's table, the FPS read-out)
+  and screen refreshes (`refGap*`, the run stats' `hz`). Measure the screen from refreshes, smoothness from drawn frames.
+- To compare on a phone: run the self-test with the cap on, then off in Settings. The card says which and how many
+  refreshes it drew.
+
 ## How to measure
 
 1. `python3 tools/prof.py`, serve `tools/out`, open `frame.html?w=390&h=844&page=prof.html` (add `&moon=jungle`).
