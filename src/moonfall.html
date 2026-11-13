@@ -907,7 +907,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 167;
+const VERSION = 168;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3485,10 +3485,6 @@ function makeVoice(ac, dest, noiseBuf) {
       gap: n ? 0.05 : 0, v: [['a', 0], ['U', n < 2 ? 0.1 : 0.16]], dur: n < 2 ? 0.12 : 0.2,
       f0: [225 + n * 22, 248 + n * 25, 205 + n * 15], effort: 'pressed', breath: 0.12, rel: n < 2 ? 0.03 : 0.07
     })),
-    phew: [{ fric: 1, freq: 1400, q: 0.5, vol: 0.12, dur: 0.15, att: 0.05 }, {
-      v: [['i', 0], ['I', 0.05], ['U', 0.16], ['u', 0.3]], dur: 0.3, f0: [168, 160, 108], effort: 'soft', breath: [0.7, 1.1],
-      rel: 0.18
-    }],
     uhoh: [{ v: 'uh', dur: 0.15, f0: [168, 178, 172], h: 0.01, breath: 0.12, rel: 0.02 }, {
       gap: 0.08, v: [['o', 0], ['U', 0.2], ['u', 0.3]], dur: 0.3, f0: [158, 140, 104], breath: [0.12, 0.3], rel: 0.1
     }],
@@ -3518,12 +3514,13 @@ function makeVoice(ac, dest, noiseBuf) {
 const VOICE_GAIN = 3, BREATH = 3.5;
 // Recorded voice clips in voices/, loaded when sound starts and played by name (the file name without its extension).
 // Since version 167 they are the owner's own recordings, 64 kbps mono MP3: hurt01-16 (hits), lava1-3 (ow-ow-ow), death1,
-// moonland (the intro's landing), ohyeah1-4 (café landing), whoa1-2 (streak reward), yes1-4 (Leviathan beaten), byebye1
-// and woohoo1 (launch). Three CC0 clips (qubodup) stay as WAV until re-recorded: s11 + s02 (uh-oh), s08 (repair landing).
-const VOICE_CLIPS = ['s02.wav', 's08.wav', 's11.wav', 'death1.mp3', 'moonland.mp3', 'byebye1.mp3', 'woohoo1.mp3',
+// moonland (the intro's landing), ohyeah1-4 (café landing), whoa1-2 (streak reward), yes1-3 (Leviathan beaten), byebye1
+// and woohoo1 (launch). Two CC0 clips (qubodup) stay as WAV until re-recorded: s11 + s02 (uh-oh). The repair landing
+// has no voice since version 168.
+const VOICE_CLIPS = ['s02.wav', 's11.wav', 'death1.mp3', 'moonland.mp3', 'byebye1.mp3', 'woohoo1.mp3',
   ...[...Array(16)].map((_, i) => 'hurt' + String(i + 1).padStart(2, '0') + '.mp3'),
   ...[1, 2, 3].map(i => 'lava' + i + '.mp3'), ...[1, 2, 3, 4].map(i => 'ohyeah' + i + '.mp3'),
-  ...[1, 2].map(i => 'whoa' + i + '.mp3'), ...[1, 2, 3, 4].map(i => 'yes' + i + '.mp3')];
+  ...[1, 2].map(i => 'whoa' + i + '.mp3'), ...[1, 2, 3].map(i => 'yes' + i + '.mp3')];
 const Sfx = (() => {
   // Two outputs: master carries the sound effects and voices (Sound FX switch); musicOut carries the music (its own switch).
   let ctx = null, master = null, musicOut = null, noiseBuf = null, windGain = null, windF = null, thrGain = null;
@@ -3571,25 +3568,29 @@ const Sfx = (() => {
   // decoded. Every hit draws from the owner's 16 hurt takes; lava has its own ow-ow-ow takes.
   const HURTS = VOICE_CLIPS.filter(f => f.startsWith('hurt')).map(f => f.replace(/\.\w+$/, ''));
   const CLIP_POOL = { wall: HURTS, rock: HURTS, mine: HURTS, lava: ['lava1', 'lava2', 'lava3'] };
-  // One of a few takes, never the same one twice in a row (per group).
+  // One of a few takes, never the same one twice in a row (per group), only from the takes that have loaded.
   const lastTake = {};
   function take(group, n, delay, gain) {
-    const opts = [];
-    for (let i = 1; i <= n; i++) if (group + i !== lastTake[group] || n === 1) opts.push(group + i);
+    const ok = [];
+    for (let i = 1; i <= n; i++) if (clipBufs[group + i]) ok.push(group + i);
+    const opts = ok.length > 1 ? ok.filter(k => k !== lastTake[group]) : ok;
+    if (!opts.length) return false;
     const k = opts[Math.floor(Math.random() * opts.length)];
-    if (!clip(k, delay, 1, gain)) return false;
+    clip(k, delay, 1, gain);
     lastTake[group] = k;
     return true;
   }
   const clipBufs = {};
   let lastClip = '';
   // Fetched from voices/ next to the page. Until a clip has arrived (or if it can't be loaded), the synthesised line plays.
+  // A failed download is tried once more after two seconds (version 168).
   function loadClips() {
+    const load = (f, again) => fetch('voices/' + f)
+      .then(r => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)))
+      .then(buf => ctx.decodeAudioData(buf))
+      .then(b => { clipBufs[f.replace(/\.\w+$/, '')] = b; }, () => { if (again) setTimeout(() => load(f, false), 2000); });
     for (const f of VOICE_CLIPS) {
-      fetch('voices/' + f)
-        .then(r => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)))
-        .then(buf => ctx.decodeAudioData(buf))
-        .then(b => { clipBufs[f.replace(/\.\w+$/, '')] = b; }, () => {});
+      load(f, true);
     }
   }
   function clip(name, delay, rate, gain) {
@@ -3603,7 +3604,6 @@ const Sfx = (() => {
   // Story lines for the cinematics, built from the recorded clips: [clip, start, speed]. Synth line if they aren't decoded.
   const STORY = {
     uhoh: [['s11', 0, 1], ['s02', 0.27, 0.8]],
-    land: [['s08', 0, 0.9]],
     bye: [['byebye1', 0, 1]],
     cheer: [['woohoo1', 0, 1]],
   };
@@ -3665,7 +3665,7 @@ const Sfx = (() => {
     close(n) { const f = Music.note(Math.min(n - 1, 5), 12); noise(0.09, 'bandpass', 2400, 0.16); tone('square', f, f, 0.05, 0.09, 0.02); },
     streak() { for (let i = 0; i < 3; i++) { const f = Music.note(i + 3, 12); tone('triangle', f, f, 0.09, 0.22, i * 0.07); } take('whoa', 2, 0.12); },
     // A Leviathan beaten: "yes!" once the crash has rung out (no synth stand-in).
-    yes() { take('yes', 4, 0.7, 1.8); },
+    yes() { take('yes', 3, 0.7, 1.8); },
     buy() { [0, 2, 3].forEach((n, i) => { const f = Music.note(n, 12); tone('triangle', f, f, i < 2 ? 0.07 : 0.16, 0.25, i * 0.06); }); },
     pass() { const a = Music.note(3, 12), b = Music.note(5, 12); tone('square', a, a, 0.06, 0.12); tone('square', b, b, 0.12, 0.12, 0.07); },
     shield() { tone('triangle', 360, 1100, 0.32, 0.3); tone('sine', 720, 2200, 0.32, 0.12, 0.05); },
@@ -3780,11 +3780,12 @@ const Sfx = (() => {
     // Version 117: a deep trailer-style hit under the intro's impact and the lift-off, and a soft tick per typed caption letter.
     boom(v = 1) { tone('sine', 62, 26, 2.8, 0.9 * v); tone('sawtooth', 49, 36, 2.2, 0.14 * v); tone('triangle', 98, 70, 1.6, 0.22 * v); noise(2.2, 'lowpass', 220, 0.6 * v); },
     tick() { tone('square', 2200, 2100, 0.018, 0.022); },
-    land() { noise(0.12, 'lowpass', 500, 0.5); tone('sine', 110, 60, 0.12, 0.3); story('land', 0.03, 'phew'); },
-    // The intro's landing on the moon: the same thud with the owner's recorded line (the grunt if it hasn't loaded).
-    moonLand() { noise(0.12, 'lowpass', 500, 0.5); tone('sine', 110, 60, 0.12, 0.3); if (!clip('moonland', 0.03, 1, 1.8)) story('land', 0.03, 'phew'); },
-    // Landing at a café: "oh yeah" (the grunt if the takes haven't loaded).
-    cafeLand() { noise(0.12, 'lowpass', 500, 0.5); tone('sine', 110, 60, 0.12, 0.3); if (!take('ohyeah', 4, 0.03, 1.8)) story('land', 0.03, 'phew'); },
+    // A landing thud; no voice (the repair scene's landing has none since version 168).
+    land() { noise(0.12, 'lowpass', 500, 0.5); tone('sine', 110, 60, 0.12, 0.3); },
+    // The intro's landing on the moon: the thud with the owner's recorded line.
+    moonLand() { this.land(); clip('moonland', 0.03, 1, 1.8); },
+    // Landing at a café: the thud and "oh yeah".
+    cafeLand() { this.land(); take('ohyeah', 4, 0.03, 1.8); },
     whistle(d) {
       if (!ctx) return;
       const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
@@ -3868,8 +3869,8 @@ const Sfx = (() => {
       tone('sawtooth', 45, 90, 3, 0.15);
     },
     hurtVoice(kind) {
-      const cp = (CLIP_POOL[kind] || CLIP_POOL.wall).filter(n => n !== lastClip), pick = cp[Math.floor(Math.random() * cp.length)];
-      if (clip(pick, 0.03, 0.94 + Math.random() * 0.12)) { lastClip = pick; return; }
+      const cp = (CLIP_POOL[kind] || CLIP_POOL.wall).filter(n => n !== lastClip && clipBufs[n]), pick = cp[Math.floor(Math.random() * cp.length)];
+      if (pick && clip(pick, 0.03, 0.94 + Math.random() * 0.12)) { lastClip = pick; return; }
       const pool = POOL[kind] || POOL.wall, opts = kind === 'lava' ? pool : pool.filter(n => n !== lastLine);
       lastLine = opts[Math.floor(Math.random() * opts.length)]; say(lastLine, 0.05);
     },
