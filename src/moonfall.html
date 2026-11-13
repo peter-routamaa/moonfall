@@ -998,7 +998,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 205;
+const VERSION = 206;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -6153,6 +6153,7 @@ function drawFlags(cam) {
   }
 }
 // ---------- the opening film: coffee on the bridge, the asteroid, the crash, the landing ----------
+const EJECT_LEAD = 0.75;
 const OPEN = { pre: 5.6, coffee: 4.0, pull: 3.6, warn: 2.6, hit: 5.0, dive: 10.0, eject: 11.8, chute: 12.2, crash: 12.6, land: 16.2, end: 17.0 };
 let openT = 0, introShip = null, introAst = null, introFx = [], introCrashed = false, astCanvas = null, introPilot = null;
 function startOpening() {
@@ -6217,9 +6218,12 @@ function updateOpening(dt) {
       t: 0, life: 0.9 + Math.random() * 1.1, col: [P.shade, P.strata, P.hill, P.lava][i % 4], z: 3 + (i % 2)
     });
   }
+  // Version 206 (user: it "seems to happen after he has ejected"): the line is two shouts, at 0.0-0.3 s and 0.7-1.0 s
+  // into the clip, so it starts 0.75 s early, in the dive, and the second "eject" lands on the ejection.
+  if (crossed(O.eject - EJECT_LEAD) && introShip) Sfx.ejectLine();
   if (crossed(O.eject) && introShip) {
     introPilot = { x: introShip.x, y: introShip.y - 30, vx: -30, vy: -380, x0: 0, y0: 0 };
-    sparks(introShip.x, introShip.y - 10, [P.dust, P.hot, P.lava], 14); Sfx.eject(); Sfx.ejectLine();
+    sparks(introShip.x, introShip.y - 10, [P.dust, P.hot, P.lava], 14); Sfx.eject();
     cineStreaks.push({ x: introShip.x, wy: introShip.y - 6, t: 0, life: 0.5, len: 80, col: '#F6D46A' });
   }
   if (crossed(O.chute) && introPilot) { introPilot.x0 = introPilot.x; introPilot.y0 = introPilot.y; Sfx.chute(); }
