@@ -926,7 +926,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 193;
+const VERSION = 194;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -5047,6 +5047,25 @@ const hex16 = () => { const b = new Uint8Array(8); crypto.getRandomValues(b); re
 let runId = '', runSecs = 0, cafesRun = 0, lastHit = '', fasterN = 0;
 // Frame rate over the run (frames and real time while it's on and not paused) and the slowest frame, to spot phones that struggle.
 let runFrames = 0, runRaw = 0, runWorst = 0;
+// Three more figures (version 194; the owner's phone held 120 falling and 93 in a fight, which the run's average hid, and
+// in another browser ran a flat 60): the screen's refresh rate as the game sees it, the frame rate during Leviathan
+// fights, and the share of frames that missed a refresh. Each frame adds to two fixed arrays, by whole ms of the time
+// since the frame before (the last one is 100 ms or more), and to two counters while a fight is on; nothing is worked
+// out until the run ends (runSmooth).
+const runGapN = new Uint32Array(101), runGapMs = new Float64Array(101);
+let fightFrames = 0, fightRaw = 0;
+// hz: 1000 / the average frame among those that came back in one refresh (within 1.5x the quickest tenth, as the
+// self-test's card works it out). slowPct: frames of 1.5x that or longer. Empty for a run under 120 frames.
+function runSmooth() {
+  let n = 0, seen = 0, q = 0, cn = 0, cms = 0, slow = 0;
+  for (let i = 0; i <= 100; i++) n += runGapN[i];
+  if (n < 120) return { hz: null, fpsFight: null, slowPct: null };
+  while (q < 100 && seen + runGapN[q] < n * 0.1) seen += runGapN[q++];   // q: the ms the quickest tenth ends in
+  for (let i = 0; i <= 100 && i + 0.5 <= 1.5 * (q + 0.5); i++) { cn += runGapN[i]; cms += runGapMs[i]; }
+  const base = cms / cn, hz = Math.round(1000 / base);
+  for (let i = Math.ceil(1.5 * base); i <= 100; i++) slow += runGapN[i];
+  return { hz: hz >= 20 && hz <= 500 ? hz : null, fpsFight: fightRaw >= 1 ? Math.round(fightFrames / fightRaw * 10) / 10 : null, slowPct: Math.round(1000 * slow / n) / 10 };
+}
 // The opening on this page load: watched to the end or skipped. Sent with the first run only, so each launch counts once.
 let introHow = '', introRun = '', introDone = false;
 const UA = navigator.userAgent, TOUCH_MAC = /Macintosh/.test(UA) && navigator.maxTouchPoints > 1;
@@ -5060,6 +5079,7 @@ function statPing(body) {
 function countPlay() {
   if (!/^[0-9a-f]{16}$/.test(save.playerId || '')) { save.playerId = hex16(); persist(); }
   runId = hex16(); runSecs = 0; cafesRun = 0; lastHit = ''; fasterN = 0; runFrames = 0; runRaw = 0; runWorst = 0; runPauses = 0;
+  runGapN.fill(0); runGapMs.fill(0); fightFrames = 0; fightRaw = 0;
   if (!introDone) { introDone = true; introRun = runId; }
   statPing({ event: 'play', player: save.playerId, run: runId, ver: VERSION, moon, ...runFlags() });
 }
@@ -5100,7 +5120,7 @@ function endRun(how) {
     fps: runRaw > 0 ? Math.round(runFrames / runRaw * 10) / 10 : null, worst: Math.round(runWorst * 1000),
     device: DEVICE, os: OS, screen: screen.width + 'x' + screen.height + '@' + Math.round(devicePixelRatio * 100) / 100,
     treats: player.bought.slice(0, 20), streak: player.bestStreak || 0, sound: !!save.snd, music: !!save.mus, repair: Math.round(repairFrac() * 100),
-    intro: runId === introRun && introHow ? introHow : null, ...runFlags(), ...runMore() });
+    intro: runId === introRun && introHow ? introHow : null, ...runFlags(), ...runMore(), ...runSmooth() });
   if (how !== 'left') { runId = ''; errN = 0; errFirst = null; }
 }
 // -- Hard Dive (version 112, idea 13): unlocked once the ship has been fixed (a finished mission). The run starts with 4
@@ -9633,7 +9653,12 @@ function frame(now) {
     if (perfOn) perfSteer(dt);
     if (hitStop > 0) hitStop = Math.max(0, hitStop - dt); else update(dt);
     if (runId) runSecs += dt;
-    if (runId && raw < 1) { runFrames++; runRaw += raw; if (runFrames > 5) runWorst = Math.max(runWorst, raw); }
+    if (runId && raw < 1) {
+      runFrames++; runRaw += raw; if (runFrames > 5) runWorst = Math.max(runWorst, raw);
+      const ms = raw * 1000, i = ms < 100 ? ms | 0 : 100;   // see runSmooth
+      runGapN[i]++; runGapMs[i] += ms;
+      if (boss) { fightFrames++; fightRaw += raw; }
+    }
     updateFace(); prepaint(camY); render(); drawCinema(); cineCaps();
     const cpu = performance.now() - t0; meter.cpu += cpu;
     if (perfOn) perfTick(raw, cpu);

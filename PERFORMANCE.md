@@ -238,7 +238,11 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
    long while the code ran briefly was held up by the drawing (the graphics side), not the code.** Nothing is saved,
    sent or awarded while it runs. It runs on the real frame loop, so not in a hidden tab and not headless.
 8. **On a phone, afterwards.** None of the above says how it feels. The game sends each run's average frame rate and worst frame
-   with its version, device and moon: after a release, compare those for the new version with the one before.
+   with its version, device and moon: after a release, compare those for the new version with the one before. Since version 194 each run also sends `hz` (the screen's refresh rate as
+   the game sees it), `fpsFight` (frames a second during Leviathan fights) and `slowPct` (the share of frames that took
+   1.5x the screen's frame time or longer), because the run's average hides fight drops and can't tell a smooth 60 Hz
+   phone from a 120 Hz one struggling: compare versions only within one refresh rate. They cost two array writes a
+   frame (`runGapN`, `runGapMs`) and are worked out when the run ends (`runSmooth`).
 
 ## Before publishing a heavy change: checklist
 
