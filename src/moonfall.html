@@ -907,7 +907,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 171;
+const VERSION = 172;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3381,136 +3381,8 @@ const MOON_NAMES = { dust: 'Dust moon', jungle: 'Jungle moon', machine: 'Machine
 const MOON_BLEEP = { dust: 880, jungle: 660, machine: 523 };   // the picker's bleep, a step lower for each moon
 
 // ---------- sound ----------
-// ---------- his voice: a glottal pulse with breath, jitter and shimmer through four formants, plus real consonants ----------
-function makeVoice(ac, dest, noiseBuf) {
-  // adult male formants F1-F4 (Hz); A and AE are the raised versions a shout uses, b and w are lip shapes for onsets
-  const F = {
-    i: [270, 2290, 3010, 3500], I: [390, 1990, 2550, 3500], E: [530, 1840, 2480, 3500], ae: [660, 1720, 2410, 3500],
-    a: [730, 1090, 2440, 3500], o: [570, 840, 2410, 3400], U: [440, 1020, 2240, 3300], u: [300, 870, 2240, 3300],
-    uh: [640, 1190, 2390, 3400], w: [290, 640, 2200, 3300], b: [260, 900, 2200, 3300], A: [880, 1250, 2600, 3600], AE: [820, 1800, 2600, 3600]
-  };
-  const BW = [80, 100, 150, 250], FG = [1, 0.7, 0.36, 0.2];
-  // glottal pulse spectra: softer voices roll off faster
-  const wave = tilt => {
-    const n = 80, re = new Float32Array(n), im = new Float32Array(n);
-    for (let h = 1; h < n; h++) im[h] = Math.pow(h, -tilt);
-    return ac.createPeriodicWave(re, im);
-  };
-  const WAVES = { soft: wave(2.1), modal: wave(1.6), pressed: wave(1.2) };
-  const bus = ac.createGain(), hp = ac.createBiquadFilter(), comp = ac.createDynamicsCompressor();
-  hp.type = 'highpass'; hp.frequency.value = 80;
-  comp.threshold.value = -20; comp.knee.value = 12; comp.ratio.value = 3; comp.attack.value = 0.004; comp.release.value = 0.15;
-  bus.gain.value = VOICE_GAIN; bus.connect(hp); hp.connect(comp); comp.connect(dest);
-  const noise = (t, dur) => {
-    const s = ac.createBufferSource();
-    s.buffer = noiseBuf;
-    s.loop = true;
-    s.start(t, Math.random() * 0.5);
-    s.stop(t + dur + 0.05);
-    return s;
-  };
-  const pts = v => (Array.isArray(v) ? v : [v, v]);
-  const through = (p, u) => {
-    const x = u * (p.length - 1), j = Math.min(p.length - 2, Math.floor(x)), f = x - j;
-    return p[j] + (p[j + 1] - p[j]) * f * f * (3 - 2 * f);
-  };
-  // one voiced syllable: pitch, loudness, breath and roughness are drawn as curves (with jitter and shimmer baked in)
-  function voiced(S, t, k, fs) {
-    const rel = S.rel ?? 0.07, h = S.h || 0, att = S.att || 0.03, total = S.dur + rel, end = t + total, n = Math.max(16, Math.ceil(total * 400));
-    const f0 = pts(S.f0), amp = pts(S.amp ?? 1), br = pts(S.breath ?? 0.12), ro = pts(S.rough || 0);
-    const fc = new Float32Array(n), vc = new Float32Array(n), bc = new Float32Array(n), rc = new Float32Array(n);
-    let drift = 0;
-    for (let i = 0; i < n; i++) {
-      const tau = i / (n - 1) * total, u = Math.min(1, tau / S.dur), a = through(amp, u);
-      drift = drift * 0.97 + (Math.random() - 0.5) * 0.004;
-      const vib = S.vib ? Math.sin(tau * 6.283 * S.vib[0]) * S.vib[1] : 0;
-      fc[i] = through(f0, u) * k * (1 + drift + vib + (Math.random() - 0.5) * 0.012);
-      const off = tau > S.dur ? Math.exp(-(tau - S.dur) / (rel * 0.35)) : 1;
-      vc[i] = a * smoothstep((tau - h) / att) * off * (1 + (Math.random() - 0.5) * 0.06);
-      bc[i] = (tau < h ? 0.9 : through(br, u)) * a * smoothstep(tau / 0.012) * (tau > S.dur ? Math.exp(-(tau - S.dur) / (rel * 0.6)) : 1) * BREATH;
-      rc[i] = through(ro, u) * 0.5;
-    }
-    const osc = ac.createOscillator(), vg = ac.createGain(), src = ac.createGain(), out = ac.createGain();
-    osc.setPeriodicWave(WAVES[S.effort || 'modal']); osc.frequency.setValueCurveAtTime(fc, t, total);
-    vg.gain.setValueCurveAtTime(vc, t, total);
-    osc.connect(vg);
-    if (S.rough) {
-      // growl/creak: amplitude modulation at half the pitch adds a rough subharmonic
-      const am = ac.createGain(), lfo = ac.createOscillator(), dep = ac.createGain();
-      lfo.frequency.setValueCurveAtTime(fc.map(v => v * 0.5), t, total);
-      dep.gain.setValueCurveAtTime(rc, t, total); am.gain.setValueCurveAtTime(rc.map(v => 1 - v), t, total);
-      lfo.connect(dep); dep.connect(am.gain); vg.connect(am); am.connect(src); lfo.start(t); lfo.stop(end + 0.05);
-    } else vg.connect(src);
-    const nz = noise(t, total), nh = ac.createBiquadFilter(), bg = ac.createGain();
-    nh.type = 'highpass'; nh.frequency.value = 500; bg.gain.setValueCurveAtTime(bc, t, total);
-    nz.connect(nh); nh.connect(bg); bg.connect(src);
-    out.gain.value = S.gain || 1; out.connect(bus);
-    const path = typeof S.v === 'string' ? [[S.v, 0]] : S.v, bw = S.bw || 1;
-    for (let i = 0; i < 4; i++) {
-      const bp = ac.createBiquadFilter(), g = ac.createGain();
-      bp.type = 'bandpass';
-      path.forEach(([v, at], j) => {
-        const fq = F[v][i] * fs, q = fq / (BW[i] * bw);
-        if (j === 0) {
-          bp.frequency.setValueAtTime(fq, t);
-          bp.Q.setValueAtTime(q, t);
-        } else { bp.frequency.linearRampToValueAtTime(fq, t + at); bp.Q.linearRampToValueAtTime(q, t + at); }
-      });
-      g.gain.value = FG[i]; src.connect(bp); bp.connect(g); g.connect(out);
-    }
-    osc.start(t); osc.stop(end + 0.05);
-  }
-  // fricatives and the "ch" burst: shaped noise
-  function fric(S, t) {
-    const e = t + S.dur, nz = noise(t, S.dur), f = ac.createBiquadFilter(), g = ac.createGain();
-    f.type = 'bandpass'; f.frequency.value = S.freq; f.Q.value = S.q || 0.8;
-    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(S.vol, t + (S.att || 0.02));
-    if (S.dec) g.gain.exponentialRampToValueAtTime(0.0001, t + (S.att || 0.02) + S.dec);
-    else { g.gain.setValueAtTime(S.vol, Math.max(t + 0.025, e - 0.05)); g.gain.exponentialRampToValueAtTime(0.0001, e); }
-    nz.connect(f); f.connect(g); g.connect(bus);
-  }
-  const LINES = {
-    oof: [{ v: [['uh', 0], ['U', 0.1]], dur: 0.13, f0: [138, 150, 118], h: 0.025, breath: 0.55 }, { fric: 1, freq: 1700, q: 0.6, vol: 0.12, dur: 0.12 }],
-    ow: [{ v: [['a', 0], ['a', 0.1], ['U', 0.3], ['u', 0.4]], dur: 0.4, f0: [205, 235, 200, 135], effort: 'pressed', h: 0.015, breath: [0.1, 0.25] }],
-    ouch: [{
-      v: [['a', 0], ['a', 0.08], ['U', 0.22]], dur: 0.24, f0: [215, 240, 185], effort: 'pressed', breath: 0.12, rel: 0.03
-    }, { gap: 0.045 }, { fric: 1, freq: 3600, q: 1.1, vol: 0.32, att: 0.004, dec: 0.11, dur: 0.13 }],
-    ouchie: [{ v: [['ae', 0], ['uh', 0.18]], dur: 0.2, f0: [190, 210, 150], effort: 'pressed', h: 0.03, breath: 0.2, rough: [0, 0.35] }],
-    yeowch: [{
-      v: [['i', 0], ['E', 0.05], ['a', 0.13], ['U', 0.32]], dur: 0.34, f0: [175, 255, 225, 165], effort: 'pressed', breath: 0.12,
-      rel: 0.03
-    }, { gap: 0.04 }, { fric: 1, freq: 3600, q: 1.1, vol: 0.3, att: 0.004, dec: 0.1, dur: 0.12 }],
-    waah: [{ v: [['w', 0], ['a', 0.07], ['a', 0.36], ['uh', 0.46]], dur: 0.46, f0: [190, 245, 210, 150], vib: [5.5, 0.02], breath: [0.12, 0.3] }],
-    blargh: [{ v: [['uh', 0], ['uh', 0.3]], dur: 0.32, f0: [122, 116, 86], h: 0.03, breath: 0.22, rough: [0.1, 0.7] }],
-    owowow: [0, 1, 2].map(n => ({
-      gap: n ? 0.05 : 0, v: [['a', 0], ['U', n < 2 ? 0.1 : 0.16]], dur: n < 2 ? 0.12 : 0.2,
-      f0: [225 + n * 22, 248 + n * 25, 205 + n * 15], effort: 'pressed', breath: 0.12, rel: n < 2 ? 0.03 : 0.07
-    })),
-    byebye: [{
-      v: [['b', 0], ['a', 0.035], ['a', 0.1], ['I', 0.19]], dur: 0.2, f0: [150, 178, 168], att: 0.025, breath: 0.1, rel: 0.03
-    }, { gap: 0.06, v: [['b', 0], ['a', 0.035], ['a', 0.13], ['I', 0.3]], dur: 0.32, f0: [178, 192, 128], att: 0.025, breath: [0.1, 0.25], rel: 0.1 }],
-    woohoo: [{ v: [['w', 0], ['u', 0.06]], dur: 0.2, f0: [150, 215], breath: 0.12, rel: 0.02, gain: 0.6 }, {
-      v: [['u', 0], ['u', 0.32], ['U', 0.42]], dur: 0.42, f0: [235, 290, 240], h: 0.06, vib: [6, 0.02], breath: 0.15, rel: 0.1,
-      gain: 0.6
-    }],
-    death: [{
-      v: [['a', 0], ['a', 0.7], ['uh', 1.0]], dur: 1.0, f0: [280, 305, 210, 100], effort: 'pressed', vib: [5.5, 0.025],
-      breath: [0.1, 0.4], rough: [0, 0.5], amp: [1, 1, 0.7], rel: 0.2
-    }]
-  };
-  // each line gets a slightly different pitch and vocal tract, like a real voice from one take to the next
-  const say = (name, t) => {
-    const k = 0.96 + Math.random() * 0.08, fs = 0.98 + Math.random() * 0.04;
-    for (const S of LINES[name]) {
-      t += S.gap || 0;
-      if (S.fric) { fric(S, t); t += S.dur; } else if (S.v) { voiced(S, t, k, fs); t += S.dur; }
-    }
-  };
-  say.lines = Object.keys(LINES);
-  return say;
-}
-const VOICE_GAIN = 3, BREATH = 3.5;
-// Recorded voice clips in voices/, loaded when sound starts and played by name (the file name without its extension).
+// Recorded voice clips in voices/, played by name (the file name without its extension). Since version 172 they start
+// downloading as soon as the page opens (see clipBytes below); they are decoded when sound starts.
 // Since version 167 they are the owner's own recordings, 64 kbps mono MP3: hurt01-16 (hits), lava1-3 (ow-ow-ow), death1,
 // moonland (the intro's landing), ohyeah1-4 (café landing), whoa1-2 (streak reward), yes1-3 (Leviathan beaten), byebye1
 // and woohoo1 (launch), goodgrief (the intro, when he sees the asteroid; since version 169, replacing the CC0 uh-oh, the
@@ -3519,6 +3391,10 @@ const VOICE_CLIPS = ['death1.mp3', 'moonland.mp3', 'byebye1.mp3', 'woohoo1.mp3',
   ...[...Array(16)].map((_, i) => 'hurt' + String(i + 1).padStart(2, '0') + '.mp3'),
   ...[1, 2, 3].map(i => 'lava' + i + '.mp3'), ...[1, 2, 3, 4].map(i => 'ohyeah' + i + '.mp3'),
   ...[1, 2].map(i => 'whoa' + i + '.mp3'), ...[1, 2, 3].map(i => 'yes' + i + '.mp3')];
+// Downloading needs no tap, so every clip is fetched now (about 260 KB in all) and waits as bytes for Sfx.init to decode.
+const fetchClip = f => fetch('voices/' + f).then(r => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)));
+const clipBytes = {};
+for (const f of VOICE_CLIPS) { clipBytes[f] = fetchClip(f); clipBytes[f].catch(() => {}); }
 const Sfx = (() => {
   // Two outputs: master carries the sound effects and voices (Sound FX switch); musicOut carries the music (its own switch).
   let ctx = null, master = null, musicOut = null, noiseBuf = null, windGain = null, windF = null, thrGain = null;
@@ -3555,15 +3431,10 @@ const Sfx = (() => {
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.03);
   }
-  const POOL = {
-    wall: ['ouch', 'ow', 'oof', 'ouch', 'ow', 'blargh', 'yeowch', 'waah'],
-    rock: ['ouch', 'ow', 'oof', 'ouch', 'ow', 'ouchie', 'yeowch'], lava: ['owowow', 'ow', 'ouch', 'owowow'],
-    mine: ['ouch', 'blargh', 'yeowch', 'ow', 'waah']
-  };
-  let lastLine = '', engineSrc = null;
+  let engineSrc = null;
   const introNodes = [];
-  // Recorded voices (see VOICE_CLIPS), decoded once sound is unlocked; the synth voice stands in if a clip can't be
-  // decoded. Every hit draws from the owner's 16 hurt takes; lava has its own ow-ow-ow takes.
+  // Recorded voices (see VOICE_CLIPS), decoded once sound is unlocked. Since version 172 there is no synthesised stand-in:
+  // a line whose clip hasn't loaded is simply not heard. Every hit draws from the owner's 16 hurt takes; lava has its own.
   const HURTS = VOICE_CLIPS.filter(f => f.startsWith('hurt')).map(f => f.replace(/\.\w+$/, ''));
   const CLIP_POOL = { wall: HURTS, rock: HURTS, mine: HURTS, lava: ['lava1', 'lava2', 'lava3'] };
   // One of a few takes, never the same one twice in a row (per group), only from the takes that have loaded.
@@ -3580,16 +3451,13 @@ const Sfx = (() => {
   }
   const clipBufs = {};
   let lastClip = '';
-  // Fetched from voices/ next to the page. Until a clip has arrived (or if it can't be loaded), the synthesised line plays.
-  // A failed download is tried once more after two seconds (version 168).
+  // Decodes the clips fetched when the page opened (clipBytes). Until a clip is ready (or if it can't be loaded) its line
+  // is silent. A failed download or decode is tried once more after two seconds (version 168).
   function loadClips() {
-    const load = (f, again) => fetch('voices/' + f)
-      .then(r => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)))
+    const load = (f, bytes, again) => bytes
       .then(buf => ctx.decodeAudioData(buf))
-      .then(b => { clipBufs[f.replace(/\.\w+$/, '')] = b; }, () => { if (again) setTimeout(() => load(f, false), 2000); });
-    for (const f of VOICE_CLIPS) {
-      load(f, true);
-    }
+      .then(b => { clipBufs[f.replace(/\.\w+$/, '')] = b; }, () => { if (again) setTimeout(() => load(f, fetchClip(f), false), 2000); });
+    for (const f of VOICE_CLIPS) load(f, clipBytes[f], true);
   }
   function clip(name, delay, rate, gain) {
     const b = ctx && clipBufs[name];
@@ -3598,21 +3466,6 @@ const Sfx = (() => {
     s.buffer = b; s.playbackRate.value = rate; g.gain.value = gain || 1.5;
     s.connect(g); g.connect(master); s.start(ctx.currentTime + (delay || 0));
     return true;
-  }
-  // Story lines for the cinematics, built from the recorded clips: [clip, start, speed]. Synth line if they aren't decoded.
-  const STORY = {
-    bye: [['byebye1', 0, 1]],
-    cheer: [['woohoo1', 0, 1]],
-  };
-  function story(name, delay, synth) {
-    if (STORY[name].every(([c]) => clipBufs[c])) { for (const [c, at, r] of STORY[name]) clip(c, delay + at, r, 1.8); }
-    else say(synth, delay);
-  }
-  let voice = null;
-  function say(name, delay) {
-    if (!ctx) return;
-    if (!voice) voice = makeVoice(ctx, master, noiseBuf);
-    voice(name, ctx.currentTime + (delay || 0));
   }
   function boing(delay) {
     if (!ctx) return;
@@ -3668,9 +3521,9 @@ const Sfx = (() => {
     shield() { tone('triangle', 360, 1100, 0.32, 0.3); tone('sine', 720, 2200, 0.32, 0.12, 0.05); },
     block() { tone('square', 1300, 650, 0.08, 0.12); },
     jump() { noise(0.4, 'bandpass', 650, 0.4); tone('sine', 300, 120, 0.4, 0.15); },
-    death() { tone('square', 420, 55, 0.95, 0.16); noise(0.7, 'lowpass', 320, 0.5); if (!clip('death1', 0.08, 1)) say('death', 0.08); },
-    cheer() { story('cheer', 0.1, 'woohoo'); },
-    bye() { story('bye', 0, 'byebye'); },
+    death() { tone('square', 420, 55, 0.95, 0.16); noise(0.7, 'lowpass', 320, 0.5); clip('death1', 0.08, 1); },
+    cheer() { clip('woohoo1', 0.1, 1, 1.8); },
+    bye() { clip('byebye1', 0, 1, 1.8); },
     alarm() { for (let i = 0; i < 4; i++) tone('square', i % 2 ? 660 : 880, i % 2 ? 660 : 880, 0.12, 0.12, i * 0.25); },
     // The intro: "good grief" as the warning mark appears over the ship (OPEN.warn), done before the asteroid hits
     // (2.4 s later; the line is 1.8 s with its tail).
@@ -3803,7 +3656,7 @@ const Sfx = (() => {
       noise(0.5, 'bandpass', 2400, 0.35, 0.1);
     },
     dizzy() {
-      if (!clip(HURTS[Math.floor(Math.random() * HURTS.length)], 0, 1)) say('oof', 0);
+      const h = HURTS.filter(n => clipBufs[n]); if (h.length) clip(h[Math.floor(Math.random() * h.length)], 0, 1);
       for (let i = 0; i < 3; i++) { tone('sine', 2400, 2900, 0.07, 0.07, 0.5 + i * 0.3); tone('sine', 2900, 2400, 0.07, 0.07, 0.6 + i * 0.3); }
     },
     stopIntro() { for (const n of introNodes) { try { n.stop(); } catch (e) {} } introNodes.length = 0; this.stopEngine(); },
@@ -3868,10 +3721,9 @@ const Sfx = (() => {
       tone('sawtooth', 45, 90, 3, 0.15);
     },
     hurtVoice(kind) {
-      const cp = (CLIP_POOL[kind] || CLIP_POOL.wall).filter(n => n !== lastClip && clipBufs[n]), pick = cp[Math.floor(Math.random() * cp.length)];
-      if (pick && clip(pick, 0.03, 0.94 + Math.random() * 0.12)) { lastClip = pick; return; }
-      const pool = POOL[kind] || POOL.wall, opts = kind === 'lava' ? pool : pool.filter(n => n !== lastLine);
-      lastLine = opts[Math.floor(Math.random() * opts.length)]; say(lastLine, 0.05);
+      const ok = (CLIP_POOL[kind] || CLIP_POOL.wall).filter(n => clipBufs[n]), cp = ok.length > 1 ? ok.filter(n => n !== lastClip) : ok;
+      const pick = cp[Math.floor(Math.random() * cp.length)];
+      if (pick && clip(pick, 0.03, 0.94 + Math.random() * 0.12)) lastClip = pick;
     },
   };
 })();
