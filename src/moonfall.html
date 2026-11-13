@@ -227,6 +227,9 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .news-ico.big svg { width: 32px; height: 32px; }
 .news-name { font: 700 12px/1.1 var(--display); letter-spacing: .08em; color: var(--gold); }
 .news-how { margin-top: 3px; font: 400 18px/.95 var(--body); color: var(--dust-dim); }
+/* Four rows since version 201 (Kid mode): tighter on shorter phones so Done stays 50 px up (DONE_FROM_BOTTOM). */
+@media (max-height: 760px) { #newsBack { gap: 8px; } #newsBack .news-list { gap: 7px; } #newsBack .news-item { padding: 7px 10px 6px; } }
+@media (max-height: 660px) { #newsBack .news-how { font-size: 16px; } #newsBack .news-list { gap: 6px; } }
 /* Version 153 (user): the moons card, opened from the New moons row like the Leviathans card: each moon's icon, name and
    a short description. */
 #moonsBack h2 { text-align: center; }
@@ -800,6 +803,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <li><button class="news-item" id="newsLevi" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#C64B3B" d="M2 0h4v1h-4zM1 1h6v1h-6zM0 2h8v3h-8zM1 5h6v1h-6zM2 6h4v1h-4z"/><path fill="#F2C14E" d="M3 2h2v3h-2z"/><path fill="#1A1E2C" d="M3 3h1v1h-1z"/></svg></span><span class="news-name">Leviathan chases</span><span class="news-how">Giant creatures hunt you after every second cafe. Each moon has its own creatures. Tap to meet them!</span></button></li>
         <li><button class="news-item" id="newsMoons" type="button"><span class="news-ico"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><svg class="moon-ico machine" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg></span><span class="news-name">The new moons</span><span class="news-how">Fall into the Dust moon, the Jungle moon or the Machine moon. Swap any time in Settings. Tap to learn more.</span></button></li>
         <li><button class="news-item" id="newsHard" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#E8B83A" d="M0 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1zM3 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1z"/></svg></span><span class="news-name">Terminal Velocity</span><span class="news-how">Fix the ship once to earn it: 4 health, 15% faster and raging Leviathans. Tap to see Unlocks.</span></button></li>
+        <li><button class="news-item" id="newsKid" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#E8708A" d="M1 0h2v1h-2zM5 0h2v1h-2zM0 1h8v2h-8zM1 3h6v1h-6zM2 4h4v1h-4zM3 5h2v1h-2z"/><path fill="#F7B6C4" d="M1 1h1v1h-1z"/></svg></span><span class="news-name">Kid mode</span><span class="news-how">An easier dive for younger pilots, with its own high scores. Tap to set it up.</span></button></li>
       </ul>
       <button class="btn" id="newsDone" type="button">Done</button>
      </div>
@@ -990,7 +994,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 200;
+const VERSION = 201;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -4891,6 +4895,7 @@ function syncAside(instant) {
 }
 addEventListener('resize', () => { syncAside(true); if (cardSide) placeNews(cardSide, true); });
 // The main menu's card: Settings and Instructions on the back.
+let kidFromNews = false;   // the Kid mode card was opened from New features (version 201): its Done goes back there
 let unlocksFromNews = false;   // the Unlocks card was opened from New features (version 160): its Done goes back there
 // Version 162 (user: "the 'done' button should always be at the same height on every screen ... something like 50
 // pixels up from the bottom"): while a card is open it slides up so its Done button's bottom edge is DONE_FROM_BOTTOM px
@@ -4917,6 +4922,7 @@ function placeNews(side, instant) {
 function setCard(side, instant) {
   const was = cardSide;
   if (side === 'unlocks') unlocksFromNews = was === 'news'; else if (side !== 'news') unlocksFromNews = false;
+  if (side === 'kid') kidFromNews = was === 'news'; else if (side !== 'news') kidFromNews = false;
   instant = !!instant || reduceMotion;
   cardSide = side;
   if (side === 'levi' && was !== 'levi') { leviView = moon; fillLeviCard(); }
@@ -4931,7 +4937,7 @@ function setCard(side, instant) {
     if (side || instant) { ts.classList.toggle('reading', !!side); syncAside(instant); }   // Settings too since version 84 (one more row)
     else readTimer = setTimeout(() => { ts.classList.remove('reading'); syncAside(); }, 480);
   });
-  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $(was === 'kid' ? 'kidBtn' : 'sndT') : side === 'kid' ? $('kidMines') : side === 'how' ? $('howDone') : side === 'news' ? $(was === 'moons' ? 'newsMoons' : was === 'unlocks' ? 'newsHard' : 'newsLevi') : side === 'unlocks' ? $('unlocksDone') : side === 'levi' ? $('leviDone') : side === 'moons' ? $('moonsDone') : side === 'badges' ? $('badgeDone') : $(was === 'how' ? 'howBtn' : was === 'badges' ? 'badgesBtn' : was === 'unlocks' ? 'unlocksBtn' : was === 'levi' || was === 'news' || was === 'moons' ? 'startBtn' : 'settingsBtn')), 460);
+  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $(was === 'kid' ? 'kidBtn' : 'sndT') : side === 'kid' ? $('kidMines') : side === 'how' ? $('howDone') : side === 'news' ? $(was === 'moons' ? 'newsMoons' : was === 'unlocks' ? 'newsHard' : was === 'kid' ? 'newsKid' : 'newsLevi') : side === 'unlocks' ? $('unlocksDone') : side === 'levi' ? $('leviDone') : side === 'moons' ? $('moonsDone') : side === 'badges' ? $('badgeDone') : $(was === 'how' ? 'howBtn' : was === 'badges' ? 'badgesBtn' : was === 'unlocks' ? 'unlocksBtn' : was === 'levi' || was === 'news' || was === 'moons' ? 'startBtn' : 'settingsBtn')), 460);
 }
 // -- the Leviathans card (version 102): the NEW sticker opens it. Each creature's name, its signature attack in a line,
 // and a portrait painted with its fight art (bossStage), facing right and looking down at the viewer.
@@ -5044,6 +5050,7 @@ $('menuStart').addEventListener('click', openMenu);
 $('newsLevi').addEventListener('click', () => setCard('levi'));
 $('newsMoons').addEventListener('click', () => setCard('moons'));   // version 153
 $('newsHard').addEventListener('click', () => setCard('unlocks'));   // version 160: Hard Dive lives on the Unlocks card
+$('newsKid').addEventListener('click', () => setCard('kid'));   // version 201
 // Version 157: Done on the Moons or Leviathans card goes back one step, to New features, so the other row can be opened.
 $('moonsDone').addEventListener('click', () => setCard('news'));
 $('newsDone').addEventListener('click', () => setCard(null));
@@ -5153,7 +5160,7 @@ for (const key in KID_SLIDERS) $(KID_SLIDERS[key]).addEventListener('input', e =
 $('kidSpeedT').addEventListener('click', () => { const k = kidSettings(); save.kid = Object.assign(k, { speed: !k.speed }); persist(); syncKid(); syncToggles(); });
 $('kidReset').addEventListener('click', () => { save.kid = Object.assign({}, KID_NORMAL); persist(); syncKid(); syncToggles(); Sfx.bleep(330); });
 $('kidBtn').addEventListener('click', () => setCard('kid'));
-$('kidDone').addEventListener('click', () => setCard('settings'));
+$('kidDone').addEventListener('click', () => setCard(kidFromNews ? 'news' : 'settings'));   // version 201: back to New features if opened there
 syncKid();
 // Private stats for the owner's Supabase dashboard: a random ID made once per device (no name, nothing personal),
 // one ping when a run starts and one when it ends with how long it lasted, how deep it got and how it ended.
@@ -6927,7 +6934,7 @@ addEventListener('keydown', e => {
     e.preventDefault();
     if (cafeT > 1.6) leaveCafe();
   }
-  else if (k === 'Escape' && state === 'title' && cardSide) setCard(cardSide === 'kid' ? 'settings' : cardSide === 'levi' || cardSide === 'moons' || (cardSide === 'unlocks' && unlocksFromNews) ? 'news' : null);   // one step back (version 157)
+  else if (k === 'Escape' && state === 'title' && cardSide) setCard(cardSide === 'kid' ? (kidFromNews ? 'news' : 'settings') : cardSide === 'levi' || cardSide === 'moons' || (cardSide === 'unlocks' && unlocksFromNews) ? 'news' : null);   // one step back (version 157)
   else if (k === 'Escape' || k === 'p' || k === 'P') { if (state === 'paused') resume(); else pause(); }
   else if ((k === ' ' || k === 'Enter') && state === 'title' && document.activeElement === document.body) { e.preventDefault(); if (screens.title.classList.contains('clean')) openMenu(); else startRun(false); }
   else return;
