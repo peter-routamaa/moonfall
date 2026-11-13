@@ -907,7 +907,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 172;
+const VERSION = 173;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3459,12 +3459,44 @@ const Sfx = (() => {
       .then(b => { clipBufs[f.replace(/\.\w+$/, '')] = b; }, () => { if (again) setTimeout(() => load(f, fetchClip(f), false), 2000); });
     for (const f of VOICE_CLIPS) load(f, clipBytes[f], true);
   }
+  // Version 173 (owner's pick, "Walkie-talkie", from the radio test page): every voice clip plays through a walkie-talkie
+  // filter: a squelch click, the voice 0.09 s later through a narrow band (450-2800 Hz, a 1.7 kHz boost, a little
+  // overdrive), light static under it, and a longer squelch at the end. The recordings themselves are untouched; set
+  // RADIO.on to false to hear them plain. RADIO.out keeps the filtered voice as loud as the plain one.
+  const RADIO = { on: true, lo: 450, hi: 2800, mid: 5, drive: 4, hiss: 0.018, out: 0.376, lead: 0.09 };
+  let radioCurve = null;
+  const bq = (type, f, q, gain) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; if (gain !== undefined) b.gain.value = gain; return b; };
+  function squelch(t, dur, level, out) {
+    const s = ctx.createBufferSource(), g = ctx.createGain(), f = bq('bandpass', 2600, 0.8);
+    s.buffer = noiseBuf;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(level, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f); f.connect(g); g.connect(out); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
+  }
   function clip(name, delay, rate, gain) {
     const b = ctx && clipBufs[name];
     if (!b) return false;
-    const s = ctx.createBufferSource(), g = ctx.createGain();
-    s.buffer = b; s.playbackRate.value = rate; g.gain.value = gain || 1.5;
-    s.connect(g); g.connect(master); s.start(ctx.currentTime + (delay || 0));
+    const t = ctx.currentTime + (delay || 0), s = ctx.createBufferSource(), g = ctx.createGain();
+    s.buffer = b; s.playbackRate.value = rate;
+    if (!RADIO.on) { g.gain.value = gain || 1.5; s.connect(g); g.connect(master); s.start(t); return true; }
+    if (!radioCurve) {
+      radioCurve = new Float32Array(1024);
+      const k = Math.tanh(RADIO.drive);
+      for (let i = 0; i < 1024; i++) radioCurve[i] = Math.tanh((i / 1023 * 2 - 1) * RADIO.drive) / k;
+    }
+    const ws = ctx.createWaveShaper(), comp = ctx.createDynamicsCompressor();
+    ws.curve = radioCurve; ws.oversample = '2x';
+    comp.threshold.value = -18; comp.ratio.value = 4; comp.attack.value = 0.003; comp.release.value = 0.12;
+    g.gain.value = (gain || 1.5) * RADIO.out; g.connect(master);
+    const chain = [bq('highpass', RADIO.lo, 0.7), bq('highpass', RADIO.lo, 0.7), bq('peaking', 1700, 1, RADIO.mid), ws,
+      bq('lowpass', RADIO.hi, 0.7), bq('lowpass', RADIO.hi, 0.7), comp, g];
+    s.connect(chain[0]);
+    for (let i = 0; i < chain.length - 1; i++) chain[i].connect(chain[i + 1]);
+    const start = t + RADIO.lead, end = start + b.duration / rate;
+    s.start(start);
+    const hiss = ctx.createBufferSource(), hg = ctx.createGain(), hf = bq('bandpass', 2200, 0.6);
+    hiss.buffer = noiseBuf; hiss.loop = true; hg.gain.value = RADIO.hiss;
+    hiss.connect(hf); hf.connect(hg); hg.connect(g); hiss.start(t, Math.random() * 0.5); hiss.stop(end + 0.05);
+    squelch(t, 0.07, 0.25, g); squelch(end - 0.02, 0.14, 0.3, g);
     return true;
   }
   function boing(delay) {
@@ -3527,7 +3559,7 @@ const Sfx = (() => {
     alarm() { for (let i = 0; i < 4; i++) tone('square', i % 2 ? 660 : 880, i % 2 ? 660 : 880, 0.12, 0.12, i * 0.25); },
     // The intro: "good grief" as the warning mark appears over the ship (OPEN.warn), done before the asteroid hits
     // (2.4 s later; the line is 1.8 s with its tail).
-    goodGrief() { clip('goodgrief', 0.3, 1, 1.8); },
+    goodGrief() { clip('goodgrief', 0.21, 1, 1.8); },   // the voice still starts 0.3 s in, after the radio's squelch
     impact() {
       noise(0.7, 'lowpass', 900, 1);
       tone('sine', 110, 30, 0.7, 0.8);
