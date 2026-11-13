@@ -138,6 +138,36 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .hard-box { gap: 8px; }
 .hard-box .set-tog { padding: 10px 7px 10px 9px; font-size: 12px; }
 .hard-how { margin: 0; font-size: 17px; line-height: 1.1; color: var(--dust-dim); }
+/* Version 197 (user): Kid mode. A tile in the Settings grid's empty slot (its badge says ON while any setting is off
+   normal) opens its own face: four sliders in 25% steps, the cafe speed-up switch, Back to normal and Done. */
+.set-tog.kid-tog[data-on="true"] { border-color: var(--green); background: transparent; }
+.set-tog.kid-tog[data-on="true"]::after { content: 'ON'; background: var(--green); color: var(--ink); }
+#kidBack h2 { text-align: center; }
+#kidBack { gap: 12px; }
+.kid-how { margin: 0; font-size: 17px; line-height: 1.1; color: var(--dust-dim); text-align: center; }
+.kid-sliders { display: flex; flex-direction: column; gap: 10px; padding: 10px 12px 12px; box-shadow: inset 0 0 0 2px var(--blue); }
+.kid-sl { display: grid; grid-template-columns: 1fr auto; align-items: center; row-gap: 6px; cursor: pointer; }
+.kid-lbl { font: 700 10px/1 var(--display); letter-spacing: .06em; color: var(--dust); text-transform: uppercase; }
+.kid-sl output { font: 700 11px/1 var(--display); color: var(--gold); min-width: 3.4em; text-align: right; }
+.kid-sl output.normal { color: var(--dust-dim); }
+.kid-sl input { grid-column: 1 / -1; width: 100%; margin: 0; height: 22px; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; }
+.kid-sl input::-webkit-slider-runnable-track { height: 6px; background: linear-gradient(to right, var(--blue) var(--fill, 0%), var(--ink-soft) var(--fill, 0%)); }
+.kid-sl input::-moz-range-track { height: 6px; background: linear-gradient(to right, var(--blue) var(--fill, 0%), var(--ink-soft) var(--fill, 0%)); }
+.kid-sl input::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 18px; margin-top: -6px; background: var(--gold); border: 0; border-radius: 0; box-shadow: inset -2px -2px 0 #B8862A; }
+.kid-sl input::-moz-range-thumb { width: 16px; height: 18px; background: var(--gold); border: 0; border-radius: 0; box-shadow: inset -2px -2px 0 #B8862A; }
+.kid-sl input:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+#kidSpeedT { font-size: 11px; padding: 10px 7px 10px 9px; }
+#titleScreen.reading.kid .repair { --aside: 1; }
+#kidReset:disabled { background: transparent; opacity: .45; box-shadow: inset 0 0 0 2px var(--ink-soft); }
+@media (max-height: 700px) {
+  #kidBack { gap: 7px; padding: 10px 12px; }
+  #kidBack h2 { margin: 0; }
+  .kid-how { font-size: 15px; }
+  .kid-sliders { gap: 6px; padding: 8px 10px 9px; }
+  .kid-sl { row-gap: 3px; }
+  #kidSpeedT { padding: 8px 7px 8px 9px; }
+  #kidReset { padding: 9px 14px 7px; }
+}
 #badgesBtn small { font: inherit; font-size: 11px; color: color-mix(in srgb, var(--dust) 75%, var(--blue)); }
 @media (max-width: 360px) { #titleFront .card-nav { column-gap: 8px; } #titleFront .card-nav .btn.settings { font-size: 11px; gap: 4px; padding-inline: 3px; letter-spacing: 0; } #titleFront .card-nav .btn.settings > svg { width: 12px; height: 12px; } }
 .best.best-big b { font-size: 22px; color: var(--gold); letter-spacing: .03em; }
@@ -693,6 +723,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <button class="set-tog" id="vibT" type="button" aria-pressed="true" aria-label="Vibration"><span>Vibration</span></button>
         <button class="set-tog" id="fpsT" type="button" aria-pressed="false" aria-label="Display FPS"><span>Display<br>FPS</span></button>
         <button class="set-tog" id="invT" type="button" aria-pressed="false" aria-label="Invert thruster controls"><span>Invert<br>thruster<br>controls</span></button>
+        <button class="set-tog kid-tog" id="kidBtn" type="button" data-on="false" aria-haspopup="true" aria-label="Kid mode, off"><span>Kid<br>mode</span></button>
       </div>
       <div class="suit-row moon-row" role="group" aria-label="Moon"><span>MOON</span>
         <button class="moon-btn" type="button" data-moon="dust" aria-pressed="true"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Dust</span></button>
@@ -701,6 +732,19 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       </div>
       <button class="btn quiet warn" id="resetBtn" type="button">Reset ship repair</button>
       <button class="btn" id="settingsDone" type="button">Done</button>
+     </div>
+     <div class="card face back" id="kidBack" hidden inert aria-hidden="true">
+      <h2>Kid mode</h2>
+      <p class="kid-how">Make the dive easier. Changes start on the next dive.</p>
+      <div class="kid-sliders">
+        <label class="kid-sl"><span class="kid-lbl">Mines</span><output id="kidMinesV"></output><input type="range" id="kidMines" min="0" max="100" step="25" data-key="mines"></label>
+        <label class="kid-sl"><span class="kid-lbl">Ship parts</span><output id="kidPartsV"></output><input type="range" id="kidParts" min="100" max="200" step="25" data-key="parts"></label>
+        <label class="kid-sl"><span class="kid-lbl">Health crystals</span><output id="kidHealthV"></output><input type="range" id="kidHealth" min="100" max="200" step="25" data-key="health"></label>
+        <label class="kid-sl"><span class="kid-lbl">Leviathan shots</span><output id="kidShotsV"></output><input type="range" id="kidShots" min="0" max="100" step="25" data-key="shots"></label>
+      </div>
+      <button class="set-tog" id="kidSpeedT" type="button" aria-pressed="true" aria-label="Speed up after cafes"><span>Speed up after cafes</span></button>
+      <button class="btn quiet" id="kidReset" type="button">Back to normal</button>
+      <button class="btn" id="kidDone" type="button">Done</button>
      </div>
      <div class="card face back" id="howBack" hidden inert aria-hidden="true">
       <h2>Instructions</h2>
@@ -926,7 +970,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 196;
+const VERSION = 197;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3396,7 +3440,7 @@ const cafesPassed = d => { const k = cafeAbove(d - 40); return k < 1 ? 0 : k - 1
 // How many cafe ledges lie above depth d, counted the moment he passes each one (pops and treats use this).
 const ledgesPassed = d => Math.max(0, cafeAbove(d - 40));
 function speedAt(d) {
-  const s = (FALL_SPEED + SPEED_RAMP * smoothstep(d / 26000)) * (1 + Math.min(CAFE_SPEED_MAX, CAFE_SPEEDUP * cafesPassed(d))) * (hardRun ? HARD_SPEED : 1), B = bossAt(d);
+  const s = (FALL_SPEED + SPEED_RAMP * smoothstep(d / 26000)) * (kidRun.speed ? 1 + Math.min(CAFE_SPEED_MAX, CAFE_SPEEDUP * cafesPassed(d)) : 1) * (hardRun ? HARD_SPEED : 1), B = bossAt(d);
   if (!B) return s;
   // Through a boss cavern (version 87) the fall eases to the speed that makes it last BOSS_TIME, then back after the neck.
   const u = d < B.A0 ? smoothstep((d - B.A0 + 240) / 240) : d < B.N1 ? 1 : 1 - smoothstep((d - B.N1) / BOSS_BACK);
@@ -3414,6 +3458,23 @@ const NAV_PRICE = 50;   // 40 in version 80, 30 in 81, 50 since 82 (user)
 if (!Number.isFinite(save.nav)) save.nav = 0;
 const navDone = () => save.nav >= NAV_PRICE;
 const canLaunch = () => repairFrac() >= 1 && navDone();
+// Kid mode (version 197, user): mines and Leviathan shots 0-100%, ship parts and health crystals 100-200%, in 25% steps,
+// and the cafe speed-up on or off. Saved as save.kid; fixed for the whole run at its start (kidRun), like Terminal Velocity.
+const KID_NORMAL = { mines: 100, parts: 100, health: 100, shots: 100, speed: true };
+const KID_RANGE = { mines: [0, 100], parts: [100, 200], health: [100, 200], shots: [0, 100] };
+function kidSettings() {
+  const k = Object.assign({}, KID_NORMAL, save.kid);
+  for (const key in KID_RANGE) { const [lo, hi] = KID_RANGE[key], v = Math.round(+k[key] / 25) * 25; k[key] = Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : KID_NORMAL[key]; }
+  k.speed = k.speed !== false;
+  return k;
+}
+const kidOn = k => Object.keys(KID_NORMAL).some(key => k[key] !== KID_NORMAL[key]);
+// What this run uses, as fractions (mines 0.5 = half the mines). Normal until a run starts.
+let kidRun = { mines: 1, parts: 1, health: 1, shots: 1, speed: true, on: false }, kidShotAcc = 0;
+// A fixed roll in [0, 1) for one place in the shaft, so leaving out mines doesn't change the rest of the seeded layout.
+const kidRoll = n => { const x = Math.sin(n * 12.9898 + SEED * 78.233) * 43758.5453; return x - Math.floor(x); };
+// Leviathan shots are thinned evenly (at 50% every other one is fired, at 25% one in four), not at random.
+function bossShot(s) { kidShotAcc += kidRun.shots; if (kidShotAcc >= 0.999) { kidShotAcc -= 1; bossShots.push(s); } }
 function persist() { if (perfOn) return; try { localStorage.setItem('moonfall.v1', JSON.stringify(save)); } catch (e) {} }
 // Switches the game over to a moon (version 113): its rock layers and scenery colours, and everything painted from them
 // is thrown away to be painted again (the shaft's tiles and back layers, the hills and the surface props). The hazards,
@@ -4810,7 +4871,7 @@ let unlocksFromNews = false;   // the Unlocks card was opened from New features 
 // that far, and dataset.short says by how much it fell short). Back down when it closes. (Versions 160-161 centred the
 // card instead.) Measured from steady layout, not from boxes caught mid-turn.
 const DONE_FROM_BOTTOM = 50;
-const CARD_FACE = { settings: 'titleBack', how: 'howBack', levi: 'leviBack', badges: 'badgeBack', news: 'newsBack', unlocks: 'unlocksBack', moons: 'moonsBack' };
+const CARD_FACE = { settings: 'titleBack', how: 'howBack', levi: 'leviBack', badges: 'badgeBack', news: 'newsBack', unlocks: 'unlocksBack', moons: 'moonsBack', kid: 'kidBack' };
 function placeNews(side, instant) {
   const fl = $('titleFlip'), ts = $('titleScreen');
   let lift = 0;
@@ -4834,15 +4895,16 @@ function setCard(side, instant) {
   if (side === 'levi' && was !== 'levi') { leviView = moon; fillLeviCard(); }
   if (side === 'badges') fillBadges();
   if (side === 'unlocks') syncToggles();   // version 158: Hard Dive's lock is shown from the save as it is now
-  turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack'), levi: $('leviBack'), badges: $('badgeBack'), news: $('newsBack'), unlocks: $('unlocksBack'), moons: $('moonsBack') }, was, side, instant, () => {
+  if (side === 'kid') syncKid();   // version 197
+  turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack'), levi: $('leviBack'), badges: $('badgeBack'), news: $('newsBack'), unlocks: $('unlocksBack'), moons: $('moonsBack'), kid: $('kidBack') }, was, side, instant, () => {
     const ts = $('titleScreen');
     clearTimeout(readTimer);
-    if (side) { ts.classList.toggle('levi', side === 'levi'); ts.classList.toggle('how', side === 'how'); ts.classList.toggle('settings', side === 'settings'); ts.classList.toggle('badges', side === 'badges'); ts.classList.toggle('moons', side === 'moons'); ts.classList.toggle('unlocks', side === 'unlocks'); ts.classList.toggle('newsopen', side === 'news'); }   // not 'news': that's the sticker's own class (see version 146)
+    if (side) { ts.classList.toggle('levi', side === 'levi'); ts.classList.toggle('how', side === 'how'); ts.classList.toggle('settings', side === 'settings'); ts.classList.toggle('badges', side === 'badges'); ts.classList.toggle('moons', side === 'moons'); ts.classList.toggle('unlocks', side === 'unlocks'); ts.classList.toggle('kid', side === 'kid'); ts.classList.toggle('newsopen', side === 'news'); }   // not 'news': that's the sticker's own class (see version 146)
     placeNews(side, instant);
     if (side || instant) { ts.classList.toggle('reading', !!side); syncAside(instant); }   // Settings too since version 84 (one more row)
     else readTimer = setTimeout(() => { ts.classList.remove('reading'); syncAside(); }, 480);
   });
-  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $('sndT') : side === 'how' ? $('howDone') : side === 'news' ? $(was === 'moons' ? 'newsMoons' : was === 'unlocks' ? 'newsHard' : 'newsLevi') : side === 'unlocks' ? $('unlocksDone') : side === 'levi' ? $('leviDone') : side === 'moons' ? $('moonsDone') : side === 'badges' ? $('badgeDone') : $(was === 'how' ? 'howBtn' : was === 'badges' ? 'badgesBtn' : was === 'unlocks' ? 'unlocksBtn' : was === 'levi' || was === 'news' || was === 'moons' ? 'startBtn' : 'settingsBtn')), 460);
+  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $(was === 'kid' ? 'kidBtn' : 'sndT') : side === 'kid' ? $('kidMines') : side === 'how' ? $('howDone') : side === 'news' ? $(was === 'moons' ? 'newsMoons' : was === 'unlocks' ? 'newsHard' : 'newsLevi') : side === 'unlocks' ? $('unlocksDone') : side === 'levi' ? $('leviDone') : side === 'moons' ? $('moonsDone') : side === 'badges' ? $('badgeDone') : $(was === 'how' ? 'howBtn' : was === 'badges' ? 'badgesBtn' : was === 'unlocks' ? 'unlocksBtn' : was === 'levi' || was === 'news' || was === 'moons' ? 'startBtn' : 'settingsBtn')), 460);
 }
 // -- the Leviathans card (version 102): the NEW sticker opens it. Each creature's name, its signature attack in a line,
 // and a portrait painted with its fight art (bossStage), facing right and looking down at the viewer.
@@ -5040,6 +5102,30 @@ confirmDlg.addEventListener('close', () => { $(confirmFrom).focus({ preventScrol
 $('settingsBtn').addEventListener('click', () => setCard('settings'));
 $('howDone').addEventListener('click', () => setCard(null));
 $('settingsDone').addEventListener('click', () => setCard(null));
+// Kid mode (version 197): its tile in Settings opens the kid card; Done goes back to Settings.
+const KID_SLIDERS = { mines: 'kidMines', parts: 'kidParts', health: 'kidHealth', shots: 'kidShots' };
+function syncKid() {
+  const k = kidSettings();
+  for (const key in KID_SLIDERS) {
+    const el = $(KID_SLIDERS[key]), out = $(KID_SLIDERS[key] + 'V'), [lo, hi] = KID_RANGE[key];
+    el.value = k[key]; el.style.setProperty('--fill', (k[key] - lo) / (hi - lo) * 100 + '%');
+    out.textContent = k[key] === KID_NORMAL[key] ? 'NORMAL' : k[key] === 0 ? 'NONE' : k[key] + '%';
+    out.classList.toggle('normal', k[key] === KID_NORMAL[key]);
+    el.setAttribute('aria-valuetext', out.textContent);
+  }
+  $('kidSpeedT').setAttribute('aria-pressed', String(k.speed));
+  const on = kidOn(k), kb = $('kidBtn');
+  kb.dataset.on = String(on); kb.setAttribute('aria-label', 'Kid mode, ' + (on ? 'on' : 'off'));
+  $('kidReset').disabled = !on;
+}
+for (const key in KID_SLIDERS) $(KID_SLIDERS[key]).addEventListener('input', e => {
+  save.kid = Object.assign(kidSettings(), { [key]: +e.target.value }); persist(); syncKid();
+});
+$('kidSpeedT').addEventListener('click', () => { const k = kidSettings(); save.kid = Object.assign(k, { speed: !k.speed }); persist(); syncKid(); });
+$('kidReset').addEventListener('click', () => { save.kid = Object.assign({}, KID_NORMAL); persist(); syncKid(); Sfx.bleep(330); });
+$('kidBtn').addEventListener('click', () => setCard('kid'));
+$('kidDone').addEventListener('click', () => setCard('settings'));
+syncKid();
 // Private stats for the owner's Supabase dashboard: a random ID made once per device (no name, nothing personal),
 // one ping when a run starts and one when it ends with how long it lasted, how deep it got and how it ended.
 // Both pings carry the game's VERSION (version 106), so the stats can be split by version.
@@ -5137,6 +5223,7 @@ const HARD_SPEED = 1.15, hardOpen = () => missionsDone() > 0;
 let introRunUp = false;   // version 176: Jump in (the full run-up), not Play again, gets the shaft line
 function startRun(quick) {
   hardRun = !!save.hard && hardOpen();
+  { const k = kidSettings(); kidRun = { mines: k.mines / 100, parts: k.parts / 100, health: k.health / 100, shots: k.shots / 100, speed: k.speed, on: kidOn(k) }; }   // version 197
   droneRun = !!save.drone && droneOpen();
   Sfx.init(); Music.stop(0.4); setCard(null, true);
   resetRun(); countPlay();
@@ -6792,7 +6879,7 @@ addEventListener('keydown', e => {
     e.preventDefault();
     if (cafeT > 1.6) leaveCafe();
   }
-  else if (k === 'Escape' && state === 'title' && cardSide) setCard(cardSide === 'levi' || cardSide === 'moons' || (cardSide === 'unlocks' && unlocksFromNews) ? 'news' : null);   // one step back (version 157)
+  else if (k === 'Escape' && state === 'title' && cardSide) setCard(cardSide === 'kid' ? 'settings' : cardSide === 'levi' || cardSide === 'moons' || (cardSide === 'unlocks' && unlocksFromNews) ? 'news' : null);   // one step back (version 157)
   else if (k === 'Escape' || k === 'p' || k === 'P') { if (state === 'paused') resume(); else pause(); }
   else if ((k === ' ' || k === 'Enter') && state === 'title' && document.activeElement === document.body) { e.preventDefault(); if (screens.title.classList.contains('clean')) openMenu(); else startRun(false); }
   else return;
@@ -7253,13 +7340,13 @@ function genSeg(k) {
           // Only 30% of the plain boulders are kept (version 92: the user still found the shaft busy; half were kept
           // from version 75, all of them before). Only the big mines are kept (version 94: the user asked for the
           // small ones to go).
-          if (isMine ? size === 2 : r() < 0.3) { rocks.push({ d, x0: x, x, size, rr, amp, ph, sp, isMine, dead: false }); lastRockD = d; }
+          if (isMine ? size === 2 && (kidRun.mines >= 1 || kidRoll(k * 3 + 1) < kidRun.mines) : r() < 0.3) { rocks.push({ d, x0: x, x, size, rr, amp, ph, sp, isMine, dead: false }); lastRockD = d; }
         }
       }
     }
   }
   // About 30% fewer crystals since version 81 (the user found too much health about): 0.16 + 0.03 per missing chunk before.
-  if (d0 > 760 && r() < (0.11 + (player.max - player.hp) * 0.02) * (player.perks.lucky ? 1.4 : 1)) {
+  if (d0 > 760 && r() < (0.11 + (player.max - player.hp) * 0.02) * (player.perks.lucky ? 1.4 : 1) * kidRun.health) {
     const d = d0 + 15 + r() * (SEG_LEN - 30);
     if (Math.abs(d - lastRockD) > 36) {
       const sp = spans(d), pick = sp[sp.length > 1 && r() < 0.5 ? 1 : 0];
@@ -7274,7 +7361,7 @@ function genSeg(k) {
     }
   }
   // A quarter fewer ship parts since version 98 (0.2 a segment, 0.3 with the finder perk, before).
-  if (d0 > 640 && r() < (player.perks.finder ? 0.225 : 0.15)) {
+  if (d0 > 640 && r() < (player.perks.finder ? 0.225 : 0.15) * kidRun.parts) {
     const pt = pickPart(r, d0 / 8);
     if (pt) {
       const d = d0 + 20 + r() * (SEG_LEN - 40);
@@ -7301,14 +7388,17 @@ function voidContents(V, d0) {
     if (d < d0 || d >= d0 + SEG_LEN) continue;
     const r = rng32(Math.floor(SEED * 1000) + V.j * 977 + i * 31 + 5);
     // Every mine here is a big one since version 94 (half were small); r() is still drawn so the rest of the row stays the same.
-    const mine = x => { r(); const size = 2; rocks.push({ d, x0: x, x, size, rr: ROCK_R[size], amp: r() < 0.4 ? 10 + r() * 20 : 0, ph: r() * 6.28, sp: 0.8 + r(), isMine: true, dead: false }); };
+    // Kid mode (version 197): a mine left out still makes the same random draws, so the rest of the row stays the same.
+    const mine = (x, m) => { r(); const size = 2; if (kidRun.mines < 1 && kidRoll(V.j * 977 + i * 31 + m) >= kidRun.mines) { if (r() < 0.4) r(); r(); r(); return; } rocks.push({ d, x0: x, x, size, rr: ROCK_R[size], amp: r() < 0.4 ? 10 + r() * 20 : 0, ph: r() * 6.28, sp: 0.8 + r(), isMine: true, dead: false }); };
     const x1 = 40 + r() * (W - 80);
-    mine(x1);
-    if (r() < 0.35) mine(x1 < W / 2 ? x1 + 90 + r() * (W - 130 - x1 - 90) : 40 + r() * (x1 - 130));
+    mine(x1, 1);
+    if (r() < 0.35) mine(x1 < W / 2 ? x1 + 90 + r() * (W - 130 - x1 - 90) : 40 + r() * (x1 - 130), 2);
     const di = d + 70, xi = 36 + r() * (W - 72);
     // Three in four of the part rows have one since version 98 (all of them before).
-    if (i % 2 === 0) { const pt = pickPart(r, di / PX_PER_M); if (pt && r() < 0.75) items.push({ d: di, x: xi, kind: 'part', part: pt, dead: false }); }
+    if (i % 2 === 0) { const pt = pickPart(r, di / PX_PER_M); if (pt && r() < 0.75 * kidRun.parts) items.push({ d: di, x: xi, kind: 'part', part: pt, dead: false }); }
     else items.push({ d: di, x: xi, kind: 'orb', dead: false });
+    // Kid mode: more crystals add one beside some part rows (the extra above 100%, as a chance).
+    if (i % 2 === 0 && kidRun.health > 1 && kidRoll(V.j * 977 + i * 31 + 3) < kidRun.health - 1) items.push({ d: di + 34, x: W - xi, kind: 'orb', dead: false });
   }
   lastRockD = Math.max(lastRockD, V.B);
 }
@@ -7649,7 +7739,7 @@ function startBoss(B) {
   const x0 = W / 2 + dir * (mid - A) * 0.14, y0 = Math.max(-170, H / 2 + (A - mid) * LEVI_PARALLAX);
   boss = { B, kind, k2, n: (B.k + 1) / 2, dir, rot: 0, turnT: -1, turnFrom: dir, sideT: 0, lastTurn: 0, kick: 0, rage: false,
     phase: 'enter', t: 0, pt: 0, x0, y0, x: x0, y: y0, next: 0.6, queue: [], charge: 0, last: '', orbs: 0, d: 0, sil: mix(palAt(A).sO, P.ink, 0.42) };
-  bossShots.length = 0; bossFresh = true; stampAllow = 0;
+  bossShots.length = 0; kidShotAcc = 0.5; bossFresh = true; stampAllow = 0;
   hud.classList.add('boss'); coach.classList.add('gone');
   Sfx.groan(kind); Sfx.bossRoar(); Sfx.leviHello(); Buzz.mine(); shake = Math.max(shake, 1.6);
   bossMusic(B); Music.heat(1);
@@ -7672,7 +7762,7 @@ function bossFire(kind) {
   const b = boss, lv = Math.min(5, Math.ceil(b.n)), sp = 1.12 + 0.08 * (b.n - 1) + (b.rage ? 0.08 : 0);
   const mouth = () => { const [dx, dy] = bossMouth(b); return [b.x + dx, b.y + dy - 5 * b.kick]; };
   const later = (dt, fn) => b.queue.push({ at: b.t + dt, fn: () => { b.kick = 1; fn(); } });
-  const glob = (x, y, ang, v, r) => bossShots.push({ type: 'glob', x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, r: r || 4, t: 0 });
+  const glob = (x, y, ang, v, r) => bossShot({ type: 'glob', x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, r: r || 4, t: 0 });
   // Aimed shots lead him a little: they go where he's heading, not only where he is.
   const aim = (x, y, lead) => Math.atan2(pilotNow + PILOT_CY - y, player.x + (lead ? player.vx * 0.3 : 0) - x);
   b.charge = b.t + 0.45; Sfx.bossCharge();
@@ -7703,14 +7793,14 @@ function bossFire(kind) {
   }
   if (kind === 'beam') {   // beams down the cavern: a warning line first, then it fires; the first is where he is
     const N = 3 + Math.min(2, lv - 1);
-    for (let i = 0; i < N; i++) later(0.3 + i * 0.38, () => bossShots.push({ type: 'beam', x: i ? Math.max(16, Math.min(W - 16, player.x + (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 60))) : player.x + player.vx * 0.25, y: mouth()[1] + 6, t: 0, warn: 0.7, dur: 0.35 }));
+    for (let i = 0; i < N; i++) later(0.3 + i * 0.38, () => bossShot({ type: 'beam', x: i ? Math.max(16, Math.min(W - 16, player.x + (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 60))) : player.x + player.vx * 0.25, y: mouth()[1] + 6, t: 0, warn: 0.7, dur: 0.35 }));
     return 0.3 + N * 0.38 + 1;
   }
   if (kind === 'wave') {   // snakes of spores wriggling down
     const S = 3 + (lv >= 3 ? 1 : 0);
     for (let k = 0; k < S; k++) {
       const x0 = 36 + Math.random() * (W - 72);
-      for (let i = 0; i < 7; i++) later(0.45 + k * 0.3 + i * 0.11, () => { bossShots.push({ type: 'wave', x0, x: x0, y: mouth()[1] + 6, vy: 160 * sp, amp: 40, f: 3.4, ph: k * 2, t: 0, r: 3 }); if (!i) Sfx.bossShot(); });
+      for (let i = 0; i < 7; i++) later(0.45 + k * 0.3 + i * 0.11, () => { bossShot({ type: 'wave', x0, x: x0, y: mouth()[1] + 6, vy: 160 * sp, amp: 40, f: 3.4, ph: k * 2, t: 0, r: 3 }); if (!i) Sfx.bossShot(); });
     }
     return 0.45 + S * 0.3 + 0.8;
   }
@@ -7733,7 +7823,7 @@ function bossFire(kind) {
       const [x, y] = mouth(), px = player.x, py = pilotNow + PILOT_CY, D = Math.max(120, Math.hypot(px - x, py - y));
       const side = Math.random() < 0.5 ? -1 : 1, g1 = Math.max(30, Math.min(W - 30, px + side * (45 + Math.random() * 45)));
       const g2 = Math.max(30, Math.min(W - 30, px - side * (100 + Math.random() * 60)));
-      bossShots.push({ type: 'shriek', x, y, r: 6, v: 150 * sp, t: 0, gw: 34 / D, gaps: [Math.atan2(py - y, g1 - x), Math.atan2(py - y, g2 - x)].sort((a, b) => a - b) });
+      bossShot({ type: 'shriek', x, y, r: 6, v: 150 * sp, t: 0, gw: 34 / D, gaps: [Math.atan2(py - y, g1 - x), Math.atan2(py - y, g2 - x)].sort((a, b) => a - b) });
       Sfx.bossShriek(); shake = Math.max(shake, 0.8);
     });
     return 0.5 + n * 0.6 + 0.5;
@@ -7743,7 +7833,7 @@ function bossFire(kind) {
     let alive = 0; for (const q of bossShots) if (q.type === 'sting') alive++;
     if (alive > 6) return 0.6;   // the last lot is still drifting down
     for (let i = 0; i < N; i++) if (i !== skip) later(0.4 + i * 0.1, () => { const [x, y] = mouth();
-      bossShots.push({ type: 'sting', sx: x, lx: 20 + lane * (i + 0.5), x, y, vy: 72 * sp, amp: 8 + Math.random() * 8, ph: Math.random() * 6.28, t: 0, r: 5 }); });
+      bossShot({ type: 'sting', sx: x, lx: 20 + lane * (i + 0.5), x, y, vy: 72 * sp, amp: 8 + Math.random() * 8, ph: Math.random() * 6.28, t: 0, r: 5 }); });
     Sfx.bossShot(true);
     return 1.7;
   }
@@ -7752,7 +7842,7 @@ function bossFire(kind) {
     for (let i = 0; i < n; i++) later(0.35 + i * 1.9, () => {
       let dx = (Math.random() < 0.5 ? -1 : 1) * (60 + Math.random() * 50);
       if (player.x + dx < 30 || player.x + dx > W - 30) dx = -dx;
-      bossShots.push({ type: 'lure', x: Math.max(30, Math.min(W - 30, player.x + dx)), y: pilotNow + PILOT_CY - 130, t: 0, warn: 1.5, dur: 0.3, w: 34 });
+      bossShot({ type: 'lure', x: Math.max(30, Math.min(W - 30, player.x + dx)), y: pilotNow + PILOT_CY - 130, t: 0, warn: 1.5, dur: 0.3, w: 34 });
     });
     return 0.35 + n * 1.9 + 0.4;
   }
@@ -7760,7 +7850,7 @@ function bossFire(kind) {
     const n = lv >= 3 ? 3 : 2;
     let side = player.x < W / 2 ? -1 : 1;
     for (let j = 0; j < n; j++) later(0.45 + j * 0.85, () => {
-      bossShots.push({ type: 'sweep', side, split: Math.round(W / 2 + (Math.random() - 0.5) * 80), y: mouth()[1] + 8, vy: 175 * sp, t: 0 });
+      bossShot({ type: 'sweep', side, split: Math.round(W / 2 + (Math.random() - 0.5) * 80), y: mouth()[1] + 8, vy: 175 * sp, t: 0 });
       side = -side; Sfx.bossShot(true);
     });
     return 0.45 + n * 0.85 + 0.6;
@@ -7791,7 +7881,7 @@ function bossFire(kind) {
     for (let i = 0; i < n; i++) later(0.35 + i * 1.9, () => {
       let dx = (Math.random() < 0.5 ? -1 : 1) * (45 + Math.random() * 45);
       if (player.x + dx < 40 || player.x + dx > W - 40) dx = -dx;
-      bossShots.push({ type: 'snap', x: Math.max(40, Math.min(W - 40, player.x + dx)), y: pilotNow + PILOT_CY, t: 0, warn: 1.25, dur: 0.32, w: 52 });
+      bossShot({ type: 'snap', x: Math.max(40, Math.min(W - 40, player.x + dx)), y: pilotNow + PILOT_CY, t: 0, warn: 1.25, dur: 0.32, w: 52 });
       Sfx.bossCharge();
     });
     return 0.35 + n * 1.9 + 0.4;
@@ -7818,7 +7908,7 @@ function bossFire(kind) {
     const n = lv >= 3 ? 2 : 1;
     for (let i = 0; i < n; i++) later(0.4 + i * 1.5, () => {
       const hx = 60 + Math.random() * (W - 120);
-      bossShots.push({ type: 'web', x: hx, hx, y: mouth()[1] + 14, vy: 105 * sp, amp: 34 + Math.random() * 22, f: 1.1 + Math.random() * 0.5, ph: Math.random() * 6.28, R: 27, t: 0 });
+      bossShot({ type: 'web', x: hx, hx, y: mouth()[1] + 14, vy: 105 * sp, amp: 34 + Math.random() * 22, f: 1.1 + Math.random() * 0.5, ph: Math.random() * 6.28, R: 27, t: 0 });
       Sfx.bossShot(true);
     });
     return 0.4 + n * 1.5 + 0.8;
@@ -7827,7 +7917,7 @@ function bossFire(kind) {
     const n = lv >= 3 ? 3 : 2;
     for (let i = 0; i < n; i++) later(0.35 + i * 0.85, () => {
       const [x, y] = mouth(), tx = Math.max(12, Math.min(W - 12, player.x + player.vx * 0.2)), ty = pilotNow + PILOT_CY;
-      bossShots.push({ type: 'tongue', x: tx, y: ty, mx: x, my: y, a: Math.atan2(ty - y, tx - x), L: Math.hypot(tx - x, ty - y) + 70, t: 0, warn: 0.6, out: 0.12, hold: 0.14, back: 0.16 });
+      bossShot({ type: 'tongue', x: tx, y: ty, mx: x, my: y, a: Math.atan2(ty - y, tx - x), L: Math.hypot(tx - x, ty - y) + 70, t: 0, warn: 0.6, out: 0.12, hold: 0.14, back: 0.16 });
       Sfx.bossCharge();
     });
     return 0.35 + n * 0.85 + 0.6;
@@ -7838,7 +7928,7 @@ function bossFire(kind) {
       const T = [Math.max(24, Math.min(W - 24, player.x + player.vx * 0.3)), pilotNow + PILOT_CY];
       for (const side of [-1, 1]) {
         const O = [b.x + side * 54, b.y - 20], C = [Math.max(8, Math.min(W - 8, O[0] + side * (90 + Math.random() * 30))), lerp(O[1], T[1], 0.45)];
-        bossShots.push({ type: 'sickle', O, C, T, dur: 1.5 / sp, x: O[0], y: O[1], r: 8, t: 0, spin: side });
+        bossShot({ type: 'sickle', O, C, T, dur: 1.5 / sp, x: O[0], y: O[1], r: 8, t: 0, spin: side });
       }
       Sfx.bossShot();
     });
@@ -7848,7 +7938,7 @@ function bossFire(kind) {
     const n = lv >= 3 ? 4 : 3;
     for (let w = 0; w < n; w++) later(0.45 + w * 0.5, () => {
       const [x, y] = mouth(), a = aim(x, y, true), v = 170 * sp, ph = Math.random() * 6.28;
-      for (let i = 0; i < 2; i++) bossShots.push({ type: 'screw', cx: x, cy: y, x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, nx: -Math.sin(a), ny: Math.cos(a), ph: ph + i * Math.PI, R: 15, r: 4, t: 0 });
+      for (let i = 0; i < 2; i++) bossShot({ type: 'screw', cx: x, cy: y, x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, nx: -Math.sin(a), ny: Math.cos(a), ph: ph + i * Math.PI, R: 15, r: 4, t: 0 });
       Sfx.bossShot();
     });
     return 0.45 + n * 0.5 + 0.4;
@@ -7857,7 +7947,7 @@ function bossFire(kind) {
     const n = lv >= 3 ? 2 : 1;
     for (let i = 0; i < n; i++) later(0.35 + i * 1.7, () => {
       const side = player.x < b.x ? 1 : -1;   // it sweeps toward him from his far side
-      bossShots.push({ type: 'scan', a0: Math.PI / 2 + side * 1.15, a1: Math.PI / 2 - side * 1.15, sweep: 0.95 / sp, x: b.x, y: b.y, lock: -1, lx: 0, ly: 0, aim: 0.55, dur: 0.3, t: 0 });
+      bossShot({ type: 'scan', a0: Math.PI / 2 + side * 1.15, a1: Math.PI / 2 - side * 1.15, sweep: 0.95 / sp, x: b.x, y: b.y, lock: -1, lx: 0, ly: 0, aim: 0.55, dur: 0.3, t: 0 });
       Sfx.laserWarn();
     });
     return 0.35 + n * 1.7 + 0.6;
@@ -7865,35 +7955,35 @@ function bossFire(kind) {
   if (kind === 'mortar') {   // crab: markers round his row (one where he's heading); a moment later, a shell bursts on each
     const N = lv >= 3 ? 4 : 3, py = pilotNow + PILOT_CY, xs = [Math.max(24, Math.min(W - 24, player.x + player.vx * 0.3))];
     for (let tries = 0; xs.length < N && tries < 40; tries++) { const x = 26 + Math.random() * (W - 52); if (xs.every(q => Math.abs(q - x) > 62)) xs.push(x); }
-    xs.forEach((x, i) => later(0.3 + i * 0.22, () => { bossShots.push({ type: 'mortar', x, y: py + (Math.random() - 0.5) * 24, R: 24, t: 0, warn: 1.15, dur: 0.22 }); if (!i) Sfx.bossCharge(); }));
+    xs.forEach((x, i) => later(0.3 + i * 0.22, () => { bossShot({ type: 'mortar', x, y: py + (Math.random() - 0.5) * 24, R: 24, t: 0, warn: 1.15, dur: 0.22 }); if (!i) Sfx.bossCharge(); }));
     return 0.3 + N * 0.22 + 1.6;
   }
   if (kind === 'drones') {   // wasp: drones that steer after him for a moment, then dart on in a straight line
     const N = lv >= 3 ? 4 : 3;
     for (let i = 0; i < N; i++) later(0.4 + i * 0.28, () => {
       const [x, y] = mouth(), a = Math.PI / 2 + (i % 2 ? 1 : -1) * (0.9 + Math.random() * 0.4);
-      bossShots.push({ type: 'drone', x, y, a, v: 105 * sp, dart: 245 * sp, home: 1.5, r: 5, t: 0 });
+      bossShot({ type: 'drone', x, y, a, v: 105 * sp, dart: 245 * sp, home: 1.5, r: 5, t: 0 });
       Sfx.bossShot();
     });
     return 0.4 + N * 0.28 + 1.4;
   }
   if (kind === 'slag') {   // beetle: three streams of slag pour down the cavern, drifting sideways together
     const drift = (Math.random() < 0.5 ? -1 : 1) * (14 + Math.random() * 12), dur = lv >= 3 ? 2.6 : 2.1, off = (Math.random() - 0.5) * 30;
-    later(0.4, () => { for (let i = 0; i < 3; i++) bossShots.push({ type: 'slag', x: W * (i + 1) / 4 + off, vx: drift, y: mouth()[1] + 6, t: 0, warn: 0.6, dur, w: 12 }); Sfx.bossShot(true); });
+    later(0.4, () => { for (let i = 0; i < 3; i++) bossShot({ type: 'slag', x: W * (i + 1) / 4 + off, vx: drift, y: mouth()[1] + 6, t: 0, warn: 0.6, dur, w: 12 }); Sfx.bossShot(true); });
     return 0.4 + 0.6 + dur + 0.3;
   }
   if (kind === 'cogs') {   // gear: cogs flung out to the sides, bouncing off the cavern walls on their way down
     const n = lv >= 3 ? 3 : 2;
     for (let w = 0; w < n; w++) later(0.45 + w * 0.6, () => {
       const [x, y] = mouth();
-      for (const side of [-1, 1]) bossShots.push({ type: 'cog', x, y, vx: side * (150 + Math.random() * 70) * sp, vy: (95 + Math.random() * 30) * sp, r: 8, t: 0, spin: side, hits: 0 });
+      for (const side of [-1, 1]) bossShot({ type: 'cog', x, y, vx: side * (150 + Math.random() * 70) * sp, vy: (95 + Math.random() * 30) * sp, r: 8, t: 0, spin: side, hits: 0 });
       Sfx.bossShot(true);
     });
     return 0.45 + n * 0.6 + 1.0;
   }
   // bomb: slow, big shots lobbed toward him that burst into a ring of small ones
   const N = 3 + (lv >= 3 ? 1 : 0);
-  for (let i = 0; i < N; i++) later(0.45 + i * 0.45, () => { const [x, y] = mouth(); bossShots.push({ type: 'bomb', x, y, vx: (player.x - x) * 0.45, vy: 120 * sp, r: 7, t: 0, fuse: 1.35 + Math.random() * 0.25 }); Sfx.bossShot(true); });
+  for (let i = 0; i < N; i++) later(0.45 + i * 0.45, () => { const [x, y] = mouth(); bossShot({ type: 'bomb', x, y, vx: (player.x - x) * 0.45, vy: 120 * sp, r: 7, t: 0, fuse: 1.35 + Math.random() * 0.25 }); Sfx.bossShot(true); });
   return 0.45 + N * 0.45 + 0.8;
 }
 // Each frame of a run, before the camera is placed: start the music and the fight, move it, end it, and set where he
@@ -7949,6 +8039,7 @@ function updateBoss(dt) {
         if (b.orbs < BOSS_ORBS.length && b.pt >= BOSS_ORBS[b.orbs]) {
           b.orbs++;
           items.push({ d: camY + H + 14, x: 40 + Math.random() * (W - 80), kind: 'orb', dead: false, drift: 0.82 });
+          if (Math.random() < kidRun.health - 1) items.push({ d: camY + H + 50, x: 40 + Math.random() * (W - 80), kind: 'orb', dead: false, drift: 0.82 });   // kid mode
         }
         if (cd >= B.F0 - BOSS_LIFT * B.speed) { b.phase = 'chase'; b.pt = 0; b.queue.length = 0; b.charge = 0; Music.heat(3); }
       }
@@ -9372,7 +9463,7 @@ function update(dt) {
     if (ledgesPassed(player.y + PILOT_CY) > fasterN) {
       fasterN++; expireTreats(fasterN);
       const top = Math.round(CAFE_SPEED_MAX / CAFE_SPEEDUP);
-      if (fasterN <= top) speedUp(fasterN === top, fasterN * CAFE_SPEEDUP);   // version 142: banner, rush and whoosh (was a small 'FALL +5%' pop)
+      if (fasterN <= top && kidRun.speed) speedUp(fasterN === top, fasterN * CAFE_SPEEDUP);   // version 142: banner, rush and whoosh (was a small 'FALL +5%' pop)
     }
     if (state === 'play') checkCafe();
     Sfx.wind(0.5 + 0.5 * smoothstep((player.v - 250) / 200));
