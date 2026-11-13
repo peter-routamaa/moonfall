@@ -926,7 +926,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 194;
+const VERSION = 195;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -2382,7 +2382,7 @@ function leviathans(cam) {
     const D = leviMark(k), A = leviDepth(k), sy = H / 2 + (A - mid) * LEVI_PARALLAX, dir = hash(k * 4.3 + SEED) < 0.5 ? 1 : -1, sx = W / 2 + dir * (mid - A) * 0.14;
     if (bossHides(k)) continue;
     const kind = leviKind(k);
-    if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(kind); Sfx.leviHello(); leviMeet(k); }
+    if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(kind); leviMeet(k); }
     if (state === 'play' && sy > -40 && sy < H + 40) near = true;
     if (cam < -H || sy < -220 || sy > H + 220) continue;
     const Q = palAt(D);   // its colour is worked out once per palette (version 129), not every frame
@@ -3624,7 +3624,8 @@ const Sfx = (() => {
     // Version 176: the line as he jumps into the shaft after Jump in.
     shaftLine() { clip('shaft', 0, 1, 1.8); },
     // Version 185: the intro's line as he lowers his coffee, his line as he ejects, and a hello (one of six takes) when a
-    // Leviathan appears, passing behind the rock or starting a fight; a little after its groan.
+    // Leviathan appears, a little after its groan. Since version 195 (owner) only when a chase starts after a café
+    // (startBoss), not when one passes behind the rock.
     coffeeLine() { clip('coffee', 0, 1, 1.8); },
     ejectLine() { clip('eject', 0.05, 1, 1.8); },
     leviHello() { take('levi', 6, 0.35, 1.8); },
