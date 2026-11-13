@@ -3603,7 +3603,7 @@ const Sfx = (() => {
     alarm() { for (let i = 0; i < 4; i++) tone('square', i % 2 ? 660 : 880, i % 2 ? 660 : 880, 0.12, 0.12, i * 0.25); },
     // The intro: "good grief" as the warning mark appears over the ship (OPEN.warn), done before the asteroid hits
     // (2.4 s later; the line is 1.8 s with its tail).
-    goodGrief() { clip('goodgrief', 0.21, 1, 1.8); },
+    goodGrief() { clip('goodgrief', 0.21, 1, 1.8); },   // the voice still starts 0.3 s in, after the radio's squelch
     // Version 176: the moon's name when one is picked (start screen or Settings); a quick change cuts the last one off.
     moonName(m) { if (moonVoice) moonVoice.stop(); moonVoice = clip('moon' + m, 0.04, 1, 1.8) || null; },
     // Version 176: the line as he jumps into the shaft after Jump in.
@@ -3612,7 +3612,7 @@ const Sfx = (() => {
     // Leviathan appears, passing behind the rock or starting a fight; a little after its groan.
     coffeeLine() { clip('coffee', 0, 1, 1.8); },
     ejectLine() { clip('eject', 0.05, 1, 1.8); },
-    leviHello() { take('levi', 6, 0.35, 1.8); },   // the voice still starts 0.3 s in, after the radio's squelch
+    leviHello() { take('levi', 6, 0.35, 1.8); },
     impact() {
       noise(0.7, 'lowpass', 900, 1);
       tone('sine', 110, 30, 0.7, 0.8);
