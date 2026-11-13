@@ -277,7 +277,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
    everything isn't as cramped"): the panel steps aside on every phone, and on phones 640 px tall or more the card
    spreads out into the room: bigger tiles and labels, more space between them. (Before: hidden up to 640 px only.) */
 #titleScreen.reading.settings .repair { --aside: 1; }
-@media (min-height: 640px) {
+@media (min-height: 700px) {   /* 640 in version 157; 700 since 162 so Done can sit 50 px up on a 640 px phone */
   #titleBack { gap: 16px; padding: 18px 16px; }
   #titleBack .set-list { gap: 10px; }
   #titleBack .set-tog { font-size: 12px; padding: 12px 7px 12px 9px; min-height: 66px; }
@@ -293,7 +293,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 /* And for Unlocks (Hard dive since version 158, the helper drone since 160) on every phone: with three boxes it filled
    an 844 px screen beside the panel. On short phones the card tightens up. */
 #titleScreen.reading.unlocks .repair { --aside: 1; }
-@media (max-height: 640px) {
+@media (max-height: 700px) {   /* 640 in version 160; 700 since 162 (Done 50 px up at 667) */
   #unlocksBack { gap: 7px; padding: 10px 12px; }
   #unlocksBack .suit-box { padding: 7px 10px 8px; gap: 4px; }
   #unlocksBack .suit-name { font-size: 18px; margin-bottom: 2px; }
@@ -302,6 +302,14 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   #unlocksBack .hard-box .set-tog { padding: 7px 7px 7px 9px; }
   #unlocksBack .hard-how { font-size: 15px; }
   #unlocksBack h2 { margin: 0; }
+}
+@media (max-height: 600px) {   /* version 162: room for Done 50 px up on a 568 px phone */
+  #unlocksBack { gap: 5px; }
+  #unlocksBack .hard-how { font-size: 14px; line-height: 1; }
+  #unlocksBack .suit-note { font-size: 14px; }
+  #badgeBack { gap: 6px; }
+  .badge-list { gap: 4px; }
+  .badge-how { font-size: 16px; }
 }
 /* And for New features on every phone (version 160, user), whose card then slides up to the middle (placeNews). */
 #titleScreen.reading.newsopen .repair { --aside: 1; }
@@ -899,7 +907,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 161;
+const VERSION = 162;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -4810,18 +4818,23 @@ function syncAside(instant) {
 addEventListener('resize', () => { syncAside(true); if (cardSide) placeNews(cardSide, true); });
 // The main menu's card: Settings and Instructions on the back.
 let unlocksFromNews = false;   // the Unlocks card was opened from New features (version 160): its Done goes back there
-// Version 160 (user: "center the list of new features on the screen"): while New features is open the card slides up to
-// the middle of the screen (not above the tagline), and back down when it closes. Since version 161 every card does
-// (user: "When any card is opened, center it on screen"), each measured by its own face.
+// Version 162 (user: "the 'done' button should always be at the same height on every screen ... something like 50
+// pixels up from the bottom"): while a card is open it slides up so its Done button's bottom edge is DONE_FROM_BOTTOM px
+// above the bottom of the screen, on every card, unless that would take its top over the tagline (then it rises only
+// that far, and dataset.short says by how much it fell short). Back down when it closes. (Versions 160-161 centred the
+// card instead.) Measured from steady layout, not from boxes caught mid-turn.
+const DONE_FROM_BOTTOM = 50;
 const CARD_FACE = { settings: 'titleBack', how: 'howBack', levi: 'leviBack', badges: 'badgeBack', news: 'newsBack', unlocks: 'unlocksBack', moons: 'moonsBack' };
 function placeNews(side, instant) {
   const fl = $('titleFlip'), ts = $('titleScreen');
   let lift = 0;
   if (CARD_FACE[side]) {
-    // From steady layout, not from boxes caught mid-turn: the card sits on the screen's bottom padding; its full height.
-    const r = ts.getBoundingClientRect(), bottom = r.bottom - (parseFloat(getComputedStyle(ts).paddingBottom) || 0), h = $(CARD_FACE[side]).scrollHeight;
-    const top = ts.querySelector('.tag').getBoundingClientRect().bottom + 10;
-    lift = Math.max(0, Math.round(Math.min(bottom - h / 2 - innerHeight / 2, bottom - h - top)));
+    // The card sits on the screen's bottom padding; its full height; Done ends at the face's bottom padding.
+    const face = $(CARD_FACE[side]), r = ts.getBoundingClientRect(), bottom = r.bottom - (parseFloat(getComputedStyle(ts).paddingBottom) || 0), h = face.scrollHeight;
+    const top = ts.querySelector('.tag').getBoundingClientRect().bottom + 10, doneGap = r.bottom - bottom + (parseFloat(getComputedStyle(face).paddingBottom) || 0);
+    const want = DONE_FROM_BOTTOM - doneGap, room = bottom - h - top;
+    lift = Math.round(Math.max(0, Math.min(want, room)));
+    fl.dataset.short = Math.max(0, Math.round(want - lift));
   }
   fl.dataset.lift = lift;
   fl.classList.toggle('lift-instant', !!instant || reduceMotion);
