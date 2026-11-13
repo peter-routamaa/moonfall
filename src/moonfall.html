@@ -134,11 +134,10 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 #unlocksBack { gap: 12px; }
 /* Version 158 (user: "this is an earned unlock, so let's move it to the unlocks"): Hard dive moved from Settings to the
    Unlocks card, in a box like the suits: its toggle tile, a line on what it does, and a hint under the box while locked.
-   Settings keeps five toggles; Invert thruster controls spans the row. */
+   Settings keeps five toggles (Invert thruster controls stays half width, user, version 159). */
 .hard-box { gap: 8px; }
 .hard-box .set-tog { padding: 10px 7px 10px 9px; font-size: 12px; }
 .hard-how { margin: 0; font-size: 17px; line-height: 1.1; color: var(--dust-dim); }
-#invT { grid-column: 1 / -1; }
 #badgesBtn small { font: inherit; font-size: 11px; color: color-mix(in srgb, var(--dust) 75%, var(--blue)); }
 @media (max-width: 360px) { #titleFront .card-nav { column-gap: 8px; } #titleFront .card-nav .btn.settings { font-size: 11px; gap: 4px; padding-inline: 3px; letter-spacing: 0; } #titleFront .card-nav .btn.settings > svg { width: 12px; height: 12px; } }
 .best.best-big b { font-size: 22px; color: var(--gold); letter-spacing: .03em; }
@@ -688,7 +687,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <p class="suit-note" id="suitNote"></p>
       <div class="suit-box hard-box">
         <button class="set-tog" id="hardT" type="button" aria-pressed="false" aria-label="Hard dive"><span>Hard dive</span></button>
-        <p class="hard-how">Start with 4 health and fall 15% faster. Leviathans rage from the start, and crystals are 50% more common.</p>
+        <p class="hard-how">Start with 4 health and fall 15% faster. Leviathans rage from the start.</p>
       </div>
       <p class="suit-note" id="hardNote"></p>
       <button class="btn" id="unlocksDone" type="button">Done</button>
@@ -879,7 +878,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 158;
+const VERSION = 159;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -4980,8 +4979,9 @@ function endRun(how) {
   if (how !== 'left') runId = '';
 }
 // -- Hard dive (version 112, idea 13): unlocked once the ship has been fixed (a finished mission). The run starts with 4
-// health, falls HARD_SPEED faster all the way down, the Leviathans are enraged from the start, and there are 50% more
-// crystals to make up for it. Switched in Settings (save.hard); fixed for the whole run (hardRun).
+// health, falls HARD_SPEED faster all the way down, and the Leviathans are enraged from the start. (Until version 159 it
+// also had 50% more crystals; the user: "doesn't exactly make the game harder".) Switched on the Unlocks card since
+// version 158 (save.hard); fixed for the whole run (hardRun).
 const HARD_SPEED = 1.15, hardOpen = () => missionsDone() > 0;
 function startRun(quick) {
   hardRun = !!save.hard && hardOpen();
@@ -7084,7 +7084,7 @@ function genSeg(k) {
     }
   }
   // About 30% fewer crystals since version 81 (the user found too much health about): 0.16 + 0.03 per missing chunk before.
-  if (d0 > 760 && r() < (0.11 + (player.max - player.hp) * 0.02) * (player.perks.lucky ? 1.4 : 1) * (hardRun ? 1.5 : 1)) {
+  if (d0 > 760 && r() < (0.11 + (player.max - player.hp) * 0.02) * (player.perks.lucky ? 1.4 : 1)) {
     const d = d0 + 15 + r() * (SEG_LEN - 30);
     if (Math.abs(d - lastRockD) > 36) {
       const sp = spans(d), pick = sp[sp.length > 1 && r() < 0.5 ? 1 : 0];
