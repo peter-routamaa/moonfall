@@ -25,15 +25,16 @@ window.fetch = async (url, init = {}) => {
   const B = window.__board; B.calls.push((init.method || 'GET') + (init.body ? ' ' + init.body : ''));
   await new Promise(r => setTimeout(r, 150));
   if (B.mode === 'down') throw new TypeError('Failed to fetch');
-  const top = () => B.rows.slice().sort((a, b) => b.depth - a.depth || a.id - b.id).slice(0, 10).map(({ id, initials, depth, escaped, moon }) => ({ id, initials, depth, escaped, moon }));
+  const kidQ = String(url).includes('kid=1'), top = kid => B.rows.filter(r => !!r.kid === kid).sort((a, b) => b.depth - a.depth || a.id - b.id).slice(0, 10).map(({ id, initials, depth, escaped, moon }) => ({ id, initials, depth, escaped, moon }));
   if ((init.method || 'GET') === 'POST') {
     const b = JSON.parse(init.body);
+    if (b.event) return new Response('{"ok":true}');   // run stats pings, not scores
     if (!/^[A-Z]{3}$/.test(b.initials)) return new Response('{"error":"bad"}', { status: 400 });
-    const row = { id: B.next++, initials: b.initials, depth: b.depth, escaped: typeof b.escaped === 'boolean' ? b.escaped : null, moon: ['dust', 'jungle', 'machine'].includes(b.moon) ? b.moon : null }; B.rows.push(row);
-    const rank = B.rows.filter(r => r.depth > row.depth || (r.depth === row.depth && r.id < row.id)).length + 1;
-    return new Response(JSON.stringify({ top: top(), rank, id: row.id }));
+    const row = { id: B.next++, initials: b.initials, depth: b.depth, escaped: typeof b.escaped === 'boolean' ? b.escaped : null, moon: ['dust', 'jungle', 'machine'].includes(b.moon) ? b.moon : null, kid: b.kid === true }; B.rows.push(row);
+    const rank = B.rows.filter(r => r.kid === row.kid && (r.depth > row.depth || (r.depth === row.depth && r.id < row.id))).length + 1;
+    return new Response(JSON.stringify({ top: top(row.kid), rank, id: row.id }));
   }
-  return new Response(JSON.stringify({ top: top() }));
+  return new Response(JSON.stringify({ top: top(kidQ) }));
 };"""
 
 # Scenes for screenshots: ?scene=splash|title|opening|launch|pause|cafe|sign|haz|void|levi|board, plus options (see each branch).
@@ -73,7 +74,13 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
       for (let i = 0; i < 150; i++) M.update(1 / 60);
       M.render(); document.title = 'ready:' + M.fireworks.length; return;
     }
-    if (q.get('card')) { document.getElementById({ how: 'howBtn', news: 'newsTag', levi: 'newsTag', moons: 'newsTag', badges: 'badgesBtn', unlocks: 'unlocksBtn' }[q.get('card')] || 'settingsBtn').click(); await wait(800); }
+    if (q.get('kid')) {   // version 197: Kid mode on (mines at 50%) through its real slider, then back to the menu
+      const g = id => document.getElementById(id); g('settingsBtn').click(); await wait(600); g('kidBtn').click(); await wait(600);
+      g('kidMines').value = 50; g('kidMines').dispatchEvent(new Event('input'));
+      if (q.get('card') !== 'kid') { g('kidDone').click(); await wait(600); g('settingsDone').click(); await wait(800); }
+    }
+    if (q.get('card') === 'kid') { if (!q.get('kid')) { document.getElementById('settingsBtn').click(); await wait(600); document.getElementById('kidBtn').click(); await wait(800); } }
+    else if (q.get('card')) { document.getElementById({ how: 'howBtn', news: 'newsTag', levi: 'newsTag', moons: 'newsTag', badges: 'badgesBtn', unlocks: 'unlocksBtn' }[q.get('card')] || 'settingsBtn').click(); await wait(800); }
     if (q.get('card') === 'levi') { document.getElementById('newsLevi').click(); await wait(1200); }
     if (q.get('card') === 'moons') { document.getElementById('newsMoons').click(); await wait(1200); }
     for (const an of document.getAnimations()) if (an.effect && an.effect.getComputedTiming().iterations !== Infinity) an.finish();   // the panel's flip away (version 157): headless time can leave it mid-way
@@ -140,6 +147,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     document.title = 'ready'; return;
   }
   if (q.get('scene') === 'board') {   // the high score table: escaped, not escaped, and an old score with no answer
+    if (q.get('kid')) { M.save.kidScores = [{ i: 'MIA', m: 1420, e: false, o: 'jungle' }, { i: 'LEO', m: 880, e: false, o: 'dust' }]; M.save.kid = { mines: 50 }; document.getElementById('bestBtn').click(); await wait(400); document.title = 'ready'; return; }   // version 197: the Kid mode board
     M.save.scores = [{ i: 'PJR', m: 3120, e: true, o: 'jungle' }, { i: 'ABC', m: 2405, e: false, o: 'dust' }, { i: 'OLD', m: 1810 }, { i: 'MIA', m: 960, e: true, o: 'dust' }];
     document.getElementById('hsEntry').hidden = true; M.openTable(); M.showScreen('score'); await wait(400); document.title = 'ready'; return;
   }

@@ -1,12 +1,14 @@
 // MoonFall online high scores and play counter.
-//   GET  -> { top }                 the 10 deepest runs
-//   POST -> { top, rank, id }       body { initials: "ABC", depth: 812, escaped: true, moon: "jungle" }; saves the run
-//                                   (escaped: the player had repaired the ship; moon: dust, jungle or machine; both optional, null if missing)
+//   GET  -> { top }                 the 10 deepest runs (GET ?kid=1: the Kid mode board's, version 197)
+//   POST -> { top, rank, id }       body { initials: "ABC", depth: 812, escaped: true, moon: "jungle", kid: true }; saves the run
+//                                   (escaped: the player had repaired the ship; moon: dust, jungle or machine; both optional, null if missing;
+//                                   kid: a Kid mode run, on its own board, version 197; optional, false if missing). top and rank are
+//                                   that run's board.
 //   POST -> { ok }                  body { event: "play", player: "<16 hex>", run: "<16 hex>", ver }; a run started (owner's stats)
 //   POST -> { ok }                  body { event: "end", player, run, depth, secs, how, orbs, parts, cafes, initials,
 //                                         fps, worst, device, os, screen, treats, streak, sound, music, repair, intro, ver }; how it went
 //                                   (ver: the game's version number, e.g. 106; moon: dust, jungle or machine, version 113; both optional)
-//                                   Both run pings may carry hard, droneOpen, drone (booleans, version 190; optional).
+//                                   Both run pings may carry hard, droneOpen, drone (booleans, version 190; optional) and kid (version 197).
 //                                   The end ping may carry (version 192; optional) errors, error, leviFought, leviEscaped,
 //                                   missions, suit, badges, nav, cafesPassed, droneCaught, installed, browser, pauses,
 //                                   and the frame-rate figures hz, fpsFight, slowPct (all optional).
@@ -44,8 +46,9 @@ const auth: Record<string, string> = { apikey: KEY, ...(KEY.startsWith('eyJ') ? 
 const reply = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 
-async function top() {
-  const r = await fetch(`${REST}/scores?select=id,initials,depth,escaped,moon&order=depth.desc,id.asc&limit=${TOP}`, { headers: auth });
+// kid: the Kid mode board (version 197); every older score is on the normal one.
+async function top(kid: boolean) {
+  const r = await fetch(`${REST}/scores?select=id,initials,depth,escaped,moon&kid=eq.${kid}&order=depth.desc,id.asc&limit=${TOP}`, { headers: auth });
   if (!r.ok) throw new Error(`top: ${r.status} ${await r.text()}`);
   const rows = await r.json();
   return rows.map((s: { initials: string }) => (BAD.has(s.initials) ? { ...s, initials: '???' } : s));
@@ -86,7 +89,7 @@ const version = (v: unknown) => (whole(v, 100000) && (v as number) >= 1 ? v : nu
 const moonOf = (v: unknown) => (v === 'dust' || v === 'jungle' || v === 'machine' ? v : null);
 // Version 190: Terminal Velocity run, helper drone unlocked on the device, drone flying this run.
 const bool = (v: unknown) => (typeof v === 'boolean' ? v : null);
-const flags = (b: Record<string, unknown>) => ({ hard: bool(b.hard), drone_open: bool(b.droneOpen), drone: bool(b.drone) });
+const flags = (b: Record<string, unknown>) => ({ hard: bool(b.hard), drone_open: bool(b.droneOpen), drone: bool(b.drone), kid: bool(b.kid) });
 // Version 192: errors, Leviathans fought and escaped, progress on the device, cafes passed, drone catches, how it's played.
 const BROWSER = new Set(['safari', 'chrome', 'firefox', 'edge', 'samsung', 'opera', 'inapp', 'other']);
 const kinds = (v: unknown) => (Array.isArray(v) && v.length <= 20 && v.every(k => typeof k === 'string' && /^[a-z]{2,16}$/.test(k)) ? v : null);
@@ -128,7 +131,7 @@ async function hash(text: string) {
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
   try {
-    if (req.method === 'GET') return reply({ top: await top() });
+    if (req.method === 'GET') return reply({ top: await top(new URL(req.url).searchParams.get('kid') === '1') });
     if (req.method !== 'POST') return reply({ error: 'method not allowed' }, 405);
     const body = await req.json().catch(() => null);
 
@@ -175,10 +178,11 @@ Deno.serve(async req => {
     }
 
     const escaped = typeof body?.escaped === 'boolean' ? body.escaped : null;
-    const row = await insert('scores', { initials, depth, who, escaped, moon: moonOf(body?.moon) }, true);
-    // Rank in the same order as the table: deeper first, earlier run first on a tie.
-    const above = await count('scores', `or=(depth.gt.${depth},and(depth.eq.${depth},id.lt.${row.id}))`);
-    return reply({ top: await top(), rank: above + 1, id: row.id });
+    const kid = body?.kid === true;
+    const row = await insert('scores', { initials, depth, who, escaped, moon: moonOf(body?.moon), kid }, true);
+    // Rank on its own board, in the same order as the table: deeper first, earlier run first on a tie.
+    const above = await count('scores', `kid=eq.${kid}&or=(depth.gt.${depth},and(depth.eq.${depth},id.lt.${row.id}))`);
+    return reply({ top: await top(kid), rank: above + 1, id: row.id });
   } catch (e) {
     console.error(e);
     return reply({ error: 'scoreboard error' }, 500);

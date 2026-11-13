@@ -22,6 +22,7 @@ globalThis.fetch = async (url, init = {}) => {
   if (init.method === 'PATCH') { const b = JSON.parse(init.body); const hit = db[table].filter(x => x.player === q.get('player').slice(3) && x.run === q.get('run').slice(3)); hit.forEach(x => Object.assign(x, b)); return new Response(JSON.stringify(hit), { status: 200 }); }
   let r = db[table].slice();
   for (const col of ['who', 'player']) if (q.get(col)) r = r.filter(x => x[col] === q.get(col).slice(3));
+  if (table === 'scores' && q.get('kid')) r = r.filter(x => !!x.kid === (q.get('kid') === 'eq.true'));   // version 197
   if (q.get('created_at')) r = r.filter(x => x.created_at > q.get('created_at').slice(3));
   if (q.get('or')) { const m = q.get('or').match(/depth\.gt\.(\d+),and\(depth\.eq\.(\d+),id\.lt\.(\d+)\)/); r = r.filter(x => x.depth > +m[1] || (x.depth === +m[2] && x.id < +m[3])); }
   if (h.Prefer === 'count=exact') return new Response('[]', { headers: { 'content-range': r.length ? `0-0/${r.length}` : `*/0` } });
@@ -89,9 +90,23 @@ await call('POST', { ...noFlags, run: '9999cccc9999dddd' });
 check('older copies without hard/drone save them empty', (r => r && r.hard === null && r.drone_open === null && r.drone === null)(db.plays.find(x => x.run === '9999cccc9999dddd')), db.plays);
 check('bad how refused', (await call('POST', { ...end, how: 'boom' }))[0] === 400, null);
 check('bad run id refused', (await call('POST', { ...end, run: 'zz' }))[0] === 400, null);
-await call('POST', { ...end, run: '0000aaaa0000bbbb', fps: 'fast', device: 'fridge', screen: '<b>', treats: ['<x>'], repair: 140, intro: 'maybe', initials: 'ASS', ver: '106', moon: 'Jungle', hard: 'yes', droneOpen: 1, drone: 'on', errors: -1, error: 'x'.repeat(201), leviFought: ['<b>'], leviEscaped: 'whale', missions: 1.5, suit: 'red', badges: null, nav: -3, cafesPassed: 'many', droneCaught: 1e9, installed: 'yes', browser: 'netscape', pauses: -1, hz: 10, fpsFight: 'fast', slowPct: 101 });
+await call('POST', { ...end, run: '0000aaaa0000bbbb', fps: 'fast', device: 'fridge', screen: '<b>', treats: ['<x>'], repair: 140, intro: 'maybe', initials: 'ASS', ver: '106', moon: 'Jungle', hard: 'yes', droneOpen: 1, drone: 'on', kid: 'on', errors: -1, error: 'x'.repeat(201), leviFought: ['<b>'], leviEscaped: 'whale', missions: 1.5, suit: 'red', badges: null, nav: -3, cafesPassed: 'many', droneCaught: 1e9, installed: 'yes', browser: 'netscape', pauses: -1, hz: 10, fpsFight: 'fast', slowPct: 101 });
 const junk = db.plays.find(x => x.run === '0000aaaa0000bbbb');
-check('junk extras stored as empty, run kept', junk.how === 'mine' && [junk.fps, junk.device, junk.screen, junk.treats, junk.repair, junk.intro, junk.initials, junk.ver, junk.moon, junk.hard, junk.drone_open, junk.drone, junk.errors, junk.error, junk.levi_fought, junk.levi_escaped, junk.missions, junk.suit, junk.badges, junk.nav, junk.cafes_passed, junk.drone_caught, junk.installed, junk.browser, junk.pauses, junk.hz, junk.fps_fight, junk.slow_pct].every(v => v === null), junk);
+check('junk extras stored as empty, run kept', junk.how === 'mine' && [junk.fps, junk.device, junk.screen, junk.treats, junk.repair, junk.intro, junk.initials, junk.ver, junk.moon, junk.hard, junk.drone_open, junk.drone, junk.kid, junk.errors, junk.error, junk.levi_fought, junk.levi_escaped, junk.missions, junk.suit, junk.badges, junk.nav, junk.cafes_passed, junk.drone_caught, junk.installed, junk.browser, junk.pauses, junk.hz, junk.fps_fight, junk.slow_pct].every(v => v === null), junk);
+
+// Kid mode board (version 197): its own top 10 and rank; the normal board never shows kid scores, and the other way round.
+const normalTop = (await call('GET'))[1].top.map(t => t.id).join();
+const k1 = await call('POST', { initials: 'KID', depth: 99999, kid: true }, '9.9.9.1');
+check('kid score at rank 1 of its own board', k1[0] === 200 && k1[1].rank === 1 && k1[1].top.length === 1 && k1[1].top[0].initials === 'KID' && db.scores.find(x => x.initials === 'KID').kid === true, k1);
+check('normal board unchanged by a kid score', (await call('GET'))[1].top.map(t => t.id).join() === normalTop, null);
+const kidGet = async () => { const res = await handler(new Request('https://fn/scores?kid=1')); return res.json(); };
+check('GET ?kid=1 gives the kid board', (await kidGet()).top.map(t => t.initials).join() === 'KID', await kidGet());
+const k2 = await call('POST', { initials: 'TOT', depth: 5, kid: true }, '9.9.9.2');
+check('kid rank counts only kid scores', k2[1].rank === 2 && k2[1].top.length === 2, k2);
+const n1 = await call('POST', { initials: 'NRM', depth: 5, kid: 'yes' }, '9.9.9.3');
+check('kid other than true is a normal score', db.scores.find(x => x.initials === 'NRM').kid === false && !n1[1].top.some(t => t.initials === 'KID'), n1);
+await call('POST', { event: 'play', player: 'abcdefabcdef0197', run: '0197019701970197', kid: true });
+check('kid flag on a run', db.plays.find(x => x.run === '0197019701970197').kid === true, db.plays.at(-1));
 
 console.log(failed ? `${failed} failed, ${passed} passed` : `all ${passed} checks passed`);
 process.exit(failed ? 1 : 0);

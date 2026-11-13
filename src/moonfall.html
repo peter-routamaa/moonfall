@@ -418,6 +418,19 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .hs-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .hs-tab { font: 700 11px/1 var(--display); letter-spacing: .05em; padding: 9px 6px 8px; border: 2px solid var(--ink-soft); background: transparent; color: var(--dust-dim); cursor: pointer; }
 .hs-tab[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: var(--dust); }
+/* Version 197: Normal / Kid mode boards, in gold so it reads apart from Online / This device. */
+/* Version 197: with Kid mode on the menu shows KID BEST, small on two lines so the number keeps to one line at 320 px. */
+#bestTitle { white-space: nowrap; }
+.best-lbl.kid { font-size: 9px; line-height: 1; margin: -4px 0; width: min-content; text-align: center; color: var(--gold); }
+.hs-kinds .hs-tab[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--ink); }
+/* With the second row of switches a full online board ran off short phones (Done at 610 of 568; 587 before v197): tighter there. */
+@media (max-height: 640px) {
+  #hsTable { gap: 8px; }
+  #hsTable h2 { margin: 0; }
+  .hs-tab { padding: 6px 6px 5px; }
+  .hs-list li { padding: 3px 8px 2px; }
+  .hs-list .esc svg { width: 11px; height: 14px; margin: -2px 0 -1px; }
+}
 .best-btn { width: 100%; border: 0; background: transparent; padding: 2px 0; align-items: center; cursor: pointer; }
 .best-btn:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 .best-more { display: inline-flex; align-items: center; gap: 6px; font: 700 11px/1 var(--display); letter-spacing: .06em; padding: 7px 9px 6px; background: var(--blue); color: var(--dust); box-shadow: 3px 3px 0 var(--dust-dim); }
@@ -705,7 +718,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
      <div class="flip-inner">
      <div class="card face front" id="titleFront">
       <span class="ver" id="verTag"></span>
-      <button class="best best-big best-btn" id="bestBtn" type="button">BEST <b id="bestTitle">0000 m</b><span class="best-more">TOP 10</span></button>
+      <button class="best best-big best-btn" id="bestBtn" type="button"><span class="best-lbl" id="bestLbl">BEST</span> <b id="bestTitle">0000 m</b><span class="best-more">TOP 10</span></button>
       <button class="btn launch" id="launchBtn" type="button" hidden>Launch the ship</button>
       <button class="btn" id="startBtn" type="button">Jump in</button>
       <div class="card-nav">
@@ -871,6 +884,10 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <button class="hs-tab" id="hsTabOnline" type="button" aria-pressed="true">Online</button>
         <button class="hs-tab" id="hsTabLocal" type="button" aria-pressed="false">This device</button>
       </div>
+      <div class="hs-tabs hs-kinds" role="group" aria-label="Board">
+        <button class="hs-tab" id="hsKindNormal" type="button" aria-pressed="true">Normal</button>
+        <button class="hs-tab" id="hsKindKid" type="button" aria-pressed="false">Kid mode</button>
+      </div>
       <ol class="hs-list" id="hsList"></ol>
       <p class="hs-where" id="hsWhere">Saved on this device</p>
       <button class="btn" id="hsDone" type="button">Continue</button>
@@ -970,7 +987,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 197;
+const VERSION = 198;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3469,6 +3486,8 @@ function kidSettings() {
   return k;
 }
 const kidOn = k => Object.keys(KID_NORMAL).some(key => k[key] !== KID_NORMAL[key]);
+// The best depth this run is measured against: Kid mode runs have their own (version 197).
+const bestNow = () => kidRun.on ? save.kidBest || 0 : save.best;
 // What this run uses, as fractions (mines 0.5 = half the mines). Normal until a run starts.
 let kidRun = { mines: 1, parts: 1, health: 1, shots: 1, speed: true, on: false }, kidShotAcc = 0;
 // A fixed roll in [0, 1) for one place in the shaft, so leaving out mines doesn't change the rest of the seeded layout.
@@ -4754,7 +4773,11 @@ function syncToggles() {
   $('buzzNote').hidden = Buzz.canVibrate || !save.vib;
   // Version 181 (user: the "m" is "a bit difficult to read"): the main menu's BEST uses a drawn pixel m as tall as the
   // digits (M_ICON), like the percent sign on the speed-up banner.
-  $('bestTitle').innerHTML = fmtM(save.best) + ' ' + M_ICON; $('bestPause').firstChild.nodeValue = fmtM(save.best);
+  // Version 197: with Kid mode on, the menu's BEST is Kid mode's (and opens its board); pause shows this run's kind.
+  const kidMenu = kidOn(kidSettings());
+  $('bestLbl').textContent = kidMenu ? 'KID BEST' : 'BEST'; $('bestLbl').classList.toggle('kid', kidMenu);
+  $('bestTitle').innerHTML = fmtM(kidMenu ? save.kidBest : save.best) + ' ' + M_ICON; $('bestPause').firstChild.nodeValue = fmtM(bestNow());
+  $('bestPause').parentNode.firstChild.nodeValue = kidRun.on ? 'KID BEST ' : 'BEST ';
 }
 function toggleSound() { save.snd = !save.snd; Sfx.init(); Sfx.setOn(save.snd); persist(); syncToggles(); }
 function toggleVib() { save.vib = !save.vib; persist(); syncToggles(); if (save.vib) Buzz.test(); }
@@ -5119,10 +5142,10 @@ function syncKid() {
   $('kidReset').disabled = !on;
 }
 for (const key in KID_SLIDERS) $(KID_SLIDERS[key]).addEventListener('input', e => {
-  save.kid = Object.assign(kidSettings(), { [key]: +e.target.value }); persist(); syncKid();
+  save.kid = Object.assign(kidSettings(), { [key]: +e.target.value }); persist(); syncKid(); syncToggles();
 });
-$('kidSpeedT').addEventListener('click', () => { const k = kidSettings(); save.kid = Object.assign(k, { speed: !k.speed }); persist(); syncKid(); });
-$('kidReset').addEventListener('click', () => { save.kid = Object.assign({}, KID_NORMAL); persist(); syncKid(); Sfx.bleep(330); });
+$('kidSpeedT').addEventListener('click', () => { const k = kidSettings(); save.kid = Object.assign(k, { speed: !k.speed }); persist(); syncKid(); syncToggles(); });
+$('kidReset').addEventListener('click', () => { save.kid = Object.assign({}, KID_NORMAL); persist(); syncKid(); syncToggles(); Sfx.bleep(330); });
 $('kidBtn').addEventListener('click', () => setCard('kid'));
 $('kidDone').addEventListener('click', () => setCard('settings'));
 syncKid();
@@ -5179,7 +5202,7 @@ function countPlay() {
 // the run ends before the entry opens, so its report carried the old initials, or none on a first high score).
 let lastEnd = null;
 // Version 190 (owner's stats): a Terminal Velocity run, the drone unlocked on this device, the drone flying this run.
-const runFlags = () => ({ hard: hardRun, droneOpen: droneOpen(), drone: droneRun });
+const runFlags = () => ({ hard: hardRun, droneOpen: droneOpen(), drone: droneRun, kid: kidRun.on });   // kid: version 197
 // Version 192 (owner's stats, user picked them 2026-11-13): game errors, Leviathans fought and escaped, progress on the
 // device, cafes passed and drone catches, and how the game is played (installed or in a browser, which browser, pauses).
 // Errors: how many since the last finished run's report (so ones on the title screen count too) and the first one's
@@ -5283,9 +5306,10 @@ function die() {
 }
 function gameOver() {
   setState('over'); endRun(lastHit || 'wall');
-  const m = depthM(), isBest = m > save.best;
-  if (isBest) { save.best = m; persist(); }
-  $('oDepth').firstChild.nodeValue = m; $('oBest').firstChild.nodeValue = save.best; $('oOrbs').textContent = player.orbs;
+  const m = depthM(), kb = kidRun.on, isBest = m > bestNow();   // a Kid mode run has its own best and board (version 197)
+  if (isBest) { if (kb) save.kidBest = m; else save.best = m; persist(); }
+  hsKid = kb; $('oBest').previousElementSibling.textContent = kb ? 'KID BEST' : 'BEST';
+  $('oDepth').firstChild.nodeValue = m; $('oBest').firstChild.nodeValue = bestNow(); $('oOrbs').textContent = player.orbs;
   $('newBest').hidden = !isBest;
   renderRunParts();
   // Run highlights (version 108), one per line, the rarest first; at most four, then the treats.
@@ -5318,12 +5342,17 @@ const BAD_INITIALS = new Set(['ARS', 'ASS', 'BCH', 'CNT', 'COC', 'COK', 'CUM', '
 const showName = i => BAD_INITIALS.has(i) ? '???' : i;
 if (!Array.isArray(save.scores)) save.scores = save.best > 0 ? [{ i: '???', m: save.best, t: 0 }] : [];
 if (!Array.isArray(save.outbox)) save.outbox = [];
+// Kid mode's own board (version 197, owner: "a separate score board for kid mode"): its own top 10 on this device, its own
+// best and its own online board (the function's ?kid=1). A run counts as Kid mode when any kid setting was off normal.
+if (!Array.isArray(save.kidScores)) save.kidScores = [];
+if (!Number.isFinite(save.kidBest)) save.kidBest = 0;
 let scoreOpen = false, hsPending = 0, hsSlot = 0, hsNew = -1, hsHold = 0, hsFrom = 'over';
-let hsTab = 'local', hsOnline = null, hsBusy = false, hsErr = '';
+let hsTab = 'local', hsOnline = null, hsBusy = false, hsErr = '', hsKid = false, hsNewKid = false;   // hsKid: the Kid mode board is showing
+const hsScores = () => hsKid ? save.kidScores : save.scores;
 const hsInit = (typeof save.initials === 'string' && /^[A-Z]{3}$/.test(save.initials) ? save.initials : 'AAA').split('');
 const hsSlots = [...document.querySelectorAll('#initials .slot')];
-const qualifies = m => m > 0 && (save.scores.length < HS_MAX || m > save.scores[HS_MAX - 1].m);
-function hsRankOf(m) { const k = save.scores.findIndex(s => m > s.m); return (k < 0 ? save.scores.length : k) + 1; }
+const qualifies = m => { const list = hsScores(); return m > 0 && (list.length < HS_MAX || m > list[HS_MAX - 1].m); };
+function hsRankOf(m) { const list = hsScores(), k = list.findIndex(s => m > s.m); return (k < 0 ? list.length : k) + 1; }
 function hsDraw() {
   const hint = $('hsHint'); hint.textContent = 'Enter your initials'; hint.classList.remove('bad');
   hsSlots.forEach((el, k) => { el.querySelector('.letter').textContent = hsInit[k]; el.classList.toggle('on', k === hsSlot); });
@@ -5344,7 +5373,7 @@ function showScores(m) {
 }
 // The TOP 10 button on the main menu opens the table on its own.
 function openBoard() {
-  scoreOpen = true; hsFrom = 'title'; hsNew = -1; hsOnline = null;
+  scoreOpen = true; hsFrom = 'title'; hsNew = -1; hsOnline = null; hsKid = kidOn(kidSettings());   // Kid mode on: its board first
   $('hsEntry').hidden = true; $('hsDone').textContent = 'Done';
   openTable(); showScreen('score');
   $('hsDone').focus({ preventScroll: true });
@@ -5358,9 +5387,10 @@ function saveScore() {
   }
   const entry = { i: hsInit.join(''), m: hsPending, t: Date.now(), e: escapedNow(), o: moon };
   save.initials = entry.i;
-  save.scores.splice(hsRankOf(entry.m) - 1, 0, entry); save.scores.length = Math.min(save.scores.length, HS_MAX);
-  hsNew = save.scores.indexOf(entry);
-  if (SCORES_URL) { save.outbox.push({ i: entry.i, m: entry.m, e: entry.e, o: entry.o }); hsOnline = null; }
+  const list = hsScores();
+  list.splice(hsRankOf(entry.m) - 1, 0, entry); list.length = Math.min(list.length, HS_MAX);
+  hsNew = list.indexOf(entry); hsNewKid = hsKid;
+  if (SCORES_URL) { save.outbox.push(Object.assign({ i: entry.i, m: entry.m, e: entry.e, o: entry.o }, hsKid ? { k: true } : {})); hsOnline = null; }
   if (lastEnd && lastEnd.depth === entry.m) { lastEnd.initials = entry.i; statPing(lastEnd); }   // this run's stats row gets these initials
   lastEnd = null;
   persist(); Sfx.orb();
@@ -5379,9 +5409,10 @@ const escapedNow = () => !readyStart && canLaunch();
 const ROCKET_SVG = '<svg viewBox="0 0 7 9" width="14" height="18" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1h-1zM2 1h3v6h-3zM1 4h1v3h-1zM5 4h1v3h-1zM0 6h1v2h-1zM6 6h1v2h-1zM3 7h1v2h-1z"/></svg>';
 function renderTable() {
   $('hsTabOnline').setAttribute('aria-pressed', hsTab === 'online'); $('hsTabLocal').setAttribute('aria-pressed', hsTab === 'local');
+  $('hsKindNormal').setAttribute('aria-pressed', !hsKid); $('hsKindKid').setAttribute('aria-pressed', hsKid);
   let rows = [], note;
   if (hsTab === 'local') {
-    rows = save.scores.map((s, k) => ({ n: k + 1, i: showName(s.i), m: s.m, e: s.e, o: s.o, you: k === hsNew }));
+    rows = hsScores().map((s, k) => ({ n: k + 1, i: showName(s.i), m: s.m, e: s.e, o: s.o, you: k === hsNew && hsKid === hsNewKid }));
     note = hsErr || (rows.length ? 'Saved on this device' : 'No runs yet');
   } else if (!hsOnline) note = 'Loading the online board…';
   else {
@@ -5420,10 +5451,11 @@ function renderTable() {
   }
   $('hsWhere').textContent = note;
 }
-async function scoresFetch(init) {
+// kid: GET the Kid mode board (version 197).
+async function scoresFetch(init, kid) {
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 8000);
   try {
-    const r = await fetch(SCORES_URL, Object.assign({ signal: ctl.signal }, init));
+    const r = await fetch(SCORES_URL + (kid ? '?kid=1' : ''), Object.assign({ signal: ctl.signal }, init));
     if (!r.ok) throw Object.assign(new Error('scores ' + r.status), { status: r.status });
     return await r.json();
   } finally { clearTimeout(timer); }
@@ -5437,14 +5469,17 @@ async function syncOnline() {
     while (save.outbox.length) {
       const s = save.outbox[0];
       try {
-        got = await scoresFetch({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initials: s.i, depth: s.m, escaped: typeof s.e === 'boolean' ? s.e : null, moon: MOON_NAMES[s.o] ? s.o : null }) });
+        got = await scoresFetch({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initials: s.i, depth: s.m, escaped: typeof s.e === 'boolean' ? s.e : null, moon: MOON_NAMES[s.o] ? s.o : null, kid: !!s.k }) });
         got.me = s;
       }
       catch (e) { if (e.status !== 400) throw e; got = null; }
       save.outbox.shift(); persist();
     }
-    hsOnline = got || await scoresFetch();
-    save.boardCache = { top: hsOnline.top, at: Date.now() }; persist();
+    // The last score sent answers with its own board; if that's the other board, fetch the one showing.
+    const kid = hsKid;
+    hsOnline = got && !!got.me.k === kid ? got : await scoresFetch(undefined, kid);
+    if (kid !== hsKid) { hsOnline = null; hsBusy = false; syncOnline(); return; }   // switched boards while it loaded
+    save[kid ? 'kidBoardCache' : 'boardCache'] = { top: hsOnline.top, at: Date.now() }; persist();
   } catch (e) {
     hsErr = save.outbox.length ? 'Couldn’t reach the online board. Your run is saved here and will be sent next time.' : 'Couldn’t reach the online board.';
     if (scoreOpen && hsTab === 'online') hsTab = 'local';
@@ -5473,6 +5508,11 @@ $('hsDone').addEventListener('click', closeScores);
 $('bestBtn').addEventListener('click', openBoard);
 $('hsTabOnline').addEventListener('click', () => { hsTab = 'online'; hsErr = ''; renderTable(); if (!hsOnline) syncOnline(); });
 $('hsTabLocal').addEventListener('click', () => { hsTab = 'local'; renderTable(); });
+// Version 197: Normal or Kid mode board.
+for (const [id, kid] of [['hsKindNormal', false], ['hsKindKid', true]]) $(id).addEventListener('click', () => {
+  if (hsKid === kid) return;
+  hsKid = kid; hsOnline = null; hsErr = ''; renderTable(); if (SCORES_URL && hsTab === 'online') syncOnline();
+});
 // Typing works too: letters fill the slots, arrows move and change them, Enter saves.
 function scoreKey(e) {
   const k = e.key, onBtn = document.activeElement && document.activeElement.tagName === 'BUTTON';
@@ -5698,13 +5738,13 @@ function baristaLine(C) {
   const pick = a => a[Math.floor(Math.random() * a.length)];
   if (save.cafeVisits === 1) return 'First time here? Coffee\'s on the house!';
   if (player.bossWon) { player.bossWon = false; return pick(['Was that crash you? Sit, sit!', 'You escaped that thing? Have a refill!']); }
-  if (save.best > 0 && m > save.best) return 'Never seen you this deep!';
+  if (bestNow() > 0 && m > bestNow()) return 'Never seen you this deep!';
   if (!player.hits) return pick(['Not a scratch on you!', 'Clean dive! Nice.']);
   if (cafesRun >= 3) return 'Cafe number ' + cafesRun + '! You\'re a regular.';
   return pick([
     ini ? 'Hey ' + ini + '! The usual?' : 'Hey pilot! The usual?',
     'Dive ' + dives + ' already? Fresh pot\'s on.',
-    save.best ? 'Your best is ' + fmtM(save.best) + ' m. Go beat it!' : 'Mind the walls out there.',
+    bestNow() ? 'Your best is ' + fmtM(bestNow()) + ' m. Go beat it!' : 'Mind the walls out there.',
     'Mind the walls out there.',
   ]);
 }
@@ -6018,8 +6058,9 @@ function drawCafeSigns(cam) {
 // ---------- board flags: where runs on the high score board ended, marked by a gravestone on the shaft wall ----------
 let flags = [], nextFlag = 0;
 function boardRows() {
-  const cache = SCORES_URL && save.boardCache && Array.isArray(save.boardCache.top) ? save.boardCache.top : null;
-  const rows = cache ? cache.map(s => ({ i: showName(String(s.initials).slice(0, 3)), m: s.depth })) : save.scores.map(s => ({ i: s.i === '???' ? 'BEST' : showName(s.i), m: s.m }));
+  const kid = kidRun.on, bc = save[kid ? 'kidBoardCache' : 'boardCache'];   // a Kid mode run passes the Kid board's stones (version 197)
+  const cache = SCORES_URL && bc && Array.isArray(bc.top) ? bc.top : null;
+  const rows = cache ? cache.map(s => ({ i: showName(String(s.initials).slice(0, 3)), m: s.depth })) : (kid ? save.kidScores : save.scores).map(s => ({ i: s.i === '???' ? 'BEST' : showName(s.i), m: s.m }));
   // One tombstone per player, at their best score (version 83: several runs by the same initials made a crowd of stones).
   const best = new Map();
   for (const r of rows) if (Number.isFinite(r.m) && r.m >= 30 && !(best.get(r.i)?.m >= r.m)) best.set(r.i, r);
@@ -6035,8 +6076,9 @@ function buildFlags() {
 // With an online board, fetch the latest top 10 at the start of each run (in the background) so the flags are fresh.
 function refreshBoard() {
   if (!SCORES_URL) return;
-  if (save.boardCache && Date.now() - save.boardCache.at < 120000) return;
-  scoresFetch().then(r => { if (r && Array.isArray(r.top)) { save.boardCache = { top: r.top, at: Date.now() }; persist(); buildFlags(); } }, () => {});
+  const kid = kidRun.on, key = kid ? 'kidBoardCache' : 'boardCache';
+  if (save[key] && Date.now() - save[key].at < 120000) return;
+  scoresFetch(undefined, kid).then(r => { if (r && Array.isArray(r.top)) { save[key] = { top: r.top, at: Date.now() }; persist(); if (kidRun.on === kid) buildFlags(); } }, () => {});
 }
 function passFlags() {
   while (nextFlag < flags.length && flags[nextFlag].d <= player.y + PILOT_CY) {
@@ -6771,7 +6813,7 @@ function showEnd() {
   if (save.droneNew) { lines.push('Helper drone unlocked!'); save.droneNew = false; persist(); }   // version 160
   $('eUnlock').textContent = lines.length ? lines.join(' ') + ' (Unlocks)' : '';   // "(Unlocks)" since version 160 (they moved off Settings)
   $('eUnlock').hidden = !$('eUnlock').textContent;
-  $('eBest').firstChild.nodeValue = save.best;
+  $('eBest').firstChild.nodeValue = bestNow(); $('eBest').previousElementSibling.textContent = kidRun.on ? 'KID BEST' : 'BEST';
   $('eParts').textContent = PARTS.reduce((n, pt) => n + pt.need, 0);
   $('eLaunch').textContent = save.launches;
   $('eDives').textContent = save.dives || 0;
