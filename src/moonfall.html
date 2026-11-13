@@ -139,7 +139,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .hard-box .set-tog { padding: 10px 7px 10px 9px; font-size: 12px; }
 .hard-how { margin: 0; font-size: 17px; line-height: 1.1; color: var(--dust-dim); }
 /* Version 197 (user): Kid mode. A tile in the Settings grid's empty slot (its badge says ON while any setting is off
-   normal) opens its own face: four sliders in 25% steps, the cafe speed-up switch, Back to normal and Done. */
+   normal) opens its own face: sliders in 25% steps, the cafe speed-up switch, Revert to standard mode and Done. */
 .set-tog.kid-tog[data-on="true"] { border-color: var(--green); background: transparent; }
 .set-tog.kid-tog[data-on="true"]::after { content: 'ON'; background: var(--green); color: var(--ink); }
 #kidBack h2 { text-align: center; }
@@ -150,6 +150,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .kid-lbl { font: 700 10px/1 var(--display); letter-spacing: .06em; color: var(--dust); text-transform: uppercase; }
 .kid-sl output { font: 700 11px/1 var(--display); color: var(--gold); min-width: 3.4em; text-align: right; }
 .kid-sl output.normal { color: var(--dust-dim); }
+.kid-sl output .pct { width: .82em; height: .91em; margin-left: .12em; vertical-align: -.04em; }
 .kid-sl input { grid-column: 1 / -1; width: 100%; margin: 0; height: 22px; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; }
 .kid-sl input::-webkit-slider-runnable-track { height: 6px; background: linear-gradient(to right, var(--blue) var(--fill, 0%), var(--ink-soft) var(--fill, 0%)); }
 .kid-sl input::-moz-range-track { height: 6px; background: linear-gradient(to right, var(--blue) var(--fill, 0%), var(--ink-soft) var(--fill, 0%)); }
@@ -158,6 +159,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .kid-sl input:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 #kidSpeedT { font-size: 11px; padding: 10px 7px 10px 9px; }
 #titleScreen.reading.kid .repair { --aside: 1; }
+@media (max-width: 360px) { #kidReset { font-size: 11px; letter-spacing: .02em; padding-inline: 6px; } }   /* one line at 320 px (version 200) */
 #kidReset:disabled { background: transparent; opacity: .45; box-shadow: inset 0 0 0 2px var(--ink-soft); }
 @media (max-height: 700px) {
   #kidBack { gap: 7px; padding: 10px 12px; }
@@ -753,10 +755,11 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <label class="kid-sl"><span class="kid-lbl">Mines</span><output id="kidMinesV"></output><input type="range" id="kidMines" min="0" max="100" step="25" data-key="mines"></label>
         <label class="kid-sl"><span class="kid-lbl">Ship parts</span><output id="kidPartsV"></output><input type="range" id="kidParts" min="100" max="200" step="25" data-key="parts"></label>
         <label class="kid-sl"><span class="kid-lbl">Health crystals</span><output id="kidHealthV"></output><input type="range" id="kidHealth" min="100" max="200" step="25" data-key="health"></label>
+        <label class="kid-sl"><span class="kid-lbl">Fall speed</span><output id="kidFallV"></output><input type="range" id="kidFall" min="50" max="100" step="25" data-key="fall"></label>
         <label class="kid-sl"><span class="kid-lbl">Leviathan shots</span><output id="kidShotsV"></output><input type="range" id="kidShots" min="0" max="100" step="25" data-key="shots"></label>
       </div>
       <button class="set-tog" id="kidSpeedT" type="button" aria-pressed="true" aria-label="Speed up after cafes"><span>Speed up after cafes</span></button>
-      <button class="btn quiet" id="kidReset" type="button">Back to normal</button>
+      <button class="btn quiet" id="kidReset" type="button">Revert to standard mode</button>
       <button class="btn" id="kidDone" type="button">Done</button>
      </div>
      <div class="card face back" id="howBack" hidden inert aria-hidden="true">
@@ -987,7 +990,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 199;
+const VERSION = 200;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3457,7 +3460,7 @@ const cafesPassed = d => { const k = cafeAbove(d - 40); return k < 1 ? 0 : k - 1
 // How many cafe ledges lie above depth d, counted the moment he passes each one (pops and treats use this).
 const ledgesPassed = d => Math.max(0, cafeAbove(d - 40));
 function speedAt(d) {
-  const s = (FALL_SPEED + SPEED_RAMP * smoothstep(d / 26000)) * (kidRun.speed ? 1 + Math.min(CAFE_SPEED_MAX, CAFE_SPEEDUP * cafesPassed(d)) : 1) * (hardRun ? HARD_SPEED : 1), B = bossAt(d);
+  const s = (FALL_SPEED + SPEED_RAMP * smoothstep(d / 26000)) * (kidRun.speed ? 1 + Math.min(CAFE_SPEED_MAX, CAFE_SPEEDUP * cafesPassed(d)) : 1) * (hardRun ? HARD_SPEED : 1) * kidRun.fall, B = bossAt(d);
   if (!B) return s;
   // Through a boss cavern (version 87) the fall eases to the speed that makes it last BOSS_TIME, then back after the neck.
   const u = d < B.A0 ? smoothstep((d - B.A0 + 240) / 240) : d < B.N1 ? 1 : 1 - smoothstep((d - B.N1) / BOSS_BACK);
@@ -3477,8 +3480,9 @@ const navDone = () => save.nav >= NAV_PRICE;
 const canLaunch = () => repairFrac() >= 1 && navDone();
 // Kid mode (version 197, user): mines and Leviathan shots 0-100%, ship parts and health crystals 100-200%, in 25% steps,
 // and the cafe speed-up on or off. Saved as save.kid; fixed for the whole run at its start (kidRun), like Terminal Velocity.
-const KID_NORMAL = { mines: 100, parts: 100, health: 100, shots: 100, speed: true };
-const KID_RANGE = { mines: [0, 100], parts: [100, 200], health: [100, 200], shots: [0, 100] };
+const KID_NORMAL = { mines: 100, parts: 100, health: 100, fall: 100, shots: 100, speed: true };
+// Fall speed (version 200, owner: "a slider to slow fall speed"): 50-100%, the whole fall, cafe speed-ups and fights included.
+const KID_RANGE = { mines: [0, 100], parts: [100, 200], health: [100, 200], fall: [50, 100], shots: [0, 100] };
 function kidSettings() {
   const k = Object.assign({}, KID_NORMAL, save.kid);
   for (const key in KID_RANGE) { const [lo, hi] = KID_RANGE[key], v = Math.round(+k[key] / 25) * 25; k[key] = Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : KID_NORMAL[key]; }
@@ -3489,7 +3493,7 @@ const kidOn = k => Object.keys(KID_NORMAL).some(key => k[key] !== KID_NORMAL[key
 // The best depth this run is measured against: Kid mode runs have their own (version 197).
 const bestNow = () => kidRun.on ? save.kidBest || 0 : save.best;
 // What this run uses, as fractions (mines 0.5 = half the mines). Normal until a run starts.
-let kidRun = { mines: 1, parts: 1, health: 1, shots: 1, speed: true, on: false }, kidShotAcc = 0;
+let kidRun = { mines: 1, parts: 1, health: 1, fall: 1, shots: 1, speed: true, on: false }, kidShotAcc = 0;
 // A fixed roll in [0, 1) for one place in the shaft, so leaving out mines doesn't change the rest of the seeded layout.
 const kidRoll = n => { const x = Math.sin(n * 12.9898 + SEED * 78.233) * 43758.5453; return x - Math.floor(x); };
 // Leviathan shots are thinned evenly (at 50% every other one is fired, at 25% one in four), not at random.
@@ -5126,15 +5130,17 @@ $('settingsBtn').addEventListener('click', () => setCard('settings'));
 $('howDone').addEventListener('click', () => setCard(null));
 $('settingsDone').addEventListener('click', () => setCard(null));
 // Kid mode (version 197): its tile in Settings opens the kid card; Done goes back to Settings.
-const KID_SLIDERS = { mines: 'kidMines', parts: 'kidParts', health: 'kidHealth', shots: 'kidShots' };
+const KID_SLIDERS = { mines: 'kidMines', parts: 'kidParts', health: 'kidHealth', fall: 'kidFall', shots: 'kidShots' };
 function syncKid() {
   const k = kidSettings();
   for (const key in KID_SLIDERS) {
     const el = $(KID_SLIDERS[key]), out = $(KID_SLIDERS[key] + 'V'), [lo, hi] = KID_RANGE[key];
     el.value = k[key]; el.style.setProperty('--fill', (k[key] - lo) / (hi - lo) * 100 + '%');
-    out.textContent = k[key] === KID_NORMAL[key] ? 'NORMAL' : k[key] === 0 ? 'NONE' : k[key] + '%';
+    // Version 200 (owner: the % signs were hard to read): the drawn pixel percent, as on the speed-up banner.
+    const word = k[key] === KID_NORMAL[key] ? 'NORMAL' : k[key] === 0 ? 'NONE' : '';
+    out.innerHTML = word || k[key] + PCT_ICON;
     out.classList.toggle('normal', k[key] === KID_NORMAL[key]);
-    el.setAttribute('aria-valuetext', out.textContent);
+    el.setAttribute('aria-valuetext', word || k[key] + '%');
   }
   $('kidSpeedT').setAttribute('aria-pressed', String(k.speed));
   const on = kidOn(k), kb = $('kidBtn');
@@ -5246,7 +5252,7 @@ const HARD_SPEED = 1.15, hardOpen = () => missionsDone() > 0;
 let introRunUp = false;   // version 176: Jump in (the full run-up), not Play again, gets the shaft line
 function startRun(quick) {
   hardRun = !!save.hard && hardOpen();
-  { const k = kidSettings(); kidRun = { mines: k.mines / 100, parts: k.parts / 100, health: k.health / 100, shots: k.shots / 100, speed: k.speed, on: kidOn(k) }; }   // version 197
+  { const k = kidSettings(); kidRun = { mines: k.mines / 100, parts: k.parts / 100, health: k.health / 100, fall: k.fall / 100, shots: k.shots / 100, speed: k.speed, on: kidOn(k) }; }   // version 197
   droneRun = !!save.drone && droneOpen();
   Sfx.init(); Music.stop(0.4); setCard(null, true);
   resetRun(); countPlay();
