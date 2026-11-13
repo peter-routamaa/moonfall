@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1A1E2C">
-<meta name="description" content="MoonFall: fall through a moon, dodge the walls, repair your ship.">
+<meta name="description" content="MoonFall: fall through three moons, dodge the walls, escape the Leviathans and repair your ship.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MoonFall">
 <meta property="og:title" content="MoonFall">
@@ -236,6 +236,15 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 /* Version 132 (user): every Leviathan shows in full colour, all alike; the hint line keeps the beaten count. (Versions
    108-131 showed beaten ones with a gold frame and name and the rest as dark silhouettes.) */
 #leviBack .row .btn { flex: 1; }
+/* Version 186 (user): the moon whose Leviathans the card shows, between two arrows that step through the moons, so a
+   player can see every Leviathan, not only the current moon's. */
+.levi-moon { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 8px; }
+.levi-arrow { display: grid; place-items: center; height: 38px; border: 0; padding: 0; background: var(--blue); color: var(--dust); box-shadow: 3px 3px 0 var(--dust-dim); cursor: pointer; }
+.levi-arrow:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--dust-dim); }
+.levi-arrow:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+.levi-moon-name { display: flex; align-items: center; justify-content: center; gap: 8px; font: 700 14px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--gold); white-space: nowrap; }
+.levi-moon-name svg { width: 16px; height: 16px; flex: none; }
+@media (max-height: 620px) { #leviBack .levi-pic { height: 38px; padding: 2px; } #leviBack .levi-list { row-gap: 5px; } .levi-arrow { height: 32px; } }   /* room for the moon row on 568 px phones */
 /* Badges (version 108): their own face, opened from the Leviathans card. */
 #badgeBack h2 { text-align: center; }
 #badgeBack { gap: 10px; }
@@ -404,7 +413,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .best-more::after { content: ''; border: 4px solid transparent; border-left: 5px solid currentColor; border-right: 0; }
 .best-btn:active .best-more { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--dust-dim); }
 #titleFront { position: relative; }
-.ver { position: absolute; top: 5px; right: 7px; font: 700 10px/1 var(--display); letter-spacing: .06em; color: var(--dust-dim); }
+.ver { position: absolute; top: -3px; right: -1px; padding: 8px; font: 700 10px/1 var(--display); letter-spacing: .06em; color: var(--dust-dim); }
 .row .btn:first-child { flex: 1; }
 .buzz-note { margin: 0; font-size: 18px; color: var(--dust-dim); }
 
@@ -758,6 +767,11 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <h2>Leviathans</h2>
       <p class="hint" id="leviHint">One hunts you after every second cafe.</p>
       <ul class="levi-list" id="leviList"></ul>
+      <div class="levi-moon" role="group" aria-label="Moon">
+        <button class="levi-arrow" id="leviPrev" type="button" aria-label="Previous moon"><svg viewBox="0 0 5 9" width="10" height="18" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M4 0h1v9h-1zM3 1h1v7h-1zM2 2h1v5h-1zM1 3h1v3h-1zM0 4h1v1h-1z"/></svg></button>
+        <span class="levi-moon-name" id="leviMoonName" aria-live="polite">Dust moon</span>
+        <button class="levi-arrow" id="leviNext" type="button" aria-label="Next moon"><svg viewBox="0 0 5 9" width="10" height="18" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M0 0h1v9h-1zM1 1h1v7h-1zM2 2h1v5h-1zM3 3h1v3h-1zM4 4h1v1h-1z"/></svg></button>
+      </div>
       <div class="row"><button class="btn" id="leviDone" type="button">Done</button></div>
      </div>
      <div class="card face back" id="moonsBack" hidden inert aria-hidden="true">
@@ -932,10 +946,12 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 183;
+const VERSION = 196;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
+// True while the performance self-test plays the game by itself (see perfStart): nothing is saved, sent or awarded.
+let perfOn = false;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -1329,7 +1345,7 @@ function partIcon(pt) {
 let SEED = 1, P1 = 0, P2 = 0, P3 = 0;
 const tiles = new Map();
 function newSeed() {
-  SEED = Math.floor(Math.random() * 900) + 50 + Math.random();
+  SEED = perfOn ? 477.25 : Math.floor(Math.random() * 900) + 50 + Math.random();   // the self-test falls the same shaft every time
   P1 = hash(SEED + 1) * 6.283; P2 = hash(SEED + 2) * 6.283; P3 = hash(SEED + 3) * 6.283;
   for (const t of tiles.values()) retireTile(t);
   tiles.clear();
@@ -3366,7 +3382,8 @@ const playerStart = () => ({
   x: 84, y: -30, v: 0, vx: 0, hp: hardRun ? 4 : 5, max: hardRun ? 4 : 5, inv: 0, blockT: 0, shield: 0, shieldMax: 8, orbs: 0, spare: 0, streak: 0,
   bestStreak: 0, perks: {}, perkCafe: 0, toughN: 0, bought: [], slowUntil: 0, flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false,
   fallRamp: 1, tangle: 0,
-  hits: 0, closest: Infinity, closestMine: false, leviRun: [], bossWon: false, newBadges: []   // version 108: run highlights and badges
+  hits: 0, closest: Infinity, closestMine: false, leviRun: [], bossWon: false, newBadges: [],   // version 108: run highlights and badges
+  leviFought: []   // version 192 (owner's stats): the Leviathans whose fight started this run
 });
 const player = { touch: false, ...playerStart() };
 // Version 160: the helper drone, unlocked by repairing the ship on a Hard Dive (save.droneOpen) and switched on the
@@ -3417,7 +3434,7 @@ const NAV_PRICE = 50;   // 40 in version 80, 30 in 81, 50 since 82 (user)
 if (!Number.isFinite(save.nav)) save.nav = 0;
 const navDone = () => save.nav >= NAV_PRICE;
 const canLaunch = () => repairFrac() >= 1 && navDone();
-function persist() { try { localStorage.setItem('moonfall.v1', JSON.stringify(save)); } catch (e) {} }
+function persist() { if (perfOn) return; try { localStorage.setItem('moonfall.v1', JSON.stringify(save)); } catch (e) {} }
 // Switches the game over to a moon (version 113): its rock layers and scenery colours, and everything painted from them
 // is thrown away to be painted again (the shaft's tiles and back layers, the hills and the surface props). The hazards,
 // Leviathans and music read `moon` as they go. Only called on the menus, never during a run.
@@ -3447,7 +3464,8 @@ const VOICE_CLIPS = ['death1.mp3', 'moonland.mp3', 'byebye1.mp3', 'woohoo1.mp3',
   ...[...Array(16)].map((_, i) => 'hurt' + String(i + 1).padStart(2, '0') + '.mp3'),
   ...[1, 2, 3].map(i => 'lava' + i + '.mp3'), ...[1, 2, 3, 4].map(i => 'ohyeah' + i + '.mp3'),
   ...[1, 2].map(i => 'whoa' + i + '.mp3'), ...[1, 2, 3].map(i => 'yes' + i + '.mp3'),
-  'moondust.mp3', 'moonjungle.mp3', 'moonmachine.mp3', 'shaft.mp3'];   // version 176: the moon names and the jump into the shaft
+  'moondust.mp3', 'moonjungle.mp3', 'moonmachine.mp3', 'shaft.mp3',   // version 176: the moon names and the jump into the shaft
+  'coffee.mp3', 'eject.mp3', ...[1, 2, 3, 4, 5, 6].map(i => 'levi' + i + '.mp3')];   // version 185: the intro's coffee and eject, Leviathan hellos
 // Downloading needs no tap, so every clip is fetched now (about 260 KB in all) and waits as bytes for Sfx.init to decode.
 const fetchClip = f => fetch('voices/' + f).then(r => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)));
 const clipBytes = {};
@@ -3620,11 +3638,17 @@ const Sfx = (() => {
     alarm() { for (let i = 0; i < 4; i++) tone('square', i % 2 ? 660 : 880, i % 2 ? 660 : 880, 0.12, 0.12, i * 0.25); },
     // The intro: "good grief" as the warning mark appears over the ship (OPEN.warn), done before the asteroid hits
     // (2.4 s later; the line is 1.8 s with its tail).
-    goodGrief() { clip('goodgrief', 0.21, 1, 1.8); },
+    goodGrief() { clip('goodgrief', 0.21, 1, 1.8); },   // the voice still starts 0.3 s in, after the radio's squelch
     // Version 176: the moon's name when one is picked (start screen or Settings); a quick change cuts the last one off.
     moonName(m) { if (moonVoice) moonVoice.stop(); moonVoice = clip('moon' + m, 0.04, 1, 1.8) || null; },
     // Version 176: the line as he jumps into the shaft after Jump in.
-    shaftLine() { clip('shaft', 0, 1, 1.8); },   // the voice still starts 0.3 s in, after the radio's squelch
+    shaftLine() { clip('shaft', 0, 1, 1.8); },
+    // Version 185: the intro's line as he lowers his coffee, his line as he ejects, and a hello (one of six takes) when a
+    // Leviathan appears, a little after its groan. Since version 195 (owner) only when a chase starts after a café
+    // (startBoss), not when one passes behind the rock.
+    coffeeLine() { clip('coffee', 0, 1, 1.8); },
+    ejectLine() { clip('eject', 0.05, 1, 1.8); },
+    leviHello() { take('levi', 6, 0.35, 1.8); },
     impact() {
       noise(0.7, 'lowpass', 900, 1);
       tone('sine', 110, 30, 0.7, 0.8);
@@ -4827,7 +4851,7 @@ function setCard(side, instant) {
   if (side === 'unlocks') unlocksFromNews = was === 'news'; else if (side !== 'news') unlocksFromNews = false;
   instant = !!instant || reduceMotion;
   cardSide = side;
-  if (side === 'levi') fillLeviCard();
+  if (side === 'levi' && was !== 'levi') { leviView = moon; fillLeviCard(); }
   if (side === 'badges') fillBadges();
   if (side === 'unlocks') syncToggles();   // version 158: Hard Dive's lock is shown from the save as it is now
   turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack'), levi: $('leviBack'), badges: $('badgeBack'), news: $('newsBack'), unlocks: $('unlocksBack'), moons: $('moonsBack') }, was, side, instant, () => {
@@ -4906,6 +4930,7 @@ function prepLeviPics() {
   }
   later();
 }
+let leviView = 'dust';   // the moon whose Leviathans the card shows (version 186); set to the current moon as it opens
 function fillLeviCard() {
   const won = save.leviBeaten || {}, list = $('leviList');
   if (!leviCardDone) {
@@ -4918,19 +4943,23 @@ function fillLeviCard() {
       li.append(document.createElement('canvas'), n, l); list.append(li);
     }
   }
-  // Only the moon being played's Leviathans show (version 113).
-  let beaten = 0;
-  const set = leviSet();
+  // One moon's Leviathans at a time (version 113): since version 186 the one picked with the arrows, starting at the
+  // moon being played.
+  const set = LEVI_SETS[leviView] || leviSet();
   for (const li of list.children) {
     const kind = li.dataset.kind, w = !!won[kind], name = LEVI_INFO.find(x => x[0] === kind)[1];
     li.hidden = !set.includes(kind);
     if (li.hidden) continue;
-    if (w) beaten++;
     const pic = leviPic(kind);   // full colour whether beaten or not (version 132); painted ahead of time since version 152
-    pic.className = 'levi-pic'; pic.setAttribute('role', 'img'); pic.setAttribute('aria-label', name + (w ? ', beaten' : ', not beaten yet'));
+    pic.className = 'levi-pic'; pic.setAttribute('role', 'img'); pic.setAttribute('aria-label', name + (w ? ', escaped' : ', not escaped yet'));
     if (li.firstChild !== pic) li.replaceChild(pic, li.firstChild);
   }
-  $('leviHint').textContent = (moon !== 'dust' ? MOON_NAMES[moon] + '. ' : '') + 'One hunts you after every second cafe. Beaten: ' + beaten + ' of ' + set.length;
+  // Counts every moon's Leviathans (version 187, user: "1 out of 18"), not only the six shown; the word is "Escaped"
+  // since version 187 too (user), was "Beaten".
+  const all = [...new Set(Object.values(LEVI_SETS).flat())];
+  $('leviHint').textContent = 'One hunts you after every second cafe. Escaped: ' + all.filter(k => won[k]).length + ' of ' + all.length;
+  const nm = $('leviMoonName'), ico = document.querySelector('.splash-moon[data-moon="' + leviView + '"] .moon-ico');
+  nm.textContent = MOON_NAMES[leviView] || ''; if (ico) nm.prepend(ico.cloneNode(true));
 }
 // Version 122: the sticker opens the New features card; its Leviathan chases row opens the Leviathans card.
 $('newsTag').addEventListener('click', () => { if (state === 'title' && !cardSide) setCard('news'); });
@@ -4959,6 +4988,13 @@ function syncMoon() {
 }
 for (const b of document.querySelectorAll('.moon-btn')) b.addEventListener('click', () => setMoon(b.dataset.moon));
 $('leviDone').addEventListener('click', () => setCard('news'));   // version 157: back to New features
+// Version 186: the arrows step through the moons (round and round); the portraits are already painted (prepLeviPics).
+function stepLeviMoon(d) {
+  const ms = Object.keys(LEVI_SETS), i = ms.indexOf(leviView);
+  leviView = ms[(i + d + ms.length) % ms.length]; fillLeviCard(); Sfx.bleep(d > 0 ? 880 : 660);
+}
+$('leviPrev').addEventListener('click', () => stepLeviMoon(-1));
+$('leviNext').addEventListener('click', () => stepLeviMoon(1));
 // Version 133: Badges opens from the main menu (it used to be a button on the Leviathans card).
 $('badgesBtn').addEventListener('click', () => setCard('badges'));
 // Version 135: Unlocks (suit colours for now; more later) opens from the main menu.
@@ -5032,6 +5068,28 @@ const hex16 = () => { const b = new Uint8Array(8); crypto.getRandomValues(b); re
 let runId = '', runSecs = 0, cafesRun = 0, lastHit = '', fasterN = 0;
 // Frame rate over the run (frames and real time while it's on and not paused) and the slowest frame, to spot phones that struggle.
 let runFrames = 0, runRaw = 0, runWorst = 0;
+// Three more figures (version 194; the owner's phone held 120 falling and 93 in a fight, which the run's average hid, and
+// in another browser ran a flat 60): the screen's refresh rate as the game sees it, the frame rate during Leviathan
+// fights, and the share of frames that stuttered. Each frame adds to two fixed arrays, by whole ms of the time
+// since the frame before (the last one is 100 ms or more), and to two counters while a fight is on; nothing is worked
+// out until the run ends (runSmooth).
+// A stutter (version 196) is a frame that took 1.5x or more the middle one of the three frames before it. Until then
+// slowPct counted every frame of 1.5x the screen's own frame time, but the owner's phone runs its screen at 60 until
+// it is touched and faster while it is: a steady stretch at 60 (standing at a cafe) is the phone's doing, not a
+// stutter. Now such a stretch costs two frames, where it begins.
+const runGapN = new Uint32Array(101), runGapMs = new Float64Array(101);
+let fightFrames = 0, fightRaw = 0, runStutter = 0, gapA = 0, gapB = 0, gapC = 0;
+// hz: 1000 / the average frame among those that came back in one refresh (within 1.5x the quickest tenth, as the
+// self-test's card works it out). slowPct: the share of frames that were stutters. Empty for a run under 120 frames.
+function runSmooth() {
+  let n = 0, seen = 0, q = 0, cn = 0, cms = 0;
+  for (let i = 0; i <= 100; i++) n += runGapN[i];
+  if (n < 120) return { hz: null, fpsFight: null, slowPct: null };
+  while (q < 100 && seen + runGapN[q] < n * 0.1) seen += runGapN[q++];   // q: the ms the quickest tenth ends in
+  for (let i = 0; i <= 100 && i + 0.5 <= 1.5 * (q + 0.5); i++) { cn += runGapN[i]; cms += runGapMs[i]; }
+  const hz = Math.round(1000 * cn / cms);
+  return { hz: hz >= 20 && hz <= 500 ? hz : null, fpsFight: fightRaw >= 1 ? Math.round(fightFrames / fightRaw * 10) / 10 : null, slowPct: Math.round(1000 * runStutter / n) / 10 };
+}
 // The opening on this page load: watched to the end or skipped. Sent with the first run only, so each launch counts once.
 let introHow = '', introRun = '', introDone = false;
 const UA = navigator.userAgent, TOUCH_MAC = /Macintosh/.test(UA) && navigator.maxTouchPoints > 1;
@@ -5039,20 +5097,45 @@ const DEVICE = /iPad|Tablet/.test(UA) || TOUCH_MAC || (/Android/.test(UA) && !/M
 const OS = /Android/.test(UA) ? 'android' : /iPhone|iPad|iPod/.test(UA) || TOUCH_MAC ? 'ios' : /Windows/.test(UA) ? 'windows' : /CrOS/.test(UA) ? 'chromeos'
   : /Mac OS X|Macintosh/.test(UA) ? 'mac' : /Linux/.test(UA) ? 'linux' : 'other';
 function statPing(body) {
-  if (!SCORES_URL) return;
+  if (!SCORES_URL || perfOn) return;
   fetch(SCORES_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
 }
 function countPlay() {
   if (!/^[0-9a-f]{16}$/.test(save.playerId || '')) { save.playerId = hex16(); persist(); }
-  runId = hex16(); runSecs = 0; cafesRun = 0; lastHit = ''; fasterN = 0; runFrames = 0; runRaw = 0; runWorst = 0;
+  runId = hex16(); runSecs = 0; cafesRun = 0; lastHit = ''; fasterN = 0; runFrames = 0; runRaw = 0; runWorst = 0; runPauses = 0;
+  runGapN.fill(0); runGapMs.fill(0); fightFrames = 0; fightRaw = 0; runStutter = 0; gapA = gapB = gapC = 0;
   if (!introDone) { introDone = true; introRun = runId; }
-  statPing({ event: 'play', player: save.playerId, run: runId, ver: VERSION, moon });
+  statPing({ event: 'play', player: save.playerId, run: runId, ver: VERSION, moon, ...runFlags() });
 }
 // how: wall, rock, mine or lava (what took the last health), quit (Main menu from pause) or left (the game was hidden
 // mid-run; sent again with the real ending if they come back).
 // The last ended run's report, kept so it can be sent again with the initials typed on the high score entry (version 105:
 // the run ends before the entry opens, so its report carried the old initials, or none on a first high score).
 let lastEnd = null;
+// Version 190 (owner's stats): a Terminal Velocity run, the drone unlocked on this device, the drone flying this run.
+const runFlags = () => ({ hard: hardRun, droneOpen: droneOpen(), drone: droneRun });
+// Version 192 (owner's stats, user picked them 2026-11-13): game errors, Leviathans fought and escaped, progress on the
+// device, cafes passed and drone catches, and how the game is played (installed or in a browser, which browser, pauses).
+// Errors: how many since the last finished run's report (so ones on the title screen count too) and the first one's
+// message and place, cut to 200 characters. Nothing personal: the browser's own error text.
+let runPauses = 0, errN = 0, errFirst = null;
+const noteError = (msg, line, col) => {
+  errN++;
+  if (!errFirst) errFirst = (String(msg || 'error') + (line ? ' @' + line + ':' + (col || 0) : '')).replace(/[^\x20-\x7E]/g, '?').slice(0, 200);
+};
+addEventListener('error', e => noteError(e.message, e.lineno, e.colno));
+addEventListener('unhandledrejection', e => noteError('promise: ' + ((e.reason && e.reason.message) || e.reason)));
+const BROWSER = /FBAN|FBAV|Instagram|Snapchat|Line\/|MicroMessenger|GSA\//.test(UA) ? 'inapp' : /SamsungBrowser/.test(UA) ? 'samsung'
+  : /Edg\/|EdgA|EdgiOS/.test(UA) ? 'edge' : /OPR\/|OPiOS/.test(UA) ? 'opera' : /Firefox|FxiOS/.test(UA) ? 'firefox'
+  : /Chrome|CriOS|Chromium/.test(UA) ? 'chrome' : /Safari/.test(UA) ? 'safari' : 'other';
+const INSTALLED = () => !!(navigator.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches));
+const runMore = () => ({
+  errors: errN, error: errFirst,
+  leviFought: player.leviFought.slice(0, 20), leviEscaped: player.leviRun.slice(0, 20),
+  missions: missionsDone(), suit: Math.min(save.suit || 0, suitsOpen() - 1), badges: Object.keys(save.badges || {}).length,
+  nav: Math.round(save.nav || 0), cafesPassed: ledgesPassed(player.y), droneCaught: drone.caught || 0,
+  installed: INSTALLED(), browser: BROWSER, pauses: runPauses,
+});
 function endRun(how) {
   if (!runId) return;
   const total = Object.values(runParts).reduce((n, v) => n + v, 0);
@@ -5061,8 +5144,8 @@ function endRun(how) {
     fps: runRaw > 0 ? Math.round(runFrames / runRaw * 10) / 10 : null, worst: Math.round(runWorst * 1000),
     device: DEVICE, os: OS, screen: screen.width + 'x' + screen.height + '@' + Math.round(devicePixelRatio * 100) / 100,
     treats: player.bought.slice(0, 20), streak: player.bestStreak || 0, sound: !!save.snd, music: !!save.mus, repair: Math.round(repairFrac() * 100),
-    intro: runId === introRun && introHow ? introHow : null });
-  if (how !== 'left') runId = '';
+    intro: runId === introRun && introHow ? introHow : null, ...runFlags(), ...runMore(), ...runSmooth() });
+  if (how !== 'left') { runId = ''; errN = 0; errFirst = null; }
 }
 // -- Hard Dive (version 112, idea 13): unlocked once the ship has been fixed (a finished mission). The run starts with 4
 // health, falls HARD_SPEED faster all the way down, and the Leviathans are enraged from the start. (Until version 159 it
@@ -5084,11 +5167,12 @@ function startRun(quick) {
 }
 function beginPlay() {
   setState('play');
-  if (TEST_START_M) {   // the boss test copy: skip ahead to just above cafe 1 (see TEST_START_M)
-    player.y = TEST_START_M * PX_PER_M;
+  const startM = perfOn ? PERF_START_M : TEST_START_M;
+  if (startM) {   // the boss test copy: skip ahead to just above cafe 1 (see TEST_START_M); the self-test starts 400 m down
+    player.y = startM * PX_PER_M;
     const e = edgeAt(player.y + PILOT_CY);
     player.x = (e.L + e.R) / 2; camY = player.y - pilotNow; nextSeg = Math.floor(camY / SEG_LEN); lastRockD = player.y;
-    player.zone = Math.floor(TEST_START_M / ZONE_M); Music.setZone(matI(player.zone), true); fasterN = ledgesPassed(player.y + PILOT_CY);
+    player.zone = Math.floor(startM / ZONE_M); Music.setZone(matI(player.zone), true); fasterN = ledgesPassed(player.y + PILOT_CY);
     while (nextFlag < flags.length && flags[nextFlag].d <= player.y + PILOT_CY) flags[nextFlag++].passed = true;
     renderTarget();
   } player.v = speedAt(player.y); player.aim = player.x; player.vx = 0; steerAcc = 0; tapBurst.l = tapBurst.r = 0;
@@ -5097,6 +5181,7 @@ function beginPlay() {
 }
 function pause() {
   if (!['play', 'intro', 'landing', 'cafe', 'cafeJump'].includes(state)) return;
+  if (runId && !document.hidden) runPauses++;   // version 192: pauses the player chose (not the game being hidden)
   prevState = state; setState('paused'); sayEl.style.visibility = 'hidden'; Sfx.wind(0); Sfx.thrust(0); Music.stop(0.15); syncToggles();
   $('perkPause').textContent = perkSummary(); $('perkPause').hidden = !player.bought.length;
   showScreen('pause');
@@ -5141,7 +5226,7 @@ function gameOver() {
   const lines = [
     hardRun ? '<b>Terminal Velocity</b>' : '',
     nb.length ? 'New badge' + (nb.length > 1 ? 's' : '') + ': <b>' + nb.join(', ') + '</b>' : '',
-    player.leviRun.length ? 'Beat <b>' + player.leviRun.map(leviName).join(', ') + '</b>' : '',
+    player.leviRun.length ? 'Escaped <b>' + player.leviRun.map(leviName).join(', ') + '</b>' : '',   // "Escaped" since version 188 (user; was "Beat")
     cafesRun ? 'Cafes visited <b>' + cafesRun + '</b>' + (cafesRun && !player.hits ? ', no hits' : '') : '',
     player.closest < Infinity ? 'Closest call <b>' + player.closest + ' px</b> from a ' + (player.closestMine ? 'mine' : 'rock') : '',
     player.bestStreak ? 'Best streak <b>' + player.bestStreak + '</b>' : '',
@@ -5545,7 +5630,7 @@ function baristaLine(C) {
   const m = Math.round(C.Dl / PX_PER_M), ini = /^[A-Z]{3}$/.test(save.initials || '') ? save.initials : '', dives = save.dives || 0;
   const pick = a => a[Math.floor(Math.random() * a.length)];
   if (save.cafeVisits === 1) return 'First time here? Coffee\'s on the house!';
-  if (player.bossWon) { player.bossWon = false; return pick(['Was that crash you? Sit, sit!', 'You beat that thing? Have a refill!']); }
+  if (player.bossWon) { player.bossWon = false; return pick(['Was that crash you? Sit, sit!', 'You escaped that thing? Have a refill!']); }
   if (save.best > 0 && m > save.best) return 'Never seen you this deep!';
   if (!player.hits) return pick(['Not a scratch on you!', 'Clean dive! Nice.']);
   if (cafesRun >= 3) return 'Cafe number ' + cafesRun + '! You\'re a regular.';
@@ -5575,14 +5660,15 @@ const BADGES = [
   ['clean', 'Not a scratch', 'Reach a cafe without a hit'],
   ['deep', '3,000 m', 'Fall 3,000 m in one run'],
   ['streak', 'Streak 24', 'Skim 24 rocks or mines in a row'],
-  ['levi', 'Monster down', 'Beat a Leviathan'],
-  ['all6', 'All six', 'Beat every Leviathan'],
-  ['jungle3', 'Jungle hunter', 'Beat all six Jungle Leviathans'],   // version 113 (three then); six since version 130, and anyone who had it keeps it
-  ['machine6', 'Machine hunter', 'Beat all six Machine Leviathans'],   // version 145
+  // Version 188 (user): Leviathans are escaped, not beaten, in every line the player reads.
+  ['levi', 'Monster down', 'Escape a Leviathan'],
+  ['all6', 'All six', 'Escape every Leviathan'],
+  ['jungle3', 'Jungle hunter', 'Escape all six Jungle Leviathans'],   // version 113 (three then); six since version 130, and anyone who had it keeps it
+  ['machine6', 'Machine hunter', 'Escape all six Machine Leviathans'],   // version 145
 ];
 if (!save.badges || typeof save.badges !== 'object') save.badges = {};
 function award(id) {
-  if (save.badges[id]) return;
+  if (perfOn || save.badges[id]) return;
   const b = BADGES.find(x => x[0] === id);
   if (!b) return;
   save.badges[id] = Date.now(); persist();
@@ -5963,6 +6049,7 @@ function updateOpening(dt) {
   if (crossedA(0.3)) Sfx.bleep(1320);
   if (crossedA(0.7)) Sfx.bleep(990);
   if (crossedA(3.5)) Sfx.bleep(880);
+  if (crossedA(3.0)) Sfx.coffeeLine();   // as the mug comes down from his sip (drawBridge: lowered by 3.6 s)
   if (crossedA(O.coffee)) Sfx.whoosh();
   for (const p of introFx) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.spin) p.a += p.spin * dt; }
   introFx = introFx.filter(p => p.t < p.life);
@@ -5995,7 +6082,7 @@ function updateOpening(dt) {
   }
   if (crossed(O.eject) && introShip) {
     introPilot = { x: introShip.x, y: introShip.y - 30, vx: -30, vy: -380, x0: 0, y0: 0 };
-    sparks(introShip.x, introShip.y - 10, [P.dust, P.hot, P.lava], 14); Sfx.eject();
+    sparks(introShip.x, introShip.y - 10, [P.dust, P.hot, P.lava], 14); Sfx.eject(); Sfx.ejectLine();
     cineStreaks.push({ x: introShip.x, wy: introShip.y - 6, t: 0, life: 0.5, len: 80, col: '#F6D46A' });
   }
   if (crossed(O.chute) && introPilot) { introPilot.x0 = introPilot.x; introPilot.y0 = introPilot.y; Sfx.chute(); }
@@ -7578,12 +7665,13 @@ function bossMusic(B, out) {
 }
 function startBoss(B) {
   const k2 = 2 * B.k, kind = leviKind(k2), mid = camY + H / 2, A = leviDepth(k2), dir = hash(k2 * 4.3 + SEED) < 0.5 ? 1 : -1;
+  if (!player.leviFought.includes(kind)) player.leviFought.push(kind);   // version 192: run stats
   const x0 = W / 2 + dir * (mid - A) * 0.14, y0 = Math.max(-170, H / 2 + (A - mid) * LEVI_PARALLAX);
   boss = { B, kind, k2, n: (B.k + 1) / 2, dir, rot: 0, turnT: -1, turnFrom: dir, sideT: 0, lastTurn: 0, kick: 0, rage: false,
     phase: 'enter', t: 0, pt: 0, x0, y0, x: x0, y: y0, next: 0.6, queue: [], charge: 0, last: '', orbs: 0, d: 0, sil: mix(palAt(A).sO, P.ink, 0.42) };
   bossShots.length = 0; bossFresh = true; stampAllow = 0;
   hud.classList.add('boss'); coach.classList.add('gone');
-  Sfx.groan(kind); Sfx.bossRoar(); Buzz.mine(); shake = Math.max(shake, 1.6);
+  Sfx.groan(kind); Sfx.bossRoar(); Sfx.leviHello(); Buzz.mine(); shake = Math.max(shake, 1.6);
   bossMusic(B); Music.heat(1);
 }
 // Which way it faces, as a horizontal scale: ±1 normally, passing through 0 while it turns round (it squashes and
@@ -9586,10 +9674,20 @@ function frame(now) {
     const t0 = performance.now();
     // Hit-stop: the world holds still for a beat. Nothing updates during it, so nothing can collide and start another one
     // (a shielded pilot resting on a lava drip used to restart it every frame and freeze the game).
+    if (perfOn) perfSteer(dt);
     if (hitStop > 0) hitStop = Math.max(0, hitStop - dt); else update(dt);
     if (runId) runSecs += dt;
-    if (runId && raw < 1) { runFrames++; runRaw += raw; if (runFrames > 5) runWorst = Math.max(runWorst, raw); }
-    updateFace(); prepaint(camY); render(); drawCinema(); cineCaps(); meter.cpu += performance.now() - t0;
+    if (runId && raw < 1) {
+      runFrames++; runRaw += raw; if (runFrames > 5) runWorst = Math.max(runWorst, raw);
+      const ms = raw * 1000, i = ms < 100 ? ms | 0 : 100;   // see runSmooth
+      runGapN[i]++; runGapMs[i] += ms;
+      if (gapA > 0 && ms >= 1.5 * Math.max(Math.min(gapA, gapB), Math.min(Math.max(gapA, gapB), gapC))) runStutter++;
+      gapA = gapB; gapB = gapC; gapC = ms;
+      if (boss) { fightFrames++; fightRaw += raw; }
+    }
+    updateFace(); prepaint(camY); render(); drawCinema(); cineCaps();
+    const cpu = performance.now() - t0; meter.cpu += cpu;
+    if (perfOn) perfTick(raw, cpu);
   }
   if (stampAllow > 0 && ringWant.length) { const w = ringWant.pop(); ringMake(w[0], w[1], w[2]); }   // see ringsAhead
   if (save.fps) {
@@ -9600,6 +9698,122 @@ function frame(now) {
     }
   }
   requestAnimationFrame(frame);
+}
+
+// ---------- the performance self-test (version 184) ----------
+// For measuring a phone without a cable (the owner: "Could you play the game on my mobile phone's browser and do all this
+// analysis yourself?"). Add ?perf=1 to the address (?perf=crab picks the Leviathan), or tap the version number on the
+// menu five times. The game then plays itself for about a minute: it starts 400 m down in a fixed shaft, sets off two
+// blasts beside the pilot, passes the creature at 500 m, lands at the first cafe, leaves, and fights a Leviathan to the
+// end (the next of the moon's six each time it is run). Every frame it notes how long the screen took to come back
+// for the next one and how long the game's own code ran. The card at the end lists both, scene by scene, to copy or
+// screenshot. A frame that takes long while the code ran briefly was held up by the drawing, not the code.
+// Nothing is saved, sent or awarded while it runs, and the save is put back exactly as it was when it ends.
+let perf = null, perfNext = 0, perfTaps = 0, perfTapAt = 0;
+const PERF_START_M = 400, PERF_MAX = 16384;
+const PERF_SCENES = ['falling', 'cafe', 'approach', 'fight start', 'fight', 'fight end'];
+function perfStart(kind) {
+  if (perfOn || state !== 'title') return;
+  const old = document.getElementById('perfCard'); if (old) old.remove();
+  const set = leviSet();
+  if (!set.includes(kind)) kind = set[perfNext++ % set.length];
+  perf = { kind, snap: JSON.stringify(save), gap: new Float32Array(PERF_MAX), cpu: new Float32Array(PERF_MAX), scene: new Uint8Array(PERF_MAX), n: 0,
+    made: PERF_SCENES.map(() => 0), cur: 255, t: 0, fall: 0, cafeK: 1, cafeT: 0, fought: false, after: 0, booms: 0 };
+  const make = Document.prototype.createElement;   // counts the canvases made, scene by scene
+  document.createElement = function (tag, opt) { if (tag === 'canvas' && perf.cur < 255) perf.made[perf.cur]++; return make.call(document, tag, opt); };
+  perfOn = true;
+  startRun(true);
+  leviKind(2); leviOrder[2] = set.indexOf(kind);   // the first cafe's Leviathan
+}
+// Before each update: he can't be hurt, steers down the middle and onto the first cafe's pad, and leaves it after 3 s.
+function perfSteer(dt) {
+  const p = perf, pl = player;
+  p.t += dt; pl.inv = Math.max(pl.inv, 1); pl.hp = pl.max;
+  if (boss) p.fought = true;
+  if (state === 'play') {
+    while (cafeInfo(p.cafeK).Dl < pl.y - 40) p.cafeK++;
+    const C = cafeInfo(p.cafeK), e = edgeAt(pl.y + 40);
+    if (p.cafeK === 1 && C.Dl - pl.y < 500 && C.Dl - pl.y > 0) { pl.x = C.padX; pl.aim = pl.x; pl.vx = 0; }
+    else pl.aim = e.iR ? (pl.x < (e.iL + e.iR) / 2 ? (e.L + e.iL) / 2 : (e.iR + e.R) / 2) : (e.L + e.R) / 2;
+    if (!boss && !p.fought && !bossAt(pl.y + PILOT_CY)) {
+      p.fall += dt;
+      if (p.booms < 2 && p.fall > 1.5 + 2.5 * p.booms) { p.booms++; explode(pl.x + (p.booms % 2 ? 46 : -46), pl.y + PILOT_CY + 90, 20); }
+    }
+    if (p.fought && !boss) p.after += dt;
+  }
+  if (state === 'cafe') { p.cafeT += dt; if (p.cafeT > 3) leaveCafe(); }
+  p.cur = state === 'intro' ? 255 : boss ? (boss.phase === 'crash' ? 5 : boss.t < 4 ? 3 : 4) : p.fought ? 5 : state !== 'play' ? 1 : bossAt(pl.y + PILOT_CY) ? 2 : 0;
+  if (p.after > 1.5 || p.t > 150 || p.n >= PERF_MAX) perfFinish();
+}
+// After each frame is drawn: `raw` s since the frame before, `cpu` ms of the game's own code in this one.
+function perfTick(raw, cpu) {
+  const p = perf;
+  if (!perfOn || p.cur === 255 || raw >= 1 || p.n >= PERF_MAX) return;
+  p.gap[p.n] = raw * 1000; p.cpu[p.n] = cpu; p.scene[p.n++] = p.cur;
+}
+function perfFinish() {
+  const p = perf;
+  delete document.createElement;
+  for (const k of Object.keys(save)) delete save[k];
+  Object.assign(save, JSON.parse(p.snap));   // the save, exactly as it was
+  toTitle();
+  perfOn = false;
+  perfCard(perfReport());
+}
+function perfReport() {
+  const p = perf, N = p.n, pad = (v, n) => String(v).padStart(n), ua = navigator.userAgent, ver = re => (re.exec(ua) || [])[1] || '?';
+  // The screen's own frame time: the middle of the frames that came back in one refresh (within 1.5x the quickest tenth).
+  const sorted = Array.from(p.gap.subarray(0, N)).sort((a, b) => a - b), quick = sorted.filter(v => v <= 1.5 * sorted[Math.floor(N * 0.1)]);
+  const base = quick.length ? quick[quick.length >> 1] : 16.7;
+  const browser = /CriOS|Chrome/.test(ua) ? 'chrome ' + ver(/(?:CriOS|Chrome)\/(\d+)/) : /Firefox/.test(ua) ? 'firefox ' + ver(/Firefox\/(\d+)/) : /Safari/.test(ua) ? 'safari ' + ver(/Version\/(\d+)/) : 'browser ?';
+  const os = OS === 'android' ? 'android ' + ver(/Android (\d+)/) : OS === 'ios' ? 'ios ' + ver(/OS (\d+)_/) : OS;
+  const out = ['MOONFALL v0.' + VERSION + ' SELF-TEST  ' + moon + ' / ' + p.kind,
+    os + '  ' + browser + '  ' + screen.width + 'x' + screen.height + '@' + Math.round(devicePixelRatio * 100) / 100 + '  game ' + W + 'x' + H,
+    'screen about ' + Math.round(1000 / base) + ' Hz (' + base.toFixed(1) + ' ms a frame)', '',
+    'SCENE       FRAMES  FPS SCRIPT   P95 WORST'], split = ['', 'FRAMES THAT TOOK  1    2    3   4+ SCREEN FRAMES'];
+  let allGap = 0, allCpu = 0;
+  PERF_SCENES.forEach((name, s) => {
+    const g = [], c = [], took = [0, 0, 0, 0];
+    for (let i = 0; i < N; i++) if (p.scene[i] === s) { g.push(p.gap[i]); c.push(p.cpu[i]); took[Math.min(3, Math.max(0, Math.round(p.gap[i] / base) - 1))]++; }
+    if (!g.length) return;
+    const sum = a => a.reduce((x, y) => x + y, 0), sg = sum(g), sc = sum(c), cs = c.slice().sort((a, b) => a - b);
+    allGap += sg; allCpu += sc;
+    out.push(name.padEnd(11) + pad(g.length, 7) + pad(Math.round(1000 * g.length / sg), 5) + pad((sc / g.length).toFixed(1), 7) + pad(cs[Math.floor(cs.length * 0.95)].toFixed(1), 6)
+      + pad(Math.round(Math.max(...g)), 6));
+    split.push(name.padEnd(11) + pad(took[0], 8) + pad(took[1], 5) + pad(took[2], 5) + pad(took[3], 5));
+  });
+  const made = PERF_SCENES.map((name, s) => p.made[s] ? name + ' ' + p.made[s] : '').filter(Boolean);
+  out.push(...split, '', 'script is ' + (allGap ? Math.round(100 * allCpu / allGap) : 0) + '% of the time  ' + Math.round(allGap / 1000) + ' s  ' + N + ' frames',
+    'images made: ' + made.slice(0, 3).join(', '), ...(made.length > 3 ? ['  ' + made.slice(3).join(', ')] : []), '',
+    'SCRIPT, P95: ms of game code a frame', 'WORST: longest frame, ms');
+  return out.join('\n');
+}
+function perfCard(text) {
+  const el = document.createElement('div'), pre = document.createElement('pre'), row = document.createElement('div');
+  el.id = 'perfCard';
+  el.style.cssText = 'position:fixed;inset:0;z-index:60;background:#0B0E14;color:#EEE8D8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:10px;box-sizing:border-box';
+  pre.style.cssText = 'margin:0;max-width:100%;overflow:auto;font:10px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre;-webkit-user-select:text;user-select:text';
+  pre.textContent = text;
+  row.style.cssText = 'display:flex;gap:10px';
+  const button = (label, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn'; b.style.cssText = 'font-size:14px;padding:11px 12px 9px'; b.textContent = label; b.addEventListener('click', () => fn(b)); row.append(b); };
+  button('COPY', b => {
+    const pick = () => { const r = document.createRange(); r.selectNodeContents(pre); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); b.textContent = 'SELECTED'; };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => { b.textContent = 'COPIED'; }, pick); else pick();
+  });
+  button('NEXT', () => { el.remove(); perfStart(); });
+  button('DONE', () => el.remove());
+  el.append(pre, row); document.body.append(el);
+}
+// Five taps on the menu's version number within 3 s, or ?perf in the address once the menu is up.
+$('verTag').addEventListener('click', () => {
+  const now = performance.now();
+  if (now - perfTapAt > 3000) perfTaps = 0;
+  perfTapAt = now;
+  if (++perfTaps >= 5) { perfTaps = 0; if (!cardSide) perfStart(); }
+});
+{
+  const ask = new URLSearchParams(location.search).get('perf');
+  if (ask !== null) { const wait = setInterval(() => { if (state === 'title' && !cardSide && !screens.title.classList.contains('clean')) { clearInterval(wait); perfStart(ask); } }, 400); }
 }
 
 function start(data) {

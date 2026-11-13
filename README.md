@@ -4,7 +4,7 @@ A free pixel-art phone game by PermaFrost Productions. Your ship has crashed on 
 
 - **Three moons**, each with its own rock layers, hazards, scenery, music and six Leviathans (eighteen in all): the **Dust moon** (glazed ice, crumbling ledges, ash vents), the **Jungle moon** (vines, thorn branches, spore pods) and the **Machine moon** (crushers, saw blades, laser gates). Pick one on the start screen and swap any time in Settings.
 - **Unlocks** for finishing the mission: every suit colour and **Terminal Velocity** (4 health, 15% faster, raging Leviathans). Repair the ship on Terminal Velocity to earn a helper drone that falls with you and catches some of what you miss.
-- **Kid mode** (in Settings): sliders for fewer mines and Leviathan shots, more ship parts and health crystals and a slower fall, and a switch for the speed-up after cafés. Kid mode runs have their own high score board.
+- **Kid mode** (in Settings): sliders for fewer mines and Leviathan shots, more ship parts and crystals, more health and a slower fall, and a switch for the speed-up after cafés. Kid mode runs have their own high score board.
 - Badges, voiced moments from the pilot, and an online high score board shared by everyone who plays.
 
 Play it at **https://peter-routamaa.github.io/moonfall/**. The `docs` folder is what GitHub Pages publishes as the website.
