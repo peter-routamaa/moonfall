@@ -69,12 +69,15 @@ await call('POST', { event: 'play', player: P, run: RUN });
 check('repeat ping within 5 s ignored', db.plays.filter(x => x.player === P).length === 1, db.plays);
 check('bad player id refused', (await call('POST', { event: 'play', player: 'nope' }))[0] === 400, null);
 const end = { event: 'end', player: P, run: RUN, depth: 812, secs: 95, how: 'mine', orbs: 7, parts: 2, cafes: 0, initials: 'PJR',
-  fps: 89.67, worst: 41, device: 'phone', os: 'android', screen: '412x915@2.63', treats: ['Magnet', 'Bubble to go'], streak: 17, sound: true, music: false, repair: 53, intro: 'skipped', ver: 107, moon: 'dust', hard: false, droneOpen: true, drone: true };
+  fps: 89.67, worst: 41, device: 'phone', os: 'android', screen: '412x915@2.63', treats: ['Magnet', 'Bubble to go'], streak: 17, sound: true, music: false, repair: 53, intro: 'skipped', ver: 107, moon: 'dust', hard: false, droneOpen: true, drone: true,
+  errors: 2, error: 'TypeError: x is undefined @5100:12', leviFought: ['whale', 'jelly'], leviEscaped: ['whale'], missions: 3, suit: 2, badges: 7, nav: 40,
+  cafesPassed: 4, droneCaught: 6, installed: true, browser: 'safari', pauses: 1 };
 check('end ping', (await call('POST', end))[0] === 200, null);
 await call('POST', { ...end, depth: 900, secs: 120, how: 'rock' });
 const row = db.plays.find(x => x.run === RUN);
 check('second end updates the same run', row.depth === 900 && row.how === 'rock' && db.plays.filter(x => x.run === RUN).length === 1, row);
 check('extras stored', row.fps === 89.7 && row.device === 'phone' && row.treats.join() === 'Magnet,Bubble to go' && row.intro === 'skipped' && row.repair === 53 && row.ver === 107 && row.moon === 'dust' && row.hard === false && row.drone_open === true && row.drone === true, row);
+check('version 192 extras stored', row.errors === 2 && row.error === 'TypeError: x is undefined @5100:12' && row.levi_fought.join() === 'whale,jelly' && row.levi_escaped.join() === 'whale' && row.missions === 3 && row.suit === 2 && row.badges === 7 && row.nav === 40 && row.cafes_passed === 4 && row.drone_caught === 6 && row.installed === true && row.browser === 'safari' && row.pauses === 1, row);
 await call('POST', { ...end, run: '5555666677778888', depth: 40, how: 'left' });
 check('end without a start makes the row', !!db.plays.find(x => x.run === '5555666677778888'), db.plays);
 const { ver: _v, ...old } = end;
@@ -85,9 +88,9 @@ await call('POST', { ...noFlags, run: '9999cccc9999dddd' });
 check('older copies without hard/drone save them empty', (r => r && r.hard === null && r.drone_open === null && r.drone === null)(db.plays.find(x => x.run === '9999cccc9999dddd')), db.plays);
 check('bad how refused', (await call('POST', { ...end, how: 'boom' }))[0] === 400, null);
 check('bad run id refused', (await call('POST', { ...end, run: 'zz' }))[0] === 400, null);
-await call('POST', { ...end, run: '0000aaaa0000bbbb', fps: 'fast', device: 'fridge', screen: '<b>', treats: ['<x>'], repair: 140, intro: 'maybe', initials: 'ASS', ver: '106', moon: 'Jungle', hard: 'yes', droneOpen: 1, drone: 'on' });
+await call('POST', { ...end, run: '0000aaaa0000bbbb', fps: 'fast', device: 'fridge', screen: '<b>', treats: ['<x>'], repair: 140, intro: 'maybe', initials: 'ASS', ver: '106', moon: 'Jungle', hard: 'yes', droneOpen: 1, drone: 'on', errors: -1, error: 'x'.repeat(201), leviFought: ['<b>'], leviEscaped: 'whale', missions: 1.5, suit: 'red', badges: null, nav: -3, cafesPassed: 'many', droneCaught: 1e9, installed: 'yes', browser: 'netscape', pauses: -1 });
 const junk = db.plays.find(x => x.run === '0000aaaa0000bbbb');
-check('junk extras stored as empty, run kept', junk.how === 'mine' && [junk.fps, junk.device, junk.screen, junk.treats, junk.repair, junk.intro, junk.initials, junk.ver, junk.moon, junk.hard, junk.drone_open, junk.drone].every(v => v === null), junk);
+check('junk extras stored as empty, run kept', junk.how === 'mine' && [junk.fps, junk.device, junk.screen, junk.treats, junk.repair, junk.intro, junk.initials, junk.ver, junk.moon, junk.hard, junk.drone_open, junk.drone, junk.errors, junk.error, junk.levi_fought, junk.levi_escaped, junk.missions, junk.suit, junk.badges, junk.nav, junk.cafes_passed, junk.drone_caught, junk.installed, junk.browser, junk.pauses].every(v => v === null), junk);
 
 console.log(failed ? `${failed} failed, ${passed} passed` : `all ${passed} checks passed`);
 process.exit(failed ? 1 : 0);
