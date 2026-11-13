@@ -272,6 +272,10 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .badge-name { font: 700 11px/1 var(--display); letter-spacing: .1em; color: var(--gold); }
 .badge-list li:not(.got) .badge-name { color: var(--dust-dim); }
 .badge-how { font: 400 18px/.95 var(--body); color: var(--dust-dim); }
+/* Ten badges since version 205: on short or narrow phones the medals shrink (they set each row's height) and the names
+   close up so "(NOT YET)" stays on the name's line, keeping Done 50 px up. */
+@media (max-height: 700px), (max-width: 340px) { .badge-list svg { width: 24px; height: 24px; } .badge-list li { grid-template-columns: 24px 1fr; } }
+@media (max-width: 340px) { .badge-name { letter-spacing: .05em; } }
 /* Run highlights on the game over card (version 108), one per line. */
 #runExtra span { display: block; }
 /* The barista's greeting at a cafe (version 108): a speech bubble, since version 114 on the ledge below the pilot, its
@@ -994,7 +998,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 204;
+const VERSION = 205;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -5791,8 +5795,13 @@ const BADGES = [
   ['all6', 'Dust hunter', 'Escape all six Dust Leviathans'],   // version 204 (user): named for the Dust moon, like the other two (it always counted only the Dust six, LEVI_KINDS)
   ['jungle3', 'Jungle hunter', 'Escape all six Jungle Leviathans'],   // version 113 (three then); six since version 130, and anyone who had it keeps it
   ['machine6', 'Machine hunter', 'Escape all six Machine Leviathans'],   // version 145
+  ['repair', 'Mechanic', 'Repair the ship'],   // version 205 (user)
+  ['drone', 'Co-pilot', 'Earn the helper drone'],   // version 205 (user)
 ];
 if (!save.badges || typeof save.badges !== 'object') save.badges = {};
+// Version 205: players who repaired the ship or earned the drone before these badges existed get them quietly.
+if (!save.badges.repair && (missionsDone() > 0 || repairFrac() >= 1)) save.badges.repair = Date.now();
+if (!save.badges.drone && save.droneOpen) save.badges.drone = Date.now();
 function award(id) {
   if (perfOn || save.badges[id]) return;
   const b = BADGES.find(x => x[0] === id);
@@ -7638,9 +7647,11 @@ function collect(it) {
       if (was < 1 && repair >= 1) {
         showCoach(navDone() ? 'SHIP REPAIRED! LAUNCH IT FROM THE MAIN MENU' : 'SHIP REPAIRED! NOW BUY THE NAV COMPUTER AT A CAFE', 3500); Sfx.repaired(); Buzz.shield();
         sparks(player.x, player.y + PILOT_CY, ['#F2C14E', '#FFFFFF', '#A9781B', P.hot], 40, 16);
+        award('repair');   // version 205
         // Version 160: repaired on a Hard Dive: the helper drone unlocks and joins him at once.
         if (hardRun && !save.droneOpen) {
           save.droneOpen = true; save.drone = true; save.droneNew = true; persist(); droneRun = true;
+          award('drone');   // version 205
           drone.ox = player.x > W / 2 ? -24 : 24; drone.oy = -60; drone.mode = 'back';
           drone.hp = player.hp; drone.chatAt = clock + 6; setTimeout(() => Sfx.droneHello(), 900);
           setTimeout(() => { if (state === 'play') showCoach('HELPER DRONE UNLOCKED!', 3000); }, 3700);
