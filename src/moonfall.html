@@ -132,6 +132,13 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 /* Version 135: Unlocks (the suit colours, moved out of Settings) beside Badges. */
 #unlocksBack h2 { text-align: center; }
 #unlocksBack { gap: 12px; }
+/* Version 158 (user: "this is an earned unlock, so let's move it to the unlocks"): Hard dive moved from Settings to the
+   Unlocks card, in a box like the suits: its toggle tile, a line on what it does, and a hint under the box while locked.
+   Settings keeps five toggles; Invert thruster controls spans the row. */
+.hard-box { gap: 8px; }
+.hard-box .set-tog { padding: 10px 7px 10px 9px; font-size: 12px; }
+.hard-how { margin: 0; font-size: 17px; line-height: 1.1; color: var(--dust-dim); }
+#invT { grid-column: 1 / -1; }
 #badgesBtn small { font: inherit; font-size: 11px; color: color-mix(in srgb, var(--dust) 75%, var(--blue)); }
 @media (max-width: 360px) { #titleFront .card-nav { column-gap: 8px; } #titleFront .card-nav .btn.settings { font-size: 11px; gap: 4px; padding-inline: 3px; letter-spacing: 0; } #titleFront .card-nav .btn.settings > svg { width: 12px; height: 12px; } }
 .best.best-big b { font-size: 22px; color: var(--gold); letter-spacing: .03em; }
@@ -283,7 +290,9 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   #titleBack #resetBtn { font-size: 14px; padding: 13px 14px 11px; }
 }
 /* And for Badges (seven rows) up to 700 px tall (version 135: its Done sat on the bottom edge of a 640 px screen). */
-@media (max-height: 700px) { #titleScreen.reading.badges .repair { --aside: 1; } }   /* 640 since version 135 (suits moved out) */
+@media (max-height: 700px) { #titleScreen.reading.badges .repair { --aside: 1; } }
+/* And for Unlocks since Hard dive moved onto it (version 158) up to 760 px tall: at 667 its Done ran off the bottom. */
+@media (max-height: 760px) { #titleScreen.reading.unlocks .repair { --aside: 1; } }   /* 640 since version 135 (suits moved out) */
 .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .best { font: 400 12px/1 var(--display); letter-spacing: .05em; color: var(--dust-dim); }
 .best b { color: var(--dust); font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -648,7 +657,6 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <button class="set-tog" id="vibT" type="button" aria-pressed="true" aria-label="Vibration"><span>Vibration</span></button>
         <button class="set-tog" id="fpsT" type="button" aria-pressed="false" aria-label="Display FPS"><span>Display<br>FPS</span></button>
         <button class="set-tog" id="invT" type="button" aria-pressed="false" aria-label="Invert thruster controls"><span>Invert<br>thruster<br>controls</span></button>
-        <button class="set-tog" id="hardT" type="button" aria-pressed="false" aria-label="Hard dive"><span>Hard<br>dive</span></button>
       </div>
       <div class="suit-row moon-row" role="group" aria-label="Moon"><span>MOON</span>
         <button class="moon-btn" type="button" data-moon="dust" aria-pressed="true"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Dust</span></button>
@@ -678,6 +686,11 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <div class="suit-row" id="suitRow" role="group" aria-label="Suit colour"></div>
       </div>
       <p class="suit-note" id="suitNote"></p>
+      <div class="suit-box hard-box">
+        <button class="set-tog" id="hardT" type="button" aria-pressed="false" aria-label="Hard dive"><span>Hard dive</span></button>
+        <p class="hard-how">Start with 4 health and fall 15% faster. Leviathans rage from the start, and crystals are 50% more common.</p>
+      </div>
+      <p class="suit-note" id="hardNote"></p>
       <button class="btn" id="unlocksDone" type="button">Done</button>
      </div>
      <div class="card face back" id="newsBack" hidden inert aria-hidden="true">
@@ -866,7 +879,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 157;
+const VERSION = 158;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -4644,6 +4657,7 @@ function syncToggles() {
   });
   $('suitName').textContent = SUITS[cur][0];
   $('suitNote').textContent = open < SUITS.length ? 'Fix the ship to unlock ' + (open === 1 ? 'more' : 'the next') : '';
+  $('hardNote').textContent = hardOpen() ? '' : 'Fix the ship to unlock Hard dive';
   $('buzzNote').hidden = Buzz.canVibrate || !save.vib;
   $('bestTitle').textContent = fmtM(save.best) + ' m'; $('bestPause').textContent = fmtM(save.best) + ' m';
 }
@@ -4741,11 +4755,12 @@ function syncAside(instant) {
       anims.push(el.animate(want ? [open, shut] : [shut, open], { duration: ASIDE_MS, easing: 'cubic-bezier(.3, .7, .2, 1)', fill: 'both' }));
     }
     el._aside = anims;
-    anims[0].onfinish = () => {
+    const done = () => {
       if (el._aside !== anims) return;
       if (want) el.classList.add('aside');
       for (const a of anims) a.cancel(); el._aside = null; el.style.overflow = '';
     };
+    anims[0].onfinish = done; setTimeout(done, ASIDE_MS + 150);   // the timer too, in case the animation stalls (a page in the background)
   }
 }
 addEventListener('resize', () => syncAside(true));
@@ -4756,10 +4771,11 @@ function setCard(side, instant) {
   cardSide = side;
   if (side === 'levi') fillLeviCard();
   if (side === 'badges') fillBadges();
+  if (side === 'unlocks') syncToggles();   // version 158: Hard dive's lock is shown from the save as it is now
   turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack'), levi: $('leviBack'), badges: $('badgeBack'), news: $('newsBack'), unlocks: $('unlocksBack'), moons: $('moonsBack') }, was, side, instant, () => {
     const ts = $('titleScreen');
     clearTimeout(readTimer);
-    if (side) { ts.classList.toggle('levi', side === 'levi'); ts.classList.toggle('how', side === 'how'); ts.classList.toggle('settings', side === 'settings'); ts.classList.toggle('badges', side === 'badges'); ts.classList.toggle('moons', side === 'moons'); }
+    if (side) { ts.classList.toggle('levi', side === 'levi'); ts.classList.toggle('how', side === 'how'); ts.classList.toggle('settings', side === 'settings'); ts.classList.toggle('badges', side === 'badges'); ts.classList.toggle('moons', side === 'moons'); ts.classList.toggle('unlocks', side === 'unlocks'); }
     if (side || instant) { ts.classList.toggle('reading', !!side); syncAside(instant); }   // Settings too since version 84 (one more row)
     else readTimer = setTimeout(() => { ts.classList.remove('reading'); syncAside(); }, 480);
   });
