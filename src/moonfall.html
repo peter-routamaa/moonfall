@@ -907,7 +907,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 178;
+const VERSION = 179;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -981,8 +981,12 @@ function rng32(a) {
 // paints then draw the same rows straight in, pixel for pixel the same, and make nothing. (A see-through disc and
 // the elder's body still go through an image, one scratch canvas each that is drawn over every time: stamping an
 // image and filling rows don't round a see-through colour, or a shape's edge, quite the same way.)
+// Nor while `stampAllow` is 0, which it is all through a fight (version 179): a disc or ring that has no image yet is
+// drawn the same direct way instead of having one made, so a fight makes no canvas at all. Its images are made in the
+// thin shaft before it, a few a frame (bossWarmStep).
 const discCache = new Map(), ringCache = new Map(), sprCache = new WeakMap();
-let stampDirect = false, scratchCv = null, scratchG = null;
+let stampDirect = false, stampAllow = Infinity, scratchCv = null, scratchG = null;
+const mayStamp = () => stampAllow > 0 && (stampAllow--, true);
 function scratch(w, h) {
   if (!scratchCv) { scratchCv = document.createElement('canvas'); scratchCv.width = 240; scratchCv.height = 160; scratchG = scratchCv.getContext('2d'); }
   scratchG.clearRect(0, 0, w, h);
@@ -995,15 +999,15 @@ function discRows(g, cx, cy, r, col) {
 function disc(x, y, r, col, g) {
   g = g || c; r = Math.round(r);
   if (r > 48 || r < 0 || (stampDirect && g.globalAlpha === 1)) { discRows(g, Math.round(x), Math.round(y), r, col); return; }
-  if (stampDirect) {
+  let byCol = stampDirect ? null : discCache.get(col), img = byCol && byCol[r];
+  if (!img && (stampDirect || !mayStamp())) {
+    if (g.globalAlpha === 1) { discRows(g, Math.round(x), Math.round(y), r, col); return; }
     const d = 2 * r + 1;
     discRows(scratch(d, d), r, r, r, col);
     g.drawImage(scratchCv, 0, 0, d, d, Math.round(x) - r, Math.round(y) - r, d, d); return;
   }
-  let byCol = discCache.get(col);
-  if (!byCol) { byCol = []; discCache.set(col, byCol); }
-  let img = byCol[r];
   if (!img) {
+    if (!byCol) { byCol = []; discCache.set(col, byCol); }
     img = document.createElement('canvas');
     img.width = img.height = 2 * r + 1;
     discRows(img.getContext('2d'), r, r, r, col);
@@ -1021,7 +1025,9 @@ function ring(x, y, r, col, th, g) {
       g.fillRect(Math.round(x + Math.cos(an) * r), Math.round(y + Math.sin(an) * r), th, th);
     } return;
   }
-  if (stampDirect && g.globalAlpha === 1 && col.length === 7) {   // solid colour only: the ring's squares overlap
+  let byCol = ringCache.get(col), img = byCol && byCol[R * 4 + th];
+  // Drawn straight in: solid colour only (the ring's squares overlap), and in a fight only a ring with no image yet.
+  if ((stampDirect || (!img && stampAllow <= 0)) && g.globalAlpha === 1 && col.length === 7) {
     const X = Math.round(x) - R - 1, Y = Math.round(y) - R - 1;
     g.fillStyle = col;
     for (let i = 0; i < n; i++) {
@@ -1029,10 +1035,9 @@ function ring(x, y, r, col, th, g) {
       g.fillRect(X + Math.round(R + 1 + Math.cos(an) * R), Y + Math.round(R + 1 + Math.sin(an) * R), th, th);
     } return;
   }
-  let byCol = ringCache.get(col);
-  if (!byCol) { byCol = []; ringCache.set(col, byCol); }
-  let img = byCol[R * 4 + th];
   if (!img) {
+    if (!byCol) { byCol = []; ringCache.set(col, byCol); }
+    if (stampAllow > 0) stampAllow--;
     img = document.createElement('canvas'); img.width = img.height = 2 * R + th + 2;
     const gg = img.getContext('2d'); gg.fillStyle = col;
     for (let i = 0; i < n; i++) {
@@ -1745,11 +1750,13 @@ function elderShape(g, x, y, flap, col) {
 }
 // Images for the last three colours (version 129; it kept one, so the boss and a background elder took turns
 // throwing each other's away).
+// Null when there is no image yet and none may be made now (`stampAllow`, version 179): drawElder then draws the body
+// through the scratch canvas, as it does while fading in.
 function elderFrame(col, flap) {
-  let byCol = elderArt.get(col);
-  if (!byCol) { if (elderArt.size >= 3) elderArt.delete(elderArt.keys().next().value); byCol = []; elderArt.set(col, byCol); }
-  let img = byCol[flap + 6];
+  let byCol = elderArt.get(col), img = byCol && byCol[flap + 6];
   if (img) return img;
+  if (!mayStamp()) return null;
+  if (!byCol) { if (elderArt.size >= 3) elderArt.delete(elderArt.keys().next().value); byCol = []; elderArt.set(col, byCol); }
   img = document.createElement('canvas'); img.width = 240; img.height = 160;
   elderShape(img.getContext('2d'), ELDER_OX, ELDER_OY, flap, col);
   return (byCol[flap + 6] = img);
@@ -1757,8 +1764,9 @@ function elderFrame(col, flap) {
 function drawElder(x, y, dir, k, col) {
   y += Math.sin(clock * 0.6 + k) * 4;
   const flap = 2 * Math.round(Math.sin(clock * 0.8 + k) * 3);
-  if (stampDirect) { elderShape(scratch(240, 160), ELDER_OX, ELDER_OY, flap, col); c.drawImage(scratchCv, Math.round(x) - ELDER_OX, Math.round(y) - ELDER_OY); }
-  else c.drawImage(elderFrame(col, flap), Math.round(x) - ELDER_OX, Math.round(y) - ELDER_OY);
+  const body = stampDirect ? null : elderFrame(col, flap);
+  if (body) c.drawImage(body, Math.round(x) - ELDER_OX, Math.round(y) - ELDER_OY);
+  else { elderShape(scratch(240, 160), ELDER_OX, ELDER_OY, flap, col); c.drawImage(scratchCv, Math.round(x) - ELDER_OX, Math.round(y) - ELDER_OY); }
   for (let i = 0; i < 7; i++) {
     const bx = x - 18 + i * 6, by = y + 8;
     for (let j = 0; j < 17; j++) {
@@ -7463,6 +7471,39 @@ function bossBufs(kind) {
   bossFront = bossBuf(kind); bossBack = bossBuf(kind);
   bossTmp = document.createElement('canvas'); bossTmp.width = bossFront.w; bossTmp.height = bossFront.h; bossTmpG = bossTmp.getContext('2d');
 }
+// Everything else a fight stamps is made in the thin shaft as well (version 179), a little each frame: its shots and
+// charge glow, then BOSS_WARM paints of the creature at different moments of its animation in the cavern's settled rock
+// colours (a cavern can run from one layer into the next), which fills the disc and ring images its art uses. A paint
+// step may make at most four images. Until then they were made in the fight: 8 to 30 in the second before its first
+// shot, more whenever the rock's colour changed (22 to 59 a fight). Limited by the clock (90 steps a second), not the frame.
+const BOSS_WARM = 24;
+let bossWarm = null;
+function bossWarmStep(B) {
+  const kind = leviKind(2 * B.k);
+  if (!bossWarm || bossWarm.B !== B) {
+    const [o, m, h] = BOSS_SHOT[kind], shots = [3, 4, 5, 6, 7].map(r => [o, m, h, r]);
+    shots.push([o, m, P.dust, 7]);   // a bomb's blink
+    if (kind === 'angler') shots.push([LURE_GLOW[0], LURE_GLOW[1], LURE_GLOW[2], 6], [LURE_GLOW[0], LURE_GLOW[1], LURE_GLOW[2], 7]);
+    const pals = [];   // the settled rock colours the fight will pass through (a blended one makes no images)
+    for (let i = 0; i <= 4; i++) { const d = lerp(B.A0 + 300, B.F0, i / 4); if (palAt(d, true).pure && !pals.some(e => palAt(e, true) === palAt(d, true))) pals.push(d); }
+    scratch(1, 1);   // the shared scratch canvas, if nothing has needed it yet
+    bossWarm = { B, at: clock, n: 0, shots, paints: pals.length ? 0 : BOSS_WARM, pals,
+      b: { kind, k2: 2 * B.k, B, dir: 1, rot: 0, t: 0, phase: 'fight', pt: 9, x: W / 2, y: 0, sil: P.ink } };
+  }
+  const w = bossWarm;
+  for (let k = 0; k < 2 && w.n < (clock - w.at) * 90; k++) {
+    w.n++;
+    if (w.shots.length) { for (let i = 0; i < 3 && w.shots.length; i++) shotImg(...w.shots.pop()); if (kind === 'angler') ringImg(); continue; }
+    if (w.paints >= BOSS_WARM || !bossBack || bossBack.kind !== kind) return;
+    if (!bossBack.stage) {
+      w.b.t = w.paints * 0.683; w.b.y = w.pals[w.paints % w.pals.length] - camY;   // the clock runs 0.6 of b.t ahead in a paint: 0.41 s apart
+    }
+    const keep = stampAllow;
+    stampAllow = 4;
+    if (bossStage(w.b, bossBack)) w.paints++;
+    stampAllow = keep;
+  }
+}
 function bossMusic(B, out) {
   if (bossTune === B.k) return;
   bossBufs(leviKind(2 * B.k));
@@ -7474,7 +7515,7 @@ function startBoss(B) {
   const x0 = W / 2 + dir * (mid - A) * 0.14, y0 = Math.max(-170, H / 2 + (A - mid) * LEVI_PARALLAX);
   boss = { B, kind, k2, n: (B.k + 1) / 2, dir, rot: 0, turnT: -1, turnFrom: dir, sideT: 0, lastTurn: 0, kick: 0, rage: false,
     phase: 'enter', t: 0, pt: 0, x0, y0, x: x0, y: y0, next: 0.6, queue: [], charge: 0, last: '', orbs: 0, d: 0, sil: mix(palAt(A).sO, P.ink, 0.42) };
-  bossShots.length = 0; bossFresh = true;
+  bossShots.length = 0; bossFresh = true; stampAllow = 0;
   hud.classList.add('boss'); coach.classList.add('gone');
   Sfx.groan(kind); Sfx.bossRoar(); Buzz.mine(); shake = Math.max(shake, 1.6);
   bossMusic(B); Music.heat(1);
@@ -7729,6 +7770,7 @@ function updateBoss(dt) {
     const B = bossAt(cd);
     if (B && !bossGone.has(B.k)) {
       if (cd >= B.T0) bossMusic(B, 0.8);
+      if (bossTune === B.k) bossWarmStep(B);
       if (cd >= B.A0 - 24 && cd < B.F0) startBoss(B);
     }
   }
@@ -8791,8 +8833,9 @@ function drawBoss(sy) {
   c.globalAlpha = 1; c.drawImage(F.cv, -F.ox, -F.oy);
   c.restore();
   if (b.charge > b.t) {   // gathering a volley: a pulsing glow at its mouth
-    const [dx, dy] = bossMouth(b), cl = BOSS_SHOT[b.kind], r = 3 + Math.floor((b.t * 24) % 4), gx = x + dx, gy = y + dy;
-    disc(gx, gy, r + 1, cl[0]); disc(gx, gy, r, cl[1]); disc(gx, gy, Math.max(1, r - 2), cl[2]);
+    // One shot image (version 179: it was three discs of the same sizes and colours, twelve images made as it first charged).
+    const [dx, dy] = bossMouth(b), cl = BOSS_SHOT[b.kind], r = 3 + Math.floor((b.t * 24) % 4);
+    shot(cl[0], cl[1], cl[2], r, Math.round(x + dx), Math.round(y + dy));
   }
 }
 // A shot is its outline, body and hot core: drawn once per colour set and size into a small image and stamped (one
@@ -8811,13 +8854,20 @@ function ringImg() {
 function shotImg(o, m, h, r) {
   const key = o + m + h + r;
   let img = shotCache.get(key);
-  if (!img) {
+  if (!img && mayStamp()) {
     img = document.createElement('canvas'); img.width = img.height = 2 * r + 3;
     const g = img.getContext('2d');
     discRows(g, r + 1, r + 1, r + 1, o); discRows(g, r + 1, r + 1, r, m); discRows(g, r + 1, r + 1, Math.max(1, r - 2), h);
     shotCache.set(key, img);
   }
   return img;
+}
+// A shot of radius r with its middle at (x, y) on the pilot's canvas. Its image is made in the thin shaft
+// (bossWarmStep); one that wasn't is drawn as its three discs, the same pixels, since a fight makes no images.
+function shot(o, m, h, r, x, y) {
+  const img = shotImg(o, m, h, r);
+  if (img) c.drawImage(img, x - r - 1, y - r - 1);
+  else { discRows(c, x, y, r + 1, o); discRows(c, x, y, r, m); discRows(c, x, y, Math.max(1, r - 2), h); }
 }
 function drawBossShots(sy) {
   if (!bossShots.length) return;
@@ -8840,7 +8890,7 @@ function drawBossShots(sy) {
         c.fillStyle = LURE_GLOW[0]; c.fillRect(x, y - 90, 1, 84);
         if (q > 0.55 && on) { c.fillStyle = m; for (let yy = y + 12; yy < H; yy += 8) c.fillRect(x - s.w / 2, yy, 3, 3), c.fillRect(x + s.w / 2 - 3, yy, 3, 3); }
         if (on) c.drawImage(ringImg(), x - 12, y - 12);
-        c.drawImage(shotImg(LURE_GLOW[0], LURE_GLOW[1], LURE_GLOW[2], r), x - r - 1, y - r - 1);
+        shot(LURE_GLOW[0], LURE_GLOW[1], LURE_GLOW[2], r, x, y);
       } else {
         const w = s.w + (s.t - s.warn < 0.06 ? 8 : 0), l = x - w / 2;
         c.fillStyle = o; c.fillRect(l - 1, 0, w + 2, H);
@@ -8948,7 +8998,7 @@ function drawBossShots(sy) {
         const q = s.t / s.warn, on = Math.floor(s.t * (5 + 14 * q)) % 2;
         c.lineWidth = 2; c.strokeStyle = on ? h : m; c.beginPath(); c.arc(x, y, s.R, 0, 2 * Math.PI); c.stroke(); c.lineWidth = 1;
         c.fillStyle = on ? h : m; c.fillRect(x - 6, y, 12, 1); c.fillRect(x, y - 6, 1, 12);
-        if (q > 0.6) { const yy = Math.round(lerp(-10, y, (q - 0.6) / 0.4)); c.drawImage(shotImg(o, m, h, 5), x - 6, yy - 6); }
+        if (q > 0.6) { const yy = Math.round(lerp(-10, y, (q - 0.6) / 0.4)); shot(o, m, h, 5, x, yy); }
       } else {
         const r = Math.round(s.R * (0.6 + 0.4 * Math.min(1, (s.t - s.warn) / 0.08)));
         for (const [rr, col] of [[r + 2, o], [r, m], [Math.round(r * 0.55), h]]) { c.fillStyle = col; c.beginPath(); c.arc(x, y, rr, 0, 2 * Math.PI); c.fill(); }
@@ -8967,7 +9017,7 @@ function drawBossShots(sy) {
     }
     if (s.type === 'drone') {   // a little drone: its body, two rotor blurs flickering, and a light while it hunts
       if (y < -10 || y > H + 10) continue;
-      c.drawImage(shotImg(o, m, h, s.r), x - s.r - 1, y - s.r - 1);
+      shot(o, m, h, s.r, x, y);
       c.fillStyle = o; c.fillRect(x - 10, y - 8, 8, 3); c.fillRect(x + 3, y - 8, 8, 3);   // two rotors on struts
       c.fillStyle = Math.floor(s.t * 20) % 2 ? h : m; c.fillRect(x - 9, y - 7, 6, 1); c.fillRect(x + 4, y - 7, 6, 1);
       if (s.t < s.home && Math.floor(s.t * 8) % 2) { c.fillStyle = P.dust; c.fillRect(x - 1, y - 1, 2, 2); }
@@ -8977,7 +9027,7 @@ function drawBossShots(sy) {
       if (y < -14 || y > H + 14) continue;
       const an = s.t * 10 * s.spin;
       c.fillStyle = o; for (let i = 0; i < 6; i++) { const a = an + i * Math.PI / 3; c.fillRect(Math.round(x + Math.cos(a) * 9) - 2, Math.round(y + Math.sin(a) * 9) - 2, 5, 5); }
-      c.drawImage(shotImg(o, m, h, s.r - 1), x - s.r, y - s.r);
+      shot(o, m, h, s.r - 1, x, y);
       c.fillStyle = o; c.fillRect(x - 1, y - 1, 3, 3);
       continue;
     }
@@ -8985,7 +9035,7 @@ function drawBossShots(sy) {
       if (y < -14 || y > H + 14) continue;
       const wig = Math.round(2 * Math.sin(s.t * 6 + s.ph));
       c.fillStyle = m; c.fillRect(x - 3 + wig, y + 4, 1, 7); c.fillRect(x, y + 5, 1, 8); c.fillRect(x + 3 - wig, y + 4, 1, 7);
-      c.drawImage(shotImg(o, m, h, s.r), x - s.r - 1, y - s.r - 1);
+      shot(o, m, h, s.r, x, y);
       continue;
     }
     if (s.type === 'beam') {
@@ -9000,7 +9050,7 @@ function drawBossShots(sy) {
       continue;
     }
     if (y < -10 || y > H + 10) continue;
-    c.drawImage(shotImg(o, m, s.type === 'bomb' && Math.floor(s.t * 8) % 2 ? P.dust : h, s.r), x - s.r - 1, y - s.r - 1);
+    shot(o, m, s.type === 'bomb' && Math.floor(s.t * 8) % 2 ? P.dust : h, s.r, x, y);
   }
 }
 
@@ -9465,6 +9515,7 @@ let last = performance.now();
 const meter = { n: 0, time: 0, cpu: 0, worst: 0 };
 function frame(now) {
   const raw = Math.max(0, (now - last) / 1000), dt = Math.min(0.05, raw); last = now;
+  stampAllow = boss ? 0 : Infinity;   // a fight makes no images (see disc)
   if (state !== 'paused') {
     const t0 = performance.now();
     // Hit-stop: the world holds still for a beat. Nothing updates during it, so nothing can collide and start another one

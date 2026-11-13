@@ -26,6 +26,9 @@ never building anything in the middle of play.
     Two gates run it for you, so it holds even for someone who has not read this file: a commit that changes
     `src/moonfall.html` (`tools/hooks/pre-commit`) and the website build (`tools/build_site.py`) both stop when it
     fails. Never skip them (`--no-verify`); fix the creature.
+11. **A Leviathan fight makes no canvas at all** (version 179). Everything it stamps is made in the thin shaft before
+    it. `python3 tools/fight_makes.py` plays all eighteen fights and fails naming the function that made one; the
+    website build runs it.
 
 ## Budgets (what the game costs now; stay inside these)
 
@@ -37,7 +40,7 @@ From the profiler's seeded 15 km run at 320 x 694 game pixels. Counts are exact 
 | Images stamped on screen | 120-185 | |
 | Pixels covered by images | 0.74-0.90 million since version 154 (was 0.8-1.1 million) | the cost a phone's graphics chip feels most |
 | Rectangles into off-screen canvases, in a fight | 315-710 | the Leviathan's paints |
-| Canvases created | **0 in steady play** | about 1,000 over a whole run, nearly all first-time use; 16-56 per fight |
+| Canvases created | **0 in steady play, 0 in a fight** | about 1,000 over a whole run, nearly all first-time use; 20-62 in the approach to a fight, at most 7 in one frame (before version 179: 22-59 in the fight itself) |
 | Page changes | about 1 | the depth read-out and the smooth-scroll nudge |
 | Page measurements (forced layouts) | 0 in the fall | 3.4 at a cafe counter (`placeSay`), tolerated |
 | Wall maths while falling | `hash` 430-620, `bossAt` 120-210, `voidAt` 77-110 calls | |
@@ -77,6 +80,14 @@ brought it back inside; `levi_budget.py` would have failed version 137 on all th
   use `fillRect`. Discs wider than 48 px radius and rings over 60 are drawn row by row every time: keep those rare.
 - **One scratch canvas for throwaway work.** `scratch(w, h)` hands out a shared 240 x 160 canvas, cleared. `checks()`
   repaints one 2 x 2 canvas for every new colour. Don't make a canvas to use once.
+- **A fight makes nothing** (version 179; the owner saw the frame rate halve the first time a Leviathan fired and
+  steady after). While a fight is on, `stampAllow` is 0: a `disc`, `ring`, shot or elder body that has no image yet is
+  drawn the direct way instead of having one made (`mayStamp()`). Their images are made in the approach, a few a frame
+  (`bossWarmStep`: the shots and charge glow, then 24 paints of the creature at different moments in the cavern's
+  settled rock colours, each step allowed four new images). Before that a fight made 22-59 small canvases: 8-30 in the
+  second before its first shot (the charge glow alone was twelve, across four frames), the rest whenever the rock's
+  colour changed or the art reached a new size. Anything new that a fight stamps must go through `mayStamp()` and be
+  made in `bossWarmStep`.
 - **Build at a quiet moment.** A fight's five paint canvases are made in the thin shaft, with the music (`bossBufs`),
   not on the fight's first frame. Wall tiles are painted a few rows a frame ahead of the camera (`prepaint`, 24 rows a
   frame). Anything big that a new feature needs should be made at a cafe, in the thin shaft, or spread the same way.
@@ -108,7 +119,8 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
   pixel). Rows of discs are what put the first drafts of the spider, frog and mantis at about three times the busiest of the others.
 - See-through glows: `disc` with `globalAlpha` below 1 is fine (it goes through the scratch canvas). A see-through
   `ring` still makes an image per colour, so give it a fixed colour.
-- Shots: one image per colour set and size (`shotImg`), with fixed colours.
+- Shots: one image per colour set and size (`shotImg`), with fixed colours, drawn with `shot()` and made in the thin
+  shaft (`bossWarmStep` lists the sizes: add a new size there). The charge glow at its mouth is a shot image too.
 - The background creature (`LEVI_DRAW[kind]`) is drawn in full every frame it is near the screen, so its count matters
   most. Keep it inside the table above.
 
@@ -189,18 +201,25 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
 4. For the Leviathans on their own: `python3 tools/levi_budget.py` (counts `fillRect` and `drawImage` while calling
    `LEVI_DRAW[kind]` and `bossStage` three times, normally and fading in, for every moon's; pass another build's file to
    compare, e.g. `git show HEAD~1:src/moonfall.html > /tmp/old.html` then `python3 tools/levi_budget.py /tmp/old.html`).
-5. **Picture unchanged?** Run both builds with `&fp=3` and compare the fingerprint lists; for frames that differ, add
+5. For what a fight builds and when: `python3 tools/fight_makes.py [game.html] [moon ...]` (headless, about 16 s a moon).
+   For each fight: canvases made in the approach, before the first shot, in the first 2 s of shots and later, with
+   their makers; and what a settled fight costs a frame, to compare two builds. `--fp=3` fingerprints the whole run.
+   Headless, a build's fingerprints differ from its own between runs in 160-670 of about 9,900 samples (2-7%, whole
+   stretches at a time), so compare three or four runs and look for frames that differ every time.
+6. **Picture unchanged?** Run both builds with `&fp=3` and compare the fingerprint lists; for frames that differ, add
    `&shot=<frame numbers>` to both (without `&fp`, so it draws the way a phone does) and compare the pictures pixel
    for pixel. Two things to know: a build differs from itself in a few 0.4 s windows from run to run (about 1% of
    samples), and in the fingerprint mode a see-through glow can differ by 1 in 255 in one colour channel. Neither is a
-   real difference. `tools/same_pixels.py` likewise reports the same 4 moments (leftCafe, launch1 twice, launch2) even
-   for a build against itself.
-6. **On a phone.** None of the above says how it feels. The game sends each run's average frame rate and worst frame
+   real difference. `tools/same_pixels.py` likewise reports the same moments even for a build against itself (4 at version 129, 8 at
+   version 178: later, cafe, shop, leftCafe, dead, launch1 twice, launch2), so run it on the old build against itself
+   first and look for anything extra.
+7. **On a phone.** None of the above says how it feels. The game sends each run's average frame rate and worst frame
    with its version, device and moon: after a release, compare those for the new version with the one before.
 
 ## Before publishing a heavy change: checklist
 
 - [ ] `python3 tools/levi_budget.py` says OK (any change a Leviathan draws).
+- [ ] `python3 tools/fight_makes.py` says OK (anything drawn in a fight: no canvas made after it starts).
 
 - [ ] Profiler run on every moon finishes with no errors.
 - [ ] No function new to this change appears high in `makers`; canvases per fight and per rock layer are in the table's range.

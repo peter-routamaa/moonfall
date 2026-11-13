@@ -9,7 +9,9 @@ web page (doctype, head, the same base styles the claude.ai page adds), fills in
 
 It refuses to build a game that should not go live, so a release cannot skip these checks whoever runs it:
   - TEST_START_M must be 0 (a test copy that starts deep in the moon must never reach the website);
-  - tools/levi_budget.py must say OK (every Leviathan inside the drawing budgets in PERFORMANCE.md).
+  - tools/levi_budget.py must say OK (every Leviathan inside the drawing budgets in PERFORMANCE.md);
+  - tools/fight_makes.py must say OK (no canvas made in the middle of a Leviathan fight; it plays all of them, about
+    a minute).
 """
 import os, re, shutil, subprocess, sys
 
@@ -20,7 +22,7 @@ SITE = 'https://peter-routamaa.github.io/moonfall/'   # where GitHub Pages serve
 url = '' if '--offline' in sys.argv else SCORES_URL
 game = open(os.path.join(ROOT, 'src', 'moonfall.html')).read()
 
-# The release gates (see the top of this file). Both stop the build before anything in docs/ is touched.
+# The release gates (see the top of this file). Each stops the build before anything in docs/ is touched.
 if not re.search(r'^const TEST_START_M = 0;', game, re.M):
     sys.exit('build_site: stopped. TEST_START_M is not 0 in src/moonfall.html; set it back to 0 before a release.')
 budget = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'levi_budget.py')], capture_output=True, text=True)
@@ -29,6 +31,12 @@ if budget.returncode != 0:
     sys.exit('build_site: stopped. tools/levi_budget.py did not pass (above); bring the Leviathan back inside the '
              'budgets in PERFORMANCE.md, or fix the check if it could not run, then build again.')
 print(budget.stdout.strip().splitlines()[-1])
+makes = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'fight_makes.py')], capture_output=True, text=True)
+if makes.returncode != 0:
+    print(makes.stdout + makes.stderr)
+    sys.exit('build_site: stopped. tools/fight_makes.py did not pass (above): something makes a canvas in the middle '
+             'of a Leviathan fight. Make it in the thin shaft instead (PERFORMANCE.md, rule 11), then build again.')
+print(makes.stdout.strip().splitlines()[-1])
 cut = game.index('</style>') + len('</style>')
 head, body = game[:cut], game[cut:].lstrip('\n')
 if url:
