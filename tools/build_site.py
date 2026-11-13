@@ -50,7 +50,7 @@ icon = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0
 page = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'
         '<meta name="theme-color" content="#1A1E2C">\n'
-        '<meta name="description" content="MoonFall: fall through a moon, dodge the walls, repair your ship.">\n'
+        '<meta name="description" content="MoonFall: fall through three moons, dodge the walls, escape the Leviathans and repair your ship.">\n'
         # Link previews (WhatsApp, iMessage, Slack, X and so on): title, line and the picture from src/share.png.
         '<meta property="og:type" content="website">\n'
         '<meta property="og:site_name" content="MoonFall">\n'
