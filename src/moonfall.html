@@ -3362,7 +3362,8 @@ const playerStart = () => ({
   x: 84, y: -30, v: 0, vx: 0, hp: hardRun ? 4 : 5, max: hardRun ? 4 : 5, inv: 0, blockT: 0, shield: 0, shieldMax: 8, orbs: 0, spare: 0, streak: 0,
   bestStreak: 0, perks: {}, perkCafe: 0, toughN: 0, bought: [], slowUntil: 0, flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false,
   fallRamp: 1, tangle: 0,
-  hits: 0, closest: Infinity, closestMine: false, leviRun: [], bossWon: false, newBadges: []   // version 108: run highlights and badges
+  hits: 0, closest: Infinity, closestMine: false, leviRun: [], bossWon: false, newBadges: [],   // version 108: run highlights and badges
+  leviFought: []   // version 192 (owner's stats): the Leviathans whose fight started this run
 });
 const player = { touch: false, ...playerStart() };
 // Version 160: the helper drone, unlocked by repairing the ship on a Hard Dive (save.droneOpen) and switched on the
@@ -5058,7 +5059,7 @@ function statPing(body) {
 }
 function countPlay() {
   if (!/^[0-9a-f]{16}$/.test(save.playerId || '')) { save.playerId = hex16(); persist(); }
-  runId = hex16(); runSecs = 0; cafesRun = 0; lastHit = ''; fasterN = 0; runFrames = 0; runRaw = 0; runWorst = 0;
+  runId = hex16(); runSecs = 0; cafesRun = 0; lastHit = ''; fasterN = 0; runFrames = 0; runRaw = 0; runWorst = 0; runPauses = 0;
   if (!introDone) { introDone = true; introRun = runId; }
   statPing({ event: 'play', player: save.playerId, run: runId, ver: VERSION, moon, ...runFlags() });
 }
@@ -5069,6 +5070,28 @@ function countPlay() {
 let lastEnd = null;
 // Version 190 (owner's stats): a Terminal Velocity run, the drone unlocked on this device, the drone flying this run.
 const runFlags = () => ({ hard: hardRun, droneOpen: droneOpen(), drone: droneRun });
+// Version 192 (owner's stats, user picked them 2026-11-13): game errors, Leviathans fought and escaped, progress on the
+// device, cafes passed and drone catches, and how the game is played (installed or in a browser, which browser, pauses).
+// Errors: how many since the last finished run's report (so ones on the title screen count too) and the first one's
+// message and place, cut to 200 characters. Nothing personal: the browser's own error text.
+let runPauses = 0, errN = 0, errFirst = null;
+const noteError = (msg, line, col) => {
+  errN++;
+  if (!errFirst) errFirst = (String(msg || 'error') + (line ? ' @' + line + ':' + (col || 0) : '')).replace(/[^\x20-\x7E]/g, '?').slice(0, 200);
+};
+addEventListener('error', e => noteError(e.message, e.lineno, e.colno));
+addEventListener('unhandledrejection', e => noteError('promise: ' + ((e.reason && e.reason.message) || e.reason)));
+const BROWSER = /FBAN|FBAV|Instagram|Snapchat|Line\/|MicroMessenger|GSA\//.test(UA) ? 'inapp' : /SamsungBrowser/.test(UA) ? 'samsung'
+  : /Edg\/|EdgA|EdgiOS/.test(UA) ? 'edge' : /OPR\/|OPiOS/.test(UA) ? 'opera' : /Firefox|FxiOS/.test(UA) ? 'firefox'
+  : /Chrome|CriOS|Chromium/.test(UA) ? 'chrome' : /Safari/.test(UA) ? 'safari' : 'other';
+const INSTALLED = () => !!(navigator.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches));
+const runMore = () => ({
+  errors: errN, error: errFirst,
+  leviFought: player.leviFought.slice(0, 20), leviEscaped: player.leviRun.slice(0, 20),
+  missions: missionsDone(), suit: Math.min(save.suit || 0, suitsOpen() - 1), badges: Object.keys(save.badges || {}).length,
+  nav: Math.round(save.nav || 0), cafesPassed: ledgesPassed(player.y), droneCaught: drone.caught || 0,
+  installed: INSTALLED(), browser: BROWSER, pauses: runPauses,
+});
 function endRun(how) {
   if (!runId) return;
   const total = Object.values(runParts).reduce((n, v) => n + v, 0);
@@ -5077,8 +5100,8 @@ function endRun(how) {
     fps: runRaw > 0 ? Math.round(runFrames / runRaw * 10) / 10 : null, worst: Math.round(runWorst * 1000),
     device: DEVICE, os: OS, screen: screen.width + 'x' + screen.height + '@' + Math.round(devicePixelRatio * 100) / 100,
     treats: player.bought.slice(0, 20), streak: player.bestStreak || 0, sound: !!save.snd, music: !!save.mus, repair: Math.round(repairFrac() * 100),
-    intro: runId === introRun && introHow ? introHow : null, ...runFlags() });
-  if (how !== 'left') runId = '';
+    intro: runId === introRun && introHow ? introHow : null, ...runFlags(), ...runMore() });
+  if (how !== 'left') { runId = ''; errN = 0; errFirst = null; }
 }
 // -- Hard Dive (version 112, idea 13): unlocked once the ship has been fixed (a finished mission). The run starts with 4
 // health, falls HARD_SPEED faster all the way down, and the Leviathans are enraged from the start. (Until version 159 it
@@ -5114,6 +5137,7 @@ function beginPlay() {
 }
 function pause() {
   if (!['play', 'intro', 'landing', 'cafe', 'cafeJump'].includes(state)) return;
+  if (runId && !document.hidden) runPauses++;   // version 192: pauses the player chose (not the game being hidden)
   prevState = state; setState('paused'); sayEl.style.visibility = 'hidden'; Sfx.wind(0); Sfx.thrust(0); Music.stop(0.15); syncToggles();
   $('perkPause').textContent = perkSummary(); $('perkPause').hidden = !player.bought.length;
   showScreen('pause');
@@ -7597,6 +7621,7 @@ function bossMusic(B, out) {
 }
 function startBoss(B) {
   const k2 = 2 * B.k, kind = leviKind(k2), mid = camY + H / 2, A = leviDepth(k2), dir = hash(k2 * 4.3 + SEED) < 0.5 ? 1 : -1;
+  if (!player.leviFought.includes(kind)) player.leviFought.push(kind);   // version 192: run stats
   const x0 = W / 2 + dir * (mid - A) * 0.14, y0 = Math.max(-170, H / 2 + (A - mid) * LEVI_PARALLAX);
   boss = { B, kind, k2, n: (B.k + 1) / 2, dir, rot: 0, turnT: -1, turnFrom: dir, sideT: 0, lastTurn: 0, kick: 0, rage: false,
     phase: 'enter', t: 0, pt: 0, x0, y0, x: x0, y: y0, next: 0.6, queue: [], charge: 0, last: '', orbs: 0, d: 0, sil: mix(palAt(A).sO, P.ink, 0.42) };

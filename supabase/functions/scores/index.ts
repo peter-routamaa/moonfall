@@ -7,6 +7,8 @@
 //                                         fps, worst, device, os, screen, treats, streak, sound, music, repair, intro, ver }; how it went
 //                                   (ver: the game's version number, e.g. 106; moon: dust, jungle or machine, version 113; both optional)
 //                                   Both run pings may carry hard, droneOpen, drone (booleans, version 190; optional).
+//                                   The end ping may carry (version 192; optional) errors, error, leviFought, leviEscaped,
+//                                   missions, suit, badges, nav, cafesPassed, droneCaught, installed, browser, pauses.
 // The game only knows this function's URL. The secret key comes from the function's own
 // environment (Supabase provides SUPABASE_URL plus SUPABASE_SECRET_KEYS on newer projects and
 // SUPABASE_SERVICE_ROLE_KEY on all), so no key is ever in the game file.
@@ -84,6 +86,18 @@ const moonOf = (v: unknown) => (v === 'dust' || v === 'jungle' || v === 'machine
 // Version 190: Terminal Velocity run, helper drone unlocked on the device, drone flying this run.
 const bool = (v: unknown) => (typeof v === 'boolean' ? v : null);
 const flags = (b: Record<string, unknown>) => ({ hard: bool(b.hard), drone_open: bool(b.droneOpen), drone: bool(b.drone) });
+// Version 192: errors, Leviathans fought and escaped, progress on the device, cafes passed, drone catches, how it's played.
+const BROWSER = new Set(['safari', 'chrome', 'firefox', 'edge', 'samsung', 'opera', 'inapp', 'other']);
+const kinds = (v: unknown) => (Array.isArray(v) && v.length <= 20 && v.every(k => typeof k === 'string' && /^[a-z]{2,16}$/.test(k)) ? v : null);
+const more = (b: Record<string, unknown>) => ({
+  errors: whole(b.errors, 100000) ? b.errors : null,
+  error: typeof b.error === 'string' && b.error.length <= 200 ? b.error.replace(/[^\x20-\x7E]/g, '?') : null,
+  levi_fought: kinds(b.leviFought), levi_escaped: kinds(b.leviEscaped),
+  missions: whole(b.missions, 10000) ? b.missions : null, suit: whole(b.suit, 100) ? b.suit : null,
+  badges: whole(b.badges, 1000) ? b.badges : null, nav: whole(b.nav, 10000) ? b.nav : null,
+  cafes_passed: whole(b.cafesPassed, 1000) ? b.cafesPassed : null, drone_caught: whole(b.droneCaught, 10000) ? b.droneCaught : null,
+  installed: bool(b.installed), browser: BROWSER.has(b.browser as string) ? b.browser : null, pauses: whole(b.pauses, 10000) ? b.pauses : null,
+});
 
 // The extra run stats are optional (older copies of the game don't send them); anything missing or malformed is stored as empty.
 function extras(b: Record<string, unknown>) {
@@ -96,7 +110,7 @@ function extras(b: Record<string, unknown>) {
     treats, streak: whole(b.streak, 100000) ? b.streak : null,
     sound: typeof b.sound === 'boolean' ? b.sound : null, music: typeof b.music === 'boolean' ? b.music : null,
     repair: whole(b.repair, 100) ? b.repair : null, intro: b.intro === 'watched' || b.intro === 'skipped' ? b.intro : null,
-    ver: version(b.ver), moon: moonOf(b.moon), ...flags(b),
+    ver: version(b.ver), moon: moonOf(b.moon), ...flags(b), ...more(b),
   };
 }
 
