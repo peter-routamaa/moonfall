@@ -42,6 +42,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
   const q = new URLSearchParams(location.search), M = window.__mf, pl = M.player, wait = ms => new Promise(f => setTimeout(f, ms));
   document.addEventListener('visibilitychange', e => e.stopImmediatePropagation(), true);
   M.save.introSeen = true; M.save.cafeTips = !q.get('first');
+  if (q.get('locked')) { M.save.droneOpen = false; M.save.drone = false; }   // &locked=1: the helper drone not earned yet (Unlocks card)
   if (M.applyMoon) { M.applyMoon(q.get('moon') || 'dust'); M.save.moon = M.moon; }   // &moon=jungle: the Jungle moon (version 113)
   if (document.fonts) await document.fonts.ready;
   await wait(300);

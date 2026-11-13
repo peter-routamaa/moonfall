@@ -97,6 +97,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .suit-lbl { font: 700 10px/1 var(--display); letter-spacing: .08em; color: var(--dust); }
 .suit-name { font: 400 21px/1 var(--body); color: var(--gold); margin-bottom: 4px; }
 .suit-note:empty { display: none; }
+.hard-box .suit-note { margin: 0; }   /* the drone's unlock line sits inside its box (version 181, user) */
 /* Version 113: the menu card is taller with the moon picker, so on short phones the NEW sticker would cover it. */
 @media (max-height: 600px) { .news { display: none; } }
 /* Version 113: the moon picker in Settings (the main menu pair was removed in version 123). The picked moon has a gold border. */
@@ -141,6 +142,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 #badgesBtn small { font: inherit; font-size: 11px; color: color-mix(in srgb, var(--dust) 75%, var(--blue)); }
 @media (max-width: 360px) { #titleFront .card-nav { column-gap: 8px; } #titleFront .card-nav .btn.settings { font-size: 11px; gap: 4px; padding-inline: 3px; letter-spacing: 0; } #titleFront .card-nav .btn.settings > svg { width: 12px; height: 12px; } }
 .best.best-big b { font-size: 22px; color: var(--gold); letter-spacing: .03em; }
+#bestTitle .unit-m { width: .99em; height: .62em; margin-left: .02em; vertical-align: baseline; }   /* the drawn m (version 181) */
 #titleScreen { padding-block: 8px 22px; gap: 8px; }
 /* The news sticker (version 99): floats in the sky under the repair panel, tilted (a 45-degree corner ribbon covered the
    end of the logo). Since version 100 it swells toward the viewer and back, its shadow growing as it lifts, instead of
@@ -696,7 +698,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <li><span class="ico"><canvas id="icoOrb" width="14" height="14"></canvas></span>Crystal: +1 health</li>
         <li><span class="ico"><canvas id="icoShield" width="28" height="28"></canvas></span>Bubble: 8s shield, hits wear it down</li>
         <li><span class="ico"><canvas id="icoPart" class="wide" width="30" height="30"></canvas></span>Gold ring: ship part, collect&nbsp;these</li>
-        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Stop at a cafe for +1 health and to visit the shop. The fall gets 5% faster after each cafe, up to 35%</li>
+        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Stop at a cafe for +1 health and to visit the shop. The fall gets 5% faster after each cafe, up to +35%</li>
       </ul>
       <button class="btn" id="howDone" type="button">Done</button>
      </div>
@@ -716,14 +718,14 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <div class="suit-box hard-box">
         <button class="set-tog" id="droneT" type="button" aria-pressed="false" aria-label="Helper drone"><span>Helper drone</span></button>
         <p class="hard-how">Falls with you and catches half of the ship parts and crystals you miss.</p>
+        <p class="suit-note" id="droneNote"></p>
       </div>
-      <p class="suit-note" id="droneNote"></p>
       <button class="btn" id="unlocksDone" type="button">Done</button>
      </div>
      <div class="card face back" id="newsBack" hidden inert aria-hidden="true">
       <h2>New features</h2>
       <ul class="news-list">
-        <li><button class="news-item" id="newsLevi" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#C64B3B" d="M2 0h4v1h-4zM1 1h6v1h-6zM0 2h8v3h-8zM1 5h6v1h-6zM2 6h4v1h-4z"/><path fill="#F2C14E" d="M3 2h2v3h-2z"/><path fill="#1A1E2C" d="M3 3h1v1h-1z"/></svg></span><span class="news-name">Leviathan chases</span><span class="news-how">Giant creatures hunt you after every second cafe. Tap to meet them!</span></button></li>
+        <li><button class="news-item" id="newsLevi" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#C64B3B" d="M2 0h4v1h-4zM1 1h6v1h-6zM0 2h8v3h-8zM1 5h6v1h-6zM2 6h4v1h-4z"/><path fill="#F2C14E" d="M3 2h2v3h-2z"/><path fill="#1A1E2C" d="M3 3h1v1h-1z"/></svg></span><span class="news-name">Leviathan chases</span><span class="news-how">Giant creatures hunt you after every second cafe. Each moon has its own creatures. Tap to meet them!</span></button></li>
         <li><button class="news-item" id="newsMoons" type="button"><span class="news-ico"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><svg class="moon-ico machine" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg></span><span class="news-name">The new moons</span><span class="news-how">Fall into the Dust moon, the Jungle moon or the Machine moon. Swap any time in Settings. Tap to learn more.</span></button></li>
         <li><button class="news-item" id="newsHard" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#E8B83A" d="M0 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1zM3 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1z"/></svg></span><span class="news-name">Terminal Velocity</span><span class="news-how">Fix the ship once to earn it: 4 health, 15% faster and raging Leviathans. Tap to see Unlocks.</span></button></li>
       </ul>
@@ -907,7 +909,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 180;
+const VERSION = 181;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -4632,6 +4634,7 @@ function pop(text, x, d, cls) {
   el.style.left = Math.round(Math.max(24, Math.min(W - 24, x)) * sc) + 'px'; el.style.top = Math.round((d - camY) * sc) + 'px';
   game.appendChild(el); setTimeout(() => el.remove(), 850);
 }
+const M_ICON = '<svg class="unit-m" viewBox="0 0 8 5" width="8" height="5" shape-rendering="crispEdges" role="img" aria-label="metres"><path fill="currentColor" d="M0 0h7v1h-7zM0 1h2v4h-2zM3 1h2v4h-2zM6 1h2v4h-2z"/></svg>';
 function syncToggles() {
   for (const id of ['sndT', 'sndP']) $(id).setAttribute('aria-pressed', String(save.snd));
   for (const id of ['musT', 'musP']) $(id).setAttribute('aria-pressed', String(save.mus));
@@ -4661,7 +4664,9 @@ function syncToggles() {
   dt.setAttribute('aria-label', droneOpen() ? 'Helper drone' : 'Helper drone, locked until the ship is repaired on Terminal Velocity');
   $('droneNote').textContent = droneOpen() ? '' : 'Repair the ship on Terminal Velocity to unlock the drone';
   $('buzzNote').hidden = Buzz.canVibrate || !save.vib;
-  $('bestTitle').textContent = fmtM(save.best) + ' m'; $('bestPause').textContent = fmtM(save.best) + ' m';
+  // Version 181 (user: the "m" is "a bit difficult to read"): the main menu's BEST uses a drawn pixel m as tall as the
+  // digits (M_ICON), like the percent sign on the speed-up banner.
+  $('bestTitle').innerHTML = fmtM(save.best) + ' ' + M_ICON; $('bestPause').textContent = fmtM(save.best) + ' m';
 }
 function toggleSound() { save.snd = !save.snd; Sfx.init(); Sfx.setOn(save.snd); persist(); syncToggles(); }
 function toggleVib() { save.vib = !save.vib; persist(); syncToggles(); if (save.vib) Buzz.test(); }
