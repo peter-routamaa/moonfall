@@ -30,7 +30,7 @@ const REST = `${BASE}/rest/v1`;
 // Fresh boards (version 213, owner 2026-11-14: "everyone to start with a fresh scoreboard ... keep old scores for the dashboard"):
 // the boards and ranks only count scores saved after this moment. Older rows stay in the table for the stats. Set it to the
 // go-live time when deploying a new season (the game's BOARD_SEASON starts each phone's own board fresh at the same release).
-const BOARD_FROM = '2026-11-14T12:00:00Z';
+const BOARD_FROM = '2026-11-14T11:23:00Z';
 const SEASON = `created_at=gt.${encodeURIComponent(BOARD_FROM)}`;
 const TOP = 10, MAX_DEPTH = 100000, PER_MINUTE = 6, PLAY_GAP_MS = 5000;
 const HEX16 = /^[0-9a-f]{16}$/, HOW = new Set(['wall', 'rock', 'mine', 'lava', 'quit', 'left']);
