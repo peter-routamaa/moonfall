@@ -1001,7 +1001,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 209;
+const VERSION = 210;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -5317,6 +5317,7 @@ function resume() {
   else if (state === 'play' || introT >= 1.3) Music.start();
 }
 function toTitle() {
+  checkUpdate();   // version 210
   const repairedThisRun = !readyStart && canLaunch();   // ready to fly since this run began: the ship or the computer finished
   endRun('quit');
   resetRun();
@@ -6907,7 +6908,37 @@ $('menuBtn').addEventListener('click', toTitle);
 $('pauseBtn').addEventListener('click', pause);
 $('resumeBtn').addEventListener('click', resume);
 $('quitBtn').addEventListener('click', toTitle);
+// ---------- updates (version 210) ----------
+// User: "let's build in an automatic reload ... so that they always get the latest version". The page is loaded once and
+// an open tab keeps running it, so a player could stay on an old version for days. The website build fills in
+// UPDATE_URL (version.json, written next to the page: {"v": VERSION}); the claude.ai copy has none and never checks.
+// It's asked when the tab comes back into view, on the way back to the menu, and every 5 minutes, at most once a minute,
+// past every cache (a fresh address and no-store). When a newer version is out, the page reloads the next time the
+// player is on the start screen or the main menu with no card open, never in a run, a film or the shop. The reload goes
+// to ?v=<new version>, a new address no cache has (GitHub Pages lets browsers keep the page 10 minutes). If the reload
+// still brings an older page (a cache that didn't let go), sessionStorage remembers the try so it can't loop.
+const UPDATE_URL = '';
+let updateTo = 0, updateAsked = 0;
+function checkUpdate() {
+  if (!UPDATE_URL || perfOn || updateTo || Date.now() - updateAsked < 60000) return;
+  updateAsked = Date.now();
+  fetch(UPDATE_URL + '?t=' + updateAsked, { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(j => {
+    const v = j && Math.floor(+j.v);
+    if (!(v > VERSION && v < 100000)) return;
+    let tried = 0; try { tried = +sessionStorage.getItem('moonfall.updateTried') || 0; } catch (e) {}
+    if (tried >= v) return;
+    updateTo = v; reloadForUpdate();
+  }).catch(() => {});
+}
+function reloadForUpdate() {
+  if (!updateTo || perfOn || document.hidden || cardSide || !(state === 'title' || state === 'splash')) return;
+  const v = updateTo; updateTo = 0;
+  try { sessionStorage.setItem('moonfall.updateTried', String(v)); } catch (e) {}
+  location.replace(location.pathname + '?v=' + v);
+}
+if (UPDATE_URL) { setInterval(checkUpdate, 300000); setInterval(reloadForUpdate, 3000); setTimeout(checkUpdate, 20000); }
 document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) checkUpdate();
   if (document.hidden) { pause(); if (state === 'title' || state === 'splash') Music.stop(0.1); if (runId && state !== 'over') endRun('left'); }
   else if (state === 'title') Music.title();
   else if (state === 'splash' && Sfx.audio()) Music.splash(splashPicked ? moon : '');

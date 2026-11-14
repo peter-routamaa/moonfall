@@ -5,7 +5,8 @@
 
 src/moonfall.html is the game exactly as published on claude.ai, where SCORES_URL is empty. This wraps it in a normal
 web page (doctype, head, the same base styles the claude.ai page adds), fills in SCORES_URL, and copies the voice clips
-(src/voices/*.wav) to docs/voices/.
+(src/voices/*.wav) to docs/voices/. It also fills in UPDATE_URL and writes docs/version.json ({"v": VERSION}), which
+open pages ask to find out a newer version is out and reload (version 210).
 
 It refuses to build a game that should not go live, so a release cannot skip these checks whoever runs it:
   - TEST_START_M must be 0 (a test copy that starts deep in the moon must never reach the website);
@@ -43,6 +44,10 @@ if url:
     assert re.fullmatch(r'https://[a-z0-9-]+\.supabase\.co/functions/v1/scores', url), url
     assert body.count("const SCORES_URL = '';") == 1, 'SCORES_URL should be empty in src/moonfall.html'
     body = body.replace("const SCORES_URL = '';", f"const SCORES_URL = '{url}';", 1)
+# Version 210: the update check. The page asks version.json (written below) whether a newer version is out.
+assert body.count("const UPDATE_URL = '';") == 1, 'UPDATE_URL should be empty in src/moonfall.html'
+body = body.replace("const UPDATE_URL = '';", "const UPDATE_URL = 'version.json';", 1)
+version = int(re.search(r'^const VERSION = (\d+);', game, re.M).group(1))
 # Favicon: a little cratered moon.
 icon = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E"
         "%3Crect width='16' height='16' fill='%231A1E2C'/%3E%3Ccircle cx='8' cy='8' r='6' fill='%23EEE8D8'/%3E"
@@ -70,4 +75,5 @@ os.makedirs(os.path.join(ROOT, 'docs'), exist_ok=True)
 open(os.path.join(ROOT, 'docs', 'index.html'), 'w').write(page)
 shutil.copytree(os.path.join(ROOT, 'src', 'voices'), os.path.join(ROOT, 'docs', 'voices'), dirs_exist_ok=True)
 shutil.copy(os.path.join(ROOT, 'src', 'share.png'), os.path.join(ROOT, 'docs', 'share.png'))   # the link preview picture
+open(os.path.join(ROOT, 'docs', 'version.json'), 'w').write('{"v": %d}\n' % version)   # what open pages ask (version 210)
 print(f'docs/index.html {len(page) // 1024} KB, scores URL: {url or "(none: offline)"}')
