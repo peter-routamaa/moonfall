@@ -1001,7 +1001,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 208;
+const VERSION = 209;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -7767,7 +7767,7 @@ const BOSS_SHOT = {
 const BOSS_AMMO = 1.25;   // version 207: volleys per attack, against version 206
 const BOSS_PAUSE = 0.6;   // version 207: the pause between attacks, against version 206 (so the shots a second go up by about 25%, not only the volleys)
 const BOSS_ENTER = 1.8, BOSS_LIFT = 1.6;   // s to come forward (and turn to dive); s of fall before the funnel when it stops firing
-const BOSS_ORBS = [4.5, 9.5, 14];                              // s into the fight when a crystal rises past
+const BOSS_ORBS = [4.5, 9.5, 14, 19];                          // s into the fight when a crystal rises past (the 4th since version 209, user: the fights are 5 s longer since 207)
 const BOSS_RAGE = 7.5, BOSS_TURN = 0.55;                       // s into the fight when it starts doubling up its patterns; s to turn round
 let boss = null, pilotNow = 180;   // the fight on now (or null), and where the pilot's top sits on screen (pilotScreenY normally)
 // The boss music starts as he enters the thin shaft, before the creature shows (version 88): the section it's for, its
