@@ -1,0 +1,26 @@
+<!-- The MoonFall app icon (version 212), 32 x 32 pixels drawn 16x. Screenshot it at 512 x 512 with headless Chrome to src/icon-512.png, then sips -z 192 192 and -z 180 180 for src/icon-192.png and src/icon-180.png. -->
+<!doctype html><html><body style="margin:0;background:#000"><canvas id="c" width="512" height="512"></canvas><script>
+const g = document.getElementById('c').getContext('2d'), Z = 16;
+const px = (x, y, col, w = 1, h = 1) => { g.fillStyle = col; g.fillRect(x * Z, y * Z, w * Z, h * Z); };
+px(0, 0, '#1A1E2C', 32, 32);
+// a few stars
+for (const [x, y] of [[4, 5], [26, 3], [29, 11], [3, 22], [7, 13], [27, 27]]) px(x, y, '#4A5068');
+for (const [x, y] of [[3, 9], [24, 7]]) px(x, y, '#EEE8D8');
+// the moon: a disc of radius 10.5 centred at (16, 19), lit cream, shaded lower right, craters
+for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+  const dx = x + 0.5 - 16, dy = y + 0.5 - 19, d = Math.hypot(dx, dy);
+  if (d > 10.6) continue;
+  let col = '#EEE8D8';
+  if (Math.hypot(dx + 3.2, dy + 3.2) > 11.2) col = '#C9C2B2';   // the shaded rim, lower right
+  if (d > 9.9) col = '#8E8777';
+  px(x, y, col);
+}
+for (const [cx, cy, r] of [[12, 16, 2.2], [19, 22, 2.6], [20, 14, 1.4], [11, 23, 1.2]]) for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+  const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
+  if (d <= r) px(x, y, d > r - 0.9 && x + 0.5 < cx ? '#9C9585' : '#B7B0A1');
+}
+// a falling streak toward the moon: a fading blue trail and a hot gold head
+const trail = [[5, 1, '#24365E'], [6, 2, '#2B4A8F'], [7, 3, '#2B4A8F'], [8, 4, '#3F78D0'], [9, 5, '#3F78D0'], [10, 6, '#7FB0F0']];
+for (const [x, y, c] of trail) { px(x, y, c); px(x + 1, y, c); }
+px(11, 7, '#F2C14E', 2, 2); px(12, 7, '#FFF0B0'); px(13, 8, '#A9781B'); px(11, 9, '#A9781B', 2, 1);
+</script></body></html>

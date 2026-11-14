@@ -17,6 +17,7 @@ Play it at **https://peter-routamaa.github.io/moonfall/**. The `docs` folder is 
 | `src/share.png` | The link preview picture (1200 × 630) shown when the game's address is shared in WhatsApp, iMessage and so on. The build copies it to `docs/` and adds the preview tags. |
 | `src/voices/` | The pilot's voice clips, recorded for MoonFall (64 kbps mono MP3), loaded by the game when sound starts. |
 | `docs/index.html`, `docs/voices/`, `docs/version.json` | The website copy, built from `src/` by `tools/build_site.py`. Don't edit these by hand. Open pages ask `version.json` for the latest version and reload on the menu when a newer one is out (version 210). |
+| `src/icon-180.png`, `src/icon-192.png`, `src/icon-512.png`, `tools/icon.html` | The app icon for phones' Home Screens (version 212), drawn by `tools/icon.html`. The build copies them to `docs/` and writes `docs/manifest.json`, so the game can be added to a Home Screen and open full screen. |
 | `PERFORMANCE.md` | **Performance rules.** Read it before adding anything drawn or worked out every frame (a Leviathan, a moon, a hazard, a layer, an effect): the rules, today's per-frame budgets, and how to measure. |
 | `tools/` | Build, test and screenshot scripts (see *Working on the game*). |
 | `supabase/migrations/20261031000000_scores.sql` | Creates the online high score table. |

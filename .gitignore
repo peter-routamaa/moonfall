@@ -5,3 +5,4 @@ tools/.chrome/
 *.png
 !docs/**/*.png
 !src/share.png
+!src/icon-*.png

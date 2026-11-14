@@ -14,7 +14,7 @@ It refuses to build a game that should not go live, so a release cannot skip the
   - tools/fight_makes.py must say OK (no canvas made in the middle of a Leviathan fight, and no burst of them in a
     frame while he is moving; it plays all the fights, about a minute).
 """
-import os, re, shutil, subprocess, sys
+import json, os, re, shutil, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCORES_URL = 'https://ukjajizsnowmdjziqkof.supabase.co/functions/v1/scores'   # public; it's in the built page anyway
@@ -55,6 +55,10 @@ icon = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0
 page = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'
         '<meta name="theme-color" content="#1A1E2C">\n'
+        # Version 212: a Home Screen app (full screen, its own icon; on iPhone its saved progress is kept, see the notes).
+        '<link rel="manifest" href="manifest.json">\n<link rel="apple-touch-icon" href="icon-180.png">\n'
+        '<meta name="apple-mobile-web-app-capable" content="yes">\n<meta name="mobile-web-app-capable" content="yes">\n'
+        '<meta name="apple-mobile-web-app-title" content="MoonFall">\n<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\n'
         '<meta name="description" content="MoonFall: fall through three moons, dodge the walls, escape the Leviathans and repair your ship.">\n'
         # Link previews (WhatsApp, iMessage, Slack, X and so on): title, line and the picture from src/share.png.
         '<meta property="og:type" content="website">\n'
@@ -75,5 +79,13 @@ os.makedirs(os.path.join(ROOT, 'docs'), exist_ok=True)
 open(os.path.join(ROOT, 'docs', 'index.html'), 'w').write(page)
 shutil.copytree(os.path.join(ROOT, 'src', 'voices'), os.path.join(ROOT, 'docs', 'voices'), dirs_exist_ok=True)
 shutil.copy(os.path.join(ROOT, 'src', 'share.png'), os.path.join(ROOT, 'docs', 'share.png'))   # the link preview picture
+for f in ('icon-180.png', 'icon-192.png', 'icon-512.png'): shutil.copy(os.path.join(ROOT, 'src', f), os.path.join(ROOT, 'docs', f))
+json.dump({'name': 'MoonFall', 'short_name': 'MoonFall', 'description': 'Fall through three moons, dodge the walls, escape the Leviathans and repair your ship.',
+           'id': './', 'start_url': './', 'scope': './', 'display': 'standalone', 'orientation': 'portrait',
+           'background_color': '#1A1E2C', 'theme_color': '#1A1E2C',
+           'icons': [{'src': 'icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'},
+                     {'src': 'icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'},
+                     {'src': 'icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'}]},
+          open(os.path.join(ROOT, 'docs', 'manifest.json'), 'w'), indent=1)   # version 212: the Home Screen app
 open(os.path.join(ROOT, 'docs', 'version.json'), 'w').write('{"v": %d}\n' % version)   # what open pages ask (version 210)
 print(f'docs/index.html {len(page) // 1024} KB, scores URL: {url or "(none: offline)"}')
