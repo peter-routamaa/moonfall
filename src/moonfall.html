@@ -1001,7 +1001,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 210;
+const VERSION = 211;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -3555,8 +3555,13 @@ for (const f of VOICE_CLIPS) { clipBytes[f] = fetchClip(f); clipBytes[f].catch((
 const Sfx = (() => {
   // Two outputs: master carries the sound effects and voices (Sound FX switch); musicOut carries the music (its own switch).
   let ctx = null, master = null, musicOut = null, noiseBuf = null, windGain = null, windF = null, thrGain = null;
+  // Version 211 (a tester on an iPhone: after switching apps and coming back there was no sound until the game was
+  // reopened). iOS puts the audio context in an 'interrupted' state when another app takes the sound, and this only
+  // resumed a 'suspended' one, so it stayed silent. Now any state but running (or closed) is resumed: on every tap, key
+  // and button press (the listeners below), and when the page comes back into view.
+  function wake() { if (ctx && ctx.state !== 'running' && ctx.state !== 'closed') { try { const p = ctx.resume(); if (p && p.catch) p.catch(() => {}); } catch (e) {} } }
   function init() {
-    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+    if (ctx) { wake(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     try {
@@ -3670,7 +3675,7 @@ const Sfx = (() => {
   }
   let lastThr = -1, lastWind = -1;
   return {
-    init,
+    init, wake,
     audio: () => ctx ? { ctx, master, musicOut, noiseBuf } : null,
     // Called every frame, so they skip tiny changes: iPhones slow down when audio controls get a new target every frame.
     thrust(v) { if (thrGain && Math.abs(v - lastThr) > 0.015) { lastThr = v; thrGain.gain.setTargetAtTime(v * 0.07, ctx.currentTime, 0.04); } },
@@ -6937,8 +6942,10 @@ function reloadForUpdate() {
   location.replace(location.pathname + '?v=' + v);
 }
 if (UPDATE_URL) { setInterval(checkUpdate, 300000); setInterval(reloadForUpdate, 3000); setTimeout(checkUpdate, 20000); }
+for (const ev of ['pointerdown', 'touchend', 'keydown']) addEventListener(ev, () => Sfx.wake(), { capture: true, passive: true });   // version 211
+addEventListener('pageshow', () => Sfx.wake());
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) checkUpdate();
+  if (!document.hidden) { checkUpdate(); Sfx.wake(); }
   if (document.hidden) { pause(); if (state === 'title' || state === 'splash') Music.stop(0.1); if (runId && state !== 'over') endRun('left'); }
   else if (state === 'title') Music.title();
   else if (state === 'splash' && Sfx.audio()) Music.splash(splashPicked ? moon : '');
