@@ -27,6 +27,11 @@ function secretKey() {
 const BASE = Deno.env.get('SUPABASE_URL') ?? '';
 const KEY = secretKey();
 const REST = `${BASE}/rest/v1`;
+// Fresh boards (version 213, owner 2026-11-14: "everyone to start with a fresh scoreboard ... keep old scores for the dashboard"):
+// the boards and ranks only count scores saved after this moment. Older rows stay in the table for the stats. Set it to the
+// go-live time when deploying a new season (the game's BOARD_SEASON starts each phone's own board fresh at the same release).
+const BOARD_FROM = '2026-11-14T12:00:00Z';
+const SEASON = `created_at=gt.${encodeURIComponent(BOARD_FROM)}`;
 const TOP = 10, MAX_DEPTH = 100000, PER_MINUTE = 6, PLAY_GAP_MS = 5000;
 const HEX16 = /^[0-9a-f]{16}$/, HOW = new Set(['wall', 'rock', 'mine', 'lava', 'quit', 'left']);
 const DEVICE = new Set(['phone', 'tablet', 'desktop']), OS = new Set(['android', 'ios', 'windows', 'mac', 'chromeos', 'linux', 'other']);
@@ -46,9 +51,9 @@ const auth: Record<string, string> = { apikey: KEY, ...(KEY.startsWith('eyJ') ? 
 const reply = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 
-// kid: the Kid mode board (version 197); every older score is on the normal one.
+// kid: the Kid mode board (version 197); every older score is on the normal one. Only this season's scores (BOARD_FROM).
 async function top(kid: boolean) {
-  const r = await fetch(`${REST}/scores?select=id,initials,depth,escaped,moon&kid=eq.${kid}&order=depth.desc,id.asc&limit=${TOP}`, { headers: auth });
+  const r = await fetch(`${REST}/scores?select=id,initials,depth,escaped,moon&kid=eq.${kid}&${SEASON}&order=depth.desc,id.asc&limit=${TOP}`, { headers: auth });
   if (!r.ok) throw new Error(`top: ${r.status} ${await r.text()}`);
   const rows = await r.json();
   return rows.map((s: { initials: string }) => (BAD.has(s.initials) ? { ...s, initials: '???' } : s));
@@ -181,7 +186,7 @@ Deno.serve(async req => {
     const kid = body?.kid === true;
     const row = await insert('scores', { initials, depth, who, escaped, moon: moonOf(body?.moon), kid }, true);
     // Rank on its own board, in the same order as the table: deeper first, earlier run first on a tie.
-    const above = await count('scores', `kid=eq.${kid}&or=(depth.gt.${depth},and(depth.eq.${depth},id.lt.${row.id}))`);
+    const above = await count('scores', `kid=eq.${kid}&${SEASON}&or=(depth.gt.${depth},and(depth.eq.${depth},id.lt.${row.id}))`);
     return reply({ top: await top(kid), rank: above + 1, id: row.id });
   } catch (e) {
     console.error(e);

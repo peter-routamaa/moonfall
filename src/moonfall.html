@@ -1001,7 +1001,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 211;
+const VERSION = 213;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -5385,6 +5385,21 @@ if (!Array.isArray(save.outbox)) save.outbox = [];
 // best and its own online board (the function's ?kid=1). A run counts as Kid mode when any kid setting was off normal.
 if (!Array.isArray(save.kidScores)) save.kidScores = [];
 if (!Number.isFinite(save.kidBest)) save.kidBest = 0;
+// Fresh boards (version 213, owner 2026-11-14: "everyone to start with a fresh scoreboard today ... keep old scores"): a new
+// BOARD_SEASON starts this device's boards and bests at zero. Nothing is deleted: the old ones move to save.oldBoards (one entry
+// per season), with any scores still waiting to be sent, which would otherwise land on the fresh online board. The function's
+// BOARD_FROM does the same for the online boards; raise both together.
+const BOARD_SEASON = 2;
+if (!(save.season >= BOARD_SEASON)) {
+  const from = save.season || 1, had = save.scores.length || save.kidScores.length || save.best || save.kidBest || save.outbox.length;
+  if (had) {
+    if (!save.oldBoards || typeof save.oldBoards !== 'object') save.oldBoards = {};
+    save.oldBoards['s' + from] = { scores: save.scores, kidScores: save.kidScores, best: save.best, kidBest: save.kidBest, outbox: save.outbox, until: Date.now() };
+  }
+  save.scores = []; save.kidScores = []; save.best = 0; save.kidBest = 0; save.outbox = [];
+  delete save.boardCache; delete save.kidBoardCache;
+  save.season = BOARD_SEASON; persist();
+}
 let scoreOpen = false, hsPending = 0, hsSlot = 0, hsNew = -1, hsHold = 0, hsFrom = 'over';
 let hsTab = 'local', hsOnline = null, hsBusy = false, hsErr = '', hsKid = false, hsNewKid = false;   // hsKid: the Kid mode board is showing
 const hsScores = () => hsKid ? save.kidScores : save.scores;
@@ -10035,13 +10050,13 @@ $('verTag').addEventListener('click', () => {
 }
 
 function start(data) {
-  if (data && typeof data.best === 'number' && data.best > save.best) save.best = data.best;
+  if (data && typeof data.best === 'number' && data.best > save.best && data.season === save.season) save.best = data.best;   // not across a fresh board (v213)
   if (data && data.parts) for (const pt of PARTS) save.parts[pt.id] = Math.max(save.parts[pt.id], data.parts[pt.id] || 0);
   addEventListener('resize', resize);
   buildRepair(); resize(); buildShip(); drawIcons(); resetRun(); syncToggles(); renderRepair(); showScreen('title'); placeHorizon();
   setState('splash'); showScreen('splash');
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { placeHorizon(); measureCafeCard(); });
-  window.claude?.hot?.snapshot?.(() => ({ best: save.best, parts: save.parts }));
+  window.claude?.hot?.snapshot?.(() => ({ best: save.best, season: save.season, parts: save.parts }));
   applyMoon(save.moon);
   ringsAhead();
 requestAnimationFrame(t => { last = t; frame(t); });

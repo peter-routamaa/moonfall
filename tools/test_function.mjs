@@ -8,7 +8,8 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const src = stripTypeScriptTypes(readFileSync(process.argv[2] || root + 'supabase/functions/scores/index.ts', 'utf8'));
 mkdirSync(root + 'tools/out', { recursive: true });
-writeFileSync(root + 'tools/out/function.mjs', src);
+// The board's start time (BOARD_FROM) is set to a fixed past moment here, so scores saved during the test are on the board.
+writeFileSync(root + 'tools/out/function.mjs', src.replace(/const BOARD_FROM = '[^']*'/, "const BOARD_FROM = '2026-11-05T00:00:00Z'"));
 
 // Fake Deno (env and serve) and a fake PostgREST for the `scores` and `plays` tables: just enough of GET with filters,
 // POST, PATCH and count=exact for what the function uses.
@@ -23,7 +24,7 @@ globalThis.fetch = async (url, init = {}) => {
   let r = db[table].slice();
   for (const col of ['who', 'player']) if (q.get(col)) r = r.filter(x => x[col] === q.get(col).slice(3));
   if (table === 'scores' && q.get('kid')) r = r.filter(x => !!x.kid === (q.get('kid') === 'eq.true'));   // version 197
-  if (q.get('created_at')) r = r.filter(x => x.created_at > q.get('created_at').slice(3));
+  for (const c of q.getAll('created_at')) r = r.filter(x => x.created_at > c.slice(3));   // gt. only; the board's season and the spam check
   if (q.get('or')) { const m = q.get('or').match(/depth\.gt\.(\d+),and\(depth\.eq\.(\d+),id\.lt\.(\d+)\)/); r = r.filter(x => x.depth > +m[1] || (x.depth === +m[2] && x.id < +m[3])); }
   if (h.Prefer === 'count=exact') return new Response('[]', { headers: { 'content-range': r.length ? `0-0/${r.length}` : `*/0` } });
   r.sort((a, b) => b.depth - a.depth || a.id - b.id);
@@ -54,7 +55,7 @@ await call('POST', { initials: 'MNX', depth: 340, moon: 'mars' }, 'n');
 check('unknown moon stored as null', db.scores.find(x => x.initials === 'MNX').moon === null, db.scores);
 check('rude initials refused', (await call('POST', { initials: 'ass', depth: 300 }, 'b'))[0] === 400, null);
 check('bad depth refused', (await call('POST', { initials: 'ABC', depth: -5 }, 'c'))[0] === 400, null);
-db.scores.push({ id: 99, initials: 'FUK', depth: 900, who: null, created_at: '2026-01-01' });
+db.scores.push({ id: 99, initials: 'FUK', depth: 900, who: null, created_at: '2026-11-06' });
 const masked = (await call('GET'))[1].top.map(t => t.initials + t.depth).join(' ');
 check('rude names already stored show as ???', masked === '???900 ABC500 ESC400 JGL350 MCH345 MNX340 JNK300', masked);
 const burst = []; for (let k = 0; k < 8; k++) burst.push((await call('POST', { initials: 'SPM', depth: 5 }, 'spam'))[0]);
@@ -107,6 +108,15 @@ const n1 = await call('POST', { initials: 'NRM', depth: 5, kid: 'yes' }, '9.9.9.
 check('kid other than true is a normal score', db.scores.find(x => x.initials === 'NRM').kid === false && !n1[1].top.some(t => t.initials === 'KID'), n1);
 await call('POST', { event: 'play', player: 'abcdefabcdef0197', run: '0197019701970197', kid: true });
 check('kid flag on a run', db.plays.find(x => x.run === '0197019701970197').kid === true, db.plays.at(-1));
+
+// Fresh boards (version 213): scores from before BOARD_FROM stay in the table but aren't on either board or counted in ranks.
+db.scores.push({ id: 500, initials: 'OLD', depth: 99000, who: null, created_at: '2026-11-01T10:00:00.000Z', kid: false },
+  { id: 501, initials: 'OLK', depth: 99000, who: null, created_at: '2026-11-04T10:00:00.000Z', kid: true });
+check('old score not on the board', !(await call('GET'))[1].top.some(t => t.initials === 'OLD'), (await call('GET'))[1]);
+check('old kid score not on the kid board', !(await kidGet()).top.some(t => t.initials === 'OLK'), await kidGet());
+const f1 = await call('POST', { initials: 'NEW', depth: 98000 }, '9.9.9.4');
+check('rank ignores old scores', f1[0] === 200 && f1[1].rank === 1 && f1[1].top[0].initials === 'NEW', f1);
+check('old rows kept', db.scores.some(x => x.initials === 'OLD') && db.scores.some(x => x.initials === 'OLK'), null);
 
 console.log(failed ? `${failed} failed, ${passed} passed` : `all ${passed} checks passed`);
 process.exit(failed ? 1 : 0);
