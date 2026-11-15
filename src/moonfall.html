@@ -1001,13 +1001,16 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ONLINE: SCORES_URL is the Supabase function for the shared high score board and the owner's private play stats.
 //   It's empty here; tools/build_site.py fills it in for the website (see the repo's README).
 //
-// SECTIONS, in order (search for "// ---------- " to jump between them): canvas and palette, helpers (with the drawing
-//   helpers: fillPoly, fillEllipse, limb, bez, bpx, bline), sprites, ship parts, the shaft, Leviathans (one entry per
-//   kind in LEVIATHANS: its numbers, colours, attacks, background shape and fight art together), alien life, the moon
-//   surface, game state, saved settings, sound and his voice, music, haptics, DOM, flow, high scores, coffee stop (cafes:
-//   drawing, landing, the shop, the signs), board flags, the opening film, the launch, input, signature hazards (one
-//   entry per hazard in HAZARDS), level generation, damage and pickups, boss fights (the attacks in BOSS_ATTACKS, their
-//   shots in SHOT_TYPES), update, render, sizing and loop.
+// SECTIONS, in order (search for "// ---------- " to jump between them; each name is its header's text up to any ':' or
+//   '('): canvas and palette, helpers (with the drawing helpers: fillPoly, fillEllipse, limb, bez, bpx, bline), sprites,
+//   ship parts, the shaft, Leviathans (one entry per kind in LEVIATHANS: its numbers, colours, attacks, background shape
+//   and fight art together), alien life on the walls and in the shaft, the moon surface, game state, saved settings (and
+//   what a save holds), sound (and his voice), music, haptics, DOM (elements and the HUD), settings and Kid mode, the
+//   title card and its faces, confirm dialogs, run stats, flow, menu buttons, high scores, coffee stop (cafes: drawing,
+//   landing, the counter, the shop, the signs), badges, board flags, the opening film, fireworks, the launch, phones,
+//   updates, input, hazards (one entry per hazard in HAZARDS), level generation, effects, damage and pickups, the helper
+//   drone, boss fights (the attacks in BOSS_ATTACKS, their shots in SHOT_TYPES), update, render, cinematic touches,
+//   sizing and loop, the performance self-test.
 // TABLES THAT ARE CHECKED: checkHazards and checkLeviathans run once at load and report a missing or wrong field
 //   (console.error and window.__mfProblems, which tools/smoke.py fails on). Each registry starts with "To add a ...".
 // MOONS (version 113; three since version 145): `moon` is 'dust' (the original), 'jungle' or 'machine'. applyMoon()
@@ -1696,9 +1699,18 @@ function palAt(d, smooth) {
   }
   return Q;
 }
+// Lava pockets: the shaft is cut into LAVA_Q px stretches (lavaQ(d) is the one at depth d), and a stretch's pocket, if
+// it has one (lavaSide), is in the same place in it: a lens of lava in the wall from LAVA_TOP px down, LAVA_LEN tall and
+// LAVA_DEEP deep at its middle (lavaThick: how deep at ld px into the stretch), and below it a stream down the wall face
+// from LAVA_STREAM to LAVA_MOUTH, where the drops fall from (dropList). drawRow paints it into the wall tiles, drawShaft
+// the live flickers; life and critters keep wall creatures off a pocket's side.
+const LAVA_Q = 180, LAVA_Q_M = LAVA_Q / PX_PER_M, LAVA_TOP = 40, LAVA_LEN = 48, LAVA_DEEP = 26, LAVA_STREAM = 80, LAVA_MOUTH = 160;
+const lavaQ = d => Math.floor(d / LAVA_Q);
+const lavaThick = ld => Math.round(LAVA_DEEP * Math.sin(Math.PI * (ld - LAVA_TOP) / LAVA_LEN));
 function lavaSide(q) {
-  if (q < 2 || cavernAt(q * 180 + 90) > 0.02 || voidAt(q * 180) || voidAt(q * 180 + 180) || bossAt(q * 180) || bossAt(q * 180 + 180)) return 0;
-  const h = hash(q * 5.1 + 3 + SEED), pr = matI(Math.floor(q * 22.5 / ZONE_M)) === 3 ? 0.42 : 0.28;
+  const d0 = q * LAVA_Q, d1 = d0 + LAVA_Q;
+  if (q < 2 || cavernAt(d0 + LAVA_Q / 2) > 0.02 || voidAt(d0) || voidAt(d1) || bossAt(d0) || bossAt(d1)) return 0;
+  const h = hash(q * 5.1 + 3 + SEED), pr = matI(Math.floor(q * LAVA_Q_M / ZONE_M)) === 3 ? 0.42 : 0.28;
   return h < pr ? -1 : h < pr * 2 ? 1 : 0;
 }
 function mossSide(q) { const h = hash(q * 3.3 + 9 + SEED); return h < 0.3 ? -1 : h < 0.6 ? 1 : 0; }
@@ -1741,9 +1753,9 @@ function drawRow(g, d, y, e) {
   if (moon === 'machine' && d > 6) machineRow(g, d, y, Q);
   if (d < 4) { g.fillStyle = d < 2 ? S.dust : S.shade; g.fillRect(0, y, W, 1); }
   g.fillStyle = Q.shade; g.fillRect(L - 6, y, R - L + 12, 1);
-  const q2 = Math.floor(d / 180), ls = lavaSide(q2), ld = d - q2 * 180;
-  if (ls && ld >= 40 && ld <= 88) {
-    const th = Math.round(26 * Math.sin(Math.PI * (ld - 40) / 48));
+  const q2 = lavaQ(d), ls = lavaSide(q2), ld = d - q2 * LAVA_Q;
+  if (ls && ld >= LAVA_TOP && ld <= LAVA_TOP + LAVA_LEN) {
+    const th = lavaThick(ld);
     if (th > 0) {
       const x0 = ls < 0 ? L - th - 6 : R;
       g.fillStyle = P.crust; g.fillRect(x0, y, th + 6, 1);
@@ -1755,7 +1767,7 @@ function drawRow(g, d, y, e) {
   g.fillStyle = Q.sO; g.fillRect(L, y, R - L, 1);
   g.fillStyle = Q.sI; g.fillRect(L + 8, y, R - L - 16, 1);
   if (ls && ld >= 30 && ld <= 100) { g.fillStyle = Q.glow; g.fillRect(ls < 0 ? L : R - 12, y, 12, 1); }
-  if (ls && ld > 80 && ld <= 160) { g.fillStyle = P.crust; g.fillRect(ls < 0 ? L : R - 5, y, 5, 1); }
+  if (ls && ld > LAVA_STREAM && ld <= LAVA_MOUTH) { g.fillStyle = P.crust; g.fillRect(ls < 0 ? L : R - 5, y, 5, 1); }
   const q3 = Math.floor(d / 140), ms = mossSide(q3), md = d - q3 * 140;
   if (ms && ms !== ls && md > 16 && md < 116 && d > 60) {
     let len = Math.round((2 + hash(d * 1.9) * 8) * Math.sin(Math.PI * (md - 16) / 100)) + 1;
@@ -2164,18 +2176,18 @@ function drawShaft(cam) {
     c.drawImage(wt, t.wr, 0, W - t.wr, TILE_H, t.wr, y, W - t.wr, TILE_H);
   }
   // Lava flickers stay live, but only rows that have lava are visited.
-  for (let q2 = Math.floor((top + y0) / 180); q2 * 180 <= top + H; q2++) {
+  for (let q2 = lavaQ(top + y0); q2 * LAVA_Q <= top + H; q2++) {
     const ls = lavaSide(q2);
     if (!ls) continue;
-    for (let ld = 40; ld <= 160; ld++) {
-      const d = q2 * 180 + ld, y = d - top;
+    for (let ld = LAVA_TOP; ld <= LAVA_MOUTH; ld++) {
+      const d = q2 * LAVA_Q + ld, y = d - top;
       if (y < y0 || y >= H) continue;
       const e = edgeAt(d), L = e.L, R = e.R;
-      if (ld <= 88 && hash(d * 7 + f8) < 0.12) {
-        const th = Math.round(26 * Math.sin(Math.PI * (ld - 40) / 48));
+      if (ld <= LAVA_TOP + LAVA_LEN && hash(d * 7 + f8) < 0.12) {
+        const th = lavaThick(ld);
         if (th > 0) { c.fillStyle = P.dust; c.fillRect((ls < 0 ? L - th - 6 : R) + 4 + Math.floor(hash(d + f8) * th), y, 2, 1); }
       }
-      if (ld > 80) { c.fillStyle = (((d - fl) % 14) + 14) % 14 < 4 ? P.hot : P.lava; c.fillRect((ls < 0 ? L : R - 5) + 1, y, 3, 1); }
+      if (ld > LAVA_STREAM) { c.fillStyle = (((d - fl) % 14) + 14) % 14 < 4 ? P.hot : P.lava; c.fillRect((ls < 0 ? L : R - 5) + 1, y, 3, 1); }
     }
   }
 }
@@ -3645,7 +3657,7 @@ function life(cam) {
   const q1 = Math.floor((cam + H + 60) / 60);
   for (let q = Math.max(2, Math.floor((cam - 60) / 60)); q <= q1; q++) {
     const type = Math.floor(hash(q * 4.7 + 1 + SEED) * 7), side = hash(q * 2.3 + 5 + SEED) < 0.5 ? -1 : 1;
-    if (type !== 2 && lavaSide(Math.floor((q * 60 + 30) / 180)) === side) continue;
+    if (type !== 2 && lavaSide(lavaQ(q * 60 + 30)) === side) continue;
     if (cavernAt(q * 60 + 30) > 0.3) continue;
     const da = q * 60 + 30, e = edgeAt(da), ex = side < 0 ? e.L : e.R, y = Math.round(da - cam);
     if (type === 0 || type === 6) {
@@ -3733,7 +3745,7 @@ function critters(cam) {
     if (kind < 0.45) {
       // Jellies sit in glowing pockets inside the rock, just behind the wall face.
       const d = q * 150 + 75, e = edgeAt(d), wx = side < 0 ? e.L - 16 : e.R + 16;
-      if (wx < 10 || wx > W - 10 || lavaSide(Math.floor(d / 180)) === side) continue;
+      if (wx < 10 || wx > W - 10 || lavaSide(lavaQ(d)) === side) continue;
       const yy = Math.round(d - cam + Math.sin(clock * 1.6 + q) * 2);
       disc(wx, yy - 1, 10, S.ink); disc(wx, yy - 1, 9, palAt(d).sO);
       ring(wx, yy - 3, 8 + Math.round(Math.sin(clock * 3 + q)), S.bio, 1);
@@ -3806,9 +3818,9 @@ function addDrop(src, x, d, ls) {
 }
 function dropList(cam) {
   DROPS.length = 0;
-  for (let q = Math.floor((cam - 180) / 180); q <= Math.floor((cam + H) / 180); q++) {
+  for (let q = lavaQ(cam - LAVA_Q); q <= lavaQ(cam + H); q++) {
     const ls = lavaSide(q); if (!ls) continue;
-    const md = q * 180 + 160, e = edgeAt(md), mx = ls < 0 ? e.L + 1 : e.R - 5;
+    const md = q * LAVA_Q + LAVA_MOUTH, e = edgeAt(md), mx = ls < 0 ? e.L + 1 : e.R - 5;
     addDrop(1, mx, md, ls);
     for (let i = 0; i < 4; i++) {
       const ph = (clock * 0.8 + i / 4 + hash(q + SEED)) % 1;
@@ -4468,6 +4480,32 @@ function speedAt(d) {
 }
 
 // ---------- saved settings ----------
+// What a save holds (localStorage 'moonfall.v1'), one field a line, and where a missing or old value is repaired. The
+// repairs stay beside the code that owns each field, as some need things defined later in the script.
+//   best, kidBest     deepest run in metres, standard and Kid mode; kidBest repaired in high scores
+//   snd, mus, vib     sound, music, vibration on or off (defaults here)
+//   fps, cap, inv     frame counter shown, the 60 FPS cap, inverted thrusters (Settings; defaults here, inv unset)
+//   moon              the moon picked; applyMoon falls back to 'dust' for an unknown one
+//   parts             ship parts collected, by part id; repaired just below
+//   nav               crystals paid into the navigation computer; repaired just below
+//   dives, launches   runs this mission (cleared with the repair) and ship launches ever
+//   missionsDone, missionDone   finished missions, and whether this repair was already counted; missionsDone() in
+//                     sprites fills them in from launches on an old save
+//   suit              the suit colour picked (Unlocks); clamped to the unlocked ones where it's read (suitMap)
+//   hard              Terminal Velocity switched on (Unlocks)
+//   droneOpen, drone, droneNew   the helper drone unlocked, switched on, and not yet announced (set in collect)
+//   kid               Kid mode's settings; kidSettings() below repairs them whenever they're read (v197-200 saves too)
+//   hints             which one-time hints were shown (the void and each hazard kind); default here
+//   badges            badge id: when earned; repaired in badges
+//   scores, kidScores, outbox   this device's top 10s and the scores waiting to be sent; repaired in high scores
+//   initials          the last initials entered; checked (three capitals) wherever they're read
+//   season, oldBoards the board season, and earlier seasons' boards kept when a fresh one starts (high scores)
+//   boardCache, kidBoardCache   the online top 10s for the gravestones, kept 2 minutes (board flags)
+//   playerId          random ID for the private play stats; made or remade in countPlay (run stats)
+//   leviMet, leviLast the Leviathans met from each moon's bag and the last one met (the shaft); made when first used
+//   leviBeaten        Leviathan kind: times escaped (boss fights); made when first used
+//   cafeVisits, cafeTips   cafes visited ever, and the TIPS card seen (coffee stop)
+//   homeHint          the iPhone Home Screen hint dismissed (phones)
 const save = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false, cap: true, hints: {} };   // cap: the 60 FPS cap (version 208, on unless switched off)
 try { Object.assign(save, JSON.parse(localStorage.getItem('moonfall.v1') || '{}')); } catch (e) {}
 save.parts = Object.assign({ plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 }, save.parts);
@@ -5554,7 +5592,7 @@ const Buzz = (() => {
   };
 })();
 
-// ---------- DOM ----------
+// ---------- DOM: elements and the HUD ----------
 const $ = id => document.getElementById(id);
 $('verTag').textContent = 'v0.' + VERSION + (TEST_START_M ? ' TEST' : '');
 const hud = $('hud'), hpBox = $('hp'), depthEl = $('depth'), coach = $('coach');
@@ -5760,6 +5798,22 @@ function pop(text, x, d, cls) {
   el.style.left = Math.round(Math.max(24, Math.min(W - 24, x)) * sc) + 'px'; el.style.top = Math.round((d - camY) * sc) + 'px';
   game.appendChild(el); setTimeout(() => el.remove(), 850);
 }
+function drawIcons() {
+  const o = $('icoOrb').getContext('2d'); o.clearRect(0, 0, 14, 14); sprite(o, ORB, 0, 0, MAPGRN);
+  const s = $('icoShield').getContext('2d'); s.clearRect(0, 0, 28, 28); drawBubble(14, 14, 0, s);
+  const pc = $('icoPart').getContext('2d'); pc.clearRect(0, 0, 30, 30); drawPart(PARTS[0], 15, 15, 0.15, pc);
+  const mg = $('icoCafe').getContext('2d'); mg.clearRect(0, 0, 14, 14);
+  mg.fillStyle = P.lite; mg.fillRect(3, 0, 1, 2); mg.fillRect(6, 1, 1, 2);
+  mg.fillStyle = P.dust; mg.fillRect(1, 4, 9, 10); mg.fillRect(10, 6, 3, 1); mg.fillRect(12, 6, 1, 5); mg.fillRect(10, 10, 3, 1);
+  mg.fillStyle = P.blue; mg.fillRect(1, 8, 9, 2);
+  for (const cv2 of [$('icoSpare'), ...document.querySelectorAll('.ico-orb')]) {
+    const g = cv2.getContext('2d');
+    g.clearRect(0, 0, 14, 14);
+    sprite(g, ORB, 0, 0, MAPGRN);
+  }
+}
+
+// ---------- settings and Kid mode ----------
 const M_ICON = '<svg class="unit-m" viewBox="0 0 8 5" width="8" height="5" shape-rendering="crispEdges" role="img" aria-label="metres"><path fill="currentColor" d="M0 0h7v1h-7zM0 1h2v4h-2zM3 1h2v4h-2zM6 1h2v4h-2z"/></svg>';
 function syncToggles() {
   for (const id of ['sndT', 'sndP']) $(id).setAttribute('aria-pressed', String(save.snd));
@@ -5812,39 +5866,34 @@ $('hardT').addEventListener('click', () => { if (!hardOpen()) return; if (!save.
 $('droneT').addEventListener('click', () => { if (!droneOpen()) return; save.drone = !save.drone; persist(); syncToggles(); });
 function toggleMusic() { save.mus = !save.mus; Sfx.init(); Music.setOn(); persist(); syncToggles(); }
 for (const id of ['musT', 'musP']) $(id).addEventListener('click', toggleMusic);
-function drawIcons() {
-  const o = $('icoOrb').getContext('2d'); o.clearRect(0, 0, 14, 14); sprite(o, ORB, 0, 0, MAPGRN);
-  const s = $('icoShield').getContext('2d'); s.clearRect(0, 0, 28, 28); drawBubble(14, 14, 0, s);
-  const pc = $('icoPart').getContext('2d'); pc.clearRect(0, 0, 30, 30); drawPart(PARTS[0], 15, 15, 0.15, pc);
-  const mg = $('icoCafe').getContext('2d'); mg.clearRect(0, 0, 14, 14);
-  mg.fillStyle = P.lite; mg.fillRect(3, 0, 1, 2); mg.fillRect(6, 1, 1, 2);
-  mg.fillStyle = P.dust; mg.fillRect(1, 4, 9, 10); mg.fillRect(10, 6, 3, 1); mg.fillRect(12, 6, 1, 5); mg.fillRect(10, 10, 3, 1);
-  mg.fillStyle = P.blue; mg.fillRect(1, 8, 9, 2);
-  for (const cv2 of [$('icoSpare'), ...document.querySelectorAll('.ico-orb')]) {
-    const g = cv2.getContext('2d');
-    g.clearRect(0, 0, 14, 14);
-    sprite(g, ORB, 0, 0, MAPGRN);
+// Kid mode (version 197): its tile in Settings opens the kid card; Done goes back to Settings.
+const KID_SLIDERS = { mines: 'kidMines', drops: 'kidDrops', hp: 'kidHp', fall: 'kidFall', shots: 'kidShots' };
+function syncKid() {
+  const k = kidSettings();
+  for (const key in KID_SLIDERS) {
+    const el = $(KID_SLIDERS[key]), out = $(KID_SLIDERS[key] + 'V'), [lo, hi] = KID_RANGE[key];
+    el.value = k[key]; el.style.setProperty('--fill', (k[key] - lo) / (hi - lo) * 100 + '%');
+    // Version 200 (owner: the % signs were hard to read): the drawn pixel percent, as on the speed-up banner.
+    const word = k[key] === KID_NORMAL[key] ? 'NORMAL' : k[key] === 0 ? 'NONE' : '';
+    out.innerHTML = word || k[key] + PCT_ICON;
+    out.classList.toggle('normal', k[key] === KID_NORMAL[key]);
+    el.setAttribute('aria-valuetext', word || k[key] + '%');
   }
+  $('kidSpeedT').setAttribute('aria-pressed', String(k.speed));
+  const on = kidOn(k), kb = $('kidBtn');
+  kb.dataset.on = String(on); kb.setAttribute('aria-label', 'Kid mode, ' + (on ? 'on' : 'off'));
+  $('kidReset').disabled = !on;
 }
+for (const key in KID_SLIDERS) $(KID_SLIDERS[key]).addEventListener('input', e => {
+  save.kid = Object.assign(kidSettings(), { [key]: +e.target.value }); persist(); syncKid(); syncToggles();
+});
+$('kidSpeedT').addEventListener('click', () => { const k = kidSettings(); save.kid = Object.assign(k, { speed: !k.speed }); persist(); syncKid(); syncToggles(); });
+$('kidReset').addEventListener('click', () => { save.kid = Object.assign({}, KID_NORMAL); persist(); syncKid(); syncToggles(); Sfx.bleep(330); });
+$('kidBtn').addEventListener('click', () => setCard('kid'));
+$('kidDone').addEventListener('click', () => setCard(kidFromNews ? 'news' : 'settings'));   // version 201: back to New features if opened there
+syncKid();
 
-// ---------- flow ----------
-function resetRun() {
-  newSeed(); sayEl.style.visibility = ''; sq.q = sq.v = 0;
-  rocks = []; items = []; particles = []; hazards = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; lastHazD = -9999; steerAcc = 0;
-  for (const k in runParts) runParts[k] = 0;
-  leviSeen.clear();
-  drone.ox = 24; drone.oy = -20; drone.mode = 'follow'; drone.it = null; drone.lock = null; drone.caught = 0; drone.hp = undefined; drone.chatAt = 0;
-  $('partsRun').textContent = '0'; repair = repairFrac(); repairStart = repair; readyStart = canLaunch();
-  Object.assign(player, playerStart());
-  player.hp = player.max = Math.round(player.max * kidRun.hp);   // Kid mode health (version 201)
-  cafeVisited.clear(); cafeRetire(); signArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
-  buildHP(); $('spareRun').textContent = '0'; spareHud.hidden = true; streakFlash.classList.remove('on'); speedFlash.classList.remove('on'); speedRush = 0; buildFlags(); refreshBoard();
-  Music.reset();
-  sayEl.hidden = true;
-  boss = null; bossShots.length = 0; bossGone.clear(); pilotNow = pilotScreenY; hud.classList.remove('boss'); bossTune = -1; bossTuneOn = false;
-  shake = 0; dieT = 0; camY = camY0; shownDepth = -1;
-  setHP(); setDepth();
-}
+// ---------- the title card and its faces ----------
 // Title card flips over to show settings or instructions on its back.
 let cardSide = null, readTimer = 0;
 // Both flip cards (the main menu's and the cafe's) turn the same way: a front face and named back faces share one grid cell
@@ -6072,6 +6121,11 @@ $('unlocksBtn').addEventListener('click', () => setCard('unlocks'));
 $('unlocksDone').addEventListener('click', () => setCard(unlocksFromNews ? 'news' : null));   // version 160: back one step if opened from New features
 $('badgeDone').addEventListener('click', () => setCard(null));
 $('howBtn').addEventListener('click', () => setCard('how'));
+$('settingsBtn').addEventListener('click', () => setCard('settings'));
+$('howDone').addEventListener('click', () => setCard(null));
+$('settingsDone').addEventListener('click', () => setCard(null));
+
+// ---------- confirm dialogs ----------
 // Reset ship repair (Settings): two confirmations, the second sterner, before the parts are cleared.
 const confirmDlg = $('confirmDlg');
 let confirmStep = 0, resetTimer = 0, confirmHard = false, confirmFrom = 'resetBtn';
@@ -6129,35 +6183,8 @@ $('confirmYes').addEventListener('click', () => {
   clearTimeout(resetTimer); resetTimer = setTimeout(() => (b.textContent = 'Reset ship repair'), 2500);
 });
 confirmDlg.addEventListener('close', () => { $(confirmFrom).focus({ preventScroll: true }); confirmHard = false; });
-$('settingsBtn').addEventListener('click', () => setCard('settings'));
-$('howDone').addEventListener('click', () => setCard(null));
-$('settingsDone').addEventListener('click', () => setCard(null));
-// Kid mode (version 197): its tile in Settings opens the kid card; Done goes back to Settings.
-const KID_SLIDERS = { mines: 'kidMines', drops: 'kidDrops', hp: 'kidHp', fall: 'kidFall', shots: 'kidShots' };
-function syncKid() {
-  const k = kidSettings();
-  for (const key in KID_SLIDERS) {
-    const el = $(KID_SLIDERS[key]), out = $(KID_SLIDERS[key] + 'V'), [lo, hi] = KID_RANGE[key];
-    el.value = k[key]; el.style.setProperty('--fill', (k[key] - lo) / (hi - lo) * 100 + '%');
-    // Version 200 (owner: the % signs were hard to read): the drawn pixel percent, as on the speed-up banner.
-    const word = k[key] === KID_NORMAL[key] ? 'NORMAL' : k[key] === 0 ? 'NONE' : '';
-    out.innerHTML = word || k[key] + PCT_ICON;
-    out.classList.toggle('normal', k[key] === KID_NORMAL[key]);
-    el.setAttribute('aria-valuetext', word || k[key] + '%');
-  }
-  $('kidSpeedT').setAttribute('aria-pressed', String(k.speed));
-  const on = kidOn(k), kb = $('kidBtn');
-  kb.dataset.on = String(on); kb.setAttribute('aria-label', 'Kid mode, ' + (on ? 'on' : 'off'));
-  $('kidReset').disabled = !on;
-}
-for (const key in KID_SLIDERS) $(KID_SLIDERS[key]).addEventListener('input', e => {
-  save.kid = Object.assign(kidSettings(), { [key]: +e.target.value }); persist(); syncKid(); syncToggles();
-});
-$('kidSpeedT').addEventListener('click', () => { const k = kidSettings(); save.kid = Object.assign(k, { speed: !k.speed }); persist(); syncKid(); syncToggles(); });
-$('kidReset').addEventListener('click', () => { save.kid = Object.assign({}, KID_NORMAL); persist(); syncKid(); syncToggles(); Sfx.bleep(330); });
-$('kidBtn').addEventListener('click', () => setCard('kid'));
-$('kidDone').addEventListener('click', () => setCard(kidFromNews ? 'news' : 'settings'));   // version 201: back to New features if opened there
-syncKid();
+
+// ---------- run stats (sent to the private play stats) ----------
 // Private stats for the owner's Supabase dashboard: a random ID made once per device (no name, nothing personal),
 // one ping when a run starts and one when it ends with how long it lasted, how deep it got and how it ended.
 // Both pings carry the game's VERSION (version 106), so the stats can be split by version.
@@ -6247,6 +6274,25 @@ function endRun(how) {
     treats: player.bought.slice(0, 20), streak: player.bestStreak || 0, sound: !!save.snd, music: !!save.mus, repair: Math.round(repairFrac() * 100),
     intro: runId === introRun && introHow ? introHow : null, ...runFlags(), ...runMore(), ...runSmooth() });
   if (how !== 'left') { runId = ''; errN = 0; errFirst = null; }
+}
+
+// ---------- flow ----------
+function resetRun() {
+  newSeed(); sayEl.style.visibility = ''; sq.q = sq.v = 0;
+  rocks = []; items = []; particles = []; hazards = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; lastHazD = -9999; steerAcc = 0;
+  for (const k in runParts) runParts[k] = 0;
+  leviSeen.clear();
+  drone.ox = 24; drone.oy = -20; drone.mode = 'follow'; drone.it = null; drone.lock = null; drone.caught = 0; drone.hp = undefined; drone.chatAt = 0;
+  $('partsRun').textContent = '0'; repair = repairFrac(); repairStart = repair; readyStart = canLaunch();
+  Object.assign(player, playerStart());
+  player.hp = player.max = Math.round(player.max * kidRun.hp);   // Kid mode health (version 201)
+  cafeVisited.clear(); cafeRetire(); signArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
+  buildHP(); $('spareRun').textContent = '0'; spareHud.hidden = true; streakFlash.classList.remove('on'); speedFlash.classList.remove('on'); speedRush = 0; buildFlags(); refreshBoard();
+  Music.reset();
+  sayEl.hidden = true;
+  boss = null; bossShots.length = 0; bossGone.clear(); pilotNow = pilotScreenY; hud.classList.remove('boss'); bossTune = -1; bossTuneOn = false;
+  shake = 0; dieT = 0; camY = camY0; shownDepth = -1;
+  setHP(); setDepth();
 }
 // -- Hard Dive (version 112, idea 13): unlocked once the ship has been fixed (a finished mission). The run starts with 4
 // health, falls HARD_SPEED faster all the way down, and the Leviathans are enraged from the start. (Until version 159 it
@@ -6349,6 +6395,53 @@ function gameOver() {
   showScreen('over');
   setTimeout(() => { if (state === 'over') $('againBtn').focus({ preventScroll: true }); }, 50);
 }
+
+// ---------- menu buttons ----------
+let armTimer = 0;
+$('newMissionBtn').addEventListener('click', e => {
+  const b = e.currentTarget;
+  if (!b.dataset.armed) {
+    b.dataset.armed = '1'; b.textContent = 'Tap again to reset';
+    armTimer = setTimeout(() => { delete b.dataset.armed; b.textContent = 'New mission'; }, 4000);
+    return;
+  }
+  clearTimeout(armTimer); delete b.dataset.armed; b.textContent = 'New mission';
+  for (const pt of PARTS) save.parts[pt.id] = 0;
+  save.dives = 0; save.nav = 0; missionsDone(); save.missionDone = false;   // the next finished mission counts (version 112)
+  persist(); toTitle();
+});
+$('endTitleBtn').addEventListener('click', toTitle);
+$('launchBtn').addEventListener('click', startLaunch);
+$('overLaunchBtn').addEventListener('click', () => { toTitle(); startLaunch(); });
+$('startBtn').addEventListener('click', () => startRun(false));
+// Start screen (version 115): Choose Moon opens the two moons; Start stays grey until one is picked, then plays the intro
+// on that moon (the moon behind the buttons changes as soon as it's picked). Nothing is picked to begin with.
+let splashPicked = false;
+$('chooseBtn').addEventListener('click', () => {
+  Sfx.init(); Sfx.bleep(990);
+  $('chooseBtn').hidden = true; $('splashMoons').hidden = false;
+  setTimeout(() => $('splashMoons').querySelector('.splash-moon').focus({ preventScroll: true }), 0);
+});
+for (const b of document.querySelectorAll('.splash-moon')) b.addEventListener('click', () => {
+  if (state !== 'splash') return;
+  const m = b.dataset.moon;
+  if (m !== moon) applyMoon(m);
+  save.moon = moon; persist(); syncMoon(); splashPicked = true; Sfx.bleep(MOON_BLEEP[moon]); Sfx.moonName(moon); Music.pick(moon);
+  for (const o of document.querySelectorAll('.splash-moon')) o.setAttribute('aria-pressed', String(o === b));
+  $('splashBtn').disabled = false;
+});
+$('splashBtn').addEventListener('click', () => { if (splashPicked) startOpening(); });
+// The start screen's music (version 120) starts on the first tap or key anywhere on it (sound needs a tap first).
+const splashMusic = () => { if (state === 'splash') { Sfx.init(); Music.splash(splashPicked ? moon : ''); } };
+document.addEventListener('click', splashMusic, true);
+document.addEventListener('keydown', splashMusic, true);
+$('introSkip').addEventListener('click', () => { if (state === 'opening') endOpening('skipped'); });
+// (Settings had a Watch the intro button until version 123; the user removed it to save space.)
+$('againBtn').addEventListener('click', () => startRun(true));
+$('menuBtn').addEventListener('click', toTitle);
+$('pauseBtn').addEventListener('click', pause);
+$('resumeBtn').addEventListener('click', resume);
+$('quitBtn').addEventListener('click', toTitle);
 
 // ---------- high scores: the top 10 on this device, and an optional online board ----------
 // Online board: the URL of the `scores` Supabase Edge Function (see README.md). Empty = this device only.
@@ -6797,53 +6890,6 @@ function placeSay(C) {
   const top = (by - camY) * sc, card = shopEl.hidden ? Infinity : $('cafeFlip').getBoundingClientRect().top - game.getBoundingClientRect().top;
   sayEl.classList.toggle('covered', top + sayEl.offsetHeight + 4 > card);
 }
-
-// ---------- badges (version 108): saved on the phone in save.badges (id: when earned) ----------
-const BADGES = [
-  ['cafe', 'First cafe', 'Land at a cafe'],
-  ['clean', 'Not a scratch', 'Reach a cafe without a hit'],
-  ['deep', '3,000 m', 'Fall 3,000 m in one run'],
-  ['streak', 'Streak 24', 'Skim 24 rocks or mines in a row'],
-  // Version 188 (user): Leviathans are escaped, not beaten, in every line the player reads.
-  ['levi', 'Monster down', 'Escape a Leviathan'],
-  ['all6', 'Dust hunter', 'Escape all six Dust Leviathans'],   // version 204 (user): named for the Dust moon, like the other two (it always counted only the Dust six, LEVI_KINDS)
-  ['jungle3', 'Jungle hunter', 'Escape all six Jungle Leviathans'],   // version 113 (three then); six since version 130, and anyone who had it keeps it
-  ['machine6', 'Machine hunter', 'Escape all six Machine Leviathans'],   // version 145
-  ['repair', 'Mechanic', 'Repair the ship'],   // version 205 (user)
-  ['drone', 'Co-pilot', 'Earn the helper drone'],   // version 205 (user)
-];
-if (!save.badges || typeof save.badges !== 'object') save.badges = {};
-// Version 205: players who repaired the ship or earned the drone before these badges existed get them quietly.
-if (!save.badges.repair && (missionsDone() > 0 || repairFrac() >= 1)) save.badges.repair = Date.now();
-if (!save.badges.drone && save.droneOpen) save.badges.drone = Date.now();
-function award(id) {
-  if (perfOn || save.badges[id]) return;
-  const b = BADGES.find(x => x[0] === id);
-  if (!b) return;
-  save.badges[id] = Date.now(); persist();
-  player.newBadges.push(b[1]);
-  pop('BADGE: ' + b[1].toUpperCase(), player.x, player.y - 30, 'part');
-  Sfx.part(); Buzz.part();
-}
-const MEDAL = '<svg viewBox="0 0 10 10" shape-rendering="crispEdges" aria-hidden="true"><path fill="var(--lava)" d="M2 0h2v3h-2zM6 0h2v3h-2z"/><path fill="var(--gold-dk)" d="M3 3h4v1h-4zM2 4h6v5h-6zM3 9h4v1h-4z"/><path fill="var(--gold)" d="M3 4h4v5h-4zM2 5h6v3h-6z"/><path fill="var(--dust)" d="M4 5h1v1h-1z"/></svg>';
-// The menu's Badges button: the medal and how many are earned (version 133).
-function badgesButton() {
-  const ico = $('badgesBtn').querySelector('.medal-ico'); if (ico) ico.outerHTML = MEDAL;
-  $('badgesCount').textContent = BADGES.filter(b => save.badges[b[0]]).length + '/' + BADGES.length;
-}
-function fillBadges() {
-  const list = $('badgeList'); list.innerHTML = '';
-  let n = 0;
-  for (const [id, name, how] of BADGES) {
-    const got = !!save.badges[id]; if (got) n++;
-    const li = document.createElement('li'); li.classList.toggle('got', got);
-    li.innerHTML = MEDAL;
-    const a = document.createElement('span'); a.className = 'badge-name'; a.textContent = name.toUpperCase() + (got ? '' : ' (not yet)');
-    const h = document.createElement('span'); h.className = 'badge-how'; h.textContent = how;
-    li.append(a, h); list.append(li);
-  }
-  $('badgeHint').textContent = n + ' of ' + BADGES.length + ' earned';
-}
 function updateCafe(dt) {
   cafeT += dt;
   const C = cafeInfo(cafeK), t = cafeT, crossed = at => t >= at && t - dt < at, standY = C.Dl - 28;
@@ -7096,6 +7142,53 @@ function drawCafeSigns(cam) {
     c.fillStyle = P.lava;
     ARROW.forEach((row, ry) => { for (let rx = 0; rx < 5; rx++) if (row[rx] === '1') c.fillRect(a.ax + rx * a.z, ay + ry * a.z, a.z, a.z); });
   }
+}
+
+// ---------- badges (version 108): saved on the phone in save.badges (id: when earned) ----------
+const BADGES = [
+  ['cafe', 'First cafe', 'Land at a cafe'],
+  ['clean', 'Not a scratch', 'Reach a cafe without a hit'],
+  ['deep', '3,000 m', 'Fall 3,000 m in one run'],
+  ['streak', 'Streak 24', 'Skim 24 rocks or mines in a row'],
+  // Version 188 (user): Leviathans are escaped, not beaten, in every line the player reads.
+  ['levi', 'Monster down', 'Escape a Leviathan'],
+  ['all6', 'Dust hunter', 'Escape all six Dust Leviathans'],   // version 204 (user): named for the Dust moon, like the other two (it always counted only the Dust six, LEVI_KINDS)
+  ['jungle3', 'Jungle hunter', 'Escape all six Jungle Leviathans'],   // version 113 (three then); six since version 130, and anyone who had it keeps it
+  ['machine6', 'Machine hunter', 'Escape all six Machine Leviathans'],   // version 145
+  ['repair', 'Mechanic', 'Repair the ship'],   // version 205 (user)
+  ['drone', 'Co-pilot', 'Earn the helper drone'],   // version 205 (user)
+];
+if (!save.badges || typeof save.badges !== 'object') save.badges = {};
+// Version 205: players who repaired the ship or earned the drone before these badges existed get them quietly.
+if (!save.badges.repair && (missionsDone() > 0 || repairFrac() >= 1)) save.badges.repair = Date.now();
+if (!save.badges.drone && save.droneOpen) save.badges.drone = Date.now();
+function award(id) {
+  if (perfOn || save.badges[id]) return;
+  const b = BADGES.find(x => x[0] === id);
+  if (!b) return;
+  save.badges[id] = Date.now(); persist();
+  player.newBadges.push(b[1]);
+  pop('BADGE: ' + b[1].toUpperCase(), player.x, player.y - 30, 'part');
+  Sfx.part(); Buzz.part();
+}
+const MEDAL = '<svg viewBox="0 0 10 10" shape-rendering="crispEdges" aria-hidden="true"><path fill="var(--lava)" d="M2 0h2v3h-2zM6 0h2v3h-2z"/><path fill="var(--gold-dk)" d="M3 3h4v1h-4zM2 4h6v5h-6zM3 9h4v1h-4z"/><path fill="var(--gold)" d="M3 4h4v5h-4zM2 5h6v3h-6z"/><path fill="var(--dust)" d="M4 5h1v1h-1z"/></svg>';
+// The menu's Badges button: the medal and how many are earned (version 133).
+function badgesButton() {
+  const ico = $('badgesBtn').querySelector('.medal-ico'); if (ico) ico.outerHTML = MEDAL;
+  $('badgesCount').textContent = BADGES.filter(b => save.badges[b[0]]).length + '/' + BADGES.length;
+}
+function fillBadges() {
+  const list = $('badgeList'); list.innerHTML = '';
+  let n = 0;
+  for (const [id, name, how] of BADGES) {
+    const got = !!save.badges[id]; if (got) n++;
+    const li = document.createElement('li'); li.classList.toggle('got', got);
+    li.innerHTML = MEDAL;
+    const a = document.createElement('span'); a.className = 'badge-name'; a.textContent = name.toUpperCase() + (got ? '' : ' (not yet)');
+    const h = document.createElement('span'); h.className = 'badge-how'; h.textContent = how;
+    li.append(a, h); list.append(li);
+  }
+  $('badgeHint').textContent = n + ' of ' + BADGES.length + ' earned';
 }
 // ---------- board flags: where runs on the high score board ended, marked by a gravestone on the shaft wall ----------
 let flags = [], nextFlag = 0;
@@ -7866,51 +7959,6 @@ function showEnd() {
   showScreen('end');
   setTimeout(() => { if (state === 'ended') $('endTitleBtn').focus({ preventScroll: true }); }, 50);
 }
-let armTimer = 0;
-$('newMissionBtn').addEventListener('click', e => {
-  const b = e.currentTarget;
-  if (!b.dataset.armed) {
-    b.dataset.armed = '1'; b.textContent = 'Tap again to reset';
-    armTimer = setTimeout(() => { delete b.dataset.armed; b.textContent = 'New mission'; }, 4000);
-    return;
-  }
-  clearTimeout(armTimer); delete b.dataset.armed; b.textContent = 'New mission';
-  for (const pt of PARTS) save.parts[pt.id] = 0;
-  save.dives = 0; save.nav = 0; missionsDone(); save.missionDone = false;   // the next finished mission counts (version 112)
-  persist(); toTitle();
-});
-$('endTitleBtn').addEventListener('click', toTitle);
-$('launchBtn').addEventListener('click', startLaunch);
-$('overLaunchBtn').addEventListener('click', () => { toTitle(); startLaunch(); });
-$('startBtn').addEventListener('click', () => startRun(false));
-// Start screen (version 115): Choose Moon opens the two moons; Start stays grey until one is picked, then plays the intro
-// on that moon (the moon behind the buttons changes as soon as it's picked). Nothing is picked to begin with.
-let splashPicked = false;
-$('chooseBtn').addEventListener('click', () => {
-  Sfx.init(); Sfx.bleep(990);
-  $('chooseBtn').hidden = true; $('splashMoons').hidden = false;
-  setTimeout(() => $('splashMoons').querySelector('.splash-moon').focus({ preventScroll: true }), 0);
-});
-for (const b of document.querySelectorAll('.splash-moon')) b.addEventListener('click', () => {
-  if (state !== 'splash') return;
-  const m = b.dataset.moon;
-  if (m !== moon) applyMoon(m);
-  save.moon = moon; persist(); syncMoon(); splashPicked = true; Sfx.bleep(MOON_BLEEP[moon]); Sfx.moonName(moon); Music.pick(moon);
-  for (const o of document.querySelectorAll('.splash-moon')) o.setAttribute('aria-pressed', String(o === b));
-  $('splashBtn').disabled = false;
-});
-$('splashBtn').addEventListener('click', () => { if (splashPicked) startOpening(); });
-// The start screen's music (version 120) starts on the first tap or key anywhere on it (sound needs a tap first).
-const splashMusic = () => { if (state === 'splash') { Sfx.init(); Music.splash(splashPicked ? moon : ''); } };
-document.addEventListener('click', splashMusic, true);
-document.addEventListener('keydown', splashMusic, true);
-$('introSkip').addEventListener('click', () => { if (state === 'opening') endOpening('skipped'); });
-// (Settings had a Watch the intro button until version 123; the user removed it to save space.)
-$('againBtn').addEventListener('click', () => startRun(true));
-$('menuBtn').addEventListener('click', toTitle);
-$('pauseBtn').addEventListener('click', pause);
-$('resumeBtn').addEventListener('click', resume);
-$('quitBtn').addEventListener('click', toTitle);
 // ---------- phones (version 212) ----------
 // User: "Build it" (after a review of iPhone and Android problems; see the notes, 2026-11-14).
 // 1. Home Screen. Safari wipes a site's saved data after 7 days of Safari use without a visit (ship repair, unlocks,
@@ -8077,7 +8125,7 @@ addEventListener('keyup', e => {
 // Switching windows while steering loses the key's release: let go of both (version 214).
 addEventListener('blur', () => { keys.l = keys.r = false; });
 
-// ---------- signature hazards: glazed ice and crumbling ledges ----------
+// ---------- hazards: three on each moon, one entry each in HAZARDS ----------
 // Ice: glazed stretches of wall that bounce him back across the shaft (no damage). Sandstone: ledges that shake, then
 // drop a tumbling boulder (an ordinary rock that moves). Each shows or warns before it can hurt, timed by how soon he'll
 // reach it (its distance over his fall speed). Basalt, magma and amethyst had ice spikes, lava geysers and crystal
@@ -8643,6 +8691,8 @@ function voidContents(V, d0) {
   }
   lastRockD = Math.max(lastRockD, V.B);
 }
+
+// ---------- effects: sparks, bursts, explosions ----------
 function burst(x, d, col, big) {
   const an = Math.random() * Math.PI * 2, s = (big ? 60 : 40) + Math.random() * 90;
   particles.push({
@@ -8726,6 +8776,63 @@ const HURT_AS = { thorn: 'rock', spore: 'lava', crush: 'rock', saw: 'rock', lase
 // A shield lasts SHIELD_S (8 s since version 80, was 10); a mine takes half of it, any other hit a quarter.
 const SHIELD_S = 8, SHIELD_MINE_CUT = 0.5, SHIELD_HIT_CUT = 0.25, CLOSE_PX = 10;
 let orbChain = 0, lastOrbT = -9;
+function collect(it) {
+  it.dead = true;
+  squash(-0.14);
+  if (it.kind === 'orb') {
+    player.orbs++;
+    // Crystals caught close together chime a step higher each time.
+    orbChain = clock - lastOrbT < 2.5 ? Math.min(orbChain + 1, 7) : 0; lastOrbT = clock;
+    Buzz.orb(); Sfx.orb(orbChain);
+    gainCrystal(it.x, it.d);
+    sparks(it.x, it.d, [P.dust, P.grnL, P.grn], 10);
+    particles.push({ ring: 1, x: it.x, d: it.d, t: 0, life: 0.35 });
+  } else if (it.kind === 'part') {
+    const pt = it.part;
+    runParts[pt.id]++;
+    if (save.parts[pt.id] < pt.need) {
+      save.parts[pt.id]++; persist();
+      const was = repair; repair = repairFrac();
+      if (was < 1 && repair >= 1) {
+        showCoach(navDone() ? 'SHIP REPAIRED! LAUNCH IT FROM THE MAIN MENU' : 'SHIP REPAIRED! NOW BUY THE NAV COMPUTER AT A CAFE', 3500); Sfx.repaired(); Buzz.shield();
+        sparks(player.x, player.y + PILOT_CY, ['#F2C14E', '#FFFFFF', '#A9781B', P.hot], 40, 16);
+        award('repair');   // version 205
+        // Version 160: repaired on a Hard Dive: the helper drone unlocks and joins him at once.
+        if (hardRun && !save.droneOpen) {
+          save.droneOpen = true; save.drone = true; save.droneNew = true; persist(); droneRun = true;
+          award('drone');   // version 205
+          drone.ox = player.x > W / 2 ? -24 : 24; drone.oy = -60; drone.mode = 'back';
+          drone.hp = player.hp; drone.chatAt = clock + 6; setTimeout(() => Sfx.droneHello(), 900);
+          setTimeout(() => { if (state === 'play') showCoach('HELPER DRONE UNLOCKED!', 3000); }, 3700);
+        }
+      }
+    }
+    fly('part', it.x, it.d, $('partsHud'), () => { $('partsRun').textContent = PARTS.reduce((n, q) => n + runParts[q.id], 0); }, pt);
+    Buzz.part(); Sfx.part(); faceJoy = clock;
+    pop('+1 ' + pt.name.toUpperCase(), it.x, it.d - 12, 'part');
+    sparks(it.x, it.d, ['#F2C14E', '#FFFFFF', '#A9781B'], 10);
+  } else {
+    giveShield(SHIELD_S + (player.perks.longshield ? 5 : 0)); Buzz.shield(); Sfx.shield();
+    pop('SHIELD', it.x, it.d - 12, 'shield');
+    sparks(it.x, it.d, [P.pur, P.purL, P.dust], 12);
+  }
+}
+
+// Passing a rock or mine within a few pixels builds a streak; every 8 pays a crystal, every 24 a short shield.
+function nearMiss(k) {
+  if (state !== 'play' || player.shield > 0 || player.inv > 0) return;
+  player.streak++; player.bestStreak = Math.max(player.bestStreak, player.streak);
+  const gap = Math.max(0, Math.round((k.minN - 1) * (k.rr + HIT_HALF_W)));
+  if (gap < player.closest) { player.closest = gap; player.closestMine = !!k.isMine; }
+  if (player.streak >= 24) award('streak');
+  Sfx.close(player.streak);
+  pop('CLOSE!', k.x, k.d - k.rr - 8, 'close');
+  if (player.streak % 24 === 0) { giveShield(5); Sfx.streak(); Buzz.shield(); pop('STREAK SHIELD', player.x, player.y - 18, 'shield'); }
+  else if (player.streak % 8 === 0) { Sfx.streak(); Buzz.orb(); gainCrystal(player.x, player.y + PILOT_CY, 'STREAK ' + player.streak + '!'); }
+  flashStreak();
+}
+
+// ---------- the helper drone ----------
 // The drone (version 160): hovering on the shaft's middle side of him, bobbing; dashing to a missed part or crystal and
 // catching it (as if he had); then back. It gives up on one that leaves the top of the screen.
 const droneRoll = it => hash(it.d * 0.37 + it.x * 1.3 + SEED) < DRONE_CHANCE;
@@ -8797,61 +8904,6 @@ function drawDrone(my) {
   c.fillStyle = P.ink; c.fillRect(x, y - 7, 1, 3);
   c.fillStyle = '#C4CCD6'; c.fillRect(f ? x - 5 : x - 2, y - 8, f ? 11 : 5, 1);   // the rotor
   c.fillStyle = f ? P.hot : P.lava; c.fillRect(x - 1, y + 5, 3, 1 + f);
-}
-function collect(it) {
-  it.dead = true;
-  squash(-0.14);
-  if (it.kind === 'orb') {
-    player.orbs++;
-    // Crystals caught close together chime a step higher each time.
-    orbChain = clock - lastOrbT < 2.5 ? Math.min(orbChain + 1, 7) : 0; lastOrbT = clock;
-    Buzz.orb(); Sfx.orb(orbChain);
-    gainCrystal(it.x, it.d);
-    sparks(it.x, it.d, [P.dust, P.grnL, P.grn], 10);
-    particles.push({ ring: 1, x: it.x, d: it.d, t: 0, life: 0.35 });
-  } else if (it.kind === 'part') {
-    const pt = it.part;
-    runParts[pt.id]++;
-    if (save.parts[pt.id] < pt.need) {
-      save.parts[pt.id]++; persist();
-      const was = repair; repair = repairFrac();
-      if (was < 1 && repair >= 1) {
-        showCoach(navDone() ? 'SHIP REPAIRED! LAUNCH IT FROM THE MAIN MENU' : 'SHIP REPAIRED! NOW BUY THE NAV COMPUTER AT A CAFE', 3500); Sfx.repaired(); Buzz.shield();
-        sparks(player.x, player.y + PILOT_CY, ['#F2C14E', '#FFFFFF', '#A9781B', P.hot], 40, 16);
-        award('repair');   // version 205
-        // Version 160: repaired on a Hard Dive: the helper drone unlocks and joins him at once.
-        if (hardRun && !save.droneOpen) {
-          save.droneOpen = true; save.drone = true; save.droneNew = true; persist(); droneRun = true;
-          award('drone');   // version 205
-          drone.ox = player.x > W / 2 ? -24 : 24; drone.oy = -60; drone.mode = 'back';
-          drone.hp = player.hp; drone.chatAt = clock + 6; setTimeout(() => Sfx.droneHello(), 900);
-          setTimeout(() => { if (state === 'play') showCoach('HELPER DRONE UNLOCKED!', 3000); }, 3700);
-        }
-      }
-    }
-    fly('part', it.x, it.d, $('partsHud'), () => { $('partsRun').textContent = PARTS.reduce((n, q) => n + runParts[q.id], 0); }, pt);
-    Buzz.part(); Sfx.part(); faceJoy = clock;
-    pop('+1 ' + pt.name.toUpperCase(), it.x, it.d - 12, 'part');
-    sparks(it.x, it.d, ['#F2C14E', '#FFFFFF', '#A9781B'], 10);
-  } else {
-    giveShield(SHIELD_S + (player.perks.longshield ? 5 : 0)); Buzz.shield(); Sfx.shield();
-    pop('SHIELD', it.x, it.d - 12, 'shield');
-    sparks(it.x, it.d, [P.pur, P.purL, P.dust], 12);
-  }
-}
-
-// Passing a rock or mine within a few pixels builds a streak; every 8 pays a crystal, every 24 a short shield.
-function nearMiss(k) {
-  if (state !== 'play' || player.shield > 0 || player.inv > 0) return;
-  player.streak++; player.bestStreak = Math.max(player.bestStreak, player.streak);
-  const gap = Math.max(0, Math.round((k.minN - 1) * (k.rr + HIT_HALF_W)));
-  if (gap < player.closest) { player.closest = gap; player.closestMine = !!k.isMine; }
-  if (player.streak >= 24) award('streak');
-  Sfx.close(player.streak);
-  pop('CLOSE!', k.x, k.d - k.rr - 8, 'close');
-  if (player.streak % 24 === 0) { giveShield(5); Sfx.streak(); Buzz.shield(); pop('STREAK SHIELD', player.x, player.y - 18, 'shield'); }
-  else if (player.streak % 8 === 0) { Sfx.streak(); Buzz.orb(); gainCrystal(player.x, player.y + PILOT_CY, 'STREAK ' + player.streak + '!'); }
-  flashStreak();
 }
 
 // ---------- boss fights: after every second cafe (1, 3, 5 ...), that cafe's creature chases him through a giant cavern ----------
