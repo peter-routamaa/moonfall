@@ -52,7 +52,7 @@ script holds these limits too: change both together.
 
 | | Range across the eighteen |
 |---|---|
-| Background shape (`LEVI_DRAW[kind]`), drawing calls per frame | 117-749 (limit 750) |
+| Background shape (its entry's `draw`, `LEVIATHANS[kind].draw`), drawing calls per frame | 117-749 (limit 750) |
 | One fight paint (three `bossStage` steps) | 1,018-2,094 rectangles (limit 2,172), 30-194 stamps (limit 195) |
 | One paint while fading in | 1,206-3,084 rectangles (limit 3,334) |
 
@@ -124,7 +124,7 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
   has no half-covered pixels. Keep shapes on whole pixels (round a bob before using it, as `gearY` does): the jellyfish's
   threads sit on half pixels, so it keeps the old four-pass way.
 - All of a Leviathan's fight art goes through `bossStage`: three steps into a canvas the size of the creature
-  (`BOSS_BOX`), started at most 20 times a second (`BOSS_PAINT_EVERY`). Every frame then only stamps the finished
+  (its entry's `box`), started at most 20 times a second (`BOSS_PAINT_EVERY`). Every frame then only stamps the finished
   canvas. Never draw fight art straight to the screen, and never add a compositing pass over the whole screen: that is
   what once took a 120 Hz phone to about 10 frames a second in a fight.
 - Draw with `disc`, `ring`, `bpx`, `bline`, `fillPoly`, `fillEllipse` and `limb`, with colours from the palette
@@ -135,7 +135,7 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
   `ring` still makes an image per colour, so give it a fixed colour.
 - Shots: one image per colour set and size (`shotImg`), with fixed colours, drawn with `shot()` and made in the thin
   shaft (`bossWarmStep` lists the sizes: add a new size there). The charge glow at its mouth is a shot image too.
-- The background creature (`LEVI_DRAW[kind]`) is drawn in full every frame it is near the screen, so its count matters
+- The background creature (its entry's `draw`) is drawn in full every frame it is near the screen, so its count matters
   most. Keep it inside the table above.
 
 ### 4. A new moon
@@ -161,7 +161,7 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
 ### 6. Rectangles
 
 - Merge. If a loop draws one row or one pixel at a time, keep the run going while the next one is the same and draw it
-  once (`drawMoonAt`'s `rows`, the vines in `drawJungleHazard`, Gnashbloom's stalk in `trapStalkStrip`: 61 overlapping
+  once (`drawMoonAt`'s `rows`, the vines in `HAZARDS.vines.draw`, Gnashbloom's stalk in `trapStalkStrip`: 61 overlapping
   discs became about 16 rectangles, version 140). End the run wherever something else must be drawn in
   between, so the overlap order stays the same.
 - Set `fillStyle` when the colour changes, not for every rectangle.
@@ -174,7 +174,7 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
 
 - **Don't stamp see-through pixels.** Drawing a transparent part of an image still costs a phone its pixels. The wall
   overlay is drawn as two strips, one per wall (`t.wl`, `t.wr` in `tile`; version 154): about 20% fewer pixels a frame in a
-  fight, 9% falling. Same for a Leviathan's paint canvas (`BOSS_BOX`): size it to the creature's own pixels, measured over
+  fight, 9% falling. Same for a Leviathan's paint canvas (its entry's `box`): size it to the creature's own pixels, measured over
   many moments (version 154 cut the Machine six by about 15%, version 155 the Dust six by 8-25%; pictures checked identical), keeping each edge's change even (the dither checks) and the
   box symmetric for the ones that don't dive.
 - Every full-width layer adds about 220,000 pixels a frame. The rock and the two back layers are drawn only across the
@@ -229,7 +229,7 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
 3. **Trust the counts, not the times.** Times on a desktop are tiny and swing more from run to run than any change
    does, more so when the browser pane is hidden. The counts are exact.
 4. For the Leviathans on their own: `python3 tools/levi_budget.py` (counts `fillRect` and `drawImage` while calling
-   `LEVI_DRAW[kind]` and `bossStage` three times, normally and fading in, for every moon's; pass another build's file to
+   its `draw` and `bossStage` three times, normally and fading in, for every moon's; pass another build's file to
    compare, e.g. `git show HEAD~1:src/moonfall.html > /tmp/old.html` then `python3 tools/levi_budget.py /tmp/old.html`).
 5. For what a fight builds and when: `python3 tools/fight_makes.py [game.html] [moon ...]` (headless, about 16 s a moon).
    For each fight: canvases made in the approach, before the first shot, in the first 2 s of shots and later, with

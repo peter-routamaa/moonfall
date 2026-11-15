@@ -15,6 +15,7 @@ a creature or hazard seen for the first time made up to 21 at once). Standing at
 It also prints what a settled fight costs a frame (rectangles and stamps, on screen and into the paint canvases), to
 compare with another build: python3 tools/fight_makes.py /tmp/old.html. With --fp=3 it fingerprints the picture every
 3rd frame of the whole run and prints one line per moon; two builds that print the same line drew the same pictures
+(the run then uses a fixed clock and never pauses, so it repeats exactly; version 216)
 (the lists are written to tools/out/fight-fp-<moon>.json, to find where two builds part).
 """
 import json, os, re, subprocess, sys, tempfile
@@ -38,7 +39,9 @@ DRIVER = r"""<script>
   window.addEventListener('error', e => out.errors.push(String(e.message)));
   try {
     if (document.fonts) await document.fonts.ready; await wait(300);
-    let t = performance.now() + 1000, made = [];
+    // With fingerprints the run must repeat exactly: a fixed time base (performance.now() adds float noise to every dt)
+    // and no pauses (a pause lets timers and idle callbacks run at moments that vary run to run). Version 216.
+    let t = FP ? 1e6 : performance.now() + 1000, made = [];
     const mk = document.createElement.bind(document);
     document.createElement = function (tag) {
       if (tag === 'canvas') {
@@ -84,7 +87,7 @@ DRIVER = r"""<script>
       }
       if (cur && !b) { out.fights.push(cur); cur = null; fought++; shaft = []; shaftFrames = 0; shaftMax = 0; for (const k in sc) sc[k] = 0; }
       if (FP && guard % FP === 0) out.fp.push(guard + '|' + (b ? b.kind + ' ' + b.t.toFixed(2) : M.state) + '|' + Math.round(P.y) + '|' + fpOf());
-      if (guard % 240 === 0) await wait(0);
+      if (!FP && guard % 240 === 0) await wait(0);
     }
     out.reached = Math.round(P.y / 8);
   } catch (e) { out.errors.push(String(e && e.stack || e)); }

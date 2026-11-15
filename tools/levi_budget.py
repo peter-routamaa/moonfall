@@ -2,13 +2,13 @@
 
     python3 tools/levi_budget.py [game.html]        (default: src/moonfall.html)
 
-Run it before publishing any change to a Leviathan (its background shape, fight art, scars, anything in LEVI_DRAW,
-BOSS_GEO or BOSS_ART) or anything else it draws through. It exits with 1 and says which creature and which number when
+Run it before publishing any change to a Leviathan (its background shape, fight art, scars, anything in its LEVIATHANS
+entry's draw, geo or art) or anything else it draws through. It exits with 1 and says which creature and which number when
 something is over, so a heavier creature can't reach the test link unnoticed (version 140: a reshaped Gnashbloom went
 to 839 rectangles + 92 stamps a frame against a budget of 735 because nobody counted).
 
 What it measures, for each creature, averaged over 30 moments of its animation (it also prints the worst moment):
-  background  one frame of its far-off shape (LEVI_DRAW, as drawn in the shaft and behind a cafe): rectangles + stamps
+  background  one frame of its far-off shape (its draw, via LEVI_DRAW, as drawn in the shaft and behind a cafe): rectangles + stamps
   paint       one full fight paint, the three bossStage steps, in a settled rock colour: rectangles, stamps
   fading      the same while it fades in from its silhouette (every colour new, so nothing is stamped): rectangles
 The page runs the real game code headless in Chrome (set CHROME to its path if it isn't the Mac one); counts are exact

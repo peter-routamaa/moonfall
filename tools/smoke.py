@@ -9,7 +9,9 @@ resume, a cafe landing, the shop, the jump back out, a death, game over, the hig
 the deeper layers, the self-test started and quit, the launch and the ending, and back to the menu.
 It runs the real game in Chrome with the same seeded random numbers and stepped frames as tools/same_pixels.py, and
 counts every uncaught error and rejected promise (the frame loop throws its errors on, see frame()). It also fails
-if a step doesn't reach the state it should, which means the script or the game's flow broke, not that all is well.
+if a step doesn't reach the state it should, which means the script or the game's flow broke, not that all is well,
+and on every problem the game's own load-time checks found in its tables (window.__mfProblems, filled by
+checkHazards and checkLeviathans: a hazard or Leviathan entry missing a field, or naming an attack that doesn't exist).
 Exits 1 listing what failed, 2 if Chrome is missing. The website build runs it (tools/build_site.py).
 """
 import json, os, re, subprocess, sys, tempfile
@@ -41,6 +43,7 @@ DRIVER = r"""<script>
     out.steps.push({ name, state: M.state, ok });
   };
   if (document.fonts) await document.fonts.ready; await wait(200);
+  out.problems = (window.__mfProblems || []).slice();   // what the game's own load-time checks found (checkHazards, checkLeviathans)
   await step('splash', 'splash', () => {}, 30);
   await step('choose moon', 'splash', () => { $('chooseBtn').click(); document.querySelector('.splash-moon[data-moon="' + out.moon + '"]').click(); }, 20);
   await step('intro film', 'opening', () => $('splashBtn').click(), 60 * 6);
@@ -105,10 +108,12 @@ def main():
         if res is None:
             print(f'FAIL {moon}: the page did not finish (it stopped before the last step)'); fails += 1; continue
         bad = [s for s in res['steps'] if not s['ok']]
+        probs = res.get('problems', [])
+        for p in probs: print(f'PROBLEM {moon}: {p}')
         for e in res['errors']: print(f'ERROR {moon}: {e}')
         for s in bad: print(f"FAIL {moon}: step '{s['name']}' ended in state '{s['state']}'")
-        print(f"{moon}: {len(res['steps'])} steps, {len(res['errors'])} errors, {len(bad)} steps off course")
-        fails += len(res['errors']) + len(bad)
+        print(f"{moon}: {len(res['steps'])} steps, {len(res['errors'])} errors, {len(bad)} steps off course, {len(probs)} problems from the game's own checks")
+        fails += len(res['errors']) + len(bad) + len(probs)
     print('FAIL: the smoke test found problems (above)' if fails else 'OK: every screen played on every moon, no errors')
     sys.exit(1 if fails else 0)
 
