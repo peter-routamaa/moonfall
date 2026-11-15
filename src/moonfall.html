@@ -56,6 +56,8 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .depth small { font-size: 10px; margin-left: 3px; }
 .icon-btn { width: 36px; height: 33px; border: 0; padding: 0; background: var(--ink); color: var(--dust); box-shadow: 4px 4px 0 var(--blue); font: 700 14px/1 var(--display); cursor: pointer; }
 .icon-btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--blue); }
+.icon-btn { position: relative; }
+.icon-btn::before { content: ''; position: absolute; inset: -6px -4px; }   /* a 44 px finger target around the small button (version 215) */
 
 .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; padding-block: 26px 22px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); text-align: center; }
 .screen.dim { justify-content: center; background: color-mix(in srgb, var(--ink) 58%, transparent); }
@@ -648,7 +650,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 </style>
 
 <div id="game">
-  <canvas id="cv" width="320" height="600" aria-label="MoonFall play area"></canvas>
+  <canvas id="cv" width="320" height="600" role="img" aria-label="MoonFall play area"></canvas>
   <canvas id="ov" width="320" height="600" aria-hidden="true"></canvas>
 
   <div class="hud off" id="hud">
@@ -758,7 +760,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <button class="set-tog" id="fpsT" type="button" aria-pressed="false" aria-label="Display FPS"><span>Display<br>FPS</span></button>
         <button class="set-tog" id="invT" type="button" aria-pressed="false" aria-label="Invert thruster controls"><span>Invert<br>thruster<br>controls</span></button>
         <button class="set-tog cap-tog" id="capT" type="button" aria-pressed="true" aria-label="Cap at 60 FPS"><span>Cap at 60 FPS</span></button>
-        <button class="set-tog kid-tog" id="kidBtn" type="button" data-on="false" aria-haspopup="true" aria-label="Kid mode, off"><span>Kid<br>mode</span></button>
+        <button class="set-tog kid-tog" id="kidBtn" type="button" data-on="false" aria-label="Kid mode, off"><span>Kid<br>mode</span></button>
       </div>
       <div class="suit-row moon-row" role="group" aria-label="Moon"><span>MOON</span>
         <button class="moon-btn" type="button" data-moon="dust" aria-pressed="true"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Dust</span></button>
@@ -772,11 +774,11 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <h2>Kid mode</h2>
       <p class="kid-how">Make the dive easier. Changes start on the next dive.</p>
       <div class="kid-sliders">
-        <label class="kid-sl"><span class="kid-lbl">Mines</span><output id="kidMinesV"></output><input type="range" id="kidMines" min="0" max="100" step="25" data-key="mines"></label>
-        <label class="kid-sl"><span class="kid-lbl">Parts &amp; crystals</span><output id="kidDropsV"></output><input type="range" id="kidDrops" min="100" max="200" step="25" data-key="drops"></label>
-        <label class="kid-sl"><span class="kid-lbl">Health</span><output id="kidHpV"></output><input type="range" id="kidHp" min="100" max="200" step="25" data-key="hp"></label>
-        <label class="kid-sl"><span class="kid-lbl">Fall speed</span><output id="kidFallV"></output><input type="range" id="kidFall" min="50" max="100" step="25" data-key="fall"></label>
-        <label class="kid-sl"><span class="kid-lbl">Leviathan shots</span><output id="kidShotsV"></output><input type="range" id="kidShots" min="0" max="100" step="25" data-key="shots"></label>
+        <label class="kid-sl"><span class="kid-lbl">Mines</span><output id="kidMinesV"></output><input type="range" id="kidMines" aria-label="Mines" min="0" max="100" step="25" data-key="mines"></label>
+        <label class="kid-sl"><span class="kid-lbl">Parts &amp; crystals</span><output id="kidDropsV"></output><input type="range" id="kidDrops" aria-label="Parts and crystals" min="100" max="200" step="25" data-key="drops"></label>
+        <label class="kid-sl"><span class="kid-lbl">Health</span><output id="kidHpV"></output><input type="range" id="kidHp" aria-label="Health" min="100" max="200" step="25" data-key="hp"></label>
+        <label class="kid-sl"><span class="kid-lbl">Fall speed</span><output id="kidFallV"></output><input type="range" id="kidFall" aria-label="Fall speed" min="50" max="100" step="25" data-key="fall"></label>
+        <label class="kid-sl"><span class="kid-lbl">Leviathan shots</span><output id="kidShotsV"></output><input type="range" id="kidShots" aria-label="Leviathan shots" min="0" max="100" step="25" data-key="shots"></label>
       </div>
       <button class="set-tog" id="kidSpeedT" type="button" aria-pressed="true" aria-label="Speed up after cafes"><span>Speed up after cafes</span></button>
       <button class="btn quiet" id="kidReset" type="button">Revert to standard mode</button>
@@ -1011,7 +1013,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number (v0.101); add one with every published version. Until version 100 it
 // was shown as VERSION / 100 (v0.99, then v1.00); the user asked for the extra digit instead (version 101).
-const VERSION = 214;
+const VERSION = 215;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds; used for the claude.ai artifact in versions 87-98). 0 for normal runs and the website.
 const TEST_START_M = 0;
@@ -4362,7 +4364,13 @@ const Music = (() => {
     // 1 health: a slow heartbeat (lub-dub every half bar) over the muffled music.
     if (low) { if (i % 8 === 0) heart(t, 0.36); else if (i % 8 === 2) heart(t, 0.24); }
   }
-  function tick() { while (nextT < A.ctx.currentTime + 0.15) { playStep(step, nextT); nextT += 15 / bpm; step++; } }
+  function tick() {
+    // After a stall (a busy moment, a throttled timer) skip the beats that were missed rather than play them all at once,
+    // keeping the step count so the bars stay in place (version 215).
+    const now = A.ctx.currentTime, beat = 15 / bpm;
+    if (nextT < now - 0.05) { const k = Math.ceil((now - nextT) / beat); nextT += k * beat; step += k; }
+    while (nextT < now + 0.15) { playStep(step, nextT); nextT += 15 / bpm; step++; }
+  }
   function level(on, tc) {
     bus.gain.cancelScheduledValues(A.ctx.currentTime);
     bus.gain.setTargetAtTime(on && save.mus ? LEVEL : 0, A.ctx.currentTime, tc);
@@ -5142,16 +5150,18 @@ function askHard() {
 }
 function askReset(step) {
   confirmHard = false; confirmFrom = 'resetBtn';
-  const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0);
-  confirmStep = n ? step : 0;
+  // Crystals paid into the nav computer count as something to reset too, as in askHard (version 215).
+  const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), c = save.nav || 0, any = n + c > 0;
+  const what = [n ? `the ${n} ship part${n === 1 ? '' : 's'} you have collected` : '', c ? `the ${c} crystal${c === 1 ? '' : 's'} you paid into the nav computer` : ''].filter(Boolean).join(' and ');
+  confirmStep = any ? step : 0;
   confirmDlg.classList.toggle('danger', step === 2);
   $('confirmTitle').textContent = step === 1 ? 'Reset ship repair?' : 'Are you sure?';
-  $('confirmText').textContent = !n ? 'Your ship repair is already at 0%, so there is nothing to reset.'
-    : step === 1 ? `This clears the ${n} ship part${n === 1 ? '' : 's'} you have collected and what you paid for the nav computer, and sets the repair back to 0%.`
+  $('confirmText').textContent = !any ? 'Your ship repair is already at 0%, so there is nothing to reset.'
+    : step === 1 ? `This clears ${what}, and sets the repair back to 0%.`
     : 'This cannot be undone. Your ship goes back to 0% and you start collecting parts from scratch.';
-  $('confirmYes').hidden = !n;
+  $('confirmYes').hidden = !any;
   $('confirmYes').textContent = step === 1 ? 'Reset' : 'Yes, reset to 0%';
-  $('confirmNo').textContent = !n ? 'OK' : step === 1 ? 'Cancel' : 'Keep my parts';
+  $('confirmNo').textContent = !any ? 'OK' : step === 1 ? 'Cancel' : 'Keep my parts';
   popConfirm();
 }
 $('resetBtn').addEventListener('click', () => askReset(1));
@@ -5336,6 +5346,7 @@ function resume() {
   else if (state === 'play' || introT >= 1.3) Music.start();
 }
 function toTitle() {
+  if (perfOn && !perf.ending) { perfFinish(true); return; }   // Quit from pause ends the self-test and puts the save back (version 215)
   menuFromRun = true;   // an update may reload this menu (see reloadForUpdate)
   checkUpdate();   // version 210
   disarmBack();   // version 212
@@ -5361,6 +5372,8 @@ function die() {
 }
 function gameOver() {
   setState('over'); endRun(lastHit || 'wall');
+  // A Leviathan that caught him leaves with the run: no painting it behind the card, no frozen shots (version 215).
+  if (boss) { boss = null; bossShots.length = 0; hud.classList.remove('boss'); }
   const m = depthM(), kb = kidRun.on, isBest = m > bestNow();   // a Kid mode run has its own best and board (version 197)
   if (isBest) { if (kb) save.kidBest = m; else save.best = m; persist(); }
   hsKid = kb; $('oBest').previousElementSibling.textContent = kb ? 'KID BEST' : 'BEST';
@@ -5547,7 +5560,10 @@ async function syncOnline() {
     }
     // The last score sent answers with its own board; if that's the other board, fetch the one showing.
     const kid = hsKid;
-    hsOnline = got && !!got.me.k === kid ? got : await scoresFetch(undefined, kid);
+    const board = got && !!got.me.k === kid ? got : await scoresFetch(undefined, kid);
+    // A reply without a board is treated like no reply, not left on "Loading…" (version 215).
+    if (!board || !Array.isArray(board.top)) throw new Error('scores: no board in the reply');
+    hsOnline = board;
     if (kid !== hsKid) { hsOnline = null; hsBusy = false; syncOnline(); return; }   // switched boards while it loaded
     save[kid ? 'kidBoardCache' : 'boardCache'] = { top: hsOnline.top, at: Date.now() }; persist();
   } catch (e) {
@@ -7037,8 +7053,10 @@ for (const ev of ['pointerdown', 'touchend', 'keydown']) addEventListener(ev, ()
 addEventListener('pageshow', () => Sfx.wake());
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) { checkUpdate(); Sfx.wake(); if (wakeWant) keepAwake(true); }
-  if (document.hidden) { keys.l = keys.r = false; pause(); if (state === 'title' || state === 'splash') Music.stop(0.1); if (runId && state !== 'over') endRun('left'); }
+  if (document.hidden) { keys.l = keys.r = false; pause(); if (state === 'title' || state === 'splash' || state === 'launch') Music.stop(0.1); if (runId && state !== 'over') endRun('left'); }
   else if (state === 'title') Music.title();
+  // The launch stands still while hidden, so its music stops too (version 215); back during the groove, it starts again.
+  else if (state === 'launch' && launchT >= LAUNCH.groove && launchT < LAUNCH.space) { Music.setZone(0, true); Music.setDepth(900); Music.start(); }
   else if (state === 'splash' && Sfx.audio()) Music.splash(splashPicked ? moon : '');
 });
 
@@ -7176,7 +7194,8 @@ function placeHazard(k, d0) {
   // Not where the shaft splits around an island.
   for (let dd = d - 80; dd <= d + (h.len || 0) + 80; dd += 40) if (spans(dd).length > 1) return false;
   if (kind === 'crumble') h.size = r() < 0.5 ? 1 : 2;
-  hazards.push(h); lastHazD = d; lastRockD = Math.max(lastRockD, d);
+  // The next rock goes below the hazard's far end, not inside a long ice or vine stretch (version 215).
+  hazards.push(h); lastHazD = d; lastRockD = Math.max(lastRockD, d + (h.len || 0));
   return true;
 }
 // Each frame of a run, before collisions.
@@ -8427,7 +8446,8 @@ function updateBossShots(dt, live) {
     else { s.x += s.vx * dt; s.y += s.vy * dt; }
     if (s.type === 'bomb' && (s.t >= s.fuse || s.y > H - 160)) {
       s.dead = true; Sfx.bossShot(true);
-      for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2 + 0.2; bossShots.push({ type: 'glob', x: s.x, y: s.y, vx: Math.cos(a) * 155, vy: Math.sin(a) * 155, r: 3, t: 0 }); }
+      // through bossShot, so Kid mode's fewer shots thins the burst too (version 215)
+      for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2 + 0.2; bossShot({ type: 'glob', x: s.x, y: s.y, vx: Math.cos(a) * 155, vy: Math.sin(a) * 155, r: 3, t: 0 }); }
       continue;
     }
     if (s.y > H + 20 || s.y < -40 || s.x < -20 || s.x > W + 20) { s.dead = true; continue; }
@@ -10073,14 +10093,16 @@ function perfTick(raw, cpu) {
   if (!perfOn || p.cur === 255 || raw >= 1 || p.n >= PERF_MAX) return;
   p.gap[p.n] = raw * 1000; p.cpu[p.n] = cpu; p.scene[p.n++] = p.cur;
 }
-function perfFinish() {
+// quit: the player left it from the pause menu, so there's no report to show.
+function perfFinish(quit) {
   const p = perf;
+  p.ending = true;
   delete document.createElement;
   for (const k of Object.keys(save)) delete save[k];
   Object.assign(save, JSON.parse(p.snap));   // the save, exactly as it was
   toTitle();
   perfOn = false;
-  perfCard(perfReport());
+  if (!quit) perfCard(perfReport());
 }
 function perfReport() {
   const p = perf, N = p.n, pad = (v, n) => String(v).padStart(n), ua = navigator.userAgent, ver = re => (re.exec(ua) || [])[1] || '?';
