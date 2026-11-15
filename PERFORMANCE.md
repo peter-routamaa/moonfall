@@ -86,7 +86,7 @@ brought it back inside; `levi_budget.py` would have failed version 137 on all th
   steady after). While a fight is on, `stampAllow` is 0: a `disc`, `ring`, shot or elder body that has no image yet is
   drawn the direct way instead of having one made (`mayStamp()`). Their images are made in the approach, a few a frame
   (`bossWarmStep`: the shots and charge glow, then 24 paints of the creature at different moments in the cavern's
-  settled rock colours, each step allowed four new images). Before that a fight made 22-59 small canvases: 8-30 in the
+  settled rock colours, each step allowed two new images). Before that a fight made 22-59 small canvases: 8-30 in the
   second before its first shot (the charge glow alone was twelve, across four frames), the rest whenever the rock's
   colour changed or the art reached a new size. Anything new that a fight stamps must go through `mayStamp()` and be
   made in `bossWarmStep`.
