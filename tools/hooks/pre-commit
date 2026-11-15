@@ -1,5 +1,6 @@
 #!/bin/sh
-# Stops a commit that would put an over-budget Leviathan into the repo (see PERFORMANCE.md and tools/levi_budget.py).
+# Stops a commit that would put an over-budget Leviathan into the repo (see PERFORMANCE.md and tools/levi_budget.py),
+# or a game whose source checks fail (tools/checks.py).
 # Turned on once per clone with:  git config core.hooksPath tools/hooks
 # It runs only when src/moonfall.html is part of the commit, checks the version being committed (not the working
 # file), and takes about two seconds. If Chrome is missing it warns and lets the commit through; the build
@@ -10,6 +11,13 @@ root=$(git rev-parse --show-toplevel)
 tmp=$(mktemp -d) || exit 0
 trap 'rm -rf "$tmp"' EXIT
 git show :src/moonfall.html > "$tmp/staged.html" || exit 0
+# The quick source checks (no browser): the rude initials lists in the game and the scores function match.
+if ! checks=$(python3 "$root/tools/checks.py" "$tmp/staged.html" 2>&1); then
+  printf '%s\n' "$checks"
+  echo "pre-commit: commit stopped by tools/checks.py (above). Fix it, then commit again. Do not skip this with --no-verify."
+  exit 1
+fi
+echo "pre-commit: $(printf '%s\n' "$checks" | tail -1)"
 out=$(python3 "$root/tools/levi_budget.py" "$tmp/staged.html" 2>&1)
 code=$?
 if [ "$code" -eq 0 ]; then

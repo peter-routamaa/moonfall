@@ -6,7 +6,8 @@ it was made (before the first shot, during the first volleys, later) and which f
 A phone stutters when a frame has to build something (PERFORMANCE.md rule 1). The profiler's totals hide when in a
 fight the building happens; this lists it against the fight's own clock. It plays the real game headless in Chrome on
 the profiler's seeded run (every cafe landed on, each of the moon's Leviathans fought in turn, the pilot unhurt) and
-prints, for each fight, the canvases made per stretch of the fight and their makers. Exits 1 if any fight makes a
+prints, for each fight, the canvases made per stretch of the fight and their makers. Exits 1 on any page error, if a
+moon's run fights fewer than all six of its Leviathans (the driver broke), if any fight makes a
 canvas after it has started (the thin shaft before it is where a fight's images belong), or if any frame of the run
 in which the pilot is moving makes more than BURST canvases (version 180: one new disc or ring image a frame; before,
 a creature or hazard seen for the first time made up to 21 at once). Standing at a cafe counter doesn't count.
@@ -22,6 +23,7 @@ import same_pixels, test_pages
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BURST = 6   # canvases in one frame while he is moving (version 180 makes at most 5)
+WANT = 6    # each moon's Leviathans, all fought in the run: fewer means the driver broke, not that all is well
 CHROME = os.environ.get('CHROME', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
 
 HOOK = "window.__fm = { kinds() { return leviSet(); }, bossAt, get warm() { return typeof bossWarm === 'undefined' ? null : bossWarm; } };"
@@ -121,7 +123,7 @@ def main():
     moons = args or re.findall(r"(\w+): ", re.search(r'const LEVI_SETS = \{(.*?)\};', game, re.S).group(1))
     if not os.path.exists(CHROME):
         print('fight_makes: Chrome not found at ' + CHROME + '; set CHROME to its path'); sys.exit(2)
-    bad = burst = 0
+    bad = burst = errs = short = 0
     for moon in moons:
         res = run(src, moon, fp)
         if fp:
@@ -130,6 +132,9 @@ def main():
             json.dump(res['fp'], open(os.path.join(ROOT, 'tools', 'out', 'fight-fp-' + moon + '.json'), 'w'))
             print(f"{moon}: picture fingerprint {hashlib.sha1(json.dumps(res['fp']).encode()).hexdigest()[:12]} over {len(res['fp'])} frames")
         for e in res['errors']: print('ERROR', moon, e)
+        errs += len(res['errors'])
+        met = len({f['kind'] for f in res['fights']})
+        if met < WANT: short += 1; print(f'MISSING {moon}: only {met} of {WANT} Leviathans fought')
         print(f"\n{moon}: {len(res['fights'])} fights, reached {res.get('reached')} m")
         b = res['burst']; burst = max(burst, b['n'])
         if b['n']:
@@ -156,8 +161,10 @@ def main():
             if f['makes']:
                 times = sorted(set(m['t'] for m in f['makes']))
                 print('      at ' + ' '.join(f'{t:g}' for t in times[:24]) + (' ...' if len(times) > 24 else ''))
-    print(f"\n{'FAIL' if bad or burst > BURST else 'OK'}: {bad} canvases made after a fight started; at most {burst} in one moving frame (limit {BURST})")
-    sys.exit(1 if bad or burst > BURST else 0)
+    fail = bad or burst > BURST or errs or short
+    print(f"\n{'FAIL' if fail else 'OK'}: {bad} canvases made after a fight started; at most {burst} in one moving frame (limit {BURST})"
+          + (f'; {errs} page errors' if errs else '') + (f'; {short} moons missing fights' if short else ''))
+    sys.exit(1 if fail else 0)
 
 
 if __name__ == '__main__':

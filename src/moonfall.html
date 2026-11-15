@@ -5404,7 +5404,7 @@ function gameOver() {
 const SCORES_URL = '';
 const HS_MAX = 10, LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 // Initials that aren't allowed, since kids play this: refused when entered, and shown as ??? if one is ever on a board.
-// Keep in step with the same list in supabase/functions/scores/index.ts.
+// Keep in step with the same list in supabase/functions/scores/index.ts (tools/checks.py fails the commit and the build if not).
 const BAD_INITIALS = new Set(['ARS', 'ASS', 'BCH', 'CNT', 'COC', 'COK', 'CUM', 'DCK', 'DIC', 'DIK', 'DIX', 'FAG', 'FCK', 'FCU', 'FGT', 'FKU', 'FUC', 'FUK', 'FUQ', 'FUX', 'GFY',
   'HOE', 'HOR', 'JIZ', 'JZZ', 'KKK', 'KMS', 'KNT', 'KYS', 'NAZ', 'NGA', 'NGR', 'NIG', 'NZI', 'PIS', 'PNS', 'PSS', 'PUS', 'SEX', 'SHT', 'SLT', 'SLU', 'SXY', 'TIT', 'TWT', 'VAG', 'WNK', 'WTF', 'XXX']);
 const showName = i => BAD_INITIALS.has(i) ? '???' : i;
