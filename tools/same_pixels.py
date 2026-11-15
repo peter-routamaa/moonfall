@@ -58,7 +58,7 @@ def page(src_path, hook):
 
 def run(html_text, tmp, name, port):
     open(os.path.join(tmp, name), 'w').write(html_text)
-    r = subprocess.run([CHROME, '--headless=new', '--disable-gpu', '--no-first-run', '--user-data-dir=' + os.path.join(tmp, 'prof'),
+    r = subprocess.run([CHROME, '--headless=new', '--disable-gpu', '--no-first-run', '--user-data-dir=' + os.path.join(tmp, 'prof-' + name),   # its own profile: a shared one carried the first run's save (scores, best) into the second
                         '--window-size=412,915', '--virtual-time-budget=60000', '--dump-dom', f'http://localhost:{port}/{name}'],
                        capture_output=True, text=True, timeout=240)
     m = re.search(r'<pre id="out">(.*?)</pre>', r.stdout, re.S)
@@ -78,5 +78,6 @@ if __name__ == '__main__':
     srv.shutdown()
     diff = [(x, y) for x, y in zip(a, b) if x != y]
     for x in a: print(('  ' if x in b else '≠ ') + x)
-    print('SAME' if a == b and 'NO RESULT' not in a else f'DIFFERENT ({len(diff)} of {len(a)})')
-    sys.exit(0 if a == b else 1)
+    same = a == b and 'NO RESULT' not in a
+    print('SAME' if same else 'NO RESULT' if 'NO RESULT' in a + b else f'DIFFERENT ({len(diff)} of {len(a)})')
+    sys.exit(0 if same else 1)

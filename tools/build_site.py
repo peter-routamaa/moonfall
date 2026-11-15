@@ -13,6 +13,8 @@ It refuses to build a game that should not go live, so a release cannot skip the
   - tools/levi_budget.py must say OK (every Leviathan inside the drawing budgets in PERFORMANCE.md);
   - tools/fight_makes.py must say OK (no canvas made in the middle of a Leviathan fight, and no burst of them in a
     frame while he is moving; it plays all the fights, about a minute).
+  - tools/checks.py must say OK (quick source checks: the rude initials list is the same in the game and the server);
+  - tools/smoke.py must say OK (every screen and state played on every moon with no error; about 20 seconds).
 """
 import os, re, shutil, subprocess, sys
 
@@ -38,6 +40,13 @@ if makes.returncode != 0:
     sys.exit('build_site: stopped. tools/fight_makes.py did not pass (above): something makes a canvas in the middle '
              'of a Leviathan fight, or several in one frame of the fall. See PERFORMANCE.md, rules 11 and 12, then build again.')
 print(makes.stdout.strip().splitlines()[-1])
+for tool, why in (('checks.py', 'the game and the scores function are out of step'),
+                  ('smoke.py', 'something throws an error, or a screen no longer goes where it should')):
+    res = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', tool)], capture_output=True, text=True)
+    if res.returncode != 0:
+        print(res.stdout + res.stderr)
+        sys.exit(f'build_site: stopped. tools/{tool} did not pass (above): {why}. Fix it, then build again.')
+    print(res.stdout.strip().splitlines()[-1])
 cut = game.index('</style>') + len('</style>')
 head, body = game[:cut], game[cut:].lstrip('\n')
 if url:

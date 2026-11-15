@@ -27,11 +27,11 @@ import same_pixels, test_pages
 # The game's functions that get a timer (time inside them, including what they call).
 TIMED = """update render prepaint updateFace drawCinema cineCaps drawSky drawShaft drawProps drawFireworks dropList life motes
 speedLines critters drawFlags drawCafeSigns drawCafe drawHazards drawDrops drawIntroPilot drawBoss drawBossShots drawFlyers
-drawManSquashed drawBack drawSpurs drawAshVent dustSkyline machineSkyline drawMachineHazard leviathans paintTile readyTile backTile paintMid paintFar wedgeImg spurImg wallArt wallTile
+drawManSquashed drawBack drawSpurs dustSkyline machineSkyline leviathans paintTile readyTile backTile paintMid paintFar wedgeImg spurImg wallArt wallTile
 bossStage bossBuf updateBoss updateBossShots bossFire updateHazards collide genSeg passFlags checkCafe updateCafe
 updateOpening updateLaunch updateFireworks drawOpeningBridge drawIntroSpace drawSpace drawPullback drawBridge repairScene
 drawRepairTools paintHills paintProps jungleTrees drawPlanet drawMoonAt drawShipAt cafeLayers cafeSignArt flagArt setDepth
-setHP tapDir stepSquash drawJungleHazard elderFrame bossHides drawCanopy shipDamage shipShine placeSay renderRunParts
+setHP tapDir stepSquash elderFrame bossHides drawCanopy shipDamage shipShine placeSay renderRunParts
 showCoach pop fly""".split()
 # Small helpers that are only counted (a timer on these would cost more than they do).
 COUNTED = """mix hash disc ring sprite spriteRows drawRow fillPoly fillEllipse ellipseIn edgeAt edgesRaw palAt pmap bline tile
