@@ -191,12 +191,12 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     for (let i = 0; i < 8; i++) { pl.inv = 1; pl.x = 160; M.update(1 / 60); }
     M.rocks.length = 0; await wait(500); M.render(); M.state = 'paused'; document.title = 'ready:' + k; return;
   }
-  if (q.get('scene') === 'cave') {   // the deep cave: &at=drop|walk|open|choice (the card up; the default)|gift|drone|friend, &ready=1 ship already repaired
+  if (q.get('scene') === 'cave') {   // the deep cave: &at=drop|look|walk|open (prising it)|choice (the card up; the default)|gift|drone|friend, &ready=1 ship already repaired
     const K = M.caveInfo(), at = q.get('at') || 'choice';
     if (q.get('ready')) { for (const k in M.save.parts) M.save.parts[k] = 99; M.save.nav = 50; }
     if (q.get('nodrone')) { M.save.droneOpen = false; M.save.drone = false; }
     pl.y = K.T - 60; pl.x = K.entryX; pl.aim = pl.x; pl.vx = 0;
-    const until = { drop: 0.2, walk: 1.3, open: 3.2 }[at] || 5.5;
+    const until = { drop: 0.2, look: 2.5, walk: 6.3, open: 8.4 }[at] || 12.5;
     for (let i = 0; i < 60 * until; i++) { pl.inv = 1; M.update(1 / 60); }
     const after = { gift: 1.9, drone: 4.6, friend: 7.0 }[at];
     if (after) { await wait(300); document.getElementById('caveClaim').click(); for (let i = 0; i < 60 * after; i++) { pl.inv = 1; M.update(1 / 60); } }

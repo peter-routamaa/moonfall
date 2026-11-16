@@ -74,8 +74,8 @@ DRIVER = r"""<script>
   await step('leave cafe', 'cafeJump|play', () => S.leaveCafe(), 60 * 3, safe);
   await step('deep fall', 'play|landing|cafe|cafeJump', () => {}, 60 * 90, safe);
   await step('back to falling', 'play', () => { if (M.state === 'cafe') S.leaveCafe(); }, 60 * 4, safe);   // the deep fall may end at a cafe
-  // The deep cave at about 25.5 km: he lands, opens the chest, and keeps falling through the floor's hole.
-  await step('deep cave', 'cave', () => { const K = M.caveInfo(); P.y = K.T - 60; P.x = K.entryX; P.aim = P.x; }, 60 * 6, safe);
+  // The deep cave at about 25.7 km: he lands, looks about, prises the chest open, and keeps falling through the floor's hole.
+  await step('deep cave', 'cave', () => { const K = M.caveInfo(); P.y = K.T - 60; P.x = K.entryX; P.aim = P.x; }, 60 * 13, safe);
   await step('cave keep falling', 'play|cave', () => $('caveFall').click(), 60 * 4, safe);
   await step('death', 'over|dying', () => { P.inv = 0; P.shield = 0; P.hp = 1; M.rocks.length = 0; M.rocks.push({ d: P.y + 14, x0: P.x, x: P.x, size: 1, rr: 9, amp: 0, ph: 0, sp: 1, hot: true, isMine: true, dead: false }); }, 60 * 4);
   await step('high scores', '', () => M.openTable && M.openTable(), 30);
@@ -90,7 +90,7 @@ DRIVER = r"""<script>
   const unchanged = how => { if (JSON.stringify(M.save) !== kept) out.errors.push('escape preview changed the save (' + how + ')'); if (S.previewOn) out.errors.push('escape preview still on (' + how + ')'); };
   await step('escape preview asks', 'title', () => S.askPreview(), 10);
   if (!$('confirmDlg').open) out.errors.push('escape preview: no pop-up before it starts');
-  await step('escape preview', 'cave', async () => { await wait(900); $('confirmYes').click(); }, 60 * 14, safe);
+  await step('escape preview', 'cave', async () => { await wait(900); $('confirmYes').click(); }, 60 * 22, safe);
   await step('preview claim kit', 'cave', () => $('caveClaim').click(), 60 * 8, safe);
   if ($('caveClaim').textContent !== 'Through the portal') out.errors.push('escape preview: no drone card after the kit');
   await step('preview portal', 'launch', () => $('caveClaim').click(), 60 * 8);

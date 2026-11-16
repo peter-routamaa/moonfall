@@ -1078,7 +1078,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 233;
+const VERSION = 234;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -1662,29 +1662,35 @@ function voidShape(V, d, C0, hw0) {
   return [lerp(V.exitX, C0, u), lerp(HOLE_HW, hw0, u)];
 }
 // The deep cave (the end of the dive; the rest is in its own section) takes the place of the void before cafe CAVE_J + 1,
-// at about 25.5 km, after cafe CAVE_J's Leviathan fight. The shaft narrows to a hole in its flat roof (entryX), the cave
-// is CAVE_H tall and the whole screen wide, and its flat floor has one hole (holeX) where the shaft carries on for a
-// player who keeps falling. side is the wall with the portal; the chest stands between his landing spot and that wall.
-const CAVE_J = 19, CAVE_H = 240, CAVE_NECK = 200;
+// at about 25.7 km, after cafe CAVE_J's Leviathan fight. Owner: the last 200 m are "a wide cavern, similar to where we have
+// all the mines and the other pickups ... it funnels down into a thin, straight bit ... for the last 100 m, and then they
+// land in the cavern". So: the hall (cave.hall, CAVE_HALL tall, a void's width and contents: voidContents), its floor
+// funnelling into the neck (CAVE_NECK, straight down to the hole in the cave's flat roof at entryX). The cave is CAVE_H
+// tall and the whole screen wide, and its flat floor has one hole (holeX) where the shaft carries on for a player who
+// keeps falling. side is the wall with the portal; the chest stands between his landing spot and that wall.
+// CAVE_ABOVE puts the roof far enough below the Leviathan fight's end for the hall and neck (and above cafe CAVE_J + 1).
+const CAVE_J = 19, CAVE_H = 240, CAVE_NECK = 100 * PX_PER_M, CAVE_HALL = 100 * PX_PER_M, CAVE_ABOVE = 375 * PX_PER_M;
 let caveCache = null;
 function caveInfo() {
   if (caveCache && caveCache.seed === SEED) return caveCache;
-  const T = cafeD(CAVE_J + 1) - VOID_ABOVE + 160, side = hash(CAVE_J * 3.7 + SEED) < 0.5 ? -1 : 1;
-  caveCache = { seed: SEED, T, F: T + CAVE_H, side,
+  const T = cafeD(CAVE_J + 1) - CAVE_ABOVE, side = hash(CAVE_J * 3.7 + SEED) < 0.5 ? -1 : 1;
+  caveCache = { seed: SEED, T, F: T + CAVE_H, side, hall: { j: CAVE_J, seed: SEED, T: T - CAVE_NECK - CAVE_HALL, B: T - CAVE_NECK },
     entryX: Math.round(W / 2 - side * 26), chestX: Math.round(W / 2 + side * 46), holeX: Math.round(W / 2 - side * 104),
     portalX: side < 0 ? 24 : W - 24 };
   return caveCache;
 }
-// The cave's stretch (from the neck above its roof to back to normal below its floor), or null. Asked per wall row:
-// it answers from the remembered caveInfo and makes nothing.
+// The cave's stretch (from the hall opening out above it to back to normal below its floor), or null. Asked per wall
+// row: it answers from the remembered caveInfo and makes nothing.
 function caveAt(d) {
   const cave = caveInfo();
-  return d >= cave.T - CAVE_NECK - VOID_BACK && d < cave.F + VOID_NECK + VOID_BACK ? cave : null;
+  return d >= cave.hall.T - VOID_OPEN && d < cave.F + VOID_NECK + VOID_BACK ? cave : null;
 }
 // The shaft's centre and half-width at d in the cave's stretch, given the normal shaft's (C0, hw0) there.
 function caveShape(cave, d, C0, hw0) {
-  const neck = cave.T - CAVE_NECK;
-  if (d < neck) { const u = smoothstep((d - neck + VOID_BACK) / VOID_BACK); return [lerp(C0, cave.entryX, u), lerp(hw0, HOLE_HW, u)]; }
+  const hall = cave.hall;
+  if (d < hall.T) { const u = smoothstep((d - hall.T + VOID_OPEN) / VOID_OPEN); return [lerp(C0, W / 2, u), lerp(hw0, VOID_HW, u)]; }
+  if (d < hall.B - VOID_FLOOR) return [W / 2, VOID_HW];
+  if (d < hall.B) { const u = smoothstep((d - hall.B + VOID_FLOOR) / VOID_FLOOR); return [lerp(W / 2, cave.entryX, u), lerp(VOID_HW, HOLE_HW, u)]; }
   if (d < cave.T) return [cave.entryX, HOLE_HW];
   if (d < cave.F) return [W / 2, VOID_HW];
   if (d < cave.F + VOID_NECK) return [cave.holeX, HOLE_HW];
@@ -7434,8 +7440,10 @@ function drawCafeSigns(cam) {
 // Owner, later: finding the chest is a big thing even with the ship already repaired ("Congratulations, you've found the
 // ship repair kit"), the parts pop out when the gift is accepted, and the crate holds the helper drone too, which pops
 // out last, flies about chirping, and gets its own card ("You've made a new friend for your next fall").
-// He drops through the roof's hole and lands (phase 'drop'), walks to the chest ('walk'), opens it ('open'), and the
-// card asks ('choice'). Claim ('gift'): the parts pop out one by one, hover, and fly to him, and the ship is repaired;
+// He drops through the roof's hole and lands (phase 'drop') with the opening film's landing line, stands looking about
+// ('look', owner: "have him pause for maybe 5 seconds? He can look around, and then have him slowly walk over to the
+// chest, and let's have a little animation while he prys it open"), walks slowly to the chest ('walk'), prises it open
+// with a crowbar ('open', see PRY), and the card asks ('choice'). Claim ('gift'): the parts pop out one by one, hover, and fly to him, and the ship is repaired;
 // then, unless he has it already, the drone pops out, loops about and settles by him, and the second card shows
 // ('friend'). Then the portal opens and he walks in ('portal'), and the dive ends (endDiveAndFlyHome). Keep falling:
 // he walks to the floor's hole and drops ('leave').
@@ -7444,6 +7452,20 @@ function drawCafeSigns(cam) {
 let cavePhase = '', caveT = 0, caveDone = false, caveFrom = null, caveArt = null, caveForMoon = '', caveChest = 0;
 const caveUi = $('caveUi');
 const CAVE_PORTAL_IN = 0.8;   // s from the portal starting to open until he walks to it
+// Looking about after landing: LOOK_TIME s, facing away from the chest (-1) or toward it (1) from each time on; he
+// spots it at LOOK_SPOT. He walks to it at CAVE_WALK px/s.
+const LOOK_TIME = 5, LOOK_FACE = [[0, -1], [1.1, 1], [2.1, -1], [3.0, 1]], LOOK_SPOT = 3.3, CAVE_WALK = 34;
+// Prising the chest open, s into 'open': the crowbar comes out at out; three heaves start at heaves, each heaveLen long,
+// lifting the lid a little more; it pops open at pop and the crowbar goes at pop + 0.3; the card shows at card.
+const PRY = { out: 0.3, heaves: [0.6, 1.3, 2.0], heaveLen: 0.45, pop: 2.7, card: 4.0 };
+// How hard he's heaving at t s into 'open' (0 to 1), and which heave (0, 1, 2; -1 for none).
+function pryHeave(t) {
+  for (let k = 0; k < PRY.heaves.length; k++) {
+    const u = (t - PRY.heaves[k]) / PRY.heaveLen;
+    if (u >= 0 && u < 1) return [Math.sin(Math.PI * u), k];
+  }
+  return [0, -1];
+}
 // The gift: part i pops out at GIFT_POP + i * GIFT_GAP s and hovers; all fly to him at GIFT_TAKE; the drone pops out at
 // GIFT_DRONE, loops about for GIFT_LOOPS s and settles by him; the drone's card shows GIFT_CARD s after it popped out.
 const GIFT_POP = 0.2, GIFT_GAP = 0.25, GIFT_TAKE = 2.3, GIFT_DRONE = 3.0, GIFT_LOOPS = 2.6, GIFT_CARD = 3.3;
@@ -7476,21 +7498,32 @@ function updateCave(dt) {
     player.x = lerp(caveFrom.x, cave.entryX, easeInOut(u)); player.y = lerp(caveFrom.y, standY, u * 0.6 + u * u * 0.4); player.pose = 'fall';
     cam = lerp(caveFrom.cam, cam, easeInOut(u));
     if (u >= 1) {
-      cavePhase = 'walk'; caveT = 0; squash(0.32); Sfx.land(); Buzz.orb(); Music.title();
+      cavePhase = 'look'; caveT = 0; squash(0.32); Sfx.moonLand(); Buzz.orb(); Music.title();
       hud.classList.add('off');   // the roof's art shows under where it was; back if he keeps falling
       startFireworks('cave');
       for (let i = 0; i < 14; i++) particles.push({ x: player.x + (Math.random() - 0.5) * 30, d: cave.F - 4, vx: (Math.random() - 0.5) * 90,
         vy: -20 - Math.random() * 40, t: 0, life: 0.5 + Math.random() * 0.4, col: Math.random() < 0.5 ? P.shade : P.strata, z: 2 });
     }
+  } else if (cavePhase === 'look') {
+    let face = -1;
+    for (const [at, f] of LOOK_FACE) if (t >= at) face = f;
+    player.pose = face * s > 0 ? 'stand' : 'standL';
+    if (crossed(LOOK_SPOT)) { pop('!', player.x, player.y - 8, 'part'); squash(-0.15); Sfx.bleep(660); }
+    if (t >= LOOK_TIME) { cavePhase = 'walk'; caveT = 0; }
   } else if (cavePhase === 'walk') {
-    const dur = Math.abs(toChest - cave.entryX) / 70, u = Math.min(1, t / dur);   // a slow walk over to it
-    player.x = lerp(cave.entryX, toChest, u); player.y = standY - 2 * (Math.floor(t * 5) % 2); player.pose = s > 0 ? 'run' : 'runL';
+    const dur = Math.abs(toChest - cave.entryX) / CAVE_WALK, u = Math.min(1, t / dur);   // a slow walk over to it
+    player.x = lerp(cave.entryX, toChest, u); player.y = standY - (Math.floor(t * 3) % 2); player.pose = s > 0 ? 'run' : 'runL';
     if (u >= 1) { cavePhase = 'open'; caveT = 0; player.y = standY; player.pose = s > 0 ? 'stand' : 'standL'; }
   } else if (cavePhase === 'open') {
-    caveChest = smoothstep((t - 0.3) / 0.4);
-    if (crossed(0.3)) { Sfx.buy(); shake = Math.max(shake, 0.4); }
-    if (crossed(0.7)) { Sfx.part(); Buzz.part(); sparks(cave.chestX, cave.F - 20, ['#F2C14E', '#FFFFFF', '#A9781B'], 24, 10); }
-    if (crossed(2.0)) showCaveCard();
+    const [push, k] = pryHeave(t);
+    caveChest = t < PRY.pop ? 0.05 * (k + 1) * push : smoothstep((t - PRY.pop) / 0.2);
+    player.y = standY + Math.round(push * 2);   // he leans into it
+    for (const at of PRY.heaves) if (crossed(at + PRY.heaveLen * 0.4)) {
+      Sfx.clang(); shake = Math.max(shake, 0.15); sparks(cave.chestX - s * 12, cave.F - 13, [P.shade, P.strata], 5, 4);
+    }
+    if (crossed(PRY.pop)) { Sfx.buy(); shake = Math.max(shake, 0.4); player.y = standY; squash(-0.2); }
+    if (crossed(PRY.pop + 0.4)) { Sfx.part(); Buzz.part(); sparks(cave.chestX, cave.F - 20, ['#F2C14E', '#FFFFFF', '#A9781B'], 24, 10); }
+    if (crossed(PRY.card)) showCaveCard();
   } else if (cavePhase === 'gift') {
     caveGift(cave, t, crossed);
   } else if (cavePhase === 'portal') {
@@ -7655,6 +7688,19 @@ function drawChest(x, y, open) {
   c.fillStyle = '#A0552A'; c.fillRect(L, top + 1 - lift, 26, 5);
   c.fillStyle = '#F2C14E'; c.fillRect(L + 4, top + 1 - lift, 2, 5); c.fillRect(L + 20, top + 1 - lift, 2, 5);
 }
+// The crowbar while he prises the chest open (PRY): a lever from the seam under the lid up to the grip in his hands,
+// pushed down with each heave. my: the top of his sprite on the overlay canvas; the seam is placed from it.
+function drawCrowbar(my) {
+  const t = caveT;
+  if (t < PRY.out || t > PRY.pop + 0.3) return;
+  const cave = caveInfo(), s = cave.side, [push] = pryHeave(t), seamY = my + (cave.F - 12 - player.y);
+  const tx = cave.chestX - s * 11, ty = seamY - Math.round(push * 2);   // the tip, under the lid's edge
+  const hx = tx - s * 15, hy = seamY - 13 + Math.round(push * 7);   // the grip in his hands, pushed down with each heave
+  bline(hx, hy + 1, tx, ty + 1, P.ink, 2);
+  bline(hx, hy, tx, ty, '#7B8591', 2);
+  c.fillStyle = '#C9D1D9'; c.fillRect(Math.round(lerp(hx, tx, 0.3)), Math.round(lerp(hy, ty, 0.3)), 2, 1);   // a glint
+  c.fillStyle = P.lava; c.fillRect(Math.round(hx) - 1, Math.round(hy) - 1, 3, 3);   // the red grip
+}
 // A portal standing on the floor at x: an oval (open: 0 to 1) of four colours, outer to inner, with bands drifting
 // through the middle. Drawn in rows; no images.
 const PORTAL_BLUE = ['#1B3A8A', '#2F7BD8', '#8FD3FF', '#E6F6FF'], PORTAL_ORANGE = ['#7A2E0E', '#E0662A', '#FFB45A', '#FFF1C8'];
@@ -7691,12 +7737,12 @@ function drawCave(cam) {
 }
 
 // The escape preview (owner: "so that people can watch the third ending if they're unlikely to ever make it that far"):
-// five quick taps on the pilot by the ship, on the main menu, ask (askPreview), then start a dive PREVIEW_ABOVE_M above
-// the cave's roof, at the starting speed (owner: "the default speed at which the game would normally start at 0 m":
+// five quick taps on the pilot by the ship, on the main menu, ask (askPreview), then start a dive PREVIEW_ABOVE_M (200 m)
+// above the cave's roof, at the top of the hall (owner: "let's start 200 m up"), at the starting speed (owner: "the default speed at which the game would normally start at 0 m":
 // no cafe speed-ups, Terminal Velocity and Kid mode's fall speed still apply). Like the self-test it is off the record
 // (offRecord): nothing is saved, sent or awarded, and the save is put back exactly as it was when it ends: at its game
 // over card, or back on the main menu (after the ending, or Quit from pause).
-const PREVIEW_ABOVE_M = 100, PREVIEW_TAPS = 5, PREVIEW_TAP_GAP = 3000, PREVIEW_HIT = 22;
+const PREVIEW_ABOVE_M = (CAVE_NECK + CAVE_HALL) / PX_PER_M, PREVIEW_TAPS = 5, PREVIEW_TAP_GAP = 3000, PREVIEW_HIT = 22;
 const PREVIEW_ASK_WAIT = 800;   // ms the pop-up's buttons wait, so taps still coming at the pilot can't answer it
 let previewTaps = 0, previewTapAt = 0;
 const previewStartM = () => Math.round(caveInfo().T / PX_PER_M) - PREVIEW_ABOVE_M;
@@ -9211,7 +9257,8 @@ function drawHazards(cam) {
 function genSeg(k) {
   const d0 = k * SEG_LEN;
   if (d0 < 560 || cavernAt(d0) > 0.02 || cavernAt(d0 + SEG_LEN) > 0.02 || bossAt(d0) || bossAt(d0 + SEG_LEN)) return;
-  if (caveAt(d0) || caveAt(d0 + SEG_LEN)) return;   // nothing in the deep cave or its necks
+  const cave = caveAt(d0) || caveAt(d0 + SEG_LEN);
+  if (cave) { if (d0 < cave.hall.B) voidContents(cave.hall, d0); return; }   // the hall above it is filled like a void; nothing below
   const V = voidAt(d0) || voidAt(d0 + SEG_LEN);
   if (V) { voidContents(V, d0); return; }
   const hz = placeHazard(k, d0);
@@ -10744,6 +10791,7 @@ function render() {
     drawManSquashed(player.x + (state === 'dying' ? Math.round(Math.sin(clock * 40) * 2) : 0), my, player.pose, clock, player.thr);
     if (droneShown() && ['title', 'intro', 'play', 'landing', 'cafe', 'cafeJump', 'cave', 'dying', 'paused'].includes(state)) { const ga = c.globalAlpha; c.globalAlpha = 1; drawDrone(my); c.globalAlpha = ga; }
     if (state === 'launch' && launchT < REPAIR.done) drawRepairTools(my);
+    if (state === 'cave' && cavePhase === 'open') drawCrowbar(my);
     c.globalAlpha = 1;
     if (state === 'landing') {
       const x0 = Math.round(player.x - 13), y0 = Math.round(my), fl = Math.floor(clock * 24) % 2, L = 8 + fl * 3;
