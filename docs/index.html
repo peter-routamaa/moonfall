@@ -262,9 +262,13 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .news-ico.big svg { width: 32px; height: 32px; }
 .news-name { font: 700 12px/1.1 var(--display); letter-spacing: .08em; color: var(--gold); }
 .news-how { margin-top: 3px; font: 400 18px/.95 var(--body); color: var(--dust-dim); }
-/* Four rows: tighter on shorter phones so Done stays 50 px up (DONE_FROM_BOTTOM). */
-@media (max-height: 760px) { #newsBack { gap: 8px; } #newsBack .news-list { gap: 7px; } #newsBack .news-item { padding: 7px 10px 6px; } }
-@media (max-height: 660px) { #newsBack .news-how { font-size: 16px; } #newsBack .news-list { gap: 6px; } }
+/* Five rows: tighter on shorter phones so Done stays 50 px up (DONE_FROM_BOTTOM). */
+@media (max-height: 760px) {
+  #newsBack { gap: 8px; } #newsBack .news-list { gap: 6px; } #newsBack .news-item { padding: 6px 9px 5px; grid-template-columns: 28px 1fr; column-gap: 10px; }
+  #newsBack .news-how { font-size: 16px; } #newsBack .news-ico.big svg { width: 26px; height: 26px; }
+}
+@media (max-height: 700px) { #newsBack { gap: 6px; } #newsBack .news-how { font-size: 15px; line-height: .9; } #newsBack .news-list { gap: 5px; } }
+@media (max-height: 600px) { #newsBack .news-how { font-size: 14px; } #newsBack .news-item { padding: 4px 8px 3px; } #newsBack .news-name { font-size: 11px; } }
 /* The moons card, opened from the New moons row like the Leviathans card: each moon's icon, name and
    a short description. */
 #moonsBack h2 { text-align: center; }
@@ -901,6 +905,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <li><button class="news-item" id="newsMoons" type="button"><span class="news-ico"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><svg class="moon-ico machine" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg></span><span class="news-name">The new moons</span><span class="news-how">Fall into the Dust moon, the Jungle moon or the Machine moon. Swap any time in Settings. Tap to learn more.</span></button></li>
         <li><button class="news-item" id="newsHard" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#E8B83A" d="M0 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1zM3 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1z"/></svg></span><span class="news-name">Terminal Velocity</span><span class="news-how">Fix the ship once to earn it: 4 health, 15% faster and raging Leviathans. Tap to see Unlocks.</span></button></li>
         <li><button class="news-item" id="newsKid" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="var(--pink)" d="M1 0h2v1h-2zM5 0h2v1h-2zM0 1h8v2h-8zM1 3h6v1h-6zM2 4h4v1h-4zM3 5h2v1h-2z"/><path fill="#F7B6C4" d="M1 1h1v1h-1z"/></svg></span><span class="news-name">Kid mode</span><span class="news-how">An easier dive for younger pilots, with its own high scores. Tap to set it up.</span></button></li>
+        <li><div class="news-item" id="newsCave"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#A0552A" d="M1 0h6v1h-6zM0 1h8v2h-8z"/><path fill="#8F4A1E" d="M0 4h8v3h-8z"/><path fill="#F2C14E" d="M0 3h8v1h-8zM3 3h2v2h-2zM1 4h1v3h-1zM6 4h1v3h-1z"/></svg></span><span class="news-name">The deep cave</span><span class="news-how">A new ending waits about 20 km down. What's in the chest?</span></div></li>
       </ul>
       <button class="btn" id="newsDone" type="button">Done</button>
      </div>
@@ -1098,7 +1103,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 239;
+const VERSION = 240;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
