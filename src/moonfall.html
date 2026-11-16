@@ -1078,7 +1078,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 236;
+const VERSION = 237;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -4757,6 +4757,8 @@ const Sfx = (() => {
   const RADIO = { on: true, lo: 450, hi: 2800, mid: 5, drive: 4, hiss: 0.018, out: 0.376, lead: 0.09 };
   // Every voice clip at 0.55: louder, the owner found them "a bit overpowering compared to the music".
   const VOICE_LEVEL = 0.55;
+  const DRONE_LEVEL = 2;   // the helper drone's beeps (see droneLock ...), on top of their own volumes
+  const droneTone = (type, f0, f1, dur, vol, delay) => tone(type, f0, f1, dur, vol * DRONE_LEVEL, delay);
   let radioCurve = null;
   const bq = (type, f, q, gain) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; if (gain !== undefined) b.gain.value = gain; return b; };
   function squelch(t, dur, level, out) {
@@ -5014,19 +5016,25 @@ const Sfx = (() => {
     ashGust() { noise(0.55, 'lowpass', 520, 0.4); noise(0.4, 'bandpass', 1700, 0.08, 0.04); tone('sine', 72, 44, 0.35, 0.16); },
     // The helper drone's voice (owner: "add a little bit of personality ... beeps and boops"): little square
     // and sine chirps, quiet, under the game's own sounds.
-    droneLock() { tone('sine', 1400, 1400, 0.04, 0.02); tone('sine', 1870, 1870, 0.05, 0.02, 0.05); },   // locking on: "bip-bip"
-    droneGo() { tone('square', 900, 1500, 0.07, 0.035); tone('sine', 1800, 2400, 0.06, 0.03, 0.05); },          // darting off: "bip-weee"
-    droneGot() { tone('square', 1046, 1046, 0.06, 0.035); tone('square', 1568, 1568, 0.09, 0.035, 0.07); tone('sine', 2093, 2093, 0.08, 0.025, 0.15); },   // caught it: "boop-beep-bing"
-    droneMiss() { tone('square', 700, 520, 0.12, 0.03); tone('square', 520, 330, 0.18, 0.03, 0.13); },           // too late: "bwoo-oo"
-    droneWorry() { for (let i = 0; i < 3; i++) tone('sine', 1300 - i * 180, 1100 - i * 180, 0.06, 0.03, i * 0.08); },   // he got hurt
+    // The helper drone's beeps, all DRONE_LEVEL louder than written (owner: "I still can't hear the drone, really ... Maybe
+    // he needs to be increased there as well").
+    droneLock() { droneTone('sine', 1400, 1400, 0.04, 0.02); droneTone('sine', 1870, 1870, 0.05, 0.02, 0.05); },   // locking on: "bip-bip"
+    droneGo() { droneTone('square', 900, 1500, 0.07, 0.035); droneTone('sine', 1800, 2400, 0.06, 0.03, 0.05); },          // darting off: "bip-weee"
+    droneGot() {   // caught it: "boop-beep-bing"
+      droneTone('square', 1046, 1046, 0.06, 0.035); droneTone('square', 1568, 1568, 0.09, 0.035, 0.07); droneTone('sine', 2093, 2093, 0.08, 0.025, 0.15);
+    },
+    droneMiss() { droneTone('square', 700, 520, 0.12, 0.03); droneTone('square', 520, 330, 0.18, 0.03, 0.13); },           // too late: "bwoo-oo"
+    droneWorry() { for (let i = 0; i < 3; i++) droneTone('sine', 1300 - i * 180, 1100 - i * 180, 0.06, 0.03, i * 0.08); },   // he got hurt
     // loud: a gain on top (CAVE_DRONE_LOUD in the deep cave, where it's meant to be heard over the music).
     // Unlocked: a bright hello.
-    droneHello(loud = 1) { [784, 988, 1175, 1568].forEach((f, i) => tone('square', f, f * (i === 3 ? 1.06 : 1), 0.06, 0.035 * loud, i * 0.07)); },
+    droneHello(loud = 1) {
+      [784, 988, 1175, 1568].forEach((f, i) => droneTone('square', f, f * (i === 3 ? 1.06 : 1), 0.06, 0.035 * loud, i * 0.07));
+    },
     droneChat(loud = 1) {   // idle babble: 3-5 quick notes at random pitches, now and then
       const n = 3 + Math.floor(Math.random() * 3);
       for (let i = 0; i < n; i++) {
         const f = 700 + Math.random() * 1500;
-        tone(Math.random() < 0.5 ? 'square' : 'sine', f, f * (0.85 + Math.random() * 0.3), 0.045, 0.022 * loud, i * 0.065);
+        droneTone(Math.random() < 0.5 ? 'square' : 'sine', f, f * (0.85 + Math.random() * 0.3), 0.045, 0.022 * loud, i * 0.065);
       }
     },
     ashPuff() { noise(0.22, 'bandpass', 900, 0.3); noise(0.15, 'highpass', 3500, 0.06, 0.03); },
@@ -5225,6 +5233,24 @@ const Music = (() => {
     if (Math.floor(s / 64) % 2 === 1 && MEL[bar][i]) glock(MEL[bar][i], t, 0.06);
     if (moon === 'jungle') { if (i % 2 === 1) shaker(t); if (i === 6 || i === 14) bongo(t, 330, 0.06); }   // a soft shaker and hand drum
     if (moon === 'machine' && (i === 6 || i === 14)) hit(t, 0.05, 'bandpass', 2600, 0.03);   // a distant clank
+  }
+  // The deep cave's song (owner: "an upbeat or congratulatory piece that will play during the whole cave sequence and
+  // maybe the ending cinematic as well"): 132 BPM in A major (I-V-vi-IV: A, E, F sharp minor, D), in the moon's key like
+  // the groove. A four-on-the-floor kick with claps, offbeat hats, a bouncing octave bass, a bright square arpeggio, and
+  // every second four bars a glockenspiel tune over it; the Jungle and Machine moons add their shaker and clank.
+  const VIC_BPM = 132, VIC_CH = [[57, 61, 64], [56, 59, 64], [57, 61, 66], [57, 62, 66]], VIC_BASS = [45, 40, 42, 38];
+  const VIC_ARP = [[69, 73, 76, 73], [68, 71, 76, 71], [66, 69, 73, 69], [66, 69, 74, 69]];
+  const VIC_MEL = [{ 0: 76, 4: 78, 6: 80, 8: 81, 12: 80 }, { 0: 76, 8: 71, 12: 73 }, { 0: 73, 4: 76, 8: 78, 12: 81 }, { 0: 78, 4: 76, 8: 74, 12: 73 }];
+  function victoryStep(bar, i, s, t) {
+    if (i === 0) { pad(VIC_CH[bar], t, 240 / bpm); if (bar === 0) hit(t, 1.2, 'highpass', 4500, 0.08); }
+    if (i % 4 === 0) kick(t);
+    if (i === 4 || i === 12) hit(t, 0.09, 'bandpass', 1500, 0.11);   // the clap
+    if (i % 4 === 2) hit(t, 0.03, 'highpass', 8000, 0.035);
+    if (i % 2 === 0) osc('triangle', mtof(VIC_BASS[bar] + (i % 4 === 2 ? 12 : 0)), t, 0.2, 0.2, 0.005, 0, false);
+    if (i % 2 === 1) osc('square', mtof(VIC_ARP[bar][(i >> 1) % 4]), t, 0.11, 0.032, 0.003, 3200, true);
+    if (Math.floor(s / 64) % 2 === 1 && VIC_MEL[bar][i]) glock(VIC_MEL[bar][i], t, 0.075);
+    if (moon === 'jungle' && i % 2 === 1) shaker(t);
+    if (moon === 'machine' && (i === 6 || i === 14)) hit(t, 0.05, 'bandpass', 2600, 0.03);
   }
   // Start screen: a slow, spacey theme (80 BPM; A minor 9, F major 7, C over G, E minor 7) that starts on the first tap
   // (browsers allow no sound before one) and changes with the moon picked. Before a pick: a pad, a soft sub bass and a
@@ -5434,6 +5460,7 @@ const Music = (() => {
     if (mode === 'title') { titleStep(bar, i, s, t); return; }
     if (mode === 'splash') { splashStep(bar, i, s, t); return; }
     if (mode === 'boss') { bossStep(s, t); return; }
+    if (mode === 'victory') { victoryStep(bar, i, s, t); return; }
     if (i === 0) {
       if (lead !== leadNext) { lead = leadNext; crash = true; }   // a new rock layer's instrument comes in on the bar, with a cymbal
       pad(CH[bar], t, 240 / bpm); if (crash) { hit(t, 1.3, 'highpass', 4500, 0.1); crash = false; }
@@ -5553,6 +5580,7 @@ const Music = (() => {
     mode = m; playing = true; step = 0; nextT = A.ctx.currentTime + 0.06;
     if (m === 'title') { bpm = 96; calm(); }
     if (m === 'splash') { bpm = 80; calm(); }
+    if (m === 'victory') { bpm = VIC_BPM; calm(); }
     if (m === 'boss') { bpm = BOSS_TRACKS[track].bpm * (heat >= 3 ? HEAT_FAST : 1); creature(false); }
     level(true, m === 'splash' ? 0.8 : m === 'title' ? 0.4 : 0.05); tick(); timer = setInterval(tick, 25);
   }
@@ -5584,6 +5612,9 @@ const Music = (() => {
       taiko(t, 0.8); gbass(r, t, 1.2, 0.3); brass([r + 12, r + 19, r + 24], t, 2.4, 0.04, false); toll(r + 24, t, 0.07);
     },
     title() { this.begin('title'); },
+    // The deep cave's song; with `out`, the music playing sinks away over that many seconds first and the song opens up
+    // over `inn`. Already playing, it carries on.
+    victory(out, inn) { if (out) fadeTo('victory', out, inn || 2); else this.begin('victory'); },
     // The start screen's theme, for the moon picked so far ('' before a pick).
     splash(m) { if (mode !== 'splash' || !playing) pick = m || ''; this.begin('splash'); },
     // A moon picked on the start screen: the bar restarts in that moon's sound.
@@ -5607,7 +5638,13 @@ const Music = (() => {
       level(false, (fade || 0.3) / 3);
     },
     setOn() { if (bus) level(playing, 0.05); },
-    setDepth(m) { if (mode === 'boss') return; const L = m < 250 ? 1 : m < 600 ? 2 : 3; if (L > layer) crash = true; layer = L; bpm = 120 + 8 * smoothstep((m - 300) / 1500); },
+    setDepth(m) {
+      if (mode === 'boss' || mode === 'victory') return;
+      const L = m < 250 ? 1 : m < 600 ? 2 : 3;
+      if (L > layer) crash = true;
+      layer = L;
+      bpm = 120 + 8 * smoothstep((m - 300) / 1500);
+    },
     // The rock layer (a MATS index). Its instrument takes over on the next bar, or at once with `now`.
     setZone(k, now) { leadNext = k; if (now) lead = k; },
     // Called every frame during a run; it only touches the audio when something changes.
@@ -5619,13 +5656,13 @@ const Music = (() => {
     },
     creature,
     // The n-th note going up one of the groove's four chords (CH), counting from `base` semitones above it, in Hz. The
-    // chord is CH's for the bar now playing (its place in the four-bar loop), whatever the track: right for the groove
-    // and the title loop, which play CH; on the start screen and in a fight it only keeps time. With no music playing
+    // chord is CH's for the bar now playing (its place in the four-bar loop), or VIC_CH's in the cave's song: right for
+    // the groove, the title loop and that song; on the start screen and in a fight it only keeps time. With no music playing
     // it's the first chord, A minor.
     note(n, base) {
       let bar = 0;
       if (playing) for (const b of bars) if (b.t <= A.ctx.currentTime) bar = b.bar;
-      return mtof(CH[bar][n % 3] + base + 12 * Math.floor(n / 3));
+      return mtof((mode === 'victory' ? VIC_CH : CH)[bar][n % 3] + base + 12 * Math.floor(n / 3));
     },
     reset() { layer = 1; bpm = 120; crash = false; lead = leadNext = 0; if (bus) calm(); },
     leap() {
@@ -6584,7 +6621,8 @@ function pause() {
 function resume() {
   if (state !== 'paused') return;
   setState(prevState); showScreen(null); sayEl.style.visibility = ''; last = performance.now(); armBack();
-  if (state === 'landing' || state === 'cafe' || state === 'cafeJump' || state === 'cave') Music.title();
+  if (caveSong) Music.victory();
+  else if (state === 'landing' || state === 'cafe' || state === 'cafeJump' || state === 'cave') Music.title();
   else if (bossTuneOn) Music.boss(bossTrack);
   else if (state === 'play' || introT >= 1.3) Music.start();
 }
@@ -6608,7 +6646,7 @@ function toTitle() {
   placeHorizon();
   Sfx.wind(0);
   Sfx.thrust(0);
-  Music.title();
+  if (launchPortal) Music.victory(); else Music.title();   // on the way home through the cave's portal its song plays on
   if (repairedThisRun) startFireworks('title');
 }
 function die() {
@@ -7475,10 +7513,15 @@ function pryHeave(t) {
 // The gift: part i pops out at GIFT_POP + i * GIFT_GAP s and hovers; all fly to him at GIFT_TAKE; the drone pops out at
 // GIFT_DRONE, loops about for GIFT_LOOPS s and settles by him; the drone's card shows GIFT_CARD s after it popped out.
 const GIFT_POP = 0.2, GIFT_GAP = 0.25, GIFT_TAKE = 2.3, GIFT_DRONE = 3.0, GIFT_LOOPS = 2.6, GIFT_CARD = 3.3;
-const CAVE_DRONE_LOUD = 1.25;   // the drone's sounds in the cave (owner: "I can't really hear the drone ... increase his noise ... by 25%")
+const CAVE_DRONE_LOUD = 2;   // the drone's sounds in the cave, on top of DRONE_LEVEL (owner: "I still can't hear the drone ... increase this noise more")
 let caveGiftDrone = false;   // this gift includes the drone (he didn't have it yet)
+// The cave's song (Music.victory) is on: it fades in as he enters the neck, CAVE_SONG_OUT s for the groove to sink and
+// CAVE_SONG_IN for it to open up, and plays through the cave and, after the portal, the ending (see the launch).
+let caveSong = false;
+const CAVE_SONG_OUT = 1.5, CAVE_SONG_IN = 3;
 function caveReset() {
   cavePhase = ''; caveT = 0; caveDone = false; caveChest = 0; caveLift = caveLiftWant = 0; caveUi.hidden = true; caveGiftDrone = false;
+  caveSong = false;
   if (!caveArt || caveForMoon !== moon || caveArt.seed !== SEED) buildCaveArt();
 }
 // The cave's camera: the floor 62% down the screen (the roof's art just under the HUD), raised by caveLift once the card
@@ -7488,10 +7531,11 @@ const caveCamY = cave => cave.F - Math.round(H * 0.62) + Math.round(caveLift);
 function checkCave() {
   if (caveDone || perfOn) return;
   const cave = caveInfo();
+  if (!caveSong && player.y + PILOT_CY >= cave.hall.B && player.y + PILOT_CY < cave.F) { caveSong = true; Music.victory(CAVE_SONG_OUT, CAVE_SONG_IN); }
   if (player.y + PILOT_CY < cave.T + 10) return;
   caveDone = true;
   setState('cave'); cavePhase = 'drop'; caveT = 0; caveFrom = { x: player.x, y: player.y, cam: camY };
-  steerAcc = 0; tapBurst.l = tapBurst.r = 0; presses.clear(); player.vx = 0; player.thr = 0; Sfx.thrust(0); Music.stop(0.8);
+  steerAcc = 0; tapBurst.l = tapBurst.r = 0; presses.clear(); player.vx = 0; player.thr = 0; Sfx.thrust(0);
 }
 function updateCave(dt) {
   caveT += dt;
@@ -7505,7 +7549,7 @@ function updateCave(dt) {
     player.x = lerp(caveFrom.x, cave.entryX, easeInOut(u)); player.y = lerp(caveFrom.y, standY, u * 0.6 + u * u * 0.4); player.pose = 'fall';
     cam = lerp(caveFrom.cam, cam, easeInOut(u));
     if (u >= 1) {
-      cavePhase = 'look'; caveT = 0; squash(0.32); Sfx.moonLand(); Buzz.orb(); Music.title();
+      cavePhase = 'look'; caveT = 0; squash(0.32); Sfx.moonLand(); Buzz.orb();
       hud.classList.add('off');   // the roof's art shows under where it was; back if he keeps falling
       startFireworks('cave');
       for (let i = 0; i < 14; i++) particles.push({ x: player.x + (Math.random() - 0.5) * 30, d: cave.F - 4, vx: (Math.random() - 0.5) * 90,
@@ -7551,7 +7595,7 @@ function updateCave(dt) {
     player.x = lerp(toChest, cave.holeX, u); player.y = standY - 2 * (Math.floor(t * 6) % 2); player.pose = cave.holeX > toChest ? 'run' : 'runL';
     cam = lerp(cam, player.y - pilotScreenY, easeInOut(u));
     if (u >= 1) {
-      setState('play'); cavePhase = ''; hud.classList.remove('off');
+      setState('play'); cavePhase = ''; hud.classList.remove('off'); caveSong = false;
       player.pose = 'fall'; player.fallRamp = 0; player.vx = 0; player.aim = player.x; player.inv = 0.6; player.y = standY + 8;
       Sfx.jump(); squash(-0.22); Music.start();
     }
@@ -8543,7 +8587,8 @@ const LAUNCH_ORIGINAL_START_X = 84;
 function startLaunch() {
   Sfx.init(); resetRun(); cineReset();
   setState('launch'); launchT = 0; launchShip = null;
-  showScreen(null); hud.classList.add('off'); Music.stop(0.2); Sfx.wind(0);
+  showScreen(null); hud.classList.add('off'); Sfx.wind(0);
+  if (launchPortal) Music.victory(); else Music.stop(0.2);   // home through the cave's portal: its song plays on
   showCoach('TAP TO SKIP', 1800);
 }
 function skipLaunch() {
@@ -8569,8 +8614,8 @@ function updateLaunch(dt) {
   if (crossed(L.aboard)) { sparks(52, -14, [P.dust, P.strata, P.shade], 10); Sfx.hatch(); }
   if (crossed(L.rumble)) { Sfx.engine(); Buzz.launch(); }
   if (crossed(L.lift)) { Music.fanfare(); Sfx.cheer(); Sfx.boom(0.6); }
-  if (crossed(L.groove)) { Music.setZone(0, true); Music.setDepth(900); Music.start(); }
-  if (crossed(L.space)) { Music.stop(0.1); Music.space(); }
+  if (crossed(L.groove) && !launchPortal) { Music.setZone(0, true); Music.setDepth(900); Music.start(); }
+  if (crossed(L.space) && !launchPortal) { Music.stop(0.1); Music.space(); }
   // The ship rumbles, tips upright, then climbs.
   if (t < L.rumble) launchShip = null;
   else if (t < L.lift) {
@@ -8712,7 +8757,8 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) { checkUpdate(); Sfx.wake(); if (wakeWant) keepAwake(true); }
   if (document.hidden) { keys.l = keys.r = false; pause(); if (state === 'title' || state === 'splash' || state === 'launch') Music.stop(0.1); if (runId && state !== 'over') endRun('left'); }
   else if (state === 'title') Music.title();
-  // The launch stands still while hidden, so its music stops too; back during the groove, it starts again.
+  // The launch stands still while hidden, so its music stops too; back during the groove (or the cave's song), it starts again.
+  else if (state === 'launch' && launchPortal) Music.victory();
   else if (state === 'launch' && launchT >= LAUNCH.groove && launchT < LAUNCH.space) { Music.setZone(0, true); Music.setDepth(900); Music.start(); }
   else if (state === 'splash' && Sfx.audio()) Music.splash(splashPicked ? moon : '');
 });
