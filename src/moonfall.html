@@ -1059,7 +1059,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 226;
+const VERSION = 227;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -4508,7 +4508,8 @@ const playerStart = () => ({
   leviFought: []   // the Leviathans whose fight started this run (run stats)
 });
 const player = { touch: false, ...playerStart() };
-// The helper drone, unlocked by repairing the ship on a Hard Dive (save.droneOpen) and switched on the Unlocks card
+// The helper drone, found in the chest at the end of the deep cave (save.droneOpen; owner: no longer locked behind
+// Terminal Velocity) and switched on the Unlocks card
 // (save.drone). It hovers beside the pilot and catches ship parts and crystals that go past him. Its place is kept
 // relative to the pilot's middle (ox, oy) so it falls with him. It picks its target ahead of time, so the player can
 // see what it's going for: as a part or crystal comes up within DRONE_AHEAD px below him it rolls once (1 in 2) and, if
@@ -4559,7 +4560,7 @@ function speedAt(d) {
 //                     sprites fills them in from launches on an old save
 //   suit              the suit colour picked (Unlocks); clamped to the unlocked ones where it's read (suitMap)
 //   hard              Terminal Velocity switched on (Unlocks)
-//   droneOpen, drone, droneNew   the helper drone unlocked, switched on, and not yet announced (set in collect)
+//   droneOpen, drone, droneNew   the helper drone unlocked, switched on, and not yet announced (set in caveGift)
 //   kid               Kid mode's settings (sliders, cafe speed-up, helper drone); kidSettings() below repairs
 //                     them whenever they're read (v197-200 saves too)
 //   hints             which one-time hints were shown (the void and each hazard kind); default here
@@ -4980,7 +4981,6 @@ const Sfx = (() => {
     droneGot() { tone('square', 1046, 1046, 0.06, 0.035); tone('square', 1568, 1568, 0.09, 0.035, 0.07); tone('sine', 2093, 2093, 0.08, 0.025, 0.15); },   // caught it: "boop-beep-bing"
     droneMiss() { tone('square', 700, 520, 0.12, 0.03); tone('square', 520, 330, 0.18, 0.03, 0.13); },           // too late: "bwoo-oo"
     droneWorry() { for (let i = 0; i < 3; i++) tone('sine', 1300 - i * 180, 1100 - i * 180, 0.06, 0.03, i * 0.08); },   // he got hurt
-    droneBurp() { tone('square', 150, 70, 0.22, 0.05); tone('sawtooth', 110, 60, 0.18, 0.025, 0.04); },   // a little burp, in the deep cave
     droneHello() { [784, 988, 1175, 1568].forEach((f, i) => tone('square', f, f * (i === 3 ? 1.06 : 1), 0.06, 0.035, i * 0.07)); },   // unlocked: a bright hello
     droneChat() {   // idle babble: 3-5 quick notes at random pitches, now and then
       const n = 3 + Math.floor(Math.random() * 3);
@@ -5949,8 +5949,8 @@ function syncToggles() {
   $('hardNote').textContent = hardOpen() ? 'Unlocked by repairing the ship' : 'Repair the ship to unlock Terminal Velocity';
   const dt = $('droneT');
   dt.disabled = !droneOpen(); dt.setAttribute('aria-pressed', String(!!save.drone && droneOpen()));
-  dt.setAttribute('aria-label', droneOpen() ? 'Helper drone' : 'Helper drone, locked until the ship is repaired on Terminal Velocity');
-  $('droneNote').textContent = droneOpen() ? 'Unlocked by repairing the ship on Terminal Velocity mode' : 'Repair the ship on Terminal Velocity mode to unlock the drone';
+  dt.setAttribute('aria-label', droneOpen() ? 'Helper drone' : 'Helper drone, locked until it is found in the chest at the end of the cave');
+  $('droneNote').textContent = droneOpen() ? 'Found in the chest at the end of the cave' : 'Find it in the chest at the end of the cave, about 25 km down';
   $('buzzNote').hidden = Buzz.canVibrate || !save.vib;
   // The pixel font's "m" is hard to read, so the main menu's BEST uses a drawn pixel m as tall as the
   // digits (M_ICON), like the percent sign on the speed-up banner.
@@ -6258,8 +6258,7 @@ function askHard() {
   confirmDlg.classList.add('danger');
   $('confirmTitle').textContent = 'Go Terminal Velocity?';
   const lost = [n ? `your ${n} ship part${n === 1 ? '' : 's'}` : '', c ? `the ${c} crystal${c === 1 ? '' : 's'} paid into the nav computer` : ''].filter(Boolean).join(' and ');
-  $('confirmText').textContent = `Terminal Velocity starts your mission over: ${lost} go${n + c === 1 && !(n && c) ? 'es' : ''} back to zero, and the ship repair to 0%. Your best depth, badges, suits and unlocks are kept.` +
-    (droneOpen() ? '' : ' Repair the ship on Terminal Velocity and you unlock the helper drone as a reward!');
+  $('confirmText').textContent = `Terminal Velocity starts your mission over: ${lost} go${n + c === 1 && !(n && c) ? 'es' : ''} back to zero, and the ship repair to 0%. Your best depth, badges, suits and unlocks are kept.`;
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Reset and go hard';
   $('confirmNo').textContent = 'Cancel';
   popConfirm();
@@ -7311,7 +7310,7 @@ function drawCafeSigns(cam) {
 // for score instead. Where the cave is and its shape: caveInfo, caveAt and caveShape (the shaft).
 // Owner, later: finding the chest is a big thing even with the ship already repaired ("Congratulations, you've found the
 // ship repair kit"), the parts pop out when the gift is accepted, and the crate holds the helper drone too, which pops
-// out last, flies about chirping and burping, and gets its own card ("You've made a new friend for your next fall").
+// out last, flies about chirping, and gets its own card ("You've made a new friend for your next fall").
 // He drops through the roof's hole and lands (phase 'drop'), walks to the chest ('walk'), opens it ('open'), and the
 // card asks ('choice'). Claim ('gift'): the parts pop out one by one, hover, and fly to him, and the ship is repaired;
 // then, unless he has it already, the drone pops out, loops about and settles by him, and the second card shows
@@ -7453,7 +7452,6 @@ function caveGift(cave, t, crossed) {
     const wx = lerp(lerp(cave.chestX, lx, out), player.x - cave.side * 22, home), wy = lerp(lerp(cave.F - 20, ly, out), player.y + PILOT_CY - 14, home);
     drone.vx = (wx - player.x - drone.ox) * 30; drone.ox = wx - player.x; drone.oy = wy - player.y - PILOT_CY;
     if (crossed(GIFT_DRONE + 0.9) || crossed(GIFT_DRONE + 2.1)) Sfx.droneChat();
-    if (crossed(GIFT_DRONE + 1.5)) { Sfx.droneBurp(); pop('BURP!', wx, wy - 12); }
     if (dt0 >= GIFT_CARD && cavePhase === 'gift') {
       cavePhase = 'friend';
       $('caveNote').textContent = 'You\'ve found the helper drone. You\'ve made a new friend for your next fall!';
@@ -9154,18 +9152,6 @@ function explode(x, d, r, quiet) {
 }
 
 // ---------- damage and pickups ----------
-// A part caught has just taken the ship to 100%: the Mechanic badge, and on Terminal Velocity the helper drone unlocks and
-// joins him at once. (The deep cave's kit gives the badge and the drone in its own way: caveGift.)
-function shipRepairedRewards() {
-  award('repair');
-  if (hardRun && !save.droneOpen) {
-    save.droneOpen = true; save.drone = true; save.droneNew = true; persist(); droneRun = true;
-    award('drone');
-    drone.ox = player.x > W / 2 ? -24 : 24; drone.oy = -60; drone.mode = 'back';
-    drone.hp = player.hp; drone.chatAt = clock + 6; setTimeout(() => Sfx.droneHello(), 900);
-    setTimeout(() => { if (state === 'play') showCoach('HELPER DRONE UNLOCKED!', 3000); }, 3700);
-  }
-}
 // Health a hit costs, and how long he blinks afterwards (he can't be hurt while blinking).
 // A wall costs half a health chunk (WALL_DAMAGE); everything else, mines included, costs one.
 const WALL_DAMAGE = 0.5, HIT_INVULN_S = 1.0;
@@ -9226,7 +9212,7 @@ function collect(it) {
       if (was < 1 && repair >= 1) {
         showCoach(navDone() ? 'SHIP REPAIRED! LAUNCH IT FROM THE MAIN MENU' : 'SHIP REPAIRED! NOW BUY THE NAV COMPUTER AT A CAFE', 3500); Sfx.repaired(); Buzz.shield();
         sparks(player.x, player.y + PILOT_CY, ['#F2C14E', '#FFFFFF', '#A9781B', P.hot], 40, 16);
-        shipRepairedRewards();
+        award('repair');
       }
     }
     fly('part', it.x, it.d, $('partsHud'), () => { $('partsRun').textContent = PARTS.reduce((n, q) => n + runParts[q.id], 0); }, pt);
