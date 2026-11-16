@@ -691,7 +691,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <li>Spend spare crystals in the shop: one treat per cafe, lasting until the next cafe.</li>
         <li>Skim past rocks and mines for a streak: every 8 pays a crystal.</li>
         <li>Tombstones on the shaft walls mark where players died: pass them to beat their high scores.</li>
-        <li>The fall gets 5% faster after every cafe, whether you stop or not, up to 35%.</li>
+        <li>The fall gets 5% faster after every cafe, whether you stop or not, up to 40%.</li>
       </ul>
       <button class="btn" id="tipsDone" type="button">Done</button>
      </div>
@@ -800,7 +800,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <li><span class="ico"><canvas id="icoOrb" width="14" height="14"></canvas></span>Crystal: +1 health</li>
         <li><span class="ico"><canvas id="icoShield" width="28" height="28"></canvas></span>Bubble: 8s shield, hits wear it down</li>
         <li><span class="ico"><canvas id="icoPart" class="wide" width="30" height="30"></canvas></span>Gold ring: ship part, collect&nbsp;these</li>
-        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Stop at a cafe for +1 health and to visit the shop. The fall gets 5% faster after each cafe, up to +35%</li>
+        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Stop at a cafe for +1 health and to visit the shop. The fall gets 5% faster after each cafe, up to +40%</li>
       </ul>
       <button class="btn" id="howDone" type="button">Done</button>
      </div>
@@ -1028,7 +1028,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 220;
+const VERSION = 221;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -4466,9 +4466,9 @@ const depthM = () => Math.max(0, Math.floor(player.y / PX_PER_M));
 // hard with it (170 reached 52 m/s by about 3 km). Set it back to 170 to bring that speed-up back (the speed lines
 // appear with it).
 // The fall gets faster for every cafe passed, landed at or not, eased in over the 400 px below each ledge:
-// CAFE_SPEEDUP (5%) of the starting speed per cafe, up to CAFE_SPEED_MAX (+35%), reached at the seventh: 262.5, 275,
-// 287.5, 300, 312.5, 325, then 337.5 px/s.
-const FALL_SPEED = 250, SPEED_RAMP = 0, CAFE_SPEEDUP = 0.05, CAFE_SPEED_MAX = 0.35;
+// CAFE_SPEEDUP (5%) of the starting speed per cafe, up to CAFE_SPEED_MAX (+40%), reached at the eighth (10,450 m):
+// 262.5, 275, 287.5, 300, 312.5, 325, 337.5, then 350 px/s. Leviathan fights keep their own speed (BOSS_TIME).
+const FALL_SPEED = 250, SPEED_RAMP = 0, CAFE_SPEEDUP = 0.05, CAFE_SPEED_MAX = 0.40;
 const cafesPassed = d => { const k = cafeAbove(d - 40); return k < 1 ? 0 : k - 1 + Math.min(1, (d - cafeLedge(k)) / 400); };
 // How many cafe ledges lie above depth d, counted the moment he passes each one (pops and treats use this).
 const ledgesPassed = d => Math.max(0, cafeAbove(d - 40));
