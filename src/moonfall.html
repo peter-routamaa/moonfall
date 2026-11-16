@@ -1099,7 +1099,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 249;
+const VERSION = 250;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -6265,6 +6265,29 @@ function syncAside(instant) {
   }
 }
 addEventListener('resize', () => { syncAside(true); if (cardSide) placeNews(cardSide, true); });
+// Owner: while Jump in's card is open, the menu behind it (the ship repair panel, the New features sticker and the menu
+// card) flips up and away, one after another in the same stepped flip, and back down when the card closes on the menu.
+// Nothing folds, so the layout stays put. A dive started from the card just drops the flips.
+const MENU_AWAY_STEP = 80;   // ms between one section and the next
+let menuAway = false;
+function flipMenuAway(away) {
+  if (away === menuAway) return;
+  menuAway = away;
+  const ts = $('titleScreen'), els = [ts.querySelector('.repair'), $('newsTag'), $('titleFlip')];
+  els.forEach((el, i) => {
+    if (el._away) { for (const a of el._away) a.cancel(); el._away = null; }
+    if (!away) el.style.visibility = '';
+    if (!away && state !== 'title') return;
+    if (reduceMotion || el.classList.contains('aside') || getComputedStyle(el).display === 'none') {
+      el.style.visibility = away ? 'hidden' : ''; return;
+    }
+    const tilt = el.id === 'newsTag' ? 'rotate(' + (getComputedStyle(el).getPropertyValue('--tilt').trim() || '0deg') + ') ' : '';
+    const flat = { transform: tilt + 'perspective(520px) rotateX(0)', opacity: 1 }, up = { transform: tilt + 'perspective(520px) rotateX(-92deg)', opacity: 0 };
+    const k = away ? i : els.length - 1 - i, a = el.animate(away ? [flat, up] : [up, flat], { duration: ASIDE_MS, delay: k * MENU_AWAY_STEP, easing: 'steps(7)', fill: 'both' });
+    el._away = [a];
+    if (!away) a.onfinish = () => { if (el._away && el._away[0] === a) { a.cancel(); el._away = null; } };
+  });
+}
 // The main menu's card: Settings and Instructions on the back.
 let kidFromNews = false;   // the Kid mode card was opened from New features: its Done goes back there
 let unlocksFromNews = false;   // the Unlocks card was opened from New features: its Done goes back there
@@ -6505,7 +6528,7 @@ function askJump() {
     + 'Each Leviathan you escape gives you one: ' + per + ' on each moon, so you\'ll need to dive on all three. Pick your moon:';
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Dive!';
   $('confirmNo').textContent = 'Back';
-  popConfirm();
+  popConfirm(); flipMenuAway(true);
   return true;
 }
 // Jump in (the button, or Space or Enter on the menu): the card above, then the drone's question, then the dive.
@@ -6626,7 +6649,7 @@ $('confirmYes').addEventListener('click', () => {
   const b = $('resetBtn'); b.textContent = 'Repair reset to 0%'; pctify(b);
   clearTimeout(resetTimer); resetTimer = setTimeout(() => (b.textContent = 'Reset ship repair'), 2500);
 });
-confirmDlg.addEventListener('close', () => { $(confirmFrom).focus({ preventScroll: true }); confirmKind = 'reset'; });
+confirmDlg.addEventListener('close', () => { $(confirmFrom).focus({ preventScroll: true }); confirmKind = 'reset'; flipMenuAway(false); });
 
 // ---------- run stats (sent to the private play stats) ----------
 // Private stats for the owner's Supabase dashboard: a random ID made once per device (no name, nothing personal),
