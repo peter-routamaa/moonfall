@@ -53,7 +53,8 @@ DRIVER = r"""<script>
   // Five taps on the pilot ask about the escape preview before START too; Not now leaves the menu as it was.
   await step('escape preview asks before START', 'title', () => S.askPreview(), 10);
   if (!$('confirmDlg').open) out.errors.push('escape preview: no pop-up before START');
-  await step('escape preview not now', 'title', () => $('confirmNo').click(), 10);
+  if (!$('confirmYes').disabled) out.errors.push('escape preview: its buttons answer straight away');
+  await step('escape preview not now', 'title', async () => { await wait(900); $('confirmNo').click(); }, 10);
   await step('menu', 'title', () => S.openMenu(), 30);
   for (const card of ['settings', 'how', 'news', 'levi', 'badges', 'unlocks', 'moons', 'kid'])
     await step('card ' + card, 'title', () => S.setCard(card, true), 20);
@@ -89,8 +90,9 @@ DRIVER = r"""<script>
   const unchanged = how => { if (JSON.stringify(M.save) !== kept) out.errors.push('escape preview changed the save (' + how + ')'); if (S.previewOn) out.errors.push('escape preview still on (' + how + ')'); };
   await step('escape preview asks', 'title', () => S.askPreview(), 10);
   if (!$('confirmDlg').open) out.errors.push('escape preview: no pop-up before it starts');
-  await step('escape preview', 'cave', () => $('confirmYes').click(), 60 * 14, safe);
+  await step('escape preview', 'cave', async () => { await wait(900); $('confirmYes').click(); }, 60 * 14, safe);
   await step('preview claim kit', 'cave', () => $('caveClaim').click(), 60 * 8, safe);
+  if ($('caveClaim').textContent !== 'Through the portal') out.errors.push('escape preview: no drone card after the kit');
   await step('preview portal', 'launch', () => $('caveClaim').click(), 60 * 8);
   await step('preview ending', 'ended', () => S.showEnd(), 30);
   if (!$('newMissionBtn').hidden) out.errors.push('escape preview ending offers New mission');

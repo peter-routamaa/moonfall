@@ -481,6 +481,8 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .btn.danger:active { box-shadow: 2px 2px 0 var(--dust-dim); }
 .confirm { margin: auto; border: 0; width: min(320px, calc(100vw - 32px)); }
 .confirm:not([open]) { display: none; }
+/* Low on the screen, clear of the pilot on the menu: the escape preview's pop-up, opened by tapping him (askPreview). */
+.confirm.low { margin: auto auto max(16px, env(safe-area-inset-bottom, 0px)); }
 .confirm::backdrop { background: color-mix(in srgb, var(--ink) 72%, transparent); }
 .confirm.danger { box-shadow: 6px 6px 0 var(--lava); }
 .confirm.danger h2 { color: var(--lava); }
@@ -1076,7 +1078,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 232;
+const VERSION = 233;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -6286,6 +6288,7 @@ function popConfirm() {
   $('confirmYes').classList.toggle('danger', confirmKind === 'reset' || confirmKind === 'hard');
   $('confirmYes').classList.toggle('launch', ['launch', 'repaired', 'drone', 'droneEnd', 'preview'].includes(confirmKind));
   $('confirmNo').hidden = confirmKind === 'droneEnd';
+  confirmDlg.classList.toggle('low', confirmKind === 'preview');
   confirmDlg.classList.remove('pop-in'); void confirmDlg.offsetWidth; confirmDlg.classList.add('pop-in');
   if (!confirmDlg.open) confirmDlg.showModal();
   $(confirmKind === 'droneEnd' ? 'confirmYes' : 'confirmNo').focus();
@@ -6374,6 +6377,10 @@ function askPreview() {
     + 'falling at the starting speed. It\'s only a preview, so nothing is saved: your ship, drone, badges and scores stay as they are.';
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Start the preview';
   $('confirmNo').textContent = 'Not now';
+  // Owner: taps still coming at the pilot dismissed it. It opens low (popConfirm), and its buttons wait a moment.
+  const buttons = [$('confirmYes'), $('confirmNo')];
+  for (const b of buttons) b.disabled = true;
+  setTimeout(() => { for (const b of buttons) b.disabled = false; if (confirmDlg.open) $('confirmNo').focus(); }, PREVIEW_ASK_WAIT);
   popConfirm();
 }
 // The cafe's launch: the dive ends there, so it asks first.
@@ -7531,7 +7538,7 @@ addEventListener('resize', measureCaveCard);
 // The card's main button: on the first card it takes the gift, on the drone's card it opens the portal.
 function claimCave() {
   if (state !== 'cave') return;
-  if (cavePhase === 'choice') { caveUi.hidden = true; caveGiftDrone = !save.droneOpen; cavePhase = 'gift'; caveT = 0; }
+  if (cavePhase === 'choice') { caveUi.hidden = true; caveGiftDrone = !save.droneOpen || previewSave !== null; cavePhase = 'gift'; caveT = 0; }
   else if (cavePhase === 'friend') { caveUi.hidden = true; cavePhase = 'portal'; caveT = 0; }
 }
 // The gift, at t s after it was accepted: the parts pop out of the chest in turn and hover over it, fly to him and the
@@ -7690,6 +7697,7 @@ function drawCave(cam) {
 // (offRecord): nothing is saved, sent or awarded, and the save is put back exactly as it was when it ends: at its game
 // over card, or back on the main menu (after the ending, or Quit from pause).
 const PREVIEW_ABOVE_M = 100, PREVIEW_TAPS = 5, PREVIEW_TAP_GAP = 3000, PREVIEW_HIT = 22;
+const PREVIEW_ASK_WAIT = 800;   // ms the pop-up's buttons wait, so taps still coming at the pilot can't answer it
 let previewTaps = 0, previewTapAt = 0;
 const previewStartM = () => Math.round(caveInfo().T / PX_PER_M) - PREVIEW_ABOVE_M;
 function startPreview() {
@@ -7697,6 +7705,7 @@ function startPreview() {
   previewSave = JSON.stringify(save);
   startRun(true);
   kidRun.speed = false;   // the starting speed: no cafe speed-ups (see speedAt)
+  droneRun = false;   // the drone comes out of the chest instead: a preview always shows that part of the ending (claimCave)
   showRunTag('ESCAPE PREVIEW');
 }
 function endPreview() {
