@@ -1078,7 +1078,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 237;
+const VERSION = 238;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -6827,9 +6827,9 @@ function openTable() {
   renderTable();
   if (SCORES_URL) syncOnline();
 }
-// Only the run that made the ship ready to fly (repair and nav computer finished during it) gets the rocket, not every
-// score set after escaping.
-const escapedNow = () => !readyStart && canLaunch();
+// The rocket goes on every score set by a player who has ever escaped (owner: "if they have ever escaped, update the
+// badge"): the ship flown home at least once (a new mission doesn't take that away), or ready to fly now.
+const escapedNow = () => missionsDone() > 0 || canLaunch();
 const ROCKET_SVG = '<svg viewBox="0 0 7 9" width="14" height="18" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1h-1zM2 1h3v6h-3zM1 4h1v3h-1zM5 4h1v3h-1zM0 6h1v2h-1zM6 6h1v2h-1zM3 7h1v2h-1z"/></svg>';
 function renderTable() {
   $('hsTabOnline').setAttribute('aria-pressed', hsTab === 'online'); $('hsTabLocal').setAttribute('aria-pressed', hsTab === 'local');
