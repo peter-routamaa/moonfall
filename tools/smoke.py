@@ -50,6 +50,10 @@ DRIVER = r"""<script>
   await step('choose moon', 'splash', () => { $('chooseBtn').click(); document.querySelector('.splash-moon[data-moon="' + out.moon + '"]').click(); }, 20);
   await step('intro film', 'opening', () => $('splashBtn').click(), 60 * 6);
   await step('skip film', 'title', () => $('introSkip').click(), 30);
+  // Five taps on the pilot ask about the escape preview before START too; Not now leaves the menu as it was.
+  await step('escape preview asks before START', 'title', () => S.askPreview(), 10);
+  if (!$('confirmDlg').open) out.errors.push('escape preview: no pop-up before START');
+  await step('escape preview not now', 'title', () => $('confirmNo').click(), 10);
   await step('menu', 'title', () => S.openMenu(), 30);
   for (const card of ['settings', 'how', 'news', 'levi', 'badges', 'unlocks', 'moons', 'kid'])
     await step('card ' + card, 'title', () => S.setCard(card, true), 20);

@@ -1076,7 +1076,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 231;
+const VERSION = 232;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -6366,7 +6366,8 @@ function tellDroneEnd() {
 // The escape preview (five taps on the pilot) says what it is before the dive starts (see the escape preview).
 function askPreview() {
   if (offRecord() || state !== 'title' || cardSide) return;
-  confirmKind = 'preview'; confirmFrom = 'startBtn'; confirmStep = 0;
+  confirmKind = 'preview'; confirmStep = 0;
+  confirmFrom = screens.title.classList.contains('clean') ? 'menuStart' : 'startBtn';   // the menu's open or not yet
   confirmDlg.classList.remove('danger');
   $('confirmTitle').textContent = 'Escape preview';
   $('confirmText').textContent = 'See how the dive can end: you\'ll start ' + PREVIEW_ABOVE_M + ' m above the deep cave, about 25 km down, '
@@ -7703,9 +7704,10 @@ function endPreview() {
   previewSave = null;
   hideRunBanner();
 }
-// A tap within PREVIEW_HIT pixels of the pilot's middle, on the menu's open space (not on its cards or buttons).
+// A tap within PREVIEW_HIT pixels of the pilot's middle, on the menu's open space (not on its cards or buttons), with
+// the menu open or not yet (before START).
 screens.title.addEventListener('pointerdown', e => {
-  if (e.target !== screens.title || screens.title.classList.contains('clean') || state !== 'title') return;
+  if (e.target !== screens.title || state !== 'title') return;
   const r = game.getBoundingClientRect();
   const x = (e.clientX - r.left - (r.width - W * pxY) / 2) / pxY, y = (e.clientY - r.top - (r.height - (H - 1) * pxY) / 2) / pxY + camY;
   if (Math.hypot(x - player.x, y - player.y - PILOT_CY) > PREVIEW_HIT) return;
