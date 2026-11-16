@@ -194,7 +194,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
   }
   if (q.get('scene') === 'cave') {   // the deep cave: &at=drop|look|walk|open (prising it)|choice (the card up; the default)|gift|drone|friend, &ready=1 ship already repaired
     const K = M.caveInfo(), at = q.get('at') || 'choice';
-    if (q.get('ready')) { for (const k in M.save.parts) M.save.parts[k] = 99; M.save.comps = 10; }
+    if (q.get('ready')) { for (const k in M.save.parts) M.save.parts[k] = 99; M.save.compsGot = M.COMPONENTS.map(cp => cp.id); }
     if (q.get('nodrone')) { M.save.droneOpen = false; M.save.drone = false; }
     pl.y = K.T - 60; pl.x = K.entryX; pl.aim = pl.x; pl.vx = 0;
     const until = { drop: 0.2, look: 2.5, walk: 6.3, open: 8.4 }[at] || 12.5;
@@ -205,7 +205,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
   }
   if (q.get('scene') === 'cafe') {
     const n = +(q.get('n') || 1), C = M.cafeInfo(n); pl.spare = +(q.get('spare') || 5); pl.hp = 4; if (q.get('kind')) M.setLevi(2 * n, q.get('kind'));
-    if (q.get('comps')) M.save.comps = +q.get('comps');   // &comps=3: components already won from Leviathans
+    if (q.get('comps')) M.save.compsGot = M.COMPONENTS.slice(0, +q.get('comps')).map(cp => cp.id);   // &comps=3: the first three components already won
     if (q.get('compsnew')) M.save.compsNew = q.get('compsnew').split(',');   // &compsnew=shield,gyro: their card as he lands   // &n=2: the second cafe (2000 m), and so on
     pl.y = C.Dl - 28 - 120; pl.x = C.padX; pl.aim = pl.x; pl.vx = 0; M.checkCafe();
     for (let i = 0; i < 60 * 3.2; i++) M.update(1 / 60);
