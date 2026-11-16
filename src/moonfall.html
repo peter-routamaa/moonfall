@@ -1084,7 +1084,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 243;
+const VERSION = 244;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -6498,7 +6498,7 @@ function askComp(cp) {
   confirmDlg.classList.remove('danger');
   const g = $('confirmPic').getContext('2d'); g.clearRect(0, 0, 14, 14); sprite(g, cp.spr, 0, 0, PMAP);
   const left = COMPONENTS.length - save.comps;
-  $('confirmTitle').textContent = 'Component won!';
+  $('confirmTitle').textContent = 'Component unlocked!';
   $('confirmText').textContent = cp.name + ', ' + save.comps + ' of ' + COMPONENTS.length + '. '
     + (canLaunch() ? 'The ship is repaired: fly it home from the main menu!'
       : left ? 'Escape ' + left + ' more Leviathan' + (left === 1 ? '' : 's') + ' for the rest.' : 'Every component won! Now finish collecting the ship parts.');
