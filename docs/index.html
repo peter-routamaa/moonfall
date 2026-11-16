@@ -500,6 +500,8 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .btn.danger:active { box-shadow: 2px 2px 0 var(--dust-dim); }
 .confirm { margin: auto; border: 0; width: min(320px, calc(100vw - 32px)); }
 .confirm:not([open]) { display: none; }
+/* Low on the screen, clear of the pilot on the menu: the escape preview's pop-up, opened by tapping him (askPreview). */
+.confirm.low { margin: auto auto max(16px, env(safe-area-inset-bottom, 0px)); }
 .confirm::backdrop { background: color-mix(in srgb, var(--ink) 72%, transparent); }
 .confirm.danger { box-shadow: 6px 6px 0 var(--lava); }
 .confirm.danger h2 { color: var(--lava); }
@@ -606,6 +608,18 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .speed-flash b .pct { width: .72em; height: .8em; margin-left: .08em; vertical-align: -.02em; filter: drop-shadow(3px 3px 0 var(--ink)); }
 .speed-flash small { display: block; margin-top: 6px; font: 400 20px/1 var(--body); color: var(--dust); text-shadow: 2px 2px 0 var(--ink), -1px -1px 0 var(--ink); }   /* text only, mid-screen below the pilot: rocks stay visible through it */
 .speed-flash.on { animation: speedflash 1.5s steps(15); }
+/* The banner the self-test starts with (owner: "a big pop-up to say developer run in progress"), and the tag while it or an escape preview runs. */
+.run-banner { position: absolute; z-index: 30; left: 50%; top: 42%; width: min(86%, 330px); transform: translate(-50%, -50%); display: grid; gap: 8px; padding: 16px 18px 14px;
+  background: var(--ink); color: var(--dust); border: 3px solid var(--gold); box-shadow: 5px 5px 0 var(--blue); text-align: center; pointer-events: none;
+  animation: runbanner 4.5s steps(18) forwards; }
+.run-banner b { font: 700 18px/1.1 var(--display); letter-spacing: .08em; color: var(--gold); text-transform: uppercase; }
+.run-banner small { font: 400 19px/1 var(--body); color: var(--dust-dim); }
+@keyframes runfade { 0% { opacity: 0; } 10%, 85% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes runbanner { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); } 10% { opacity: 1; transform: translate(-50%, -50%); } 85% { opacity: 1; } 100% { opacity: 0; } }
+/* The tag is a sash across the bottom-left corner, at 45 degrees, its words clear of a phone's rounded corner. */
+.run-tag { position: absolute; left: -30px; bottom: calc(46px + env(safe-area-inset-bottom, 0px)); width: 170px; transform: rotate(45deg);
+  padding: 5px 0 4px; background: var(--gold); color: var(--ink); text-align: center; border-block: 2px solid var(--ink);
+  font: 700 9px/1 var(--display); letter-spacing: .08em; box-shadow: 0 3px 0 var(--ink); pointer-events: none; }
 @keyframes speedflash { 0% { opacity: 0; transform: scale(1.7); } 12% { opacity: 1; transform: none; } 78% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-26px); } }
 @keyframes speedfade { 0% { opacity: 0; } 10%, 80% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes popfade { 0% { opacity: 0; } 15%, 70% { opacity: 1; } 100% { opacity: 0; } }
@@ -627,6 +641,9 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 /* Cafe menu: pinned to the bottom, so the man drinking his coffee stays in view above it. */
 .cafe-ui { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; padding: 0 max(12px, env(safe-area-inset-left, 0px)) calc(14px + env(safe-area-inset-bottom, 0px)); }
 .cafe-ui .flip { max-width: 360px; }
+.cave-card { width: 100%; max-width: 360px; }
+.cave-card h2 { color: var(--gold); }
+@media (max-width: 360px) { .cave-card h2 { font-size: 18px; } }
 .cafe-ui .card { padding: 14px 16px; gap: 10px; }
 .cafe-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .cafe-ui h2 { font-size: 22px; }
@@ -675,6 +692,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   .btn.launch { animation: none; }
   .news { animation: none; }
   .btn.bob { animation: none; }
+  .run-banner { animation-name: runfade; }
   .set-tog.kid-tog { animation: none; }
   .intro-skip { animation: none; }
   #titleScreen.arriving * { animation: none !important; }
@@ -705,6 +723,8 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   </div>
 
   <div class="fps" id="fps" hidden>-- FPS</div>
+  <!-- The small tag while the self-test or an escape preview runs: before the shop and the cave card, so they cover it. -->
+  <div class="run-tag" id="runTag" hidden aria-hidden="true"></div>
   <!-- Cafe menu: a flip card like the title card. Front: SHOP, TIPS, SHIP REPAIR PROGRESS and Continue; the first three turn over to the back. -->
   <div class="cafe-ui" id="shop" hidden>
    <div class="flip" id="cafeFlip">
@@ -747,11 +767,22 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
     </div>
    </div>
   </div>
+  <!-- The deep cave's card: the end of the dive, or keep falling (see the deep cave). -->
+  <div class="cafe-ui cave-ui" id="caveUi" hidden>
+   <div class="card cave-card" role="dialog" aria-labelledby="caveTitle" aria-describedby="caveNote">
+    <h2 id="caveTitle">Congratulations!</h2>
+    <p class="cafe-note" id="caveNote"></p>
+    <button class="btn launch" id="caveClaim" type="button">Claim ship repair kit</button>
+    <button class="btn" id="caveFall" type="button">Keep falling</button>
+   </div>
+  </div>
   <div class="coach gone" id="coach">TAP A SIDE, OR DRAG</div>
   <button class="intro-skip" id="introSkip" type="button">Skip intro</button>
   <div class="intro-cap" id="introCap" aria-hidden="true"></div>
   <div class="streak-flash" id="streakFlash" aria-hidden="true"></div>
   <div class="speed-flash" id="speedFlash" role="status"><b></b><small></small></div>
+  <!-- The self-test's banner as it starts (see showRunBanner; the small tag, which the escape preview shows too, comes before the shop). -->
+  <div class="run-banner" id="runBanner" hidden role="status"><b></b><small></small></div>
 
   <section class="screen splash" id="splashScreen" hidden>
     <div class="studio">
@@ -1054,7 +1085,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 //   and fight art together), alien life on the walls and in the shaft, the moon surface, game state, saved settings (and
 //   what a save holds), sound (and his voice), music, haptics, DOM (elements and the HUD), settings and Kid mode, the
 //   title card and its faces, confirm dialogs, run stats, flow, menu buttons, high scores, coffee stop (cafes: drawing,
-//   landing, the counter, the shop, the signs), badges, board flags, the opening film, fireworks, the launch, phones,
+//   landing, the counter, the shop, the signs), the deep cave (the end of the dive), badges, board flags, the opening film, fireworks, the launch, phones,
 //   updates, input, hazards (one entry per hazard in HAZARDS), level generation, effects, damage and pickups, the helper
 //   drone, boss fights (the attacks in BOSS_ATTACKS, their shots in SHOT_TYPES), update, render, cinematic touches,
 //   sizing and loop, the performance self-test.
@@ -1067,12 +1098,16 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 224;
+const VERSION = 239;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
-// True while the performance self-test plays the game by itself (see perfStart): nothing is saved, sent or awarded.
+// True while the performance self-test plays the game by itself (see perfStart).
 let perfOn = false;
+// The save as it was when an escape preview began (JSON, see the escape preview), or null when none is running.
+let previewSave = null;
+// Nothing is saved, sent or awarded during the self-test or an escape preview; the save is put back when either ends.
+const offRecord = () => perfOn || previewSave !== null;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
@@ -1592,6 +1627,7 @@ function voidAt(d) {
   if (j < 0) return null;
   const V = voidInfo(j);
   if (bossAt(V.T)) return null;   // no void in a boss cavern
+  if (j === CAVE_J) return null;   // the deep cave takes its place
   return d >= V.T - VOID_OPEN && d < V.B + VOID_NECK + VOID_BACK ? V : null;
 }
 // After every second cafe a boss fight (see bossCafe and the boss fights section). Below the cafe's
@@ -1644,6 +1680,43 @@ function voidShape(V, d, C0, hw0) {
   if (d < V.B + VOID_NECK) return [V.exitX, HOLE_HW];
   const u = smoothstep((d - V.B - VOID_NECK) / VOID_BACK);
   return [lerp(V.exitX, C0, u), lerp(HOLE_HW, hw0, u)];
+}
+// The deep cave (the end of the dive; the rest is in its own section) takes the place of the void before cafe CAVE_J + 1,
+// at about 20.5 km (owner: "approximately 20,000 m"), after cafe CAVE_J's Leviathan fight. Owner: the last 200 m are "a wide cavern, similar to where we have
+// all the mines and the other pickups ... it funnels down into a thin, straight bit ... for the last 100 m, and then they
+// land in the cavern". So: the hall (cave.hall, CAVE_HALL tall, a void's width and contents: voidContents), its floor
+// funnelling into the neck (CAVE_NECK, CAVE_NECK_HW wide each side, straight down to the hole in the cave's flat roof at entryX). The cave is CAVE_H
+// tall and the whole screen wide, and its flat floor has one hole (holeX) where the shaft carries on for a player who
+// keeps falling. side is the wall with the portal; the chest stands between his landing spot and that wall.
+// CAVE_ABOVE puts the roof far enough below the Leviathan fight's end for the hall and neck (and above cafe CAVE_J + 1).
+const CAVE_J = 15, CAVE_H = 240, CAVE_NECK = 100 * PX_PER_M, CAVE_HALL = 100 * PX_PER_M, CAVE_ABOVE = 375 * PX_PER_M;
+const CAVE_NECK_HW = 2 * HOLE_HW;   // the neck's half-width: twice a void's hole (owner: "maybe twice as wide. It doesn't need to be quite as dangerous")
+let caveCache = null;
+function caveInfo() {
+  if (caveCache && caveCache.seed === SEED) return caveCache;
+  const T = cafeD(CAVE_J + 1) - CAVE_ABOVE, side = hash(CAVE_J * 3.7 + SEED) < 0.5 ? -1 : 1;
+  caveCache = { seed: SEED, T, F: T + CAVE_H, side, hall: { j: CAVE_J, seed: SEED, T: T - CAVE_NECK - CAVE_HALL, B: T - CAVE_NECK },
+    entryX: Math.round(W / 2 - side * 26), chestX: Math.round(W / 2 + side * 46), holeX: Math.round(W / 2 - side * 104),
+    portalX: side < 0 ? 24 : W - 24 };
+  return caveCache;
+}
+// The cave's stretch (from the hall opening out above it to back to normal below its floor), or null. Asked per wall
+// row: it answers from the remembered caveInfo and makes nothing.
+function caveAt(d) {
+  const cave = caveInfo();
+  return d >= cave.hall.T - VOID_OPEN && d < cave.F + VOID_NECK + VOID_BACK ? cave : null;
+}
+// The shaft's centre and half-width at d in the cave's stretch, given the normal shaft's (C0, hw0) there.
+function caveShape(cave, d, C0, hw0) {
+  const hall = cave.hall;
+  if (d < hall.T) { const u = smoothstep((d - hall.T + VOID_OPEN) / VOID_OPEN); return [lerp(C0, W / 2, u), lerp(hw0, VOID_HW, u)]; }
+  if (d < hall.B - VOID_FLOOR) return [W / 2, VOID_HW];
+  if (d < hall.B) { const u = smoothstep((d - hall.B + VOID_FLOOR) / VOID_FLOOR); return [lerp(W / 2, cave.entryX, u), lerp(VOID_HW, CAVE_NECK_HW, u)]; }
+  if (d < cave.T) return [cave.entryX, CAVE_NECK_HW];
+  if (d < cave.F) return [W / 2, VOID_HW];
+  if (d < cave.F + VOID_NECK) return [cave.holeX, HOLE_HW];
+  const u = smoothstep((d - cave.F - VOID_NECK) / VOID_BACK);
+  return [lerp(cave.holeX, C0, u), lerp(HOLE_HW, hw0, u)];
 }
 // Remembered per 1800 px stretch and seed. Every wall row asks about five times, and walking the stretch for voids and
 // boss caverns each time would be about 1,600 bossAt and 800 voidAt calls a frame in a normal fall.
@@ -1754,17 +1827,18 @@ const lavaQ = d => Math.floor(d / LAVA_Q);
 const lavaThick = ld => Math.round(LAVA_DEEP * Math.sin(Math.PI * (ld - LAVA_TOP) / LAVA_LEN));
 function lavaSide(q) {
   const d0 = q * LAVA_Q, d1 = d0 + LAVA_Q;
-  if (q < 2 || cavernAt(d0 + LAVA_Q / 2) > 0.02 || voidAt(d0) || voidAt(d1) || bossAt(d0) || bossAt(d1)) return 0;
+  if (q < 2 || cavernAt(d0 + LAVA_Q / 2) > 0.02 || voidAt(d0) || voidAt(d1) || bossAt(d0) || bossAt(d1) || caveAt(d0) || caveAt(d1)) return 0;
   const h = hash(q * 5.1 + 3 + SEED), pr = matI(Math.floor(q * LAVA_Q_M / ZONE_M)) === 3 ? 0.42 : 0.28;
   return h < pr ? -1 : h < pr * 2 ? 1 : 0;
 }
 function mossSide(q) { const h = hash(q * 3.3 + 9 + SEED); return h < 0.3 ? -1 : h < 0.6 ? 1 : 0; }
 function edgesRaw(d) {
-  const q = Math.floor(d / 10), f = Math.floor(d / 3), i = islandOffset(d), V = voidAt(d);
+  const cave = caveAt(d), q = Math.floor(d / 10), f = Math.floor(d / 3), i = cave ? 0 : islandOffset(d), V = voidAt(d);
   let C = shaftCentreX(d), h = shaftHalfW(d) + i;
   if (V) [C, h] = voidShape(V, d, C, h);
   const B = bossAt(d);
   if (B) [C, h] = bossShape(B, d, C, h);
+  if (cave) [C, h] = caveShape(cave, d, C, h);
   const e = { C, q, iL: 0, iR: 0,
     L: Math.round(C - h + (hash(q + SEED) - 0.5) * 10 + (hash(f + 500) - 0.5) * 3 + ledge(d, 0)),
     R: Math.round(C + h + (hash(q + 91 + SEED) - 0.5) * 10 + (hash(f + 900) - 0.5) * 3 - ledge(d, 1)) };
@@ -2046,7 +2120,7 @@ function leviathans(cam) {
   // The cafe above's, the one passing between the two cafes, and the cafe below's: no other is ever near the screen.
   for (let k = Math.max(1, 2 * j); k <= 2 * j + 2; k++) {
     const D = leviMark(k), A = leviDepth(k), sy = H / 2 + (A - mid) * LEVI_PARALLAX, dir = hash(k * 4.3 + SEED) < 0.5 ? 1 : -1, sx = W / 2 + dir * (mid - A) * 0.14;
-    if (bossHides(k)) continue;
+    if (bossHides(k) || k === 2 * CAVE_J + 1) continue;   // that passer would swim through the deep cave
     const kind = leviKind(k);
     if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(kind); }
     if (state === 'play' && sy > -40 && sy < H + 40) near = true;
@@ -4463,7 +4537,7 @@ function paintProps(cam, T) {
 
 // ---------- game state ----------
 // What's happening (see the guide at the top). Always change it with setState(), so there's one place to watch it.
-const STATES = new Set(['splash', 'opening', 'title', 'intro', 'play', 'landing', 'cafe', 'cafeJump', 'paused', 'dying', 'over', 'launch', 'ended']);
+const STATES = new Set(['splash', 'opening', 'title', 'intro', 'play', 'landing', 'cafe', 'cafeJump', 'paused', 'dying', 'over', 'launch', 'ended', 'cave']);
 function setState(next) {
   if (!STATES.has(next)) console.error('MoonFall: unknown state', next);
   state = next;
@@ -4484,7 +4558,9 @@ const playerStart = () => ({
   leviFought: []   // the Leviathans whose fight started this run (run stats)
 });
 const player = { touch: false, ...playerStart() };
-// The helper drone, unlocked by repairing the ship on a Hard Dive (save.droneOpen) and switched on the Unlocks card
+// The helper drone, unlocked by flying the repaired ship home (after the standard ending: tellDroneEnd; for saves that
+// finished a mission before that, offered as the next dive starts: askDrone) or found in the chest at the end of the
+// deep cave (save.droneOpen; owner: no longer locked behind Terminal Velocity), and switched on the Unlocks card
 // (save.drone). It hovers beside the pilot and catches ship parts and crystals that go past him. Its place is kept
 // relative to the pilot's middle (ox, oy) so it falls with him. It picks its target ahead of time, so the player can
 // see what it's going for: as a part or crystal comes up within DRONE_AHEAD px below him it rolls once (1 in 2) and, if
@@ -4495,6 +4571,8 @@ let droneRun = false;
 const drone = { ox: 24, oy: -20, mode: 'follow', it: null, lock: null, caught: 0 };
 const DRONE_CHANCE = 0.5, DRONE_SPEED = 720, DRONE_AHEAD = 220;   // share it goes for; dash px/s; lock range below him
 const droneOpen = () => !!save.droneOpen;
+// A mission finished (the ship flown home) before the drone came with the ending: the drone is his to take (askDrone).
+const droneEarned = () => missionsDone() > 0;
 let rocks = [], items = [], particles = [], nextSeg = 0, lastRockD = -999, lastShieldD = -9999, steerAcc = 0;
 // The shaft is generated SEG_LEN pixels at a time; the pilot's hitbox is HIT_HALF_W pixels either side of his middle.
 const SEG_LEN = 110, HIT_HALF_W = 8;
@@ -4535,7 +4613,7 @@ function speedAt(d) {
 //                     sprites fills them in from launches on an old save
 //   suit              the suit colour picked (Unlocks); clamped to the unlocked ones where it's read (suitMap)
 //   hard              Terminal Velocity switched on (Unlocks)
-//   droneOpen, drone, droneNew   the helper drone unlocked, switched on, and not yet announced (set in collect)
+//   droneOpen, drone, droneNew   the helper drone unlocked, switched on, and not yet announced (set in askDrone and caveGift)
 //   kid               Kid mode's settings (sliders, cafe speed-up, helper drone); kidSettings() below repairs
 //                     them whenever they're read (v197-200 saves too)
 //   hints             which one-time hints were shown (the void and each hazard kind); default here
@@ -4582,7 +4660,12 @@ let kidRun = { mines: 1, parts: 1, health: 1, hp: 1, fall: 1, shots: 1, speed: t
 const kidRoll = n => { const x = Math.sin(n * 12.9898 + SEED * 78.233) * 43758.5453; return x - Math.floor(x); };
 // Leviathan shots are thinned evenly (at 50% every other one is fired, at 25% one in four), not at random.
 function bossShot(s) { kidShotAcc += kidRun.shots; if (kidShotAcc >= 0.999) { kidShotAcc -= 1; bossShots.push(s); } }
-function persist() { if (perfOn) return; try { localStorage.setItem('moonfall.v1', JSON.stringify(save)); } catch (e) {} }
+function persist() { if (offRecord()) return; try { localStorage.setItem('moonfall.v1', JSON.stringify(save)); } catch (e) {} }
+// Puts the save back exactly as it was (json: JSON.stringify(save) from before), after the self-test or an escape preview.
+function putSaveBack(json) {
+  for (const k of Object.keys(save)) delete save[k];
+  Object.assign(save, JSON.parse(json));
+}
 // Switches the game over to a moon: its rock layers and scenery colours, and everything painted from them
 // is thrown away to be painted again (the shaft's tiles and back layers, the hills and the surface props). The hazards,
 // Leviathans and music read `moon` as they go. Only called on the menus, never during a run.
@@ -4694,6 +4777,10 @@ const Sfx = (() => {
   const RADIO = { on: true, lo: 450, hi: 2800, mid: 5, drive: 4, hiss: 0.018, out: 0.376, lead: 0.09 };
   // Every voice clip at 0.55: louder, the owner found them "a bit overpowering compared to the music".
   const VOICE_LEVEL = 0.55;
+  // The helper drone's beeps (see droneLock ...), on top of their own volumes: as loud as a pickup (owner: "make it as
+  // loud as a pickup throughout the whole game"): a square at 0.035 x 5 is about as loud as a pickup's triangle at 0.3.
+  const DRONE_LEVEL = 5;
+  const droneTone = (type, f0, f1, dur, vol, delay) => tone(type, f0, f1, dur, vol * DRONE_LEVEL, delay);
   let radioCurve = null;
   const bq = (type, f, q, gain) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; if (gain !== undefined) b.gain.value = gain; return b; };
   function squelch(t, dur, level, out) {
@@ -4951,15 +5038,23 @@ const Sfx = (() => {
     ashGust() { noise(0.55, 'lowpass', 520, 0.4); noise(0.4, 'bandpass', 1700, 0.08, 0.04); tone('sine', 72, 44, 0.35, 0.16); },
     // The helper drone's voice (owner: "add a little bit of personality ... beeps and boops"): little square
     // and sine chirps, quiet, under the game's own sounds.
-    droneLock() { tone('sine', 1400, 1400, 0.04, 0.02); tone('sine', 1870, 1870, 0.05, 0.02, 0.05); },   // locking on: "bip-bip"
-    droneGo() { tone('square', 900, 1500, 0.07, 0.035); tone('sine', 1800, 2400, 0.06, 0.03, 0.05); },          // darting off: "bip-weee"
-    droneGot() { tone('square', 1046, 1046, 0.06, 0.035); tone('square', 1568, 1568, 0.09, 0.035, 0.07); tone('sine', 2093, 2093, 0.08, 0.025, 0.15); },   // caught it: "boop-beep-bing"
-    droneMiss() { tone('square', 700, 520, 0.12, 0.03); tone('square', 520, 330, 0.18, 0.03, 0.13); },           // too late: "bwoo-oo"
-    droneWorry() { for (let i = 0; i < 3; i++) tone('sine', 1300 - i * 180, 1100 - i * 180, 0.06, 0.03, i * 0.08); },   // he got hurt
-    droneHello() { [784, 988, 1175, 1568].forEach((f, i) => tone('square', f, f * (i === 3 ? 1.06 : 1), 0.06, 0.035, i * 0.07)); },   // unlocked: a bright hello
+    // The helper drone's beeps, all DRONE_LEVEL louder than written.
+    droneLock() { droneTone('sine', 1400, 1400, 0.04, 0.02); droneTone('sine', 1870, 1870, 0.05, 0.02, 0.05); },   // locking on: "bip-bip"
+    droneGo() { droneTone('square', 900, 1500, 0.07, 0.035); droneTone('sine', 1800, 2400, 0.06, 0.03, 0.05); },          // darting off: "bip-weee"
+    droneGot() {   // caught it: "boop-beep-bing"
+      droneTone('square', 1046, 1046, 0.06, 0.035); droneTone('square', 1568, 1568, 0.09, 0.035, 0.07); droneTone('sine', 2093, 2093, 0.08, 0.025, 0.15);
+    },
+    droneMiss() { droneTone('square', 700, 520, 0.12, 0.03); droneTone('square', 520, 330, 0.18, 0.03, 0.13); },           // too late: "bwoo-oo"
+    droneWorry() { for (let i = 0; i < 3; i++) droneTone('sine', 1300 - i * 180, 1100 - i * 180, 0.06, 0.03, i * 0.08); },   // he got hurt
+    droneHello() {   // unlocked: a bright hello
+      [784, 988, 1175, 1568].forEach((f, i) => droneTone('square', f, f * (i === 3 ? 1.06 : 1), 0.06, 0.035, i * 0.07));
+    },
     droneChat() {   // idle babble: 3-5 quick notes at random pitches, now and then
       const n = 3 + Math.floor(Math.random() * 3);
-      for (let i = 0; i < n; i++) { const f = 700 + Math.random() * 1500; tone(Math.random() < 0.5 ? 'square' : 'sine', f, f * (0.85 + Math.random() * 0.3), 0.045, 0.022, i * 0.065); }
+      for (let i = 0; i < n; i++) {
+        const f = 700 + Math.random() * 1500;
+        droneTone(Math.random() < 0.5 ? 'square' : 'sine', f, f * (0.85 + Math.random() * 0.3), 0.045, 0.022, i * 0.065);
+      }
     },
     ashPuff() { noise(0.22, 'bandpass', 900, 0.3); noise(0.15, 'highpass', 3500, 0.06, 0.03); },
     // The Jungle hazards: leaves rustling, a branch creaking out of the rock, a pod bursting.
@@ -5157,6 +5252,24 @@ const Music = (() => {
     if (Math.floor(s / 64) % 2 === 1 && MEL[bar][i]) glock(MEL[bar][i], t, 0.06);
     if (moon === 'jungle') { if (i % 2 === 1) shaker(t); if (i === 6 || i === 14) bongo(t, 330, 0.06); }   // a soft shaker and hand drum
     if (moon === 'machine' && (i === 6 || i === 14)) hit(t, 0.05, 'bandpass', 2600, 0.03);   // a distant clank
+  }
+  // The deep cave's song (owner: "an upbeat or congratulatory piece that will play during the whole cave sequence and
+  // maybe the ending cinematic as well"): 132 BPM in A major (I-V-vi-IV: A, E, F sharp minor, D), in the moon's key like
+  // the groove. A four-on-the-floor kick with claps, offbeat hats, a bouncing octave bass, a bright square arpeggio, and
+  // every second four bars a glockenspiel tune over it; the Jungle and Machine moons add their shaker and clank.
+  const VIC_BPM = 132, VIC_CH = [[57, 61, 64], [56, 59, 64], [57, 61, 66], [57, 62, 66]], VIC_BASS = [45, 40, 42, 38];
+  const VIC_ARP = [[69, 73, 76, 73], [68, 71, 76, 71], [66, 69, 73, 69], [66, 69, 74, 69]];
+  const VIC_MEL = [{ 0: 76, 4: 78, 6: 80, 8: 81, 12: 80 }, { 0: 76, 8: 71, 12: 73 }, { 0: 73, 4: 76, 8: 78, 12: 81 }, { 0: 78, 4: 76, 8: 74, 12: 73 }];
+  function victoryStep(bar, i, s, t) {
+    if (i === 0) { pad(VIC_CH[bar], t, 240 / bpm); if (bar === 0) hit(t, 1.2, 'highpass', 4500, 0.08); }
+    if (i % 4 === 0) kick(t);
+    if (i === 4 || i === 12) hit(t, 0.09, 'bandpass', 1500, 0.11);   // the clap
+    if (i % 4 === 2) hit(t, 0.03, 'highpass', 8000, 0.035);
+    if (i % 2 === 0) osc('triangle', mtof(VIC_BASS[bar] + (i % 4 === 2 ? 12 : 0)), t, 0.2, 0.2, 0.005, 0, false);
+    if (i % 2 === 1) osc('square', mtof(VIC_ARP[bar][(i >> 1) % 4]), t, 0.11, 0.032, 0.003, 3200, true);
+    if (Math.floor(s / 64) % 2 === 1 && VIC_MEL[bar][i]) glock(VIC_MEL[bar][i], t, 0.075);
+    if (moon === 'jungle' && i % 2 === 1) shaker(t);
+    if (moon === 'machine' && (i === 6 || i === 14)) hit(t, 0.05, 'bandpass', 2600, 0.03);
   }
   // Start screen: a slow, spacey theme (80 BPM; A minor 9, F major 7, C over G, E minor 7) that starts on the first tap
   // (browsers allow no sound before one) and changes with the moon picked. Before a pick: a pad, a soft sub bass and a
@@ -5366,6 +5479,7 @@ const Music = (() => {
     if (mode === 'title') { titleStep(bar, i, s, t); return; }
     if (mode === 'splash') { splashStep(bar, i, s, t); return; }
     if (mode === 'boss') { bossStep(s, t); return; }
+    if (mode === 'victory') { victoryStep(bar, i, s, t); return; }
     if (i === 0) {
       if (lead !== leadNext) { lead = leadNext; crash = true; }   // a new rock layer's instrument comes in on the bar, with a cymbal
       pad(CH[bar], t, 240 / bpm); if (crash) { hit(t, 1.3, 'highpass', 4500, 0.1); crash = false; }
@@ -5485,6 +5599,7 @@ const Music = (() => {
     mode = m; playing = true; step = 0; nextT = A.ctx.currentTime + 0.06;
     if (m === 'title') { bpm = 96; calm(); }
     if (m === 'splash') { bpm = 80; calm(); }
+    if (m === 'victory') { bpm = VIC_BPM; calm(); }
     if (m === 'boss') { bpm = BOSS_TRACKS[track].bpm * (heat >= 3 ? HEAT_FAST : 1); creature(false); }
     level(true, m === 'splash' ? 0.8 : m === 'title' ? 0.4 : 0.05); tick(); timer = setInterval(tick, 25);
   }
@@ -5516,6 +5631,9 @@ const Music = (() => {
       taiko(t, 0.8); gbass(r, t, 1.2, 0.3); brass([r + 12, r + 19, r + 24], t, 2.4, 0.04, false); toll(r + 24, t, 0.07);
     },
     title() { this.begin('title'); },
+    // The deep cave's song; with `out`, the music playing sinks away over that many seconds first and the song opens up
+    // over `inn`. Already playing, it carries on.
+    victory(out, inn) { if (out) fadeTo('victory', out, inn || 2); else this.begin('victory'); },
     // The start screen's theme, for the moon picked so far ('' before a pick).
     splash(m) { if (mode !== 'splash' || !playing) pick = m || ''; this.begin('splash'); },
     // A moon picked on the start screen: the bar restarts in that moon's sound.
@@ -5539,7 +5657,13 @@ const Music = (() => {
       level(false, (fade || 0.3) / 3);
     },
     setOn() { if (bus) level(playing, 0.05); },
-    setDepth(m) { if (mode === 'boss') return; const L = m < 250 ? 1 : m < 600 ? 2 : 3; if (L > layer) crash = true; layer = L; bpm = 120 + 8 * smoothstep((m - 300) / 1500); },
+    setDepth(m) {
+      if (mode === 'boss' || mode === 'victory') return;
+      const L = m < 250 ? 1 : m < 600 ? 2 : 3;
+      if (L > layer) crash = true;
+      layer = L;
+      bpm = 120 + 8 * smoothstep((m - 300) / 1500);
+    },
     // The rock layer (a MATS index). Its instrument takes over on the next bar, or at once with `now`.
     setZone(k, now) { leadNext = k; if (now) lead = k; },
     // Called every frame during a run; it only touches the audio when something changes.
@@ -5551,13 +5675,13 @@ const Music = (() => {
     },
     creature,
     // The n-th note going up one of the groove's four chords (CH), counting from `base` semitones above it, in Hz. The
-    // chord is CH's for the bar now playing (its place in the four-bar loop), whatever the track: right for the groove
-    // and the title loop, which play CH; on the start screen and in a fight it only keeps time. With no music playing
+    // chord is CH's for the bar now playing (its place in the four-bar loop), or VIC_CH's in the cave's song: right for
+    // the groove, the title loop and that song; on the start screen and in a fight it only keeps time. With no music playing
     // it's the first chord, A minor.
     note(n, base) {
       let bar = 0;
       if (playing) for (const b of bars) if (b.t <= A.ctx.currentTime) bar = b.bar;
-      return mtof(CH[bar][n % 3] + base + 12 * Math.floor(n / 3));
+      return mtof((mode === 'victory' ? VIC_CH : CH)[bar][n % 3] + base + 12 * Math.floor(n / 3));
     },
     reset() { layer = 1; bpm = 120; crash = false; lead = leadNext = 0; if (bus) calm(); },
     leap() {
@@ -5642,6 +5766,15 @@ const screens = {
   score: $('scoreScreen')
 };
 const fmtM = m => String(m).padStart(4, '0');
+// The big banner the self-test starts with (it fades by itself), and the small tag that stays up while it or an
+// escape preview runs.
+function showRunBanner(title, text) {
+  const banner = $('runBanner');
+  banner.firstChild.textContent = title; banner.lastChild.textContent = text;
+  banner.hidden = true; void banner.offsetWidth; banner.hidden = false;   // shown again, its animation starts over
+}
+function showRunTag(tag) { $('runTag').textContent = tag; $('runTag').hidden = false; }
+function hideRunBanner() { $('runBanner').hidden = true; $('runTag').hidden = true; }
 function showScreen(name) { for (const k in screens) screens[k].hidden = k !== name; }
 // The ship repair panel is shown in two places: the main menu, and the cafe's Ship repair card. Each copy (a repair
 // view: its title, percentage, bar and part rows) is built the same way by buildRepairView, and renderRepair fills all.
@@ -5924,8 +6057,8 @@ function syncToggles() {
   $('hardNote').textContent = hardOpen() ? 'Unlocked by repairing the ship' : 'Repair the ship to unlock Terminal Velocity';
   const dt = $('droneT');
   dt.disabled = !droneOpen(); dt.setAttribute('aria-pressed', String(!!save.drone && droneOpen()));
-  dt.setAttribute('aria-label', droneOpen() ? 'Helper drone' : 'Helper drone, locked until the ship is repaired on Terminal Velocity');
-  $('droneNote').textContent = droneOpen() ? 'Unlocked by repairing the ship on Terminal Velocity mode' : 'Repair the ship on Terminal Velocity mode to unlock the drone';
+  dt.setAttribute('aria-label', droneOpen() ? 'Helper drone' : 'Helper drone, locked until the ship is flown home or it is found in the cave');
+  $('droneNote').textContent = droneOpen() ? 'Unlocked: it\'s yours to take along' : 'Fly the repaired ship home, or find it in the chest at the end of the cave, about 20 km down';
   $('buzzNote').hidden = Buzz.canVibrate || !save.vib;
   // The pixel font's "m" is hard to read, so the main menu's BEST uses a drawn pixel m as tall as the
   // digits (M_ICON), like the percent sign on the speed-up banner.
@@ -6210,7 +6343,9 @@ $('settingsDone').addEventListener('click', () => setCard(null));
 // ---------- confirm dialogs ----------
 // Reset ship repair (Settings): two confirmations, the second sterner, before the parts are cleared.
 const confirmDlg = $('confirmDlg');
-// confirmKind: which question is open: 'reset' (two steps), 'hard' (Terminal Velocity) or 'launch' (from the cafe).
+// confirmKind: which question is open: 'reset' (two steps), 'hard' (Terminal Velocity), 'launch' (from the cafe),
+// 'repaired' (after the dive that finished the ship), 'drone' (the helper drone, offered as a dive starts),
+// 'droneEnd' (the helper drone, after the standard ending: one button) or 'preview' (the escape preview, before it starts).
 let confirmStep = 0, resetTimer = 0, confirmKind = 'reset', confirmFrom = 'resetBtn';
 function clearRepair() {
   for (const pt of PARTS) save.parts[pt.id] = 0;
@@ -6218,11 +6353,13 @@ function clearRepair() {
 }
 function popConfirm() {
   pctify($('confirmText')); pctify($('confirmYes'));
-  $('confirmYes').classList.toggle('danger', confirmKind !== 'launch');
-  $('confirmYes').classList.toggle('launch', confirmKind === 'launch');
+  $('confirmYes').classList.toggle('danger', confirmKind === 'reset' || confirmKind === 'hard');
+  $('confirmYes').classList.toggle('launch', ['launch', 'repaired', 'drone', 'droneEnd', 'preview'].includes(confirmKind));
+  $('confirmNo').hidden = confirmKind === 'droneEnd';
+  confirmDlg.classList.toggle('low', confirmKind === 'preview');
   confirmDlg.classList.remove('pop-in'); void confirmDlg.offsetWidth; confirmDlg.classList.add('pop-in');
   if (!confirmDlg.open) confirmDlg.showModal();
-  $('confirmNo').focus();
+  $(confirmKind === 'droneEnd' ? 'confirmYes' : 'confirmNo').focus();
 }
 // Hard Dive's pop-up: one question, red like the reset's second step. With nothing to lose (no parts, no
 // crystals paid) it just switches on.
@@ -6233,8 +6370,7 @@ function askHard() {
   confirmDlg.classList.add('danger');
   $('confirmTitle').textContent = 'Go Terminal Velocity?';
   const lost = [n ? `your ${n} ship part${n === 1 ? '' : 's'}` : '', c ? `the ${c} crystal${c === 1 ? '' : 's'} paid into the nav computer` : ''].filter(Boolean).join(' and ');
-  $('confirmText').textContent = `Terminal Velocity starts your mission over: ${lost} go${n + c === 1 && !(n && c) ? 'es' : ''} back to zero, and the ship repair to 0%. Your best depth, badges, suits and unlocks are kept.` +
-    (droneOpen() ? '' : ' Repair the ship on Terminal Velocity and you unlock the helper drone as a reward!');
+  $('confirmText').textContent = `Terminal Velocity starts your mission over: ${lost} go${n + c === 1 && !(n && c) ? 'es' : ''} back to zero, and the ship repair to 0%. Your best depth, badges, suits and unlocks are kept.`;
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Reset and go hard';
   $('confirmNo').textContent = 'Cancel';
   popConfirm();
@@ -6256,20 +6392,84 @@ function askReset(step) {
   popConfirm();
 }
 $('resetBtn').addEventListener('click', () => askReset(1));
+// Owner: the next Jump In (or Fall again) says the helper drone is unlocked and asks whether to take it; now only for
+// saves that flew a ship home before the drone came with the ending (droneEarned). Either answer unlocks it (Not now leaves it switched off, for the Unlocks card) and starts the dive;
+// closing the pop-up any other way does neither, so it asks again next time. Returns true when it asked.
+let droneQuick = false;   // the dive to start after the answer: a quick restart (Fall again) or from the menu
+function askDrone(quick) {
+  if (offRecord() || droneOpen() || !droneEarned()) return false;
+  confirmKind = 'drone'; confirmFrom = quick ? 'againBtn' : 'startBtn'; confirmStep = 0; droneQuick = quick;
+  confirmDlg.classList.remove('danger');
+  $('confirmTitle').textContent = 'Helper drone unlocked!';
+  $('confirmText').textContent = 'You flew the ship home, so the helper drone is yours. It falls with you and catches half of the ship parts and crystals you miss. Take it along?';
+  $('confirmYes').hidden = false; $('confirmYes').textContent = 'Yes, bring it';
+  $('confirmNo').textContent = 'Not now';
+  popConfirm();
+  return true;
+}
+function answerDrone(take) {
+  save.droneOpen = true; save.drone = take; persist(); award('drone'); syncToggles();
+  if (take) Sfx.droneHello();
+  confirmDlg.close();
+  startRun(droneQuick);
+}
+// Owner: the dive that finished the ship (parts and nav computer) ends with congratulations and the offer to fly home
+// (the standard ending); Later leaves the game over card, with its Launch the ship button, as it was.
+function askRepaired() {
+  confirmKind = 'repaired'; confirmFrom = 'againBtn'; confirmStep = 0;
+  confirmDlg.classList.remove('danger');
+  $('confirmTitle').textContent = 'Congratulations!';
+  $('confirmText').textContent = 'You repaired the ship and installed the nav computer. It\'s ready to fly you home!';
+  $('confirmYes').hidden = false; $('confirmYes').textContent = 'Fly home!';
+  $('confirmNo').textContent = 'Later';
+  popConfirm();
+}
+// Owner: after the standard ending (the ship flown home from the menu, game over or a cafe), the helper drone is unlocked
+// for the next dive, with a pop-up saying so. (The deep cave's chest gives it there and then: caveGift.)
+function tellDroneEnd() {
+  confirmKind = 'droneEnd'; confirmFrom = 'endTitleBtn'; confirmStep = 0;
+  confirmDlg.classList.remove('danger');
+  $('confirmTitle').textContent = 'Helper drone unlocked!';
+  $('confirmText').textContent = 'You flew the ship home, and the helper drone is yours. It will fly with you the next time you dive, catching half of the ship parts and crystals you miss. (Unlocks)';
+  $('confirmYes').hidden = false; $('confirmYes').textContent = 'Great!';
+  popConfirm();
+}
+// The escape preview (five taps on the pilot) says what it is before the dive starts (see the escape preview).
+function askPreview() {
+  if (offRecord() || state !== 'title' || cardSide) return;
+  confirmKind = 'preview'; confirmStep = 0;
+  confirmFrom = screens.title.classList.contains('clean') ? 'menuStart' : 'startBtn';   // the menu's open or not yet
+  confirmDlg.classList.remove('danger');
+  $('confirmTitle').textContent = 'Escape preview';
+  $('confirmText').textContent = 'See how the dive can end: you\'ll start ' + PREVIEW_ABOVE_M + ' m above the deep cave, about 20 km down, '
+    + 'falling at the starting speed. It\'s only a preview, so nothing is saved: your ship, drone, badges and scores stay as they are.';
+  $('confirmYes').hidden = false; $('confirmYes').textContent = 'Start the preview';
+  $('confirmNo').textContent = 'Not now';
+  // Owner: taps still coming at the pilot dismissed it. It opens low (popConfirm), and its buttons wait a moment.
+  const buttons = [$('confirmYes'), $('confirmNo')];
+  for (const b of buttons) b.disabled = true;
+  setTimeout(() => { for (const b of buttons) b.disabled = false; if (confirmDlg.open) $('confirmNo').focus(); }, PREVIEW_ASK_WAIT);
+  popConfirm();
+}
 // The cafe's launch: the dive ends there, so it asks first.
 function askLaunch() {
   if (state !== 'cafe' || !canLaunch()) return;
   confirmKind = 'launch'; confirmFrom = 'cafeLaunchBtn'; confirmStep = 0;
   confirmDlg.classList.remove('danger');
-  $('confirmTitle').textContent = 'Launch the ship?';
-  $('confirmText').textContent = 'Your dive ends here at ' + depthM().toLocaleString('en-GB') + ' m, and counts on the high scores. Then you fly home!';
-  $('confirmYes').hidden = false; $('confirmYes').textContent = 'Launch!';
+  $('confirmTitle').textContent = 'Congratulations!';
+  $('confirmText').textContent = 'The ship is repaired and the nav computer installed. Fly home now? Your dive ends here at '
+    + depthM().toLocaleString('en-GB') + ' m and counts on the high scores.';
+  $('confirmYes').hidden = false; $('confirmYes').textContent = 'Fly home!';
   $('confirmNo').textContent = 'Not yet';
   popConfirm();
 }
-$('confirmNo').addEventListener('click', () => confirmDlg.close());
+$('confirmNo').addEventListener('click', () => { if (confirmKind === 'drone') answerDrone(false); else confirmDlg.close(); });
 $('confirmYes').addEventListener('click', () => {
   if (confirmKind === 'launch') { confirmDlg.close(); launchFromCafe(); return; }
+  if (confirmKind === 'drone') { answerDrone(true); return; }
+  if (confirmKind === 'repaired') { confirmDlg.close(); flyHome(); return; }
+  if (confirmKind === 'droneEnd') { confirmDlg.close(); return; }
+  if (confirmKind === 'preview') { confirmDlg.close(); startPreview(); return; }
   if (confirmKind === 'hard') {   // start the mission over, then Terminal Velocity on
     confirmDlg.close(); clearRepair(); save.hard = true; persist(); renderRepair(); syncToggles(); Sfx.bleep(330); return;
   }
@@ -6321,7 +6521,7 @@ const DEVICE = /iPad|Tablet/.test(UA) || TOUCH_MAC || (/Android/.test(UA) && !/M
 const OS = /Android/.test(UA) ? 'android' : /iPhone|iPad|iPod/.test(UA) || TOUCH_MAC ? 'ios' : /Windows/.test(UA) ? 'windows' : /CrOS/.test(UA) ? 'chromeos'
   : /Mac OS X|Macintosh/.test(UA) ? 'mac' : /Linux/.test(UA) ? 'linux' : 'other';
 function statPing(body) {
-  if (!SCORES_URL || perfOn) return;
+  if (!SCORES_URL || offRecord()) return;
   fetch(SCORES_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
 }
 function countPlay() {
@@ -6388,6 +6588,7 @@ function resetRun() {
   sayEl.hidden = true;
   boss = null; bossShots.length = 0; bossGone.clear(); pilotNow = pilotScreenY; hud.classList.remove('boss'); bossTune = -1; bossTuneOn = false;
   shake = 0; dieT = 0; camY = camY0; shownDepth = -1;
+  caveReset();
   setHP(); setDepth();
 }
 // -- Hard Dive (idea 13): unlocked once the ship has been fixed (a finished mission). The run starts with 4 health, falls
@@ -6415,8 +6616,10 @@ function startRun(quick) {
 }
 function beginPlay() {
   setState('play');
-  const startM = perfOn ? PERF_START_M : TEST_START_M;
-  if (startM) {   // the boss test copy: skip ahead to just above cafe 1 (see TEST_START_M); the self-test starts 400 m down
+  let startM = TEST_START_M;   // the boss test copy skips ahead to just above cafe 1 (see TEST_START_M)
+  if (perfOn) startM = PERF_START_M;   // the self-test starts 400 m down
+  else if (previewSave) startM = previewStartM();   // an escape preview, just above the cave
+  if (startM) {
     player.y = startM * PX_PER_M;
     const e = edgeAt(player.y + PILOT_CY);
     player.x = (e.L + e.R) / 2; camY = player.y - pilotNow; nextSeg = Math.floor(camY / SEG_LEN); lastRockD = player.y;
@@ -6428,7 +6631,7 @@ function beginPlay() {
   if (hardRun) pop('TERMINAL VELOCITY', player.x, player.y - 30, 'bad');
 }
 function pause() {
-  if (!['play', 'intro', 'landing', 'cafe', 'cafeJump'].includes(state)) return;
+  if (!['play', 'intro', 'landing', 'cafe', 'cafeJump', 'cave'].includes(state)) return;
   if (runId && !document.hidden) runPauses++;   // pauses the player chose (not the game being hidden)
   prevState = state; setState('paused'); sayEl.style.visibility = 'hidden'; Sfx.wind(0); Sfx.thrust(0); Music.stop(0.15); syncToggles();
   $('perkPause').textContent = perkSummary(); $('perkPause').hidden = !player.bought.length;
@@ -6437,7 +6640,8 @@ function pause() {
 function resume() {
   if (state !== 'paused') return;
   setState(prevState); showScreen(null); sayEl.style.visibility = ''; last = performance.now(); armBack();
-  if (state === 'landing' || state === 'cafe' || state === 'cafeJump') Music.title();
+  if (caveSong) Music.victory();
+  else if (state === 'landing' || state === 'cafe' || state === 'cafeJump' || state === 'cave') Music.title();
   else if (bossTuneOn) Music.boss(bossTrack);
   else if (state === 'play' || introT >= 1.3) Music.start();
 }
@@ -6446,8 +6650,11 @@ function toTitle() {
   menuFromRun = true;   // an update may reload this menu (see reloadForUpdate)
   disarmBack();
   checkUpdate();
+  endRun('quit');   // first: nothing from an escape preview is sent
+  // An escape preview ends here (Quit from pause, or Main menu after the ending). flyHome passes through on its way to the
+  // launch (state 'over'), and the preview goes on through the ending.
+  if (previewSave && state !== 'over') endPreview();
   const repairedThisRun = !readyStart && canLaunch();   // ready to fly since this run began: the ship or the computer finished
-  endRun('quit');
   resetRun();
   setState('title');
   screens.title.classList.remove('clean');   // between runs the menu shows straight away
@@ -6458,8 +6665,8 @@ function toTitle() {
   placeHorizon();
   Sfx.wind(0);
   Sfx.thrust(0);
-  Music.title();
-  if (repairedThisRun) startFireworks();
+  if (launchPortal) Music.victory(); else Music.title();   // on the way home through the cave's portal its song plays on
+  if (repairedThisRun) startFireworks('title');
 }
 function die() {
   sayEl.hidden = true;
@@ -6468,9 +6675,11 @@ function die() {
 }
 function gameOver() {
   setState('over'); endRun(lastHit || 'wall');
+  const preview = previewSave !== null;
+  if (preview) endPreview();   // an escape preview ends with its game over card, which doesn't count
   // A Leviathan that caught him leaves with the run: no painting it behind the card, no frozen shots.
   if (boss) { boss = null; bossShots.length = 0; hud.classList.remove('boss'); }
-  const m = depthM(), kb = kidRun.on, isBest = m > bestNow();   // a Kid mode run has its own best and board
+  const m = depthM(), kb = kidRun.on, isBest = !preview && m > bestNow();   // a Kid mode run has its own best and board
   if (isBest) { if (kb) save.kidBest = m; else save.best = m; persist(); }
   hsKid = kb; $('oBest').previousElementSibling.textContent = kb ? 'KID BEST' : 'BEST';
   $('oDepth').firstChild.nodeValue = m; $('oBest').firstChild.nodeValue = bestNow(); $('oOrbs').textContent = player.orbs;
@@ -6479,6 +6688,7 @@ function gameOver() {
   // Run highlights, one per line, the rarest first; at most four, then the treats.
   const leviName = k => LEVI_INFO.find(x => x[0] === k)[1], nb = player.newBadges;
   const lines = [
+    preview ? '<b>Escape preview</b>: not saved' : '',
     hardRun ? '<b>Terminal Velocity</b>' : '',
     nb.length ? 'New badge' + (nb.length > 1 ? 's' : '') + ': <b>' + nb.join(', ') + '</b>' : '',
     player.leviRun.length ? 'Escaped <b>' + player.leviRun.map(leviName).join(', ') + '</b>' : '',
@@ -6490,9 +6700,16 @@ function gameOver() {
   $('runExtra').innerHTML = lines.map(t => '<span>' + t + '</span>').join(''); $('runExtra').hidden = !lines.length;
   $('overLaunchBtn').hidden = !canLaunch();
   hud.classList.add('off'); syncToggles();
-  if (qualifies(m)) { showScores(m); return; }
+  overRepaired = !readyStart && canLaunch();   // this dive finished the ship: congratulations once the scores are done
+  if (!preview && qualifies(m)) { showScores(m); return; }
+  showOver();
+}
+// The game over card, and the congratulations on top of it when this dive finished the ship (askRepaired).
+let overRepaired = false;
+function showOver() {
   showScreen('over');
   setTimeout(() => { if (state === 'over') $('againBtn').focus({ preventScroll: true }); }, 50);
+  if (overRepaired) { overRepaired = false; askRepaired(); }
 }
 
 // ---------- menu buttons ----------
@@ -6512,7 +6729,7 @@ $('newMissionBtn').addEventListener('click', e => {
 $('endTitleBtn').addEventListener('click', toTitle);
 $('launchBtn').addEventListener('click', startLaunch);
 $('overLaunchBtn').addEventListener('click', () => { toTitle(); startLaunch(); });
-$('startBtn').addEventListener('click', () => startRun(false));
+$('startBtn').addEventListener('click', () => { if (!askDrone(false)) startRun(false); });
 // Start screen: Choose Moon opens the three moons; Start stays grey until one is picked, then plays the intro
 // on that moon (the moon behind the buttons changes as soon as it's picked). Nothing is picked to begin with.
 let splashPicked = false;
@@ -6535,7 +6752,7 @@ const splashMusic = () => { if (state === 'splash') { Sfx.init(); Music.splash(s
 document.addEventListener('click', splashMusic, true);
 document.addEventListener('keydown', splashMusic, true);
 $('introSkip').addEventListener('click', () => { if (state === 'opening') endOpening('skipped'); });
-$('againBtn').addEventListener('click', () => startRun(true));
+$('againBtn').addEventListener('click', () => { if (!askDrone(true)) startRun(true); });
 $('menuBtn').addEventListener('click', toTitle);
 $('pauseBtn').addEventListener('click', pause);
 $('resumeBtn').addEventListener('click', resume);
@@ -6629,10 +6846,18 @@ function openTable() {
   renderTable();
   if (SCORES_URL) syncOnline();
 }
-// Only the run that made the ship ready to fly (repair and nav computer finished during it) gets the rocket, not every
-// score set after escaping.
-const escapedNow = () => !readyStart && canLaunch();
+// The rocket goes on every score set by a player who has ever escaped (owner: "if they have ever escaped, update the
+// badge"): the ship flown home at least once (a new mission doesn't take that away), or ready to fly now.
+const escapedNow = () => missionsDone() > 0 || canLaunch();
 const ROCKET_SVG = '<svg viewBox="0 0 7 9" width="14" height="18" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1h-1zM2 1h3v6h-3zM1 4h1v3h-1zM5 4h1v3h-1zM0 6h1v2h-1zM6 6h1v2h-1zM3 7h1v2h-1z"/></svg>';
+// Owner: "If a player has escaped, only present the badge on their highest score." Players are told apart by their
+// initials (all the board knows): the rocket goes on the highest of their rows shown when any of them has it, and their
+// other rows show none (or the dash when nothing about them is known).
+function onlyBestEscaped(rows) {
+  const best = new Map(), escaped = new Set();
+  for (const r of rows) if (r) { if (!best.has(r.i) || r.m > best.get(r.i).m) best.set(r.i, r); if (r.e === true) escaped.add(r.i); }
+  for (const r of rows) if (r && escaped.has(r.i)) r.e = best.get(r.i) === r;
+}
 function renderTable() {
   $('hsTabOnline').setAttribute('aria-pressed', hsTab === 'online'); $('hsTabLocal').setAttribute('aria-pressed', hsTab === 'local');
   $('hsKindNormal').setAttribute('aria-pressed', !hsKid); $('hsKindKid').setAttribute('aria-pressed', hsKid);
@@ -6646,6 +6871,7 @@ function renderTable() {
     if (hsOnline.rank > HS_MAX) rows.push(null, { n: hsOnline.rank, i: hsOnline.me.i, m: hsOnline.me.m, e: hsOnline.me.e, o: hsOnline.me.o, you: true });
     note = rows.length ? 'Everyone with the link' : 'No scores yet. Be the first!';
   }
+  onlyBestEscaped(rows);
   $('hsList').innerHTML = '';
   if (rows.length) {
     const head = document.createElement('li'); head.className = 'head'; head.setAttribute('aria-hidden', 'true');
@@ -6720,7 +6946,7 @@ function closeScores() {
   scoreOpen = false;
   if (hsFrom === 'title') { showScreen('title'); $('bestBtn').focus({ preventScroll: true }); }
   else if (hsFrom === 'launch') flyHome();
-  else { showScreen('over'); $('againBtn').focus({ preventScroll: true }); }
+  else showOver();
 }
 // Arrows step once on press and repeat while held; keyboard presses arrive as clicks with no pointer.
 for (const [k, el] of hsSlots.entries()) for (const b of el.querySelectorAll('.arrow')) {
@@ -7130,11 +7356,16 @@ $('cafeLaunchBtn').addEventListener('click', askLaunch);
 function launchFromCafe() {
   if (state !== 'cafe' || !canLaunch()) return;
   shopEl.hidden = true; cafeCard(null, true); sayEl.hidden = true;
-  const m = depthM(), kb = kidRun.on;   // a Kid mode run has its own best and board
-  if (m > bestNow()) { if (kb) save.kidBest = m; else save.best = m; persist(); }
-  hsKid = kb;
+  endDiveAndFlyHome(false);
+}
+// Ends the dive where he is and flies home: viaPortal (the deep cave) starts the ending at the orange portal by the ship
+// instead of up the shaft. The dive counts like any other (owner: it "should still count in the high scores").
+function endDiveAndFlyHome(viaPortal) {
+  const m = depthM(), kb = kidRun.on, counts = !previewSave;   // a Kid mode run has its own best and board; a preview has none
+  if (counts && m > bestNow()) { if (kb) save.kidBest = m; else save.best = m; persist(); }
+  hsKid = kb; launchPortal = !!viaPortal;
   setState('over'); hud.classList.add('off'); endRun('quit');
-  if (qualifies(m)) { showScores(m, 'launch'); return; }
+  if (counts && qualifies(m)) { showScores(m, 'launch'); return; }
   flyHome();
 }
 function flyHome() { toTitle(); startLaunch(); }
@@ -7271,6 +7502,354 @@ function drawCafeSigns(cam) {
   }
 }
 
+// ---------- the deep cave: the end of the dive ----------
+// Owner (2026-11-16): deep down, "a cool-looking cavern with maybe icicles hanging off the roof ... some of the
+// little animals from the surface ... a big treasure chest that the player slowly walks over to and opens. Inside, it
+// will have a nav computer and any remaining pieces to repair the ship"; then "Congrats, you reached the end of the
+// cave" with "Claim ship repair kit", a blue portal in the wall that he walks through, and the ending, starting at an
+// orange portal by the ship (launchPortal, see the launch). Also owner: an optional exit, so a player can keep falling
+// for score instead. Where the cave is and its shape: caveInfo, caveAt and caveShape (the shaft).
+// Owner, later: finding the chest is a big thing even with the ship already repaired ("Congratulations, you've found the
+// ship repair kit"), the parts pop out when the gift is accepted, and the crate holds the helper drone too, which pops
+// out last, flies about chirping, and gets its own card ("You've made a new friend for your next fall").
+// He drops through the roof's hole and lands (phase 'drop') with the opening film's landing line, stands looking about
+// ('look', owner: "have him pause for maybe 5 seconds? He can look around, and then have him slowly walk over to the
+// chest, and let's have a little animation while he prys it open"), walks slowly to the chest ('walk'), prises it open
+// with a crowbar ('open', see PRY), and the card asks ('choice'). Claim ('gift'): the parts pop out one by one, hover, and fly to him, and the ship is repaired;
+// then, unless he has it already, the drone pops out, loops about and settles by him, and the second card shows
+// ('friend'). Then the portal opens and he walks in ('portal'), and the dive ends (endDiveAndFlyHome). Keep falling:
+// he walks to the floor's hole and drops ('leave').
+// The art is drawn once per run (caveReset): the roof's icicles, roots or pipes, and the floor's bits, by moon.
+// caveChest: how far the chest's lid is up (0 to 1); it stays open once opened.
+let cavePhase = '', caveT = 0, caveDone = false, caveFrom = null, caveArt = null, caveForMoon = '', caveChest = 0;
+const caveUi = $('caveUi');
+const CAVE_PORTAL_IN = 0.8;   // s from the portal starting to open until he walks to it
+// Looking about after landing: LOOK_TIME s, facing away from the chest (-1) or toward it (1) from each time on; he
+// spots it at LOOK_SPOT. He walks to it at CAVE_WALK px/s.
+const LOOK_TIME = 5, LOOK_FACE = [[0, -1], [1.1, 1], [2.1, -1], [3.0, 1]], LOOK_SPOT = 3.3, CAVE_WALK = 34;
+// Prising the chest open, s into 'open': the crowbar comes out at out; three heaves start at heaves, each heaveLen long,
+// lifting the lid a little more; it pops open at pop and the crowbar goes at pop + 0.3; the card shows at card.
+const PRY = { out: 0.3, heaves: [0.6, 1.3, 2.0], heaveLen: 0.45, pop: 2.7, card: 4.0 };
+// How hard he's heaving at t s into 'open' (0 to 1), and which heave (0, 1, 2; -1 for none).
+function pryHeave(t) {
+  for (let k = 0; k < PRY.heaves.length; k++) {
+    const u = (t - PRY.heaves[k]) / PRY.heaveLen;
+    if (u >= 0 && u < 1) return [Math.sin(Math.PI * u), k];
+  }
+  return [0, -1];
+}
+// The gift: part i pops out at GIFT_POP + i * GIFT_GAP s and hovers; all fly to him at GIFT_TAKE; the drone pops out at
+// GIFT_DRONE, loops about for GIFT_LOOPS s and settles by him; the drone's card shows GIFT_CARD s after it popped out.
+const GIFT_POP = 0.2, GIFT_GAP = 0.25, GIFT_TAKE = 2.3, GIFT_DRONE = 3.0, GIFT_LOOPS = 2.6, GIFT_CARD = 3.3;
+let caveGiftDrone = false;   // this gift includes the drone (he didn't have it yet)
+// The cave's song (Music.victory) is on: it fades in as he enters the neck, CAVE_SONG_OUT s for the groove to sink and
+// CAVE_SONG_IN for it to open up, and plays through the cave and, after the portal, the ending (see the launch).
+let caveSong = false;
+const CAVE_SONG_OUT = 1.5, CAVE_SONG_IN = 3;
+function caveReset() {
+  cavePhase = ''; caveT = 0; caveDone = false; caveChest = 0; caveLift = caveLiftWant = 0; caveUi.hidden = true; caveGiftDrone = false;
+  caveSong = false;
+  if (!caveArt || caveForMoon !== moon || caveArt.seed !== SEED) buildCaveArt();
+}
+// The cave's camera: the floor 62% down the screen (the roof's art just under the HUD), raised by caveLift once the card
+// is up, so the chest and the pilot stay above it (caveLiftWant, measured when the card shows).
+let caveLift = 0, caveLiftWant = 0;
+const caveCamY = cave => cave.F - Math.round(H * 0.62) + Math.round(caveLift);
+function checkCave() {
+  if (caveDone || perfOn) return;
+  const cave = caveInfo();
+  if (!caveSong && player.y + PILOT_CY >= cave.hall.B && player.y + PILOT_CY < cave.F) { caveSong = true; Music.victory(CAVE_SONG_OUT, CAVE_SONG_IN); }
+  if (player.y + PILOT_CY < cave.T + 10) return;
+  caveDone = true;
+  setState('cave'); cavePhase = 'drop'; caveT = 0; caveFrom = { x: player.x, y: player.y, cam: camY };
+  steerAcc = 0; tapBurst.l = tapBurst.r = 0; presses.clear(); player.vx = 0; player.thr = 0; Sfx.thrust(0);
+}
+function updateCave(dt) {
+  caveT += dt;
+  const cave = caveInfo(), t = caveT, crossed = at => t >= at && t - dt < at, standY = cave.F - 28, s = cave.side;
+  const toChest = cave.chestX - s * 20, lifted = ['choice', 'gift', 'friend', 'portal', 'leave'].includes(cavePhase);
+  caveLift += ((lifted ? caveLiftWant : 0) - caveLift) * Math.min(1, dt * 6);
+  setDepth();   // the HUD's depth follows him down to the floor
+  let cam = caveCamY(cave);
+  if (cavePhase === 'drop') {
+    const dur = Math.max(0.35, (standY - caveFrom.y) / 420), u = Math.min(1, t / dur);
+    player.x = lerp(caveFrom.x, cave.entryX, easeInOut(u)); player.y = lerp(caveFrom.y, standY, u * 0.6 + u * u * 0.4); player.pose = 'fall';
+    cam = lerp(caveFrom.cam, cam, easeInOut(u));
+    if (u >= 1) {
+      cavePhase = 'look'; caveT = 0; squash(0.32); Sfx.moonLand(); Buzz.orb();
+      hud.classList.add('off');   // the roof's art shows under where it was; back if he keeps falling
+      startFireworks('cave');
+      for (let i = 0; i < 14; i++) particles.push({ x: player.x + (Math.random() - 0.5) * 30, d: cave.F - 4, vx: (Math.random() - 0.5) * 90,
+        vy: -20 - Math.random() * 40, t: 0, life: 0.5 + Math.random() * 0.4, col: Math.random() < 0.5 ? P.shade : P.strata, z: 2 });
+    }
+  } else if (cavePhase === 'look') {
+    let face = -1;
+    for (const [at, f] of LOOK_FACE) if (t >= at) face = f;
+    player.pose = face * s > 0 ? 'stand' : 'standL';
+    if (crossed(LOOK_SPOT)) { pop('!', player.x, player.y - 8, 'part'); squash(-0.15); Sfx.bleep(660); }
+    if (t >= LOOK_TIME) { cavePhase = 'walk'; caveT = 0; }
+  } else if (cavePhase === 'walk') {
+    const dur = Math.abs(toChest - cave.entryX) / CAVE_WALK, u = Math.min(1, t / dur);   // a slow walk over to it
+    player.x = lerp(cave.entryX, toChest, u); player.y = standY - (Math.floor(t * 3) % 2); player.pose = s > 0 ? 'run' : 'runL';
+    if (u >= 1) { cavePhase = 'open'; caveT = 0; player.y = standY; player.pose = s > 0 ? 'stand' : 'standL'; }
+  } else if (cavePhase === 'open') {
+    const [push, k] = pryHeave(t);
+    caveChest = t < PRY.pop ? 0.05 * (k + 1) * push : smoothstep((t - PRY.pop) / 0.2);
+    player.y = standY + Math.round(push * 2);   // he leans into it
+    for (const at of PRY.heaves) if (crossed(at + PRY.heaveLen * 0.4)) {
+      Sfx.clang(); shake = Math.max(shake, 0.15); sparks(cave.chestX - s * 12, cave.F - 13, [P.shade, P.strata], 5, 4);
+    }
+    if (crossed(PRY.pop)) { Sfx.buy(); shake = Math.max(shake, 0.4); player.y = standY; squash(-0.2); }
+    if (crossed(PRY.pop + 0.4)) { Sfx.part(); Buzz.part(); sparks(cave.chestX, cave.F - 20, ['#F2C14E', '#FFFFFF', '#A9781B'], 24, 10); }
+    if (crossed(PRY.card)) showCaveCard();
+  } else if (cavePhase === 'gift') {
+    caveGift(cave, t, crossed);
+  } else if (cavePhase === 'portal') {
+    const walkDur = Math.abs(cave.portalX - s * 10 - toChest) / 80, at = t - CAVE_PORTAL_IN;
+    if (crossed(0.05)) Sfx.whoosh();
+    if (at > 0 && at < walkDur) {
+      player.x = lerp(toChest, cave.portalX - s * 10, at / walkDur); player.y = standY - 2 * (Math.floor(t * 5) % 2);
+      player.pose = s > 0 ? 'run' : 'runL';
+    }
+    if (droneRun) { drone.ox = -s * 18; drone.oy = -10; }   // the drone keeps close behind him
+    if (at >= walkDur && !player.hidden) {
+      player.hidden = true; droneRun = false; Sfx.jump(); sparks(cave.portalX, cave.F - 26, ['#8FD3FF', '#E6F6FF', '#2F7BD8'], 20, 10);
+    }
+    if (at >= walkDur + 0.6) { cavePhase = ''; endDiveAndFlyHome(true); return; }
+  } else if (cavePhase === 'leave') {
+    // Over to the floor's hole and down it: the fall carries on below, and the camera eases back to following him.
+    const dur = Math.abs(cave.holeX - toChest) / 110, u = Math.min(1, t / dur);
+    player.x = lerp(toChest, cave.holeX, u); player.y = standY - 2 * (Math.floor(t * 6) % 2); player.pose = cave.holeX > toChest ? 'run' : 'runL';
+    cam = lerp(cam, player.y - pilotScreenY, easeInOut(u));
+    if (u >= 1) {
+      setState('play'); cavePhase = ''; hud.classList.remove('off'); caveSong = false;
+      player.pose = 'fall'; player.fallRamp = 0; player.vx = 0; player.aim = player.x; player.inv = 0.6; player.y = standY + 8;
+      Sfx.jump(); squash(-0.22); Music.start();
+    }
+  }
+  camY = cam;
+}
+function showCaveCard() {
+  cavePhase = 'choice';
+  $('caveNote').textContent = 'You\'ve found the ship repair kit, at the end of the cave ' + depthM().toLocaleString('en-GB')
+    + ' m down: every part and the nav computer you need to fly home.';
+  $('caveClaim').textContent = 'Claim ship repair kit'; $('caveFall').hidden = false;
+  caveUi.hidden = false;
+  measureCaveCard(); requestAnimationFrame(measureCaveCard);   // again once the page has laid the card out
+  kbFocus($('caveClaim'));
+}
+// How far to raise the cave's camera so the floor sits 30 px above the card; measured when the card shows and when the
+// screen changes size (a measurement, so never every frame). Never so far that the floor nears the top.
+function measureCaveCard() {
+  if (caveUi.hidden) return;
+  const card = caveUi.firstElementChild.getBoundingClientRect(), top = (card.top - game.getBoundingClientRect().top) / sc;
+  caveLiftWant = card.height ? Math.max(0, Math.min(H * 0.62 - 120, H * 0.62 - (top - 30))) : 0;
+}
+addEventListener('resize', measureCaveCard);
+// The card's main button: on the first card it takes the gift, on the drone's card it opens the portal.
+function claimCave() {
+  if (state !== 'cave') return;
+  if (cavePhase === 'choice') { caveUi.hidden = true; caveGiftDrone = !save.droneOpen || previewSave !== null; cavePhase = 'gift'; caveT = 0; }
+  else if (cavePhase === 'friend') { caveUi.hidden = true; cavePhase = 'portal'; caveT = 0; }
+}
+// The gift, at t s after it was accepted: the parts pop out of the chest in turn and hover over it, fly to him and the
+// ship is repaired; then the drone (see GIFT_POP ...).
+const GIFT_ITEMS = [...PARTS, { id: 'nav', spr: NAV_SPR }];
+function giftItemAt(cave, i, t) {   // where gift item i is at t s, or null when it isn't out (or was taken)
+  const out = t - GIFT_POP - i * GIFT_GAP;
+  if (out < 0 || t > GIFT_TAKE + 0.35) return null;
+  const sx = cave.chestX, sy = cave.F - 14, hx = cave.chestX + (i - (GIFT_ITEMS.length - 1) / 2) * 18, hy = cave.F - 74;
+  const u = Math.min(1, out / 0.35), hover = Math.sin(clock * 4 + i) * 2;
+  let x = lerp(sx, hx, u), y = lerp(sy, hy, 1 - (1 - u) * (1 - u)) - 26 * Math.sin(Math.PI * u) + hover;
+  if (t > GIFT_TAKE) { const k = easeInOut((t - GIFT_TAKE) / 0.35); x = lerp(x, player.x, k); y = lerp(y, player.y + PILOT_CY, k); }
+  return [x, y];
+}
+function caveGift(cave, t, crossed) {
+  GIFT_ITEMS.forEach((_, i) => { if (crossed(GIFT_POP + i * GIFT_GAP)) { Sfx.part(); sparks(cave.chestX, cave.F - 20, ['#F2C14E', '#FFFFFF'], 8, 6); } });
+  if (crossed(GIFT_TAKE + 0.35)) {   // the kit: every part to its need, and the nav computer paid
+    const was = repairFrac() >= 1;
+    for (const pt of PARTS) save.parts[pt.id] = Math.max(save.parts[pt.id], pt.need);
+    save.nav = NAV_PRICE; persist(); renderRepair();
+    Sfx.repaired(); Buzz.shield(); pop('SHIP REPAIR KIT!', player.x, player.y - 10, 'part');
+    if (!was) award('repair');
+    sparks(player.x, player.y + PILOT_CY, ['#F2C14E', '#FFFFFF', '#A9781B', P.hot], 30, 14);
+  }
+  if (!caveGiftDrone) { if (t > GIFT_TAKE + 0.9) { cavePhase = 'portal'; caveT = 0; } return; }
+  const dt0 = t - GIFT_DRONE;
+  if (crossed(GIFT_DRONE)) {   // the drone pops out: his for good, flying with him from now on
+    save.droneOpen = true; save.drone = true; save.droneNew = true; persist(); award('drone');
+    droneRun = true; drone.mode = 'follow'; drone.it = null; drone.lock = null;
+    Sfx.droneHello(); sparks(cave.chestX, cave.F - 20, ['#7FF4E6', '#FFFFFF', '#C4CCD6'], 18, 10);
+  }
+  if (dt0 >= 0) {
+    // Out of the chest, loops about the cave, then settles beside him (drawDrone draws it at his position + ox, oy).
+    const lx = cave.chestX + Math.sin(dt0 * 2.4) * 70, ly = cave.F - 96 + Math.sin(dt0 * 4.8) * 22;
+    const out = Math.min(1, dt0 / 0.4), home = smoothstep((dt0 - GIFT_LOOPS) / 0.6);
+    const wx = lerp(lerp(cave.chestX, lx, out), player.x - cave.side * 22, home), wy = lerp(lerp(cave.F - 20, ly, out), player.y + PILOT_CY - 14, home);
+    drone.vx = (wx - player.x - drone.ox) * 30; drone.ox = wx - player.x; drone.oy = wy - player.y - PILOT_CY;
+    if (crossed(GIFT_DRONE + 0.9) || crossed(GIFT_DRONE + 2.1)) Sfx.droneChat();
+    if (dt0 >= GIFT_CARD && cavePhase === 'gift') {
+      cavePhase = 'friend';
+      $('caveNote').textContent = 'You\'ve found the helper drone. You\'ve made a new friend for your next fall!';
+      $('caveClaim').textContent = 'Through the portal'; $('caveFall').hidden = true;
+      caveUi.hidden = false; measureCaveCard(); kbFocus($('caveClaim'));
+    }
+  }
+}
+function leaveCave() {
+  if (state !== 'cave' || cavePhase !== 'choice') return;
+  caveUi.hidden = true; cavePhase = 'leave'; caveT = 0;
+}
+$('caveClaim').addEventListener('click', claimCave);
+$('caveFall').addEventListener('click', leaveCave);
+// The art, by moon: things hanging from the roof (CAVE_ROOF_H tall, drawn from the roof down) and things standing on the
+// floor (CAVE_FLOOR_H tall, standing on it), both clear of the holes, the chest and the portal.
+const CAVE_ROOF_H = 110, CAVE_FLOOR_H = 18;
+const CAVE_COLOURS = {
+  dust: { a: '#CFE9F7', b: '#F4FBFF', c: '#8CC3E3', glow: '#9FE3FF' },     // icicles
+  jungle: { a: '#6B4325', b: '#4E8F35', c: '#3A2412', glow: '#B8F070' },   // roots, leaves, glowing moss
+  machine: { a: '#7B8591', b: '#A9B2BC', c: '#B2552A', glow: '#7FD6E8' },  // pipes, cables, rust
+};
+function buildCaveArt() {
+  const cave = caveInfo(), col = CAVE_COLOURS[moon] || CAVE_COLOURS.dust, rand = rng32(Math.floor(SEED * 997) + 25);
+  const roof = document.createElement('canvas'), floor = document.createElement('canvas');
+  roof.width = floor.width = W; roof.height = CAVE_ROOF_H; floor.height = CAVE_FLOOR_H;
+  const rg = roof.getContext('2d'), fg = floor.getContext('2d');
+  const clear = (x, w, ...holes) => holes.every(([hx, hw]) => x + w < hx - hw || x > hx + hw);
+  if (moon === 'machine') {   // a pipe along the roof, cables hanging in loops, rust streaks
+    rg.fillStyle = P.ink; rg.fillRect(0, 2, W, 10); rg.fillStyle = col.a; rg.fillRect(0, 3, W, 8); rg.fillStyle = col.b; rg.fillRect(0, 4, W, 2);
+    for (let x = 6; x < W; x += 28) { rg.fillStyle = P.ink; rg.fillRect(x, 2, 3, 10); }
+    for (let n = 0; n < 7; n++) {
+      const x0 = 14 + rand() * (W - 60), span = 24 + rand() * 30, sag = 14 + rand() * 30;
+      for (let x = 0; x <= span; x++) { const y = 11 + Math.round(sag * Math.sin(Math.PI * x / span)); rg.fillStyle = P.ink; rg.fillRect(Math.round(x0 + x), y, 1, 2); }
+    }
+    for (let n = 0; n < 10; n++) { const x = Math.round(8 + rand() * (W - 16)); rg.fillStyle = col.c; rg.fillRect(x, 11, 2, 4 + Math.round(rand() * 10)); }
+  } else {
+    for (let x = 4; x < W - 6; x += 4 + Math.floor(rand() * 8)) {
+      const w = moon === 'jungle' ? 2 : 4 + Math.floor(rand() * 6), len = 14 + Math.floor(rand() * (CAVE_ROOF_H - 18));
+      if (!clear(x, w, [cave.entryX, CAVE_NECK_HW + 6])) continue;
+      for (let y = 0; y < len; y++) {
+        if (moon === 'jungle') {   // a root that wanders a little, with a leaf now and then and moss on top
+          const wx = x + Math.round(Math.sin(y * 0.25 + x) * 1.5);
+          rg.fillStyle = col.a; rg.fillRect(wx, y, 2, 1);
+          if (y % 7 === 3 && rand() < 0.6) { rg.fillStyle = col.b; rg.fillRect(wx + (rand() < 0.5 ? -3 : 2), y, 3, 2); }
+        } else {   // an icicle, narrowing to a point, lit down one side
+          const ww = Math.max(1, Math.round(w * (1 - y / len)));
+          rg.fillStyle = col.a; rg.fillRect(x, y, ww, 1);
+          rg.fillStyle = col.b; rg.fillRect(x, y, 1, 1);
+          if (ww > 2) { rg.fillStyle = col.c; rg.fillRect(x + ww - 1, y, 1, 1); }
+        }
+      }
+      if (moon === 'jungle' && rand() < 0.5) { rg.fillStyle = col.glow; rg.fillRect(x - 1, 0, 4, 2); }
+    }
+  }
+  // The floor's bits: ice spikes, ferns and mushrooms, or scrap and cogs.
+  for (let x = 6; x < W - 8; x += 8 + Math.floor(rand() * 12)) {
+    if (!clear(x, 6, [cave.holeX, HOLE_HW + 6], [cave.chestX, 24], [cave.entryX, 14], [cave.portalX, 22])) continue;
+    const h = 4 + Math.floor(rand() * (CAVE_FLOOR_H - 5));
+    if (moon === 'machine') { fg.fillStyle = P.ink; fg.fillRect(x, CAVE_FLOOR_H - h, 6, h); fg.fillStyle = rand() < 0.5 ? col.a : col.c; fg.fillRect(x + 1, CAVE_FLOOR_H - h + 1, 4, h - 1); }
+    else if (moon === 'jungle') { for (let y = 0; y < h; y++) { fg.fillStyle = y < 3 ? col.glow : col.b; fg.fillRect(x + 2 + (y % 2), CAVE_FLOOR_H - 1 - y, 1, 1); fg.fillRect(x + (y % 3), CAVE_FLOOR_H - 1 - y, 1, 1); } }
+    else { for (let y = 0; y < h; y++) { const ww = Math.max(1, Math.round(4 * (1 - y / h))); fg.fillStyle = y === h - 1 ? col.b : col.a; fg.fillRect(x + 2 - (ww >> 1), CAVE_FLOOR_H - 1 - y, ww, 1); } }
+  }
+  caveArt = { roof, floor, seed: SEED }; caveForMoon = moon;
+}
+// The chest: closed, or its lid lifted by open (0 to 1), with a glow inside once it's open.
+function drawChest(x, y, open) {
+  const L = x - 13, top = y - 18, lift = Math.round(12 * open);
+  if (open > 0.5) { c.globalAlpha = 0.18 + 0.1 * Math.sin(clock * 4); c.fillStyle = '#FFE9A0'; c.fillRect(L + 3, top - 44, 20, 50); c.globalAlpha = 1; }
+  c.fillStyle = P.ink; c.fillRect(L - 1, top + 6, 28, 13);
+  c.fillStyle = '#8F4A1E'; c.fillRect(L, top + 7, 26, 11); c.fillStyle = '#B5652A'; c.fillRect(L, top + 7, 26, 2);
+  c.fillStyle = '#F2C14E'; c.fillRect(L + 4, top + 7, 2, 11); c.fillRect(L + 20, top + 7, 2, 11); c.fillRect(L + 11, top + 10, 4, 4);
+  c.fillStyle = P.ink; c.fillRect(L + 12, top + 11, 2, 2);
+  if (open > 0) { c.fillStyle = '#FFE9A0'; c.fillRect(L + 1, top + 6, 24, 2); }
+  c.fillStyle = P.ink; c.fillRect(L - 1, top - lift, 28, 7);
+  c.fillStyle = '#A0552A'; c.fillRect(L, top + 1 - lift, 26, 5);
+  c.fillStyle = '#F2C14E'; c.fillRect(L + 4, top + 1 - lift, 2, 5); c.fillRect(L + 20, top + 1 - lift, 2, 5);
+}
+// The crowbar while he prises the chest open (PRY): a lever from the seam under the lid up to the grip in his hands,
+// pushed down with each heave. my: the top of his sprite on the overlay canvas; the seam is placed from it.
+function drawCrowbar(my) {
+  const t = caveT;
+  if (t < PRY.out || t > PRY.pop + 0.3) return;
+  const cave = caveInfo(), s = cave.side, [push] = pryHeave(t), seamY = my + (cave.F - 12 - player.y);
+  const tx = cave.chestX - s * 11, ty = seamY - Math.round(push * 2);   // the tip, under the lid's edge
+  const hx = tx - s * 15, hy = seamY - 13 + Math.round(push * 7);   // the grip in his hands, pushed down with each heave
+  bline(hx, hy + 1, tx, ty + 1, P.ink, 2);
+  bline(hx, hy, tx, ty, '#7B8591', 2);
+  c.fillStyle = '#C9D1D9'; c.fillRect(Math.round(lerp(hx, tx, 0.3)), Math.round(lerp(hy, ty, 0.3)), 2, 1);   // a glint
+  c.fillStyle = P.lava; c.fillRect(Math.round(hx) - 1, Math.round(hy) - 1, 3, 3);   // the red grip
+}
+// A portal standing on the floor at x: an oval (open: 0 to 1) of four colours, outer to inner, with bands drifting
+// through the middle. Drawn in rows; no images.
+const PORTAL_BLUE = ['#1B3A8A', '#2F7BD8', '#8FD3FF', '#E6F6FF'], PORTAL_ORANGE = ['#7A2E0E', '#E0662A', '#FFB45A', '#FFF1C8'];
+function drawPortal(x, y, open, cols) {
+  const a = 12 * open, b = 25 * open;
+  if (b < 1) return;
+  for (let dy = -Math.floor(b); dy <= Math.floor(b); dy++) {
+    const w = a * Math.sqrt(Math.max(0, 1 - (dy / b) * (dy / b))), yy = Math.round(y - b + dy);
+    c.fillStyle = cols[0]; c.fillRect(Math.round(x - w), yy, Math.round(2 * w), 1);
+    if (w > 3) { c.fillStyle = cols[1]; c.fillRect(Math.round(x - w + 2), yy, Math.round(2 * w - 4), 1); }
+    if (w > 6) { c.fillStyle = (Math.floor((dy + clock * 18) / 4) % 2) ? cols[2] : cols[3]; c.fillRect(Math.round(x - w + 4), yy, Math.round(2 * w - 8), 1); }
+  }
+}
+function drawCave(cam) {
+  if (!caveArt) return;
+  const cave = caveInfo(), top = cave.T - cam, floorY = cave.F - cam;
+  if (floorY < -40 || top > H + CAVE_ROOF_H) return;
+  if (fireworks.length && fwShow.world) drawFireworks(cam);   // far off, behind the roof's art and everything on the floor
+  c.drawImage(caveArt.roof, 0, Math.round(top));
+  c.drawImage(caveArt.floor, 0, Math.round(floorY - CAVE_FLOOR_H));
+  // Two little creatures from the surface, hopping on the floor.
+  for (const [i, bx] of [[0, Math.round(W / 2 - cave.side * 58)], [1, Math.round(W / 2 + cave.side * 98)]]) {
+    const ph = (clock * 0.7 + i * 0.45) % 1;
+    sprite(c, BLOB[ph < 0.15 ? 1 : 0], bx - 7, Math.round(floorY - 12 - Math.sin(Math.PI * ph) * 9), MAP);
+  }
+  drawChest(cave.chestX, Math.round(floorY), caveChest);
+  // The gift's parts, popping out and hovering over the chest, then flying to him.
+  if (state === 'cave' && cavePhase === 'gift') GIFT_ITEMS.forEach((pt, i) => {
+    const at = giftItemAt(cave, i, caveT);
+    if (at) drawPart(pt, Math.round(at[0]), Math.round(at[1] - cam), clock);
+  });
+  const portalOpen = state === 'cave' && cavePhase === 'portal' ? smoothstep(caveT / CAVE_PORTAL_IN) * (player.hidden ? Math.max(0, 1 - (caveT - CAVE_PORTAL_IN - 1.4) * 2) : 1) : 0;
+  if (portalOpen > 0) drawPortal(cave.portalX, Math.round(floorY), portalOpen, PORTAL_BLUE);
+}
+
+// The escape preview (owner: "so that people can watch the third ending if they're unlikely to ever make it that far"):
+// five quick taps on the pilot by the ship, on the main menu, ask (askPreview), then start a dive PREVIEW_ABOVE_M (200 m)
+// above the cave's roof, at the top of the hall (owner: "let's start 200 m up"), at the starting speed (owner: "the default speed at which the game would normally start at 0 m":
+// no cafe speed-ups, Terminal Velocity and Kid mode's fall speed still apply). Like the self-test it is off the record
+// (offRecord): nothing is saved, sent or awarded, and the save is put back exactly as it was when it ends: at its game
+// over card, or back on the main menu (after the ending, or Quit from pause).
+const PREVIEW_ABOVE_M = (CAVE_NECK + CAVE_HALL) / PX_PER_M, PREVIEW_TAPS = 5, PREVIEW_TAP_GAP = 3000, PREVIEW_HIT = 22;
+const PREVIEW_ASK_WAIT = 800;   // ms the pop-up's buttons wait, so taps still coming at the pilot can't answer it
+let previewTaps = 0, previewTapAt = 0;
+const previewStartM = () => Math.round(caveInfo().T / PX_PER_M) - PREVIEW_ABOVE_M;
+function startPreview() {
+  if (offRecord() || state !== 'title' || cardSide) return;
+  previewSave = JSON.stringify(save);
+  startRun(true);
+  kidRun.speed = false;   // the starting speed: no cafe speed-ups (see speedAt)
+  droneRun = false;   // the drone comes out of the chest instead: a preview always shows that part of the ending (claimCave)
+  showRunTag('ESCAPE PREVIEW');
+}
+function endPreview() {
+  putSaveBack(previewSave);
+  previewSave = null;
+  hideRunBanner();
+}
+// A tap within PREVIEW_HIT pixels of the pilot's middle, on the menu's open space (not on its cards or buttons), with
+// the menu open or not yet (before START).
+screens.title.addEventListener('pointerdown', e => {
+  if (e.target !== screens.title || state !== 'title') return;
+  const r = game.getBoundingClientRect();
+  const x = (e.clientX - r.left - (r.width - W * pxY) / 2) / pxY, y = (e.clientY - r.top - (r.height - (H - 1) * pxY) / 2) / pxY + camY;
+  if (Math.hypot(x - player.x, y - player.y - PILOT_CY) > PREVIEW_HIT) return;
+  const now = performance.now();
+  if (now - previewTapAt > PREVIEW_TAP_GAP) previewTaps = 0;
+  previewTapAt = now;
+  if (++previewTaps >= PREVIEW_TAPS) { previewTaps = 0; askPreview(); }
+});
+
 // ---------- badges: saved on the phone in save.badges (id: when earned) ----------
 const BADGES = [
   ['cafe', 'First cafe', 'Land at a cafe'],
@@ -7290,7 +7869,7 @@ if (!save.badges || typeof save.badges !== 'object') save.badges = {};
 if (!save.badges.repair && (missionsDone() > 0 || repairFrac() >= 1)) save.badges.repair = Date.now();
 if (!save.badges.drone && save.droneOpen) save.badges.drone = Date.now();
 function award(id) {
-  if (perfOn || save.badges[id]) return;
+  if (offRecord() || save.badges[id]) return;
   const b = BADGES.find(x => x[0] === id);
   if (!b) return;
   save.badges[id] = Date.now(); persist();
@@ -7837,32 +8416,43 @@ function drawIntroSpace(t, sx, sy) {
   }
   c.setTransform(1, 0, 0, 1, 0, 0);
 }
-// ---------- fireworks: over the main menu after the run that finishes the ship's repair ----------
-// For 9 s rockets rise from the ground at random places and burst into sparks that fall and fade, in the sky between the
-// ship repair panel and the title card. In screen pixels (the title camera doesn't move).
-const FW_COLS = ['#E0483A', '#2F6FD6', '#9B6BE8', '#2E9E57', '#E8922E'];   // strong colours: the sky here is pale
-let fireworks = [], fwTime = 0, fwNext = 0;
-function startFireworks() { fwTime = 9; fwNext = 0.4; fireworks = []; }
+// ---------- fireworks: over the main menu after the run that finishes the ship's repair, and far off in the deep cave ----------
+// Bursts of sparks that fall and fade. Each show is one entry in FW_SHOWS:
+//   state     the show stops (and its sparks go) when the game leaves this state
+//   secs      how long new bursts keep coming (Infinity: for as long as the state lasts)
+//   gap       s between bursts: [least, plus up to]
+//   at()      where the next one goes: x, the ground it rises from (y), and the height it bursts at (top)
+//   rise      a rocket climbs from the ground first (false: the burst just appears, as if too far off to see the rocket)
+//   world     at() and the drawing are in world pixels (drawn with the camera), not screen pixels
+//   sparks, speed   per burst: [least, plus up to]; size: a spark's pixels when new; alpha: how bright; sound: a bang each
+const FW_COLS = ['#E0483A', '#2F6FD6', '#9B6BE8', '#2E9E57', '#E8922E'];   // strong colours: the menu's sky is pale
+const FW_SHOWS = {
+  // In the sky between the ship repair panel and the title card, for 9 s (the title camera doesn't move).
+  title: { state: 'title', secs: 9, gap: [0.25, 0.3], rise: true, world: false, sparks: [26, 10], speed: [60, 40], size: 3, alpha: 1, sound: true,
+    at: () => ({ x: 40 + Math.random() * (W - 80), y: H * 0.56, top: H * (0.36 + Math.random() * 0.1) }) },
+  // Owner: "The background is quite bland. How about fireworks in the distance?" Small, dim and quiet, on the cave's
+  // back wall between the roof's art and the floor, while he's there.
+  cave: { state: 'cave', secs: Infinity, gap: [0.35, 0.4], rise: false, world: true, sparks: [22, 10], speed: [36, 20], size: 2, alpha: 0.85, sound: false,
+    at: () => { const k = caveInfo(), top = k.T + CAVE_ROOF_H * 0.6 + Math.random() * 60; return { x: 24 + Math.random() * (W - 48), y: top, top }; } },
+};
+let fireworks = [], fwTime = 0, fwNext = 0, fwShow = FW_SHOWS.title;
+function startFireworks(kind) { fwShow = FW_SHOWS[kind] || FW_SHOWS.title; fwTime = fwShow.secs; fwNext = 0.4; fireworks = []; }
 function updateFireworks(dt) {
-  if (state !== 'title') { fireworks.length = 0; fwTime = 0; return; }
+  if (state !== fwShow.state) { fireworks.length = 0; fwTime = 0; return; }
   if (fwTime > 0) {
     fwTime -= dt; fwNext -= dt;
     if (fwNext <= 0) {
-      fwNext = 0.25 + Math.random() * 0.3;
-      fireworks.push({ rocket: 1, x: 40 + Math.random() * (W - 80), y: H * 0.56, vy: -(190 + Math.random() * 60), top: H * (0.36 + Math.random() * 0.1), col: FW_COLS[Math.floor(Math.random() * FW_COLS.length)], t: 0 });
+      fwNext = fwShow.gap[0] + Math.random() * fwShow.gap[1];
+      const at = fwShow.at(), col = FW_COLS[Math.floor(Math.random() * FW_COLS.length)];
+      if (fwShow.rise) fireworks.push({ rocket: 1, x: at.x, y: at.y, vy: -(190 + Math.random() * 60), top: at.top, col, t: 0 });
+      else burstFirework(at.x, at.top, col);
     }
   }
   for (const f of fireworks) {
     f.t += dt;
     if (f.rocket) {
       f.y += f.vy * dt;
-      if (f.y <= f.top) {
-        f.dead = true; Sfx.firework();
-        for (let i = 0, n = 26 + Math.floor(Math.random() * 10); i < n; i++) {
-          const a = i / n * Math.PI * 2 + Math.random() * 0.2, sp = 60 + Math.random() * 40;
-          fireworks.push({ x: f.x, y: f.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: 1 + Math.random() * 0.5, col: Math.random() < 0.85 ? f.col : '#F2C14E' });
-        }
-      }
+      if (f.y <= f.top) { f.dead = true; burstFirework(f.x, f.y, f.col); }
     } else {
       f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 70 * dt; f.vx *= 1 - dt;
       if (f.t >= f.life) f.dead = true;
@@ -7870,11 +8460,20 @@ function updateFireworks(dt) {
   }
   prune(fireworks, f => !f.dead);
 }
-function drawFireworks() {
+function burstFirework(x, y, col) {
+  if (fwShow.sound) Sfx.firework();
+  for (let i = 0, n = fwShow.sparks[0] + Math.floor(Math.random() * fwShow.sparks[1]); i < n; i++) {
+    const a = i / n * Math.PI * 2 + Math.random() * 0.2, sp = fwShow.speed[0] + Math.random() * fwShow.speed[1];
+    fireworks.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: 1 + Math.random() * 0.5, col: Math.random() < 0.85 ? col : '#F2C14E' });
+  }
+}
+// cam: the camera, for a show in world pixels (0 for one in screen pixels).
+function drawFireworks(cam) {
   for (const f of fireworks) {
-    if (f.rocket) { c.fillStyle = P.dust; c.fillRect(Math.round(f.x), Math.round(f.y), 1, 4); c.fillStyle = P.hot; c.fillRect(Math.round(f.x), Math.round(f.y) + 4, 1, 2); continue; }
-    const u = f.t / f.life, z = u < 0.5 ? 3 : 2;   // sparks shrink and fade
-    c.globalAlpha = Math.max(0, 1 - u * u); c.fillStyle = f.col; c.fillRect(Math.round(f.x) - 1, Math.round(f.y) - 1, z, z);
+    const x = Math.round(f.x), y = Math.round(f.y - cam);
+    if (f.rocket) { c.fillStyle = P.dust; c.fillRect(x, y, 1, 4); c.fillStyle = P.hot; c.fillRect(x, y + 4, 1, 2); continue; }
+    const u = f.t / f.life, z = u < 0.5 ? fwShow.size : fwShow.size - 1;   // sparks shrink and fade
+    c.globalAlpha = Math.max(0, 1 - u * u) * fwShow.alpha; c.fillStyle = f.col; c.fillRect(x - 1, y - 1, z, z);
   }
   c.globalAlpha = 1;
 }
@@ -7885,6 +8484,10 @@ function drawFireworks() {
 // its original timings, shifted to start once the repair is done: wave, climb aboard, rumble, tip upright, blast off.
 const REPAIR = { up: 1.6, arc: 2.7, arrive: 3.2, toShip: 4.2, hop: 4.8, weld: 7.6, drop: 8.2, hammer: 10.4, back: 10.9, shine: 11.6, done: 12.0 };
 const SHAFT_START_Y = 260;   // how far down the shaft he starts his climb out, in pixels
+// After the deep cave's portal (launchPortal) he steps out of an orange portal by the ship instead: it opens, he comes
+// out at PORTAL_OUT s and walks to his spot, and it closes behind him; the rest is the same.
+let launchPortal = false;
+const PORTAL_HOME_X = 122, PORTAL_OUT = 0.9;
 const REPAIR_HITS = 4, WELD_AT = { x: 9, y: -34 }, HAMMER_AT = { x: 49, y: -15 };
 const LAUNCH = Object.fromEntries(Object.entries({ wave: 1.0, board: 3.0, aboard: 3.5, rumble: 4.0, lift: 6.5, climb: 8.0, groove: 9.9, space: 15.0, away: 20.0, end: 21.4 })
   .map(([k, v]) => [k, v + REPAIR.done]));
@@ -7911,7 +8514,11 @@ function shipShine(x, y, k) {
 function repairScene(t, dt, crossed) {
   const R = REPAIR;
   player.hidden = false; player.thr = 0;
-  if (t < R.up) {
+  if (launchPortal && t < R.arc) {
+    player.hidden = t < PORTAL_OUT;
+    const u = Math.max(0, (t - PORTAL_OUT) / (R.arc - PORTAL_OUT));
+    player.x = lerp(PORTAL_HOME_X, 84, u); player.y = -30 - (u > 0 ? 2 * (Math.floor(t * 6) % 2) : 0); player.pose = 'runL';
+  } else if (t < R.up) {
     // Up the shaft on full thrust, keeping to its middle, slowing as he clears the top.
     const u = t / R.up;
     player.y = lerp(SHAFT_START_Y, -64, 1 - (1 - u) * (1 - u));
@@ -7946,8 +8553,9 @@ function repairScene(t, dt, crossed) {
     player.x = lerp(70, 84, k); player.y = -30 - 2 * (Math.floor(t * 6) % 2); player.pose = 'run';
   } else { player.x = 84; player.y = -30; player.pose = 'standL'; }
   // The jetpack hisses while he's off the ground.
-  if (t - dt <= 0) Sfx.thrust(0.9);
-  if (crossed(R.arc)) { Sfx.thrust(0); Sfx.land(); Buzz.orb(); squash(0.3); sparks(84, -2, [P.strata, P.shade, P.dust], 12); }
+  if (t - dt <= 0) { if (launchPortal) Sfx.whoosh(); else Sfx.thrust(0.9); }
+  if (launchPortal && crossed(PORTAL_OUT)) { Sfx.jump(); squash(-0.2); sparks(PORTAL_HOME_X, -26, PORTAL_ORANGE.slice(1), 16, 8); }
+  if (!launchPortal && crossed(R.arc)) { Sfx.thrust(0); Sfx.land(); Buzz.orb(); squash(0.3); sparks(84, -2, [P.strata, P.shade, P.dust], 12); }
   if (crossed(R.toShip)) Sfx.thrust(0.5);
   if (crossed(R.drop)) Sfx.thrust(0);
   // Hammer blows: CLANG, sparks, a jolt.
@@ -7963,8 +8571,8 @@ const hammerHitAt = i => REPAIR.drop + 0.55 + i * 0.42;
 // His tools, drawn on top of him: jet flames while flying, the welding torch and its arc, the hammer's swing.
 function drawRepairTools(my) {
   const R = REPAIR, t = launchT, hx = Math.round(player.x - 12), hy = Math.round(my + 15);
-  if (t < R.arc || (t >= R.toShip && t < R.drop)) {
-    // Jet flames: long on the climb out of the shaft, shorter for the hops.
+  if ((t < R.arc && !launchPortal) || (t >= R.toShip && t < R.drop)) {
+    // Jet flames: long on the climb out of the shaft (not when he walks out of the cave's portal), shorter for the hops.
     const x0 = Math.round(player.x - 13), y0 = Math.round(my), L = (t < R.up ? 9 : 4) + (Math.floor(clock * 24) % 2) * 3;
     for (const nx of [x0 - 1, x0 + 25]) {
       c.fillStyle = P.lava; c.fillRect(nx - 1, y0 + 23, 5, L);
@@ -8006,7 +8614,8 @@ const LAUNCH_ORIGINAL_START_X = 84;
 function startLaunch() {
   Sfx.init(); resetRun(); cineReset();
   setState('launch'); launchT = 0; launchShip = null;
-  showScreen(null); hud.classList.add('off'); Music.stop(0.2); Sfx.wind(0);
+  showScreen(null); hud.classList.add('off'); Sfx.wind(0);
+  if (launchPortal) Music.victory(); else Music.stop(0.2);   // home through the cave's portal: its song plays on
   showCoach('TAP TO SKIP', 1800);
 }
 function skipLaunch() {
@@ -8032,8 +8641,8 @@ function updateLaunch(dt) {
   if (crossed(L.aboard)) { sparks(52, -14, [P.dust, P.strata, P.shade], 10); Sfx.hatch(); }
   if (crossed(L.rumble)) { Sfx.engine(); Buzz.launch(); }
   if (crossed(L.lift)) { Music.fanfare(); Sfx.cheer(); Sfx.boom(0.6); }
-  if (crossed(L.groove)) { Music.setZone(0, true); Music.setDepth(900); Music.start(); }
-  if (crossed(L.space)) { Music.stop(0.1); Music.space(); }
+  if (crossed(L.groove) && !launchPortal) { Music.setZone(0, true); Music.setDepth(900); Music.start(); }
+  if (crossed(L.space) && !launchPortal) { Music.stop(0.1); Music.space(); }
   // The ship rumbles, tips upright, then climbs.
   if (t < L.rumble) launchShip = null;
   else if (t < L.lift) {
@@ -8064,20 +8673,25 @@ function updateLaunch(dt) {
     });
   }
   // The camera rides up the shaft with him and settles on the crash site; it holds there, then follows the ship up.
-  if (t < REPAIR.arrive) camY = lerp(Math.max(camY0, player.y - pilotScreenY), camY0, smoothstep((t - REPAIR.up + 0.6) / 1.4));
+  if (t < REPAIR.arrive) camY = launchPortal ? camY0 : lerp(Math.max(camY0, player.y - pilotScreenY), camY0, smoothstep((t - REPAIR.up + 0.6) / 1.4));
   else camY = launchShip && t >= L.climb ? Math.min(camY0, launchShip.y - Math.round(H * 0.35)) : camY0;
   if (t >= L.end) showEnd();
 }
 function showEnd() {
-  setState('ended');
+  setState('ended'); launchPortal = false;
   // A finished mission counts once (relaunching the same repaired ship doesn't): it unlocks a suit, and Hard Dive.
   const before = suitsOpen();
   if (!save.missionDone) { save.missionsDone = missionsDone() + 1; save.missionDone = true; }
   save.launches = (save.launches || 0) + 1; persist();
   const lines = [];
   if (suitsOpen() > before) lines.push('Every suit colour unlocked' + (save.missionsDone === 1 ? ', and Terminal Velocity too!' : '!'));
-  if (save.droneNew) { lines.push('Helper drone unlocked!'); save.droneNew = false; persist(); }
+  const newDrone = !droneOpen();   // flown home without the cave's chest: the drone is his now (tellDroneEnd)
+  if (newDrone) { save.droneOpen = true; save.drone = true; persist(); award('drone'); }
+  if (save.droneNew && !newDrone) lines.push('Helper drone unlocked!');
+  save.droneNew = false; persist();
   $('eUnlock').textContent = lines.length ? lines.join(' ') + ' (Unlocks)' : '';
+  if (previewSave) $('eUnlock').textContent = 'This was an escape preview, so none of it was saved. Reach the cave yourself to keep it!';
+  $('newMissionBtn').hidden = !!previewSave;   // a preview's ship isn't really repaired, so there's no mission to reset
   $('eUnlock').hidden = !$('eUnlock').textContent;
   $('eBest').firstChild.nodeValue = bestNow(); $('eBest').previousElementSibling.textContent = kidRun.on ? 'KID BEST' : 'BEST';
   $('eParts').textContent = PARTS.reduce((n, pt) => n + pt.need, 0);
@@ -8085,6 +8699,7 @@ function showEnd() {
   $('eDives').textContent = save.dives || 0;
   showScreen('end');
   setTimeout(() => { if (state === 'ended') $('endTitleBtn').focus({ preventScroll: true }); }, 50);
+  if (newDrone) setTimeout(() => { if (state === 'ended') tellDroneEnd(); }, 600);
 }
 // ---------- phones ----------
 // Two fixes for playing on a phone (the iPhone and Android review, see the notes, 2026-11-14).
@@ -8113,7 +8728,7 @@ addEventListener('popstate', () => {
 // 2. Screen awake: during the intro film, a run and the launch the screen shouldn't dim or lock (the Screen Wake Lock
 //    API; Safari 16.4+, Chrome). The phone drops the lock when the page is hidden, so it's asked for again on coming back.
 //    var, not const or let: setState runs (and calls keepAwake) before this part of the script has been reached.
-var AWAKE_STATES = new Set(['opening', 'intro', 'play', 'landing', 'cafe', 'cafeJump', 'dying', 'launch']), wakeLock = null, wakeWant = false, wakeAsking = false;
+var AWAKE_STATES = new Set(['opening', 'intro', 'play', 'landing', 'cafe', 'cafeJump', 'cave', 'dying', 'launch']), wakeLock = null, wakeWant = false, wakeAsking = false;
 function keepAwake(on) {
   wakeWant = on;
   if (!navigator.wakeLock) return;
@@ -8143,7 +8758,7 @@ const UPDATE_URL = 'version.json';
 let updateTo = 0, updateAsked = 0;
 let menuFromRun = false, lastInput = 0;   // the menu was reached from a run (toTitle); when anything was last pressed
 function checkUpdate() {
-  if (!UPDATE_URL || perfOn || updateTo || Date.now() - updateAsked < 60000) return;
+  if (!UPDATE_URL || offRecord() || updateTo || Date.now() - updateAsked < 60000) return;
   updateAsked = Date.now();
   fetch(UPDATE_URL + '?t=' + updateAsked, { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(j => {
     const v = j && Math.floor(+j.v);
@@ -8154,7 +8769,7 @@ function checkUpdate() {
   }).catch(() => {});
 }
 function reloadForUpdate() {
-  if (!updateTo || perfOn || document.hidden || cardSide) return;
+  if (!updateTo || offRecord() || document.hidden || cardSide) return;
   const quiet = state === 'title' ? menuFromRun && performance.now() - lastInput > 4000 : state === 'splash' && !lastInput;
   if (!quiet) return;
   const v = updateTo; updateTo = 0;
@@ -8169,7 +8784,8 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) { checkUpdate(); Sfx.wake(); if (wakeWant) keepAwake(true); }
   if (document.hidden) { keys.l = keys.r = false; pause(); if (state === 'title' || state === 'splash' || state === 'launch') Music.stop(0.1); if (runId && state !== 'over') endRun('left'); }
   else if (state === 'title') Music.title();
-  // The launch stands still while hidden, so its music stops too; back during the groove, it starts again.
+  // The launch stands still while hidden, so its music stops too; back during the groove (or the cave's song), it starts again.
+  else if (state === 'launch' && launchPortal) Music.victory();
   else if (state === 'launch' && launchT >= LAUNCH.groove && launchT < LAUNCH.space) { Music.setZone(0, true); Music.setDepth(900); Music.start(); }
   else if (state === 'splash' && Sfx.audio()) Music.splash(splashPicked ? moon : '');
 });
@@ -8721,6 +9337,8 @@ function drawHazards(cam) {
 function genSeg(k) {
   const d0 = k * SEG_LEN;
   if (d0 < 560 || cavernAt(d0) > 0.02 || cavernAt(d0 + SEG_LEN) > 0.02 || bossAt(d0) || bossAt(d0 + SEG_LEN)) return;
+  const cave = caveAt(d0) || caveAt(d0 + SEG_LEN);
+  if (cave) { if (d0 < cave.hall.B) voidContents(cave.hall, d0); return; }   // the hall above it is filled like a void; nothing below
   const V = voidAt(d0) || voidAt(d0 + SEG_LEN);
   if (V) { voidContents(V, d0); return; }
   const hz = placeHazard(k, d0);
@@ -8910,14 +9528,6 @@ function collect(it) {
         showCoach(navDone() ? 'SHIP REPAIRED! LAUNCH IT FROM THE MAIN MENU' : 'SHIP REPAIRED! NOW BUY THE NAV COMPUTER AT A CAFE', 3500); Sfx.repaired(); Buzz.shield();
         sparks(player.x, player.y + PILOT_CY, ['#F2C14E', '#FFFFFF', '#A9781B', P.hot], 40, 16);
         award('repair');
-        // Repaired on a Hard Dive: the helper drone unlocks and joins him at once.
-        if (hardRun && !save.droneOpen) {
-          save.droneOpen = true; save.drone = true; save.droneNew = true; persist(); droneRun = true;
-          award('drone');
-          drone.ox = player.x > W / 2 ? -24 : 24; drone.oy = -60; drone.mode = 'back';
-          drone.hp = player.hp; drone.chatAt = clock + 6; setTimeout(() => Sfx.droneHello(), 900);
-          setTimeout(() => { if (state === 'play') showCoach('HELPER DRONE UNLOCKED!', 3000); }, 3700);
-        }
       }
     }
     fly('part', it.x, it.d, $('partsHud'), () => { $('partsRun').textContent = PARTS.reduce((n, q) => n + runParts[q.id], 0); }, pt);
@@ -8989,7 +9599,10 @@ function updateDrone(dt) {
   }
   if (player.hp < D.hp) Sfx.droneWorry();   // he was hit
   D.hp = player.hp;
-  if (!(D.chatAt > clock)) { if (D.chatAt) Sfx.droneChat(); D.chatAt = clock + 7 + Math.random() * 9; }   // a babble every 7-16 s
+  if (!(D.chatAt > clock)) {   // a babble every 7-16 s
+    if (D.chatAt) Sfx.droneChat();
+    D.chatAt = clock + 7 + Math.random() * 9;
+  }
   [tx, ty] = droneIdle();
   const k = Math.min(1, dt * (D.mode === 'back' ? 6 : 4)), x0 = D.ox;
   D.ox += (tx - D.ox) * k; D.oy += (ty - D.oy) * k; D.vx = (D.ox - x0) / Math.max(dt, 1e-3);
@@ -10072,6 +10685,7 @@ function update(dt) {
     return;
   }
   if (state === 'landing' || state === 'cafe' || state === 'cafeJump') { updateCafe(dt); return; }
+  if (state === 'cave') { updateCave(dt); return; }
   if (state === 'dying') {
     dieT += dt;
     player.y += player.v * dt;
@@ -10137,7 +10751,7 @@ function update(dt) {
       const top = Math.round(CAFE_SPEED_MAX / CAFE_SPEEDUP);
       if (kidRun.speed) speedUp(fasterN < top ? 'up' : fasterN === top ? 'top' : 'max', Math.min(fasterN, top) * CAFE_SPEEDUP);   // banner, rush and whoosh
     }
-    if (state === 'play') checkCafe();
+    if (state === 'play') { checkCafe(); checkCave(); }
     Sfx.wind(0.5 + 0.5 * smoothstep((player.v - 250) / 200));
     Music.setDepth(depthM());
     Music.mood(player.hp <= 1, player.shield > 0, player.streak);
@@ -10189,7 +10803,11 @@ function render() {
   if (cam < 0) drawSky(cam);
   drawShaft(cam);
   if (cam < 20) drawProps(cam);
-  if (fireworks.length) drawFireworks();
+  if (state === 'launch' && launchPortal && launchT < REPAIR.arc + 0.4) {   // the orange portal he comes home through
+    const t = launchT, open = smoothstep(t / 0.5) * (1 - smoothstep((t - REPAIR.arc + 0.6) / 0.9));
+    drawPortal(PORTAL_HOME_X, Math.round(-2 - cam), open, PORTAL_ORANGE);
+  }
+  if (fireworks.length && !fwShow.world) drawFireworks(0);
   if (state !== 'play') dropList(cam);
   life(cam);
   const falling = state === 'play' || state === 'dying' || (state === 'intro' && introT > 1.5);
@@ -10198,6 +10816,7 @@ function render() {
   drawFlags(cam);
   drawCafeSigns(cam);
   drawCafe(cam);
+  drawCave(cam);
   for (const it of items) {
     if (it.dead) continue;
     const y = Math.round(it.d - cam + Math.sin(clock * 5 + it.x) * 2);
@@ -10253,8 +10872,9 @@ function render() {
       ring(player.x, my + PILOT_CY, Math.round(14 + 14 * (1 - a)), P.dust);
     }
     drawManSquashed(player.x + (state === 'dying' ? Math.round(Math.sin(clock * 40) * 2) : 0), my, player.pose, clock, player.thr);
-    if (droneShown() && ['title', 'intro', 'play', 'landing', 'cafe', 'cafeJump', 'dying', 'paused'].includes(state)) { const ga = c.globalAlpha; c.globalAlpha = 1; drawDrone(my); c.globalAlpha = ga; }
+    if (droneShown() && ['title', 'intro', 'play', 'landing', 'cafe', 'cafeJump', 'cave', 'dying', 'paused'].includes(state)) { const ga = c.globalAlpha; c.globalAlpha = 1; drawDrone(my); c.globalAlpha = ga; }
     if (state === 'launch' && launchT < REPAIR.done) drawRepairTools(my);
+    if (state === 'cave' && cavePhase === 'open') drawCrowbar(my);
     c.globalAlpha = 1;
     if (state === 'landing') {
       const x0 = Math.round(player.x - 13), y0 = Math.round(my), fl = Math.floor(clock * 24) % 2, L = 8 + fl * 3;
@@ -10492,6 +11112,9 @@ function perfStart(kind) {
   document.createElement = function (tag, opt) { if (tag === 'canvas' && perf.cur < 255) perf.made[perf.cur]++; return make.call(document, tag, opt); };
   perfOn = true;
   startRun(true);
+  showRunBanner('Developer test run', 'The game plays itself for about a minute to measure how smoothly it runs. '
+    + 'Nothing is saved or sent; the results show at the end.');
+  showRunTag('DEV TEST RUN');
   leviKind(2); leviOrder[2] = set.indexOf(kind);   // the first cafe's Leviathan
 }
 // Before each update: he can't be hurt, steers down the middle and onto the first cafe's pad, and leaves it after 3 s.
@@ -10525,10 +11148,10 @@ function perfFinish(quit) {
   const p = perf;
   p.ending = true;
   delete document.createElement;
-  for (const k of Object.keys(save)) delete save[k];
-  Object.assign(save, JSON.parse(p.snap));   // the save, exactly as it was
+  putSaveBack(p.snap);
   toTitle();
   perfOn = false;
+  hideRunBanner();
   if (!quit) perfCard(perfReport());
 }
 function perfReport() {
