@@ -1078,7 +1078,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 238;
+const VERSION = 239;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -4757,7 +4757,9 @@ const Sfx = (() => {
   const RADIO = { on: true, lo: 450, hi: 2800, mid: 5, drive: 4, hiss: 0.018, out: 0.376, lead: 0.09 };
   // Every voice clip at 0.55: louder, the owner found them "a bit overpowering compared to the music".
   const VOICE_LEVEL = 0.55;
-  const DRONE_LEVEL = 2;   // the helper drone's beeps (see droneLock ...), on top of their own volumes
+  // The helper drone's beeps (see droneLock ...), on top of their own volumes: as loud as a pickup (owner: "make it as
+  // loud as a pickup throughout the whole game"): a square at 0.035 x 5 is about as loud as a pickup's triangle at 0.3.
+  const DRONE_LEVEL = 5;
   const droneTone = (type, f0, f1, dur, vol, delay) => tone(type, f0, f1, dur, vol * DRONE_LEVEL, delay);
   let radioCurve = null;
   const bq = (type, f, q, gain) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; if (gain !== undefined) b.gain.value = gain; return b; };
@@ -5016,8 +5018,7 @@ const Sfx = (() => {
     ashGust() { noise(0.55, 'lowpass', 520, 0.4); noise(0.4, 'bandpass', 1700, 0.08, 0.04); tone('sine', 72, 44, 0.35, 0.16); },
     // The helper drone's voice (owner: "add a little bit of personality ... beeps and boops"): little square
     // and sine chirps, quiet, under the game's own sounds.
-    // The helper drone's beeps, all DRONE_LEVEL louder than written (owner: "I still can't hear the drone, really ... Maybe
-    // he needs to be increased there as well").
+    // The helper drone's beeps, all DRONE_LEVEL louder than written.
     droneLock() { droneTone('sine', 1400, 1400, 0.04, 0.02); droneTone('sine', 1870, 1870, 0.05, 0.02, 0.05); },   // locking on: "bip-bip"
     droneGo() { droneTone('square', 900, 1500, 0.07, 0.035); droneTone('sine', 1800, 2400, 0.06, 0.03, 0.05); },          // darting off: "bip-weee"
     droneGot() {   // caught it: "boop-beep-bing"
@@ -5025,16 +5026,14 @@ const Sfx = (() => {
     },
     droneMiss() { droneTone('square', 700, 520, 0.12, 0.03); droneTone('square', 520, 330, 0.18, 0.03, 0.13); },           // too late: "bwoo-oo"
     droneWorry() { for (let i = 0; i < 3; i++) droneTone('sine', 1300 - i * 180, 1100 - i * 180, 0.06, 0.03, i * 0.08); },   // he got hurt
-    // loud: a gain on top (CAVE_DRONE_LOUD in the deep cave, where it's meant to be heard over the music).
-    // Unlocked: a bright hello.
-    droneHello(loud = 1) {
-      [784, 988, 1175, 1568].forEach((f, i) => droneTone('square', f, f * (i === 3 ? 1.06 : 1), 0.06, 0.035 * loud, i * 0.07));
+    droneHello() {   // unlocked: a bright hello
+      [784, 988, 1175, 1568].forEach((f, i) => droneTone('square', f, f * (i === 3 ? 1.06 : 1), 0.06, 0.035, i * 0.07));
     },
-    droneChat(loud = 1) {   // idle babble: 3-5 quick notes at random pitches, now and then
+    droneChat() {   // idle babble: 3-5 quick notes at random pitches, now and then
       const n = 3 + Math.floor(Math.random() * 3);
       for (let i = 0; i < n; i++) {
         const f = 700 + Math.random() * 1500;
-        droneTone(Math.random() < 0.5 ? 'square' : 'sine', f, f * (0.85 + Math.random() * 0.3), 0.045, 0.022 * loud, i * 0.065);
+        droneTone(Math.random() < 0.5 ? 'square' : 'sine', f, f * (0.85 + Math.random() * 0.3), 0.045, 0.022, i * 0.065);
       }
     },
     ashPuff() { noise(0.22, 'bandpass', 900, 0.3); noise(0.15, 'highpass', 3500, 0.06, 0.03); },
@@ -6831,6 +6830,14 @@ function openTable() {
 // badge"): the ship flown home at least once (a new mission doesn't take that away), or ready to fly now.
 const escapedNow = () => missionsDone() > 0 || canLaunch();
 const ROCKET_SVG = '<svg viewBox="0 0 7 9" width="14" height="18" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1h-1zM2 1h3v6h-3zM1 4h1v3h-1zM5 4h1v3h-1zM0 6h1v2h-1zM6 6h1v2h-1zM3 7h1v2h-1z"/></svg>';
+// Owner: "If a player has escaped, only present the badge on their highest score." Players are told apart by their
+// initials (all the board knows): the rocket goes on the highest of their rows shown when any of them has it, and their
+// other rows show none (or the dash when nothing about them is known).
+function onlyBestEscaped(rows) {
+  const best = new Map(), escaped = new Set();
+  for (const r of rows) if (r) { if (!best.has(r.i) || r.m > best.get(r.i).m) best.set(r.i, r); if (r.e === true) escaped.add(r.i); }
+  for (const r of rows) if (r && escaped.has(r.i)) r.e = best.get(r.i) === r;
+}
 function renderTable() {
   $('hsTabOnline').setAttribute('aria-pressed', hsTab === 'online'); $('hsTabLocal').setAttribute('aria-pressed', hsTab === 'local');
   $('hsKindNormal').setAttribute('aria-pressed', !hsKid); $('hsKindKid').setAttribute('aria-pressed', hsKid);
@@ -6844,6 +6851,7 @@ function renderTable() {
     if (hsOnline.rank > HS_MAX) rows.push(null, { n: hsOnline.rank, i: hsOnline.me.i, m: hsOnline.me.m, e: hsOnline.me.e, o: hsOnline.me.o, you: true });
     note = rows.length ? 'Everyone with the link' : 'No scores yet. Be the first!';
   }
+  onlyBestEscaped(rows);
   $('hsList').innerHTML = '';
   if (rows.length) {
     const head = document.createElement('li'); head.className = 'head'; head.setAttribute('aria-hidden', 'true');
@@ -7513,7 +7521,6 @@ function pryHeave(t) {
 // The gift: part i pops out at GIFT_POP + i * GIFT_GAP s and hovers; all fly to him at GIFT_TAKE; the drone pops out at
 // GIFT_DRONE, loops about for GIFT_LOOPS s and settles by him; the drone's card shows GIFT_CARD s after it popped out.
 const GIFT_POP = 0.2, GIFT_GAP = 0.25, GIFT_TAKE = 2.3, GIFT_DRONE = 3.0, GIFT_LOOPS = 2.6, GIFT_CARD = 3.3;
-const CAVE_DRONE_LOUD = 2;   // the drone's sounds in the cave, on top of DRONE_LEVEL (owner: "I still can't hear the drone ... increase this noise more")
 let caveGiftDrone = false;   // this gift includes the drone (he didn't have it yet)
 // The cave's song (Music.victory) is on: it fades in as he enters the neck, CAVE_SONG_OUT s for the groove to sink and
 // CAVE_SONG_IN for it to open up, and plays through the cave and, after the portal, the ending (see the launch).
@@ -7652,7 +7659,7 @@ function caveGift(cave, t, crossed) {
   if (crossed(GIFT_DRONE)) {   // the drone pops out: his for good, flying with him from now on
     save.droneOpen = true; save.drone = true; save.droneNew = true; persist(); award('drone');
     droneRun = true; drone.mode = 'follow'; drone.it = null; drone.lock = null;
-    Sfx.droneHello(CAVE_DRONE_LOUD); sparks(cave.chestX, cave.F - 20, ['#7FF4E6', '#FFFFFF', '#C4CCD6'], 18, 10);
+    Sfx.droneHello(); sparks(cave.chestX, cave.F - 20, ['#7FF4E6', '#FFFFFF', '#C4CCD6'], 18, 10);
   }
   if (dt0 >= 0) {
     // Out of the chest, loops about the cave, then settles beside him (drawDrone draws it at his position + ox, oy).
@@ -7660,7 +7667,7 @@ function caveGift(cave, t, crossed) {
     const out = Math.min(1, dt0 / 0.4), home = smoothstep((dt0 - GIFT_LOOPS) / 0.6);
     const wx = lerp(lerp(cave.chestX, lx, out), player.x - cave.side * 22, home), wy = lerp(lerp(cave.F - 20, ly, out), player.y + PILOT_CY - 14, home);
     drone.vx = (wx - player.x - drone.ox) * 30; drone.ox = wx - player.x; drone.oy = wy - player.y - PILOT_CY;
-    if (crossed(GIFT_DRONE + 0.9) || crossed(GIFT_DRONE + 2.1)) Sfx.droneChat(CAVE_DRONE_LOUD);
+    if (crossed(GIFT_DRONE + 0.9) || crossed(GIFT_DRONE + 2.1)) Sfx.droneChat();
     if (dt0 >= GIFT_CARD && cavePhase === 'gift') {
       cavePhase = 'friend';
       $('caveNote').textContent = 'You\'ve found the helper drone. You\'ve made a new friend for your next fall!';
@@ -9572,8 +9579,8 @@ function updateDrone(dt) {
   }
   if (player.hp < D.hp) Sfx.droneWorry();   // he was hit
   D.hp = player.hp;
-  if (!(D.chatAt > clock)) {   // a babble every 7-16 s, louder in the cave
-    if (D.chatAt) Sfx.droneChat(state === 'cave' ? CAVE_DRONE_LOUD : 1);
+  if (!(D.chatAt > clock)) {   // a babble every 7-16 s
+    if (D.chatAt) Sfx.droneChat();
     D.chatAt = clock + 7 + Math.random() * 9;
   }
   [tx, ty] = droneIdle();
