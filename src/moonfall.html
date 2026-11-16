@@ -1014,7 +1014,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 216;
+const VERSION = 217;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -2258,8 +2258,8 @@ const bossCut = (f) => { c.globalCompositeOperation = 'destination-out'; f(); c.
 // A point t (0 at the head, 1 at the tail) down its body, with its radius there: the fight's extra shape and art follow
 // it (draw works out the same body, with its radii rounded).
 function whaleAt(x, y, dir, k, t) {
-  const S = 1.25, len = 190 * S, ph = clock * 1.3 + k;
-  return [x + dir * (len / 2 - t * len), y + Math.sin(ph - t * 4.2) * 7 * S * t, Math.max(2, 22 * S * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.1 + 0.08)), 0.9) * (1 - t * 0.6))];
+  const sk = 1.25, len = 190 * sk, ph = clock * 1.3 + k;
+  return [x + dir * (len / 2 - t * len), y + Math.sin(ph - t * 4.2) * 7 * sk * t, Math.max(2, 22 * sk * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.1 + 0.08)), 0.9) * (1 - t * 0.6))];
 }
 LEVIATHANS.whale = {
   moon: 'dust', name: 'Grimtide', line: 'Sonar pulses. Find the gap.',
@@ -2270,11 +2270,11 @@ LEVIATHANS.whale = {
   palette: { base: '#2C3743', dark: '#182029', deep: '#090D12', light: '#46576A', hi: '#7D8E9E', belly: '#3E4952', mark: '#D2C8AE', eye: '#FF3A26' },
   box: [-134, -38, 128, 30],
   draw(x, y, dir, k, col) {
-    const S = 1.25, N = 58, len = 190 * S, ph = clock * 1.3 + k;
+    const sk = 1.25, N = 58, len = 190 * sk, ph = clock * 1.3 + k;
     let tx = x, ty = y;
     for (let i = 0; i <= N; i++) {
-      const t = i / N, bx = x + dir * (len / 2 - t * len), by = y + Math.sin(ph - t * 4.2) * 7 * S * t;
-      const r = Math.max(2, Math.round(22 * S * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.1 + 0.08)), 0.9) * (1 - t * 0.6)));
+      const t = i / N, bx = x + dir * (len / 2 - t * len), by = y + Math.sin(ph - t * 4.2) * 7 * sk * t;
+      const r = Math.max(2, Math.round(22 * sk * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.1 + 0.08)), 0.9) * (1 - t * 0.6)));
       disc(bx, by, r, col);
       tx = bx; ty = by;
     }
@@ -2294,7 +2294,7 @@ LEVIATHANS.whale = {
     c.fillRect(Math.round(hx) - 1, Math.round(hy), 2, 2);
     c.fillStyle = P.bio;
     for (let i = 0; i < 7; i++) {
-      const t = 0.2 + i * 0.08, bx = x + dir * (len / 2 - t * len), by = y + Math.sin(ph - t * 4.2) * 7 * S * t + 8;
+      const t = 0.2 + i * 0.08, bx = x + dir * (len / 2 - t * len), by = y + Math.sin(ph - t * 4.2) * 7 * sk * t + 8;
       if (Math.floor(clock * 1.2 + i * 0.7) % 3) c.fillRect(Math.round(bx), Math.round(by), 2, 1);
     }
   },
@@ -2461,9 +2461,9 @@ LEVIATHANS.elder = {
 // object, reused, so drawing it every frame makes nothing).
 const JELLY_BELL = { ph: 0, rx: 0, ry: 0, by: 0 };
 function jellyBell(y, k) {
-  const S = 1.5, ph = clock * 1.6 + k, p = Math.sin(ph);
-  JELLY_BELL.ph = ph; JELLY_BELL.rx = Math.round((34 + p * 3) * S); JELLY_BELL.ry = Math.round((26 - p * 2) * S);
-  JELLY_BELL.by = Math.round(y - 32 * S + Math.sin(clock * 0.5 + k) * 5);
+  const sk = 1.5, ph = clock * 1.6 + k, p = Math.sin(ph);
+  JELLY_BELL.ph = ph; JELLY_BELL.rx = Math.round((34 + p * 3) * sk); JELLY_BELL.ry = Math.round((26 - p * 2) * sk);
+  JELLY_BELL.by = Math.round(y - 32 * sk + Math.sin(clock * 0.5 + k) * 5);
   return JELLY_BELL;
 }
 LEVIATHANS.jelly = {
@@ -2479,13 +2479,13 @@ LEVIATHANS.jelly = {
   // middle of the gap at a cafe.
   // A jellyfish: a pulsing bell with a scalloped rim, four frilled arms and six long trailing threads.
   draw(x, y, dir, k, col) {
-    const S = 1.5, { ph, rx, ry, by } = jellyBell(y, k);
+    const sk = 1.5, { ph, rx, ry, by } = jellyBell(y, k);
     c.fillStyle = col;
     for (let j = -ry; j <= 0; j++) { const w = Math.round(rx * Math.sqrt(1 - (j / ry) ** 2)); c.fillRect(Math.round(x) - w, by + j, w * 2 + 1, 1); }
-    for (let i = 0; i < 9; i++) disc(x - rx + 6 + i * (2 * rx - 12) / 8, by + 1, Math.round(4 * S), col);
+    for (let i = 0; i < 9; i++) disc(x - rx + 6 + i * (2 * rx - 12) / 8, by + 1, Math.round(4 * sk), col);
     for (let i = 0; i < 4; i++) {
-      const ax = x + (i - 1.5) * 8 * S;
-      for (let j = 0; j < 18; j++) disc(ax + Math.sin(ph * 0.7 + i + j * 0.32) * j * 0.6, by + 5 + j * 4 * S * 0.85, Math.max(1, Math.round((4 - j * 0.17) * S)), col);
+      const ax = x + (i - 1.5) * 8 * sk;
+      for (let j = 0; j < 18; j++) disc(ax + Math.sin(ph * 0.7 + i + j * 0.32) * j * 0.6, by + 5 + j * 4 * sk * 0.85, Math.max(1, Math.round((4 - j * 0.17) * sk)), col);
     }
     c.fillStyle = col;
     for (let i = 0; i < 6; i++) {
@@ -2496,7 +2496,7 @@ LEVIATHANS.jelly = {
     for (let i = 0; i < 8; i++) if (Math.floor(clock * 1.2 + i * 0.7) % 3) c.fillRect(Math.round(x - rx + 9 + i * (2 * rx - 18) / 7), by - 4, 2, 1);
   },
   geo(x, y, dir, k, p) {
-    const S = 1.5, { ph, rx, ry, by } = jellyBell(y, k);
+    const sk = 1.5, { ph, rx, ry, by } = jellyBell(y, k);
     for (let i = 0; i < 11; i++) {   // a crown of stinging barbs over the bell
       const a = Math.PI * (0.12 + 0.76 * i / 10), ca = Math.cos(a), sa = Math.sin(a), bx = x - ca * rx, bY = by - sa * ry;
       const n = Math.hypot(ca * ry, sa * rx) || 1, nx = -ca * ry / n, ny = -sa * rx / n, L = (i % 2 ? 5 : 9) + Math.round(Math.sin(ph * 2 + i) * 1.5);
@@ -2505,7 +2505,7 @@ LEVIATHANS.jelly = {
     bossCut(() => fillPoly(c, [[x + rx * 0.42 - 5, by + 6], [x + rx * 0.42 + 5, by + 6], [x + rx * 0.48, by - 11]], '#000'));   // a torn notch in the rim
   },
   art(x, y, dir, k, p, step) {
-    const S = 1.5, { ph, rx, ry, by } = jellyBell(y, k);
+    const sk = 1.5, { ph, rx, ry, by } = jellyBell(y, k);
     if (!step) {   // the bell's glassy inside, paler
       for (let j = -ry + 6; j <= -4; j++) { const w = Math.round((rx - 8) * Math.sqrt(Math.max(0, 1 - (j / (ry - 4)) ** 2))); bpx(x - w, by + j, 2 * w + 1, 1, p.belly); }
       return;
@@ -2516,14 +2516,14 @@ LEVIATHANS.jelly = {
     bscar(x + rx * 0.3, by - ry * 0.7, x + rx * 0.55, by - ry * 0.3, p, 11);
     for (let i = 0; i <= 16; i++) { if ((Math.floor(clock * 5) + i) % 4) bpx(x - rx + 4 + i * (2 * rx - 8) / 16, by - 1, 2, 2, i % 2 ? p.mark : p.hi); }   // rim lights
     for (let i = 0; i < 4; i++) {   // frills on the arms
-      const ax = x + (i - 1.5) * 8 * S;
-      for (let j = 1; j < 18; j += 2) bpx(ax + Math.sin(ph * 0.7 + i + j * 0.32) * j * 0.6 + (j % 4 ? 3 : -3), by + 5 + j * 4 * S * 0.85, 1, 1, p.hi);
+      const ax = x + (i - 1.5) * 8 * sk;
+      for (let j = 1; j < 18; j += 2) bpx(ax + Math.sin(ph * 0.7 + i + j * 0.32) * j * 0.6 + (j % 4 ? 3 : -3), by + 5 + j * 4 * sk * 0.85, 1, 1, p.hi);
     }
   },
 };
 // -- Lanternmaw, the anglerfish (Dust moon) --
 // Its bob, hanging in place: its middle's height, shared by its shape and its fight art.
-function anglerY(y, k) { const S = 1.6; return Math.round(y + 9 * S + Math.sin(clock * 0.6 + k) * 4); }
+function anglerY(y, k) { const sk = 1.6; return Math.round(y + 9 * sk + Math.sin(clock * 0.6 + k) * 4); }
 LEVIATHANS.angler = {
   moon: 'dust', name: 'Lanternmaw', line: 'Its lure pulls you in, then it bites',
   patterns: ['bomb', 'aimed', 'fan', 'beam'],
@@ -2535,10 +2535,10 @@ LEVIATHANS.angler = {
   // An anglerfish, hanging still: a big round head, a jutting lower jaw with fangs, a ragged tail, and a lure on a stalk
   // that bobs in front of it with a dim glow.
   draw(x, y, dir, k, col) {
-    const S = 1.6, ph = clock * 0.9 + k, X = v => x + dir * v * S, bob = Math.sin(ph * 1.3) * 4;
+    const sk = 1.6, ph = clock * 0.9 + k, X = v => x + dir * v * sk, bob = Math.sin(ph * 1.3) * 4;
     y = anglerY(y, k);
-    const Y = v => y + v * S;
-    fillEllipse(c, X(-4), Y(-14), Math.round(40 * S), Math.round(30 * S), col);
+    const Y = v => y + v * sk;
+    fillEllipse(c, X(-4), Y(-14), Math.round(40 * sk), Math.round(30 * sk), col);
     fillPoly(c, [[X(-30), Y(14)], [X(52), Y(10)], [X(46), Y(30)], [X(-6), Y(40)], [X(-28), Y(32)]], col);
     fillPoly(c, [[X(-38), Y(-8)], [X(-76), Y(-32) + Math.sin(ph) * 6], [X(-66), Y(-4)], [X(-78), Y(20) + Math.sin(ph) * 6], [X(-36), Y(12)]], col);
     for (let i = 0; i < 6; i++) { const v = 22 + i * 5, top = Math.round(Y(14 - (v + 30) * 4 / 82)); c.fillRect(Math.round(X(v)) - 1, top - 9 + (i % 2) * 3, 3, 9 - (i % 2) * 3); }
@@ -2553,9 +2553,9 @@ LEVIATHANS.angler = {
     c.fillStyle = P.lava; c.fillRect(Math.round(X(20)) - 2, Math.round(Y(-20)) - 1, 3, 3);
   },
   geo(x, y, dir, k, p) {
-    const S = 1.6, ph = clock * 0.9 + k, X = v => x + dir * v * S;
+    const sk = 1.6, ph = clock * 0.9 + k, X = v => x + dir * v * sk;
     y = anglerY(y, k);
-    const Y = v => y + v * S;
+    const Y = v => y + v * sk;
     for (let i = 0; i < 7; i++) {   // spines along the top of the head, raked back; the third is broken
       const th = Math.PI * (0.42 + i * 0.075), co = Math.cos(th), si = Math.sin(th), L = i === 2 ? 3 : 12 - Math.abs(i - 3) * 1.6;
       const b0 = [X(-4 + 39 * Math.cos(th - 0.05)), Y(-14 - 29 * Math.sin(th - 0.05))], b1 = [X(-4 + 39 * Math.cos(th + 0.05)), Y(-14 - 29 * Math.sin(th + 0.05))];
@@ -2566,16 +2566,16 @@ LEVIATHANS.angler = {
     bossCut(() => fillPoly(c, [[X(-73), Y(-23.6) + sw * 0.7], [X(-70.5), Y(-16.6) + sw * 0.45], [X(-63), Y(-20) + sw * 0.5]], '#000'));   // a notch torn from the tail
   },
   art(x, y, dir, k, p, step) {
-    const S = 1.6, ph = clock * 0.9 + k, X = v => x + dir * v * S, bob = Math.sin(ph * 1.3) * 4;
+    const sk = 1.6, ph = clock * 0.9 + k, X = v => x + dir * v * sk, bob = Math.sin(ph * 1.3) * 4;
     y = anglerY(y, k);
-    const Y = v => y + v * S;
+    const Y = v => y + v * sk;
     if (!step) {
       fillPoly(c, [[X(-26), Y(18)], [X(48), Y(13)], [X(43), Y(28)], [X(-4), Y(37)], [X(-24), Y(30)]], p.belly);   // paler jaw
       fillPoly(c, [[X(26), Y(4)], [X(36), Y(-2)], [X(50), Y(10)], [X(44), Y(15)], [X(22), Y(14)]], p.deep);   // inside the gaping mouth
       return;
     }
     for (let i = 0; i < 30; i++) {   // warts
-      const a = hash(i * 2.3 + k) * 6.28, r = Math.sqrt(hash(i * 4.1 + k)) * 0.85, wx = X(-4) + Math.cos(a) * 40 * S * r, wy = Y(-14) + Math.sin(a) * 30 * S * r;
+      const a = hash(i * 2.3 + k) * 6.28, r = Math.sqrt(hash(i * 4.1 + k)) * 0.85, wx = X(-4) + Math.cos(a) * 40 * sk * r, wy = Y(-14) + Math.sin(a) * 30 * sk * r;
       if (wy < Y(6)) { bpx(wx, wy, 2, 1, p.light); bpx(wx, wy + 1, 2, 1, p.deep); }
     }
     for (let i = 0; i < 5; i++) { const u = i / 4; bline(X(-40), Y(-6 + 16 * u), X(-70 - Math.abs(u - 0.5) * 8), Y(-28 + 46 * u) + Math.sin(ph) * 6 * (1 - Math.abs(u - 0.5)), p.dark, 1); }   // fin rays
@@ -2602,8 +2602,8 @@ LEVIATHANS.angler = {
 const mantaY = (y, k) => y + Math.sin(clock * 0.4 + k) * 3;
 const MANTA_WINGS = { ph: 0, span: 0, lag: 0 };
 function mantaWings(k) {
-  const S = 1.4, ph = clock * 1.1 + k;
-  MANTA_WINGS.ph = ph; MANTA_WINGS.span = (70 + Math.sin(ph) * 8) * S; MANTA_WINGS.lag = (16 + Math.cos(ph) * 10) * S;
+  const sk = 1.4, ph = clock * 1.1 + k;
+  MANTA_WINGS.ph = ph; MANTA_WINGS.span = (70 + Math.sin(ph) * 8) * sk; MANTA_WINGS.lag = (16 + Math.cos(ph) * 10) * sk;
   return MANTA_WINGS;
 }
 LEVIATHANS.manta = {
@@ -2616,19 +2616,19 @@ LEVIATHANS.manta = {
   box: [-218, -114, 56, 114],
   // A manta ray seen from below, gliding head first: broad wings that beat slowly, horn-like head fins and a whip tail.
   draw(x, y, dir, k, col) {
-    const S = 1.4, { ph, span, lag } = mantaWings(k), X = v => x + dir * v * S;
+    const sk = 1.4, { ph, span, lag } = mantaWings(k), X = v => x + dir * v * sk;
     y = mantaY(y, k);
-    fillPoly(c, [[X(30), y - 8 * S], [X(24), y - 22 * S], [x - dir * lag, y - span], [X(-20), y - 26 * S], [X(-34), y - 8 * S], [X(-38), y],
-      [X(-34), y + 8 * S], [X(-20), y + 26 * S], [x - dir * lag, y + span], [X(24), y + 22 * S], [X(30), y + 8 * S]], col);
-    for (const s of [-1, 1]) for (let j = 0; j < 11; j++) c.fillRect(Math.round(X(30 + j * 0.75)) - 2, Math.round(y + s * (11 - j * 0.45) * S) - 2, 4, 4);
-    for (let j = 0; j < 56; j++) c.fillRect(Math.round(X(-38 - j * 2)), Math.round(y + Math.sin(ph * 1.3 - j * 0.13) * j * 0.15 * S), 3, 2);
+    fillPoly(c, [[X(30), y - 8 * sk], [X(24), y - 22 * sk], [x - dir * lag, y - span], [X(-20), y - 26 * sk], [X(-34), y - 8 * sk], [X(-38), y],
+      [X(-34), y + 8 * sk], [X(-20), y + 26 * sk], [x - dir * lag, y + span], [X(24), y + 22 * sk], [X(30), y + 8 * sk]], col);
+    for (const s of [-1, 1]) for (let j = 0; j < 11; j++) c.fillRect(Math.round(X(30 + j * 0.75)) - 2, Math.round(y + s * (11 - j * 0.45) * sk) - 2, 4, 4);
+    for (let j = 0; j < 56; j++) c.fillRect(Math.round(X(-38 - j * 2)), Math.round(y + Math.sin(ph * 1.3 - j * 0.13) * j * 0.15 * sk), 3, 2);
     c.fillStyle = P.bio;
     for (let i = 0; i < 6; i++) if (Math.floor(clock * 1.2 + i * 0.7) % 3) { const v = 0.3 + i * 0.1; c.fillRect(Math.round(x - dir * v * lag), Math.round(y + (i % 2 ? 1 : -1) * v * span * 0.8), 2, 1); }
   },
   geo(x, y, dir, k, p) {
-    const S = 1.4, { ph, span, lag } = mantaWings(k), X = v => x + dir * v * S;
+    const sk = 1.4, { ph, span, lag } = mantaWings(k), X = v => x + dir * v * sk;
     y = mantaY(y, k);
-    const ty = j => y + Math.sin(ph * 1.3 - j * 0.13) * j * 0.15 * S;
+    const ty = j => y + Math.sin(ph * 1.3 - j * 0.13) * j * 0.15 * sk;
     for (let j = 5; j <= 17; j += 4) for (const s of [-1, 1]) {   // barbed spines at the base of the tail
       const bx = X(-38 - j * 2), by = ty(j);
       fillPoly(c, [[bx + dir * 3, by + s], [bx - dir * 2, by + s], [bx - dir * 6, by + s * 7]], p.base);
@@ -2636,30 +2636,30 @@ LEVIATHANS.manta = {
     const lt = j => [X(-38 - j * 2), ty(j)], [ex, ey] = lt(55);   // a stinger at the tip
     fillPoly(c, [[ex, ey - 4], [ex - dir * 10, ey], [ex, ey + 4]], p.base);
     bossCut(() => {   // a bite out of the right wing's trailing edge, and two nicks in the left
-      const tip = [x - dir * lag, y + span], root = [X(-20), y + 26 * S];
+      const tip = [x - dir * lag, y + span], root = [X(-20), y + 26 * sk];
       disc(lerp(root[0], tip[0], 0.55) - dir * 4, lerp(root[1], tip[1], 0.55) + 2, 8, '#000');
-      for (const f of [0.3, 0.72]) disc(lerp(X(-20), x - dir * lag, f) - dir * 2, lerp(y - 26 * S, y - span, f), 3, '#000');
+      for (const f of [0.3, 0.72]) disc(lerp(X(-20), x - dir * lag, f) - dir * 2, lerp(y - 26 * sk, y - span, f), 3, '#000');
     });
   },
   art(x, y, dir, k, p, step) {
-    const S = 1.4, { ph, span, lag } = mantaWings(k), X = v => x + dir * v * S;
+    const sk = 1.4, { ph, span, lag } = mantaWings(k), X = v => x + dir * v * sk;
     y = mantaY(y, k);
     if (!step) {
-      fillPoly(c, [[X(27), y - 7 * S], [X(19), y - 17 * S], [X(-16), y - 19 * S], [X(-31), y - 7 * S], [X(-33), y], [X(-31), y + 7 * S], [X(-16), y + 19 * S], [X(19), y + 17 * S], [X(27), y + 7 * S]], p.belly);   // the pale belly (seen from below)
-      for (const s of [-1, 1]) fillPoly(c, [[x - dir * lag, y + s * span], [X(-28), y + s * 24 * S], [lerp(X(-6), x - dir * lag, 0.4), lerp(y + s * 20 * S, y + s * span, 0.45)]], p.dark);   // dark wingtips
+      fillPoly(c, [[X(27), y - 7 * sk], [X(19), y - 17 * sk], [X(-16), y - 19 * sk], [X(-31), y - 7 * sk], [X(-33), y], [X(-31), y + 7 * sk], [X(-16), y + 19 * sk], [X(19), y + 17 * sk], [X(27), y + 7 * sk]], p.belly);   // the pale belly (seen from below)
+      for (const s of [-1, 1]) fillPoly(c, [[x - dir * lag, y + s * span], [X(-28), y + s * 24 * sk], [lerp(X(-6), x - dir * lag, 0.4), lerp(y + s * 20 * sk, y + s * span, 0.45)]], p.dark);   // dark wingtips
       return;
     }
-    for (const s of [-1, 1]) for (let i = 0; i < 5; i++) { const gx = X(13 - i * 4.5); bline(gx, y + s * 8 * S, gx - dir * 2, y + s * 13 * S, p.dark, 1); }   // gill slits
-    bline(X(29), y - 8 * S, X(29), y + 8 * S, p.deep, 2);   // the wide mouth
-    for (let i = 0; i < 10; i++) bpx(X(-18 + hash(i * 3.3 + k) * 24), y + (hash(i * 7.1 + k) - 0.5) * 24 * S, 2, 2, p.mark);   // belly spots
-    for (let i = 0; i < 3; i++) bscar(X(10 - i * 6), y - 26 * S, X(4 - i * 6), y - 46 * S, p, i * 7 + 2);   // three claw scars across the left wing
-    bscar(X(-6), y + 30 * S, X(-14), y + 44 * S, p, 23, mix(p.eye, p.deep, 0.4));   // a fresh cut near the bite
-    for (const s of [-1, 1]) { bline(X(24), y + s * 22 * S, x - dir * lag, y + s * span, p.light, 1); bossEye(X(25), y + s * 18 * S, 2, p, dir); }   // leading edges and eyes
+    for (const s of [-1, 1]) for (let i = 0; i < 5; i++) { const gx = X(13 - i * 4.5); bline(gx, y + s * 8 * sk, gx - dir * 2, y + s * 13 * sk, p.dark, 1); }   // gill slits
+    bline(X(29), y - 8 * sk, X(29), y + 8 * sk, p.deep, 2);   // the wide mouth
+    for (let i = 0; i < 10; i++) bpx(X(-18 + hash(i * 3.3 + k) * 24), y + (hash(i * 7.1 + k) - 0.5) * 24 * sk, 2, 2, p.mark);   // belly spots
+    for (let i = 0; i < 3; i++) bscar(X(10 - i * 6), y - 26 * sk, X(4 - i * 6), y - 46 * sk, p, i * 7 + 2);   // three claw scars across the left wing
+    bscar(X(-6), y + 30 * sk, X(-14), y + 44 * sk, p, 23, mix(p.eye, p.deep, 0.4));   // a fresh cut near the bite
+    for (const s of [-1, 1]) { bline(X(24), y + s * 22 * sk, x - dir * lag, y + s * span, p.light, 1); bossEye(X(25), y + s * 18 * sk, 2, p, dir); }   // leading edges and eyes
   },
 };
 // -- Coilheart, the nautilus (Dust moon) --
 // Its bob, hanging in place: its middle's height, shared by its shape and its fight art.
-function nautilusY(y, k) { const S = 1.8; return Math.round(y + 8 * S + Math.sin(clock * 0.5 + k) * 4); }
+function nautilusY(y, k) { const sk = 1.8; return Math.round(y + 8 * sk + Math.sin(clock * 0.5 + k) * 4); }
 LEVIATHANS.nautilus = {
   moon: 'dust', name: 'Coilheart', line: 'Fire spirals out of the shell',
   patterns: ['ring', 'bomb', 'wave', 'beam'],
@@ -2670,28 +2670,28 @@ LEVIATHANS.nautilus = {
   box: [-100, -84, 102, 110],
   // A nautilus: a coiled, ribbed shell with a hood over its eye and a fringe of short tentacles that reach forward and curl.
   draw(x, y, dir, k, col) {
-    const S = 1.8, X = v => x + dir * v * S;
+    const sk = 1.8, X = v => x + dir * v * sk;
     y = nautilusY(y, k);
-    const Y = v => y + v * S;
-    disc(X(-10), Y(-8), Math.round(38 * S), col);
-    fillEllipse(c, X(20), y, Math.round(14 * S), Math.round(28 * S), col);
-    fillEllipse(c, X(24), Y(-20), Math.round(12 * S), Math.round(8 * S), col);
+    const Y = v => y + v * sk;
+    disc(X(-10), Y(-8), Math.round(38 * sk), col);
+    fillEllipse(c, X(20), y, Math.round(14 * sk), Math.round(28 * sk), col);
+    fillEllipse(c, X(24), Y(-20), Math.round(12 * sk), Math.round(8 * sk), col);
     c.fillStyle = mix(col, P.ink, 0.25);
-    for (let i = 0; i < 260; i++) { const th = i * 0.05, r = 3 * S * Math.exp(0.18 * th); c.fillRect(Math.round(X(-10) - dir * Math.cos(th) * r), Math.round(Y(-8) - Math.sin(th) * r), 2, 2); }
+    for (let i = 0; i < 260; i++) { const th = i * 0.05, r = 3 * sk * Math.exp(0.18 * th); c.fillRect(Math.round(X(-10) - dir * Math.cos(th) * r), Math.round(Y(-8) - Math.sin(th) * r), 2, 2); }
     for (let i = 0; i < 12; i++) {
       const bx = X(28), by = Y(-8 + i * 2.6);
       for (let j = 0; j < 14; j++) {
         const a = 0.1 + i * 0.1 + Math.sin(clock * 1.2 + i * 0.8 + j * 0.3) * 0.25 + j * 0.035;
-        disc(bx + dir * j * 2.6 * S * 0.85 * Math.cos(a), by + j * 2.6 * S * 0.85 * Math.sin(a), Math.max(1, Math.round((3 - j * 0.17) * S)), col);
+        disc(bx + dir * j * 2.6 * sk * 0.85 * Math.cos(a), by + j * 2.6 * sk * 0.85 * Math.sin(a), Math.max(1, Math.round((3 - j * 0.17) * sk)), col);
       }
     }
     c.fillStyle = P.crust; c.fillRect(Math.round(X(22)) - 3, Math.round(Y(-10)) - 2, 6, 5);
     c.fillStyle = P.lava; c.fillRect(Math.round(X(22)) - 2, Math.round(Y(-10)) - 1, 3, 3);
   },
   geo(x, y, dir, k, p) {
-    const S = 1.8, X = v => x + dir * v * S;
+    const sk = 1.8, X = v => x + dir * v * sk;
     y = nautilusY(y, k);
-    const cx = X(-10), cy = y + -8 * S, R0 = Math.round(38 * S), pt = (th, r) => [cx - dir * Math.cos(th) * r, cy - Math.sin(th) * r];
+    const cx = X(-10), cy = y + -8 * sk, R0 = Math.round(38 * sk), pt = (th, r) => [cx - dir * Math.cos(th) * r, cy - Math.sin(th) * r];
     for (let i = 0; i < 12; i++) {   // spikes along the shell's keel, from below the back round past the top; one broken
       const th = Math.PI * (-0.42 + i * 0.095), L = i === 6 ? 4 : 10 + (i % 2) * 4;
       fillPoly(c, [pt(th - 0.1, R0 - 3), pt(th + 0.1, R0 - 3), pt(th - 0.05, R0 + L)], p.base);
@@ -2699,9 +2699,9 @@ LEVIATHANS.nautilus = {
     bossCut(() => fillPoly(c, [pt(-0.16, R0 + 1), pt(0.04, R0 + 1), pt(-0.07, R0 - 12)], '#000'));   // a chunk broken out of the shell
   },
   art(x, y, dir, k, p, step) {
-    const S = 1.8, X = v => x + dir * v * S;
+    const sk = 1.8, X = v => x + dir * v * sk;
     y = nautilusY(y, k);
-    const Y = v => y + v * S, cx = X(-10), cy = Y(-8), R0 = Math.round(38 * S);
+    const Y = v => y + v * sk, cx = X(-10), cy = Y(-8), R0 = Math.round(38 * sk);
     if (!step) {   // flame stripes over the older part of the shell, fading before the opening
       for (let i = 0; i < 9; i++) {
         const th0 = Math.PI * (0.55 + i * 0.16);
@@ -2709,7 +2709,7 @@ LEVIATHANS.nautilus = {
       }
       return;
     }
-    for (let i = 0; i < 260; i++) { const th = i * 0.05, r = 3 * S * Math.exp(0.18 * th); bpx(cx - dir * Math.cos(th) * r, cy - Math.sin(th) * r, 2, 2, p.mark); }   // the coil
+    for (let i = 0; i < 260; i++) { const th = i * 0.05, r = 3 * sk * Math.exp(0.18 * th); bpx(cx - dir * Math.cos(th) * r, cy - Math.sin(th) * r, 2, 2, p.mark); }   // the coil
     for (let a = 0; a < 1.1; a += 0.02) bpx(cx - dir * Math.cos(2.2 + a) * R0 * 0.8, cy - Math.sin(2.2 + a) * R0 * 0.8, 2, 2, p.hi);   // shine on the shell
     for (let i = 0; i < 18; i++) bpx(X(18 + hash(i * 2.9 + k) * 14), Y(-26 + hash(i * 6.1 + k) * 12), 1, 1, p.dark);   // the hood's grain
     { const pt = (th, r) => [cx - dir * Math.cos(th) * r, cy - Math.sin(th) * r], glow = (Math.floor(clock * 4) % 4) ? p.eye : p.mark;   // a crack from the broken chunk, glowing inside
@@ -2720,7 +2720,7 @@ LEVIATHANS.nautilus = {
     bossEye(X(22), Y(-10), 4, p, dir);
     for (let i = 0; i < 12; i++) {   // pale tentacle tips
       const bx = X(28), by = Y(-8 + i * 2.6), j = 13, a = 0.1 + i * 0.1 + Math.sin(clock * 1.2 + i * 0.8 + j * 0.3) * 0.25 + j * 0.035;
-      bpx(bx + dir * j * 2.6 * S * 0.85 * Math.cos(a) - 1, by + j * 2.6 * S * 0.85 * Math.sin(a) - 1, 2, 2, p.hi);
+      bpx(bx + dir * j * 2.6 * sk * 0.85 * Math.cos(a) - 1, by + j * 2.6 * sk * 0.85 * Math.sin(a) - 1, 2, 2, p.hi);
     }
   },
 };
@@ -5241,9 +5241,9 @@ const Music = (() => {
     }
     if (track === 0) {   // stalker
       if (i === 0) rumble([[r + 12, -7], [r + 12, 7]], t, 16 * sx, 0.03);
-      const c = T.riff[i];
+      const riffAt = T.riff[i];   // the riff's step: '.' rest, 'u' a semitone up, else the root
       if (h === 0) { if (i === 0 || i === 8) gbass(r, t, 0.5, 0.16); if (i === 0 || i === 3) taiko(t, 0.28); }
-      else if (c !== '.') gbass(c === 'u' ? r + 1 : r, t, 0.2, i % 6 === 0 ? 0.32 : 0.2);
+      else if (riffAt !== '.') gbass(riffAt === 'u' ? r + 1 : r, t, 0.2, i % 6 === 0 ? 0.32 : 0.2);
       else if (h >= 3) gbass(r, t, 0.08, 0.12);
       if (h >= 1) {
         if (i === 0 || i === 6 || i === 10) taiko(t, i ? 0.45 : 0.6);
@@ -7562,14 +7562,14 @@ function hullPix(u, v, frame) {
 }
 function drawPullback() {
   const sh = introShip, k = Math.min(1, (openT - OPEN.coffee) / OPEN.pull), e = smoothstep(k), m = smoothstep(k / 0.25);
-  const S = S0 * Math.pow(sh.scale / S0, e), ang = sh.a * e, ca = Math.cos(ang), sa = Math.sin(ang);
+  const sk = S0 * Math.pow(sh.scale / S0, e), ang = sh.a * e, ca = Math.cos(ang), sa = Math.sin(ang);
   const R = (u, v) => [u * ca - v * sa, u * sa + v * ca];
   // the point the camera holds slides from the window centre to the middle of the ship, so the ship stays in frame
   const fu = lerp((WIN[0] + WIN[2]) / 2, 0, e), fv = lerp((WIN[1] + WIN[3]) / 2, 0, e), [ex, ey] = R(fu * sh.scale, fv * sh.scale);
-  const cx = lerp(W / 2, sh.x + ex, e), cy = lerp(2 * (BAND + 40), sh.y + ey, e), [ox0, oy0] = R(fu * S, fv * S), Ox = cx - ox0, Oy = cy - oy0;
+  const cx = lerp(W / 2, sh.x + ex, e), cy = lerp(2 * (BAND + 40), sh.y + ey, e), [ox0, oy0] = R(fu * sk, fv * sk), Ox = cx - ox0, Oy = cy - oy0;
   // engine flame, then the hull sampled straight from shipPix at screen resolution (2 px blocks while big, like the bridge)
-  c.save(); c.translate(Ox, Oy); c.rotate(ang); c.scale(S, S); shipFlame(sh.f); c.restore();
-  const b = S >= 2 ? 2 : 1, gw = Math.ceil(W / b), gh = Math.ceil(H / b);
+  c.save(); c.translate(Ox, Oy); c.rotate(ang); c.scale(sk, sk); shipFlame(sh.f); c.restore();
+  const b = sk >= 2 ? 2 : 1, gw = Math.ceil(W / b), gh = Math.ceil(H / b);
   if (!hullCv || hullCv.width !== gw || hullCv.height !== gh) {
     hullCv = document.createElement('canvas');
     hullCv.width = gw;
@@ -7580,7 +7580,7 @@ function drawPullback() {
   hullBuf.fill(0);
   let x0 = W, x1 = 0, y0 = H, y1 = 0;
   for (const [u, v] of [[-60, -28], [48, -28], [48, 22], [-60, 22]]) {
-    const [dx, dy] = R(u * S, v * S);
+    const [dx, dy] = R(u * sk, v * sk);
     x0 = Math.min(x0, Ox + dx);
     x1 = Math.max(x1, Ox + dx);
     y0 = Math.min(y0, Oy + dy);
@@ -7590,7 +7590,7 @@ function drawPullback() {
     gx1 = Math.min(gw, Math.ceil(x1 / b)),
     gy0 = Math.max(0, Math.floor(y0 / b)),
     gy1 = Math.min(gh, Math.ceil(y1 / b));
-  const inv = 1 / S, frame = S >= 2, snap = S < 1.5;
+  const inv = 1 / sk, frame = sk >= 2, snap = sk < 1.5;
   for (let gy = gy0; gy < gy1; gy++) {
     const dy = (gy + 0.5) * b - Oy;
     for (let gx = gx0; gx < gx1; gx++) {
@@ -7604,13 +7604,13 @@ function drawPullback() {
   hullCv.getContext('2d').putImageData(hullImg, 0, 0);
   c.imageSmoothingEnabled = false; c.drawImage(hullCv, 0, 0, gw * b, gh * b);
   // the bridge seen through the glass: starts as the full screen and closes onto the window, fading to plain glass when small
-  const ia = smoothstep((S - 1.6) / 2.4);
+  const ia = smoothstep((sk - 1.6) / 2.4);
   if (ia <= 0) return;
   drawBridge(openT);
-  const corners = [[WIN[0], WIN[1]], [WIN[2], WIN[1]], [WIN[2], WIN[3]], [WIN[0], WIN[3]]].map(([u, v], i) => { const [dx, dy] = R(u * S, v * S); return [lerp(i === 1 || i === 2 ? W : 0, Ox + dx, m), lerp(i > 1 ? H : 0, Oy + dy, m)]; });
+  const corners = [[WIN[0], WIN[1]], [WIN[2], WIN[1]], [WIN[2], WIN[3]], [WIN[0], WIN[3]]].map(([u, v], i) => { const [dx, dy] = R(u * sk, v * sk); return [lerp(i === 1 || i === 2 ? W : 0, Ox + dx, m), lerp(i > 1 ? H : 0, Oy + dy, m)]; });
   c.save(); c.beginPath(); corners.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); c.closePath(); c.clip();
-  c.translate(Ox, Oy); c.rotate(ang); c.scale(S, S); c.globalAlpha = ia;
-  c.imageSmoothingEnabled = S * 0.0875 < 1;
+  c.translate(Ox, Oy); c.rotate(ang); c.scale(sk, sk); c.globalAlpha = ia;
+  c.imageSmoothingEnabled = sk * 0.0875 < 1;
   c.save(); c.translate(WIN[0], WIN[1] - BAND * 7 / 80); c.scale(14 / 160, 7 / 80); c.drawImage(bridgeCv, 0, 0); c.restore();
   c.globalAlpha = ia * m * 0.22; c.fillStyle = P.blue; c.fillRect(WIN[0], WIN[1], WIN[2] - WIN[0], WIN[3] - WIN[1]);
   c.globalAlpha = ia * m * 0.3; c.fillStyle = P.lite; c.fillRect(WIN[0], WIN[1], 3, WIN[3] - WIN[1]); c.fillRect(20, WIN[1], 1.5, WIN[3] - WIN[1]);
@@ -9010,12 +9010,12 @@ const BOSS_ATTACKS = {
     return 0.3 + N * 0.38 + 1;
   },
   wave(b, lv, sp) {   // snakes of spores wriggling down
-    const S = fireMore(b, 3 + (lv >= 3 ? 1 : 0));
-    for (let k = 0; k < S; k++) {
+    const sk = fireMore(b, 3 + (lv >= 3 ? 1 : 0));
+    for (let k = 0; k < sk; k++) {
       const x0 = 36 + Math.random() * (W - 72);
       for (let i = 0; i < 7; i++) fireLater(b, 0.45 + k * 0.3 + i * 0.11, () => { bossShot({ type: 'wave', x0, x: x0, y: fireMouth(b)[1] + 6, vy: 160 * sp, amp: 40, f: 3.4, ph: k * 2, t: 0, r: 3 }); if (!i) Sfx.bossShot(); });
     }
-    return 0.45 + S * 0.3 + 0.8;
+    return 0.45 + sk * 0.3 + 0.8;
   },
   sonar(b, lv, sp) {   // whale: arcs of shots spreading down from its mouth, each with a gap that swings across
     const n = fireMore(b, lv >= 3 ? 3 : 2);

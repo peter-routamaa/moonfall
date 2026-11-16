@@ -1,5 +1,7 @@
 # MoonFall performance rules
 
+(For where code goes, comments, names and the other code rules, see `CODING.md`; this file is about what a frame costs.)
+
 Read this before adding anything that is drawn or worked out every frame: a Leviathan, a moon, a hazard, a background
 layer, an effect, a HUD read-out. It is what the version 129 performance pass found, turned into rules. Each rule names
 the code that already follows it, so there is a pattern to copy.
