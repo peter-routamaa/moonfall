@@ -587,6 +587,17 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .speed-flash b .pct { width: .72em; height: .8em; margin-left: .08em; vertical-align: -.02em; filter: drop-shadow(3px 3px 0 var(--ink)); }
 .speed-flash small { display: block; margin-top: 6px; font: 400 20px/1 var(--body); color: var(--dust); text-shadow: 2px 2px 0 var(--ink), -1px -1px 0 var(--ink); }   /* text only, mid-screen below the pilot: rocks stay visible through it */
 .speed-flash.on { animation: speedflash 1.5s steps(15); }
+/* The banner a self-test or cave preview starts with (owner: "a big pop-up to say developer run in progress"), and its tag while it runs. */
+.run-banner { position: absolute; z-index: 30; left: 50%; top: 42%; width: min(86%, 330px); transform: translate(-50%, -50%); display: grid; gap: 8px; padding: 16px 18px 14px;
+  background: var(--ink); color: var(--dust); border: 3px solid var(--gold); box-shadow: 5px 5px 0 var(--blue); text-align: center; pointer-events: none;
+  animation: runbanner 4.5s steps(18) forwards; }
+.run-banner b { font: 700 18px/1.1 var(--display); letter-spacing: .08em; color: var(--gold); text-transform: uppercase; }
+.run-banner small { font: 400 19px/1 var(--body); color: var(--dust-dim); }
+@keyframes runfade { 0% { opacity: 0; } 10%, 85% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes runbanner { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); } 10% { opacity: 1; transform: translate(-50%, -50%); } 85% { opacity: 1; } 100% { opacity: 0; } }
+.run-tag { position: absolute; left: 12px; top: 84px;   /* just under the HUD's left column (HUD_LEFT_PX), clear of the films' captions */
+  padding: 5px 7px 4px; background: var(--gold); color: var(--ink);
+  font: 700 10px/1 var(--display); letter-spacing: .08em; box-shadow: 3px 3px 0 var(--ink); pointer-events: none; }
 @keyframes speedflash { 0% { opacity: 0; transform: scale(1.7); } 12% { opacity: 1; transform: none; } 78% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-26px); } }
 @keyframes speedfade { 0% { opacity: 0; } 10%, 80% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes popfade { 0% { opacity: 0; } 15%, 70% { opacity: 1; } 100% { opacity: 0; } }
@@ -659,6 +670,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   .btn.launch { animation: none; }
   .news { animation: none; }
   .btn.bob { animation: none; }
+  .run-banner { animation-name: runfade; }
   .set-tog.kid-tog { animation: none; }
   .intro-skip { animation: none; }
   #titleScreen.arriving * { animation: none !important; }
@@ -688,6 +700,8 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   </div>
 
   <div class="fps" id="fps" hidden>-- FPS</div>
+  <!-- The small tag while the self-test or a cave preview runs: before the shop and the cave card, so they cover it. -->
+  <div class="run-tag" id="runTag" hidden aria-hidden="true"></div>
   <!-- Cafe menu: a flip card like the title card. Front: SHOP, TIPS, SHIP REPAIR PROGRESS and Continue; the first three turn over to the back. -->
   <div class="cafe-ui" id="shop" hidden>
    <div class="flip" id="cafeFlip">
@@ -744,6 +758,8 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   <div class="intro-cap" id="introCap" aria-hidden="true"></div>
   <div class="streak-flash" id="streakFlash" aria-hidden="true"></div>
   <div class="speed-flash" id="speedFlash" role="status"><b></b><small></small></div>
+  <!-- The self-test and the cave preview: a banner as one starts (see showRunBanner; its small tag comes before the shop). -->
+  <div class="run-banner" id="runBanner" hidden role="status"><b></b><small></small></div>
 
   <section class="screen splash" id="splashScreen" hidden>
     <div class="studio">
@@ -1059,18 +1075,22 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 229;
+const VERSION = 230;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
-// True while the performance self-test plays the game by itself (see perfStart): nothing is saved, sent or awarded.
+// True while the performance self-test plays the game by itself (see perfStart).
 let perfOn = false;
+// The save as it was when a cave preview began (JSON, see the cave preview), or null when none is running.
+let previewSave = null;
+// Nothing is saved, sent or awarded during the self-test or a cave preview; the save is put back when either ends.
+const offRecord = () => perfOn || previewSave !== null;
 
 // ---------- canvas and palette ----------
 const W = 320, TILE_H = 128;
 const PX_PER_M = 8;   // game pixels per metre of depth
 const PILOT_CY = 14;  // the pilot's middle, in pixels below player.y (the top of his sprite)
-const HUD_LEFT_PX = 76;   // CSS px from the top of the screen to the bottom of the HUD's left column (health, then BEAT)
+const HUD_LEFT_PX = 76;   // CSS px from the top of the screen to the bottom of the HUD's left column (health, then BEAT); .run-tag sits under it
 const game = document.getElementById('game'), cv = document.getElementById('cv'), ov = document.getElementById('ov');
 // Two canvases: the world, and on top of it the pilot (see render). `c` is whichever one is being drawn on.
 const wc = cv.getContext('2d', { alpha: false }), oc = ov.getContext('2d');
@@ -4610,7 +4630,12 @@ let kidRun = { mines: 1, parts: 1, health: 1, hp: 1, fall: 1, shots: 1, speed: t
 const kidRoll = n => { const x = Math.sin(n * 12.9898 + SEED * 78.233) * 43758.5453; return x - Math.floor(x); };
 // Leviathan shots are thinned evenly (at 50% every other one is fired, at 25% one in four), not at random.
 function bossShot(s) { kidShotAcc += kidRun.shots; if (kidShotAcc >= 0.999) { kidShotAcc -= 1; bossShots.push(s); } }
-function persist() { if (perfOn) return; try { localStorage.setItem('moonfall.v1', JSON.stringify(save)); } catch (e) {} }
+function persist() { if (offRecord()) return; try { localStorage.setItem('moonfall.v1', JSON.stringify(save)); } catch (e) {} }
+// Puts the save back exactly as it was (json: JSON.stringify(save) from before), after the self-test or a cave preview.
+function putSaveBack(json) {
+  for (const k of Object.keys(save)) delete save[k];
+  Object.assign(save, JSON.parse(json));
+}
 // Switches the game over to a moon: its rock layers and scenery colours, and everything painted from them
 // is thrown away to be painted again (the shaft's tiles and back layers, the hills and the surface props). The hazards,
 // Leviathans and music read `moon` as they go. Only called on the menus, never during a run.
@@ -5670,6 +5695,14 @@ const screens = {
   score: $('scoreScreen')
 };
 const fmtM = m => String(m).padStart(4, '0');
+// The big banner the self-test or a cave preview starts with (it fades by itself), and the small tag that stays up.
+function showRunBanner(title, text, tag) {
+  const banner = $('runBanner');
+  banner.firstChild.textContent = title; banner.lastChild.textContent = text; $('runTag').textContent = tag;
+  banner.hidden = true; void banner.offsetWidth; banner.hidden = false;   // shown again, its animation starts over
+  $('runTag').hidden = false;
+}
+function hideRunBanner() { $('runBanner').hidden = true; $('runTag').hidden = true; }
 function showScreen(name) { for (const k in screens) screens[k].hidden = k !== name; }
 // The ship repair panel is shown in two places: the main menu, and the cafe's Ship repair card. Each copy (a repair
 // view: its title, percentage, bar and part rows) is built the same way by buildRepairView, and renderRepair fills all.
@@ -6291,7 +6324,7 @@ $('resetBtn').addEventListener('click', () => askReset(1));
 // closing the pop-up any other way does neither, so it asks again next time. Returns true when it asked.
 let droneQuick = false;   // the dive to start after the answer: a quick restart (Fall again) or from the menu
 function askDrone(quick) {
-  if (perfOn || droneOpen() || !droneEarned()) return false;
+  if (offRecord() || droneOpen() || !droneEarned()) return false;
   confirmKind = 'drone'; confirmFrom = quick ? 'againBtn' : 'startBtn'; confirmStep = 0; droneQuick = quick;
   confirmDlg.classList.remove('danger');
   $('confirmTitle').textContent = 'Helper drone unlocked!';
@@ -6397,7 +6430,7 @@ const DEVICE = /iPad|Tablet/.test(UA) || TOUCH_MAC || (/Android/.test(UA) && !/M
 const OS = /Android/.test(UA) ? 'android' : /iPhone|iPad|iPod/.test(UA) || TOUCH_MAC ? 'ios' : /Windows/.test(UA) ? 'windows' : /CrOS/.test(UA) ? 'chromeos'
   : /Mac OS X|Macintosh/.test(UA) ? 'mac' : /Linux/.test(UA) ? 'linux' : 'other';
 function statPing(body) {
-  if (!SCORES_URL || perfOn) return;
+  if (!SCORES_URL || offRecord()) return;
   fetch(SCORES_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
 }
 function countPlay() {
@@ -6492,8 +6525,10 @@ function startRun(quick) {
 }
 function beginPlay() {
   setState('play');
-  const startM = perfOn ? PERF_START_M : TEST_START_M;
-  if (startM) {   // the boss test copy: skip ahead to just above cafe 1 (see TEST_START_M); the self-test starts 400 m down
+  let startM = TEST_START_M;   // the boss test copy skips ahead to just above cafe 1 (see TEST_START_M)
+  if (perfOn) startM = PERF_START_M;   // the self-test starts 400 m down
+  else if (previewSave) startM = previewStartM();   // a cave preview, just above the cave
+  if (startM) {
     player.y = startM * PX_PER_M;
     const e = edgeAt(player.y + PILOT_CY);
     player.x = (e.L + e.R) / 2; camY = player.y - pilotNow; nextSeg = Math.floor(camY / SEG_LEN); lastRockD = player.y;
@@ -6523,8 +6558,11 @@ function toTitle() {
   menuFromRun = true;   // an update may reload this menu (see reloadForUpdate)
   disarmBack();
   checkUpdate();
+  endRun('quit');   // first: nothing from a cave preview is sent
+  // A cave preview ends here (Quit from pause, or Main menu after the ending). flyHome passes through on its way to the
+  // launch (state 'over'), and the preview goes on through the ending.
+  if (previewSave && state !== 'over') endPreview();
   const repairedThisRun = !readyStart && canLaunch();   // ready to fly since this run began: the ship or the computer finished
-  endRun('quit');
   resetRun();
   setState('title');
   screens.title.classList.remove('clean');   // between runs the menu shows straight away
@@ -6545,9 +6583,11 @@ function die() {
 }
 function gameOver() {
   setState('over'); endRun(lastHit || 'wall');
+  const preview = previewSave !== null;
+  if (preview) endPreview();   // a cave preview ends with its game over card, which doesn't count
   // A Leviathan that caught him leaves with the run: no painting it behind the card, no frozen shots.
   if (boss) { boss = null; bossShots.length = 0; hud.classList.remove('boss'); }
-  const m = depthM(), kb = kidRun.on, isBest = m > bestNow();   // a Kid mode run has its own best and board
+  const m = depthM(), kb = kidRun.on, isBest = !preview && m > bestNow();   // a Kid mode run has its own best and board
   if (isBest) { if (kb) save.kidBest = m; else save.best = m; persist(); }
   hsKid = kb; $('oBest').previousElementSibling.textContent = kb ? 'KID BEST' : 'BEST';
   $('oDepth').firstChild.nodeValue = m; $('oBest').firstChild.nodeValue = bestNow(); $('oOrbs').textContent = player.orbs;
@@ -6556,6 +6596,7 @@ function gameOver() {
   // Run highlights, one per line, the rarest first; at most four, then the treats.
   const leviName = k => LEVI_INFO.find(x => x[0] === k)[1], nb = player.newBadges;
   const lines = [
+    preview ? '<b>Cave preview</b>: not saved' : '',
     hardRun ? '<b>Terminal Velocity</b>' : '',
     nb.length ? 'New badge' + (nb.length > 1 ? 's' : '') + ': <b>' + nb.join(', ') + '</b>' : '',
     player.leviRun.length ? 'Escaped <b>' + player.leviRun.map(leviName).join(', ') + '</b>' : '',
@@ -6568,7 +6609,7 @@ function gameOver() {
   $('overLaunchBtn').hidden = !canLaunch();
   hud.classList.add('off'); syncToggles();
   overRepaired = !readyStart && canLaunch();   // this dive finished the ship: congratulations once the scores are done
-  if (qualifies(m)) { showScores(m); return; }
+  if (!preview && qualifies(m)) { showScores(m); return; }
   showOver();
 }
 // The game over card, and the congratulations on top of it when this dive finished the ship (askRepaired).
@@ -7219,11 +7260,11 @@ function launchFromCafe() {
 // Ends the dive where he is and flies home: viaPortal (the deep cave) starts the ending at the orange portal by the ship
 // instead of up the shaft. The dive counts like any other (owner: it "should still count in the high scores").
 function endDiveAndFlyHome(viaPortal) {
-  const m = depthM(), kb = kidRun.on;   // a Kid mode run has its own best and board
-  if (m > bestNow()) { if (kb) save.kidBest = m; else save.best = m; persist(); }
+  const m = depthM(), kb = kidRun.on, counts = !previewSave;   // a Kid mode run has its own best and board; a preview has none
+  if (counts && m > bestNow()) { if (kb) save.kidBest = m; else save.best = m; persist(); }
   hsKid = kb; launchPortal = !!viaPortal;
   setState('over'); hud.classList.add('off'); endRun('quit');
-  if (qualifies(m)) { showScores(m, 'launch'); return; }
+  if (counts && qualifies(m)) { showScores(m, 'launch'); return; }
   flyHome();
 }
 function flyHome() { toTitle(); startLaunch(); }
@@ -7623,6 +7664,36 @@ function drawCave(cam) {
   if (portalOpen > 0) drawPortal(cave.portalX, Math.round(floorY), portalOpen, PORTAL_BLUE);
 }
 
+// The cave preview (owner: "so that people can watch the third ending if they're unlikely to ever make it that far"):
+// five quick taps on the pilot by the ship, on the main menu, start a dive PREVIEW_ABOVE_M above the cave's roof. Like
+// the self-test it is off the record (offRecord): nothing is saved, sent or awarded, and the save is put back exactly
+// as it was when it ends: at its game over card, or back on the main menu (after the ending, or Quit from pause).
+const PREVIEW_ABOVE_M = 100, PREVIEW_TAPS = 5, PREVIEW_TAP_GAP = 3000, PREVIEW_HIT = 22;
+let previewTaps = 0, previewTapAt = 0;
+const previewStartM = () => Math.round(caveInfo().T / PX_PER_M) - PREVIEW_ABOVE_M;
+function startPreview() {
+  if (offRecord() || state !== 'title' || cardSide) return;
+  previewSave = JSON.stringify(save);
+  startRun(true);
+  showRunBanner('Cave preview', 'A dive from ' + PREVIEW_ABOVE_M + ' m above the deep cave, to see how it ends. Nothing is saved.', 'CAVE PREVIEW');
+}
+function endPreview() {
+  putSaveBack(previewSave);
+  previewSave = null;
+  hideRunBanner();
+}
+// A tap within PREVIEW_HIT pixels of the pilot's middle, on the menu's open space (not on its cards or buttons).
+screens.title.addEventListener('pointerdown', e => {
+  if (e.target !== screens.title || screens.title.classList.contains('clean') || state !== 'title') return;
+  const r = game.getBoundingClientRect();
+  const x = (e.clientX - r.left - (r.width - W * pxY) / 2) / pxY, y = (e.clientY - r.top - (r.height - (H - 1) * pxY) / 2) / pxY + camY;
+  if (Math.hypot(x - player.x, y - player.y - PILOT_CY) > PREVIEW_HIT) return;
+  const now = performance.now();
+  if (now - previewTapAt > PREVIEW_TAP_GAP) previewTaps = 0;
+  previewTapAt = now;
+  if (++previewTaps >= PREVIEW_TAPS) { previewTaps = 0; startPreview(); }
+});
+
 // ---------- badges: saved on the phone in save.badges (id: when earned) ----------
 const BADGES = [
   ['cafe', 'First cafe', 'Land at a cafe'],
@@ -7642,7 +7713,7 @@ if (!save.badges || typeof save.badges !== 'object') save.badges = {};
 if (!save.badges.repair && (missionsDone() > 0 || repairFrac() >= 1)) save.badges.repair = Date.now();
 if (!save.badges.drone && save.droneOpen) save.badges.drone = Date.now();
 function award(id) {
-  if (perfOn || save.badges[id]) return;
+  if (offRecord() || save.badges[id]) return;
   const b = BADGES.find(x => x[0] === id);
   if (!b) return;
   save.badges[id] = Date.now(); persist();
@@ -8442,6 +8513,8 @@ function showEnd() {
   if (save.droneNew && !newDrone) lines.push('Helper drone unlocked!');
   save.droneNew = false; persist();
   $('eUnlock').textContent = lines.length ? lines.join(' ') + ' (Unlocks)' : '';
+  if (previewSave) $('eUnlock').textContent = 'This was a cave preview, so none of it was saved. Reach the cave yourself to keep it!';
+  $('newMissionBtn').hidden = !!previewSave;   // a preview's ship isn't really repaired, so there's no mission to reset
   $('eUnlock').hidden = !$('eUnlock').textContent;
   $('eBest').firstChild.nodeValue = bestNow(); $('eBest').previousElementSibling.textContent = kidRun.on ? 'KID BEST' : 'BEST';
   $('eParts').textContent = PARTS.reduce((n, pt) => n + pt.need, 0);
@@ -8508,7 +8581,7 @@ const UPDATE_URL = '';
 let updateTo = 0, updateAsked = 0;
 let menuFromRun = false, lastInput = 0;   // the menu was reached from a run (toTitle); when anything was last pressed
 function checkUpdate() {
-  if (!UPDATE_URL || perfOn || updateTo || Date.now() - updateAsked < 60000) return;
+  if (!UPDATE_URL || offRecord() || updateTo || Date.now() - updateAsked < 60000) return;
   updateAsked = Date.now();
   fetch(UPDATE_URL + '?t=' + updateAsked, { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(j => {
     const v = j && Math.floor(+j.v);
@@ -8519,7 +8592,7 @@ function checkUpdate() {
   }).catch(() => {});
 }
 function reloadForUpdate() {
-  if (!updateTo || perfOn || document.hidden || cardSide) return;
+  if (!updateTo || offRecord() || document.hidden || cardSide) return;
   const quiet = state === 'title' ? menuFromRun && performance.now() - lastInput > 4000 : state === 'splash' && !lastInput;
   if (!quiet) return;
   const v = updateTo; updateTo = 0;
@@ -10856,6 +10929,8 @@ function perfStart(kind) {
   document.createElement = function (tag, opt) { if (tag === 'canvas' && perf.cur < 255) perf.made[perf.cur]++; return make.call(document, tag, opt); };
   perfOn = true;
   startRun(true);
+  showRunBanner('Developer test run', 'The game plays itself for about a minute to measure how smoothly it runs. '
+    + 'Nothing is saved or sent; the results show at the end.', 'DEV TEST RUN');
   leviKind(2); leviOrder[2] = set.indexOf(kind);   // the first cafe's Leviathan
 }
 // Before each update: he can't be hurt, steers down the middle and onto the first cafe's pad, and leaves it after 3 s.
@@ -10889,10 +10964,10 @@ function perfFinish(quit) {
   const p = perf;
   p.ending = true;
   delete document.createElement;
-  for (const k of Object.keys(save)) delete save[k];
-  Object.assign(save, JSON.parse(p.snap));   // the save, exactly as it was
+  putSaveBack(p.snap);
   toTitle();
   perfOn = false;
+  hideRunBanner();
   if (!quit) perfCard(perfReport());
 }
 function perfReport() {
