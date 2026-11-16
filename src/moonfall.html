@@ -146,17 +146,17 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .set-tog.kid-tog[data-on="true"] { border-color: var(--green); background: transparent; }
 /* Owner: "make kid mode more pronounced ... a different-coloured border and possibly a slight wiggle". While it's off
    the tile has a pink border and tint (no strike-through: it opens a card, it isn't switched off) and gives a short
-   wiggle every 5 s; once it's on it keeps the green border and stays still. */
+   wiggle every 2 s; once it's on it keeps the green border and stays still. */
 .set-tog.kid-tog[data-on="false"] { border-color: var(--pink); background: color-mix(in srgb, var(--pink) 14%, transparent);
-  animation: kidwiggle 5s steps(1, end) infinite; transform-origin: 50% 60%; }
+  animation: kidwiggle 2s steps(1, end) infinite; transform-origin: 50% 60%; }
 .set-tog.kid-tog[data-on="false"]::after { background: var(--pink); color: var(--ink); }
-@keyframes kidwiggle {
-  0%, 84%, 100% { transform: none; }
-  86% { transform: rotate(-3deg); }
-  88% { transform: rotate(3deg); }
-  90% { transform: rotate(-2deg); }
-  92% { transform: rotate(2deg); }
-  94% { transform: rotate(-1deg); }
+@keyframes kidwiggle {   /* half a second of wiggle (0.1 s a step) at the end of each 2 s */
+  0%, 75%, 100% { transform: none; }
+  77.5% { transform: rotate(-3deg); }
+  82.5% { transform: rotate(3deg); }
+  87.5% { transform: rotate(-2deg); }
+  92.5% { transform: rotate(2deg); }
+  97.5% { transform: rotate(-1deg); }
 }
 .set-tog.kid-tog[data-on="true"]::after { content: 'ON'; background: var(--green); color: var(--ink); }
 #kidBack h2 { text-align: center; }
@@ -1047,7 +1047,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 223;
+const VERSION = 224;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
