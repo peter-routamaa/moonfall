@@ -555,11 +555,6 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 @keyframes pop { 0% { opacity: 0; translate: 0 8px; } 15% { opacity: 1; translate: 0 0; } 70% { opacity: 1; } 100% { opacity: 0; translate: 0 -36px; } }
 .coach { position: absolute; left: 50%; bottom: 14%; transform: translateX(-50%); font: 700 13px/1 var(--display); letter-spacing: .06em; background: var(--ink); color: var(--dust); padding: 9px 12px 8px; box-shadow: 4px 4px 0 var(--blue); pointer-events: none; white-space: nowrap; transition: opacity .5s steps(5); }
 .coach.gone { opacity: 0; }
-/* The one-time Home Screen hint for iPhone players in Safari (homeHint). */
-.home-hint { position: absolute; z-index: 20; left: 10px; right: 10px; top: calc(8px + env(safe-area-inset-top, 0px)); display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
-  padding: 10px 10px 10px 12px; background: var(--ink); color: var(--dust); border: 2px solid var(--gold); box-shadow: 4px 4px 0 var(--blue); font: 400 18px/.95 var(--body); }
-.home-hint b { display: block; margin-bottom: 4px; font: 700 11px/1 var(--display); letter-spacing: .08em; color: var(--gold); }
-.home-hint button { font: 700 12px/1 var(--display); letter-spacing: .08em; padding: 10px 12px 9px; border: 0; background: var(--gold); color: var(--ink); cursor: pointer; }
 /* Near-miss streak: "x2", "x3"... flashes up on the left for a moment with each near miss (no HUD panel). */
 .streak-flash { position: absolute; left: 14px; top: 34%; font: 700 26px/1 var(--display); letter-spacing: .04em; color: var(--dust); text-shadow: 3px 3px 0 var(--blue); pointer-events: none; opacity: 0; }
 .streak-flash.on { animation: streakflash .9s steps(9); }
@@ -720,7 +715,6 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
     </div>
   </section>
 
-  <div class="home-hint" id="homeHint" hidden role="status"><span><b>KEEP YOUR PROGRESS</b>On iPhone, add MoonFall to your Home Screen: tap Share, then Add to Home Screen.</span><button type="button" id="homeHintOk">OK</button></div>
   <section class="screen" id="titleScreen">
     <h1 class="logo">M<small>oon</small>F<small>all</small></h1>
     <p class="tag">Dodge. Collect. Repair. Escape.</p>
@@ -1001,7 +995,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 //   and fight art together), alien life on the walls and in the shaft, the moon surface, game state, saved settings (and
 //   what a save holds), sound (and his voice), music, haptics, DOM (elements and the HUD), settings and Kid mode, the
 //   title card and its faces, confirm dialogs, run stats, flow, menu buttons, high scores, coffee stop (cafes: drawing,
-//   landing, the counter, the shop, the signs), badges, board flags, the opening film, fireworks, the launch, phones,
+//   landing, the counter, the shop, the signs), badges, board flags, the opening film, fireworks, the launch,
 //   updates, input, hazards (one entry per hazard in HAZARDS), level generation, effects, damage and pickups, the helper
 //   drone, boss fights (the attacks in BOSS_ATTACKS, their shots in SHOT_TYPES), update, render, cinematic touches,
 //   sizing and loop, the performance self-test.
@@ -4406,7 +4400,6 @@ function setState(next) {
   if (!STATES.has(next)) console.error('MoonFall: unknown state', next);
   state = next;
   document.getElementById('game').dataset.state = next;
-  if (AWAKE_STATES) keepAwake(AWAKE_STATES.has(next));
   if (next === 'title') setTimeout(prepLeviPics, 0);   // the Leviathans card's portraits, in idle moments (after start-up)
 }
 let state = 'title', prevState = 'play', clock = 0, introT = 0, dieT = 0, camY = -360, shake = 0, repair = 0, repairStart = 0, readyStart = false;
@@ -4484,7 +4477,6 @@ function speedAt(d) {
 //   leviMet, leviLast the Leviathans met from each moon's bag and the last one met (the shaft); made when first used
 //   leviBeaten        Leviathan kind: times escaped (boss fights); made when first used
 //   cafeVisits, cafeTips   cafes visited ever, and the TIPS card seen (coffee stop)
-//   homeHint          the iPhone Home Screen hint dismissed (phones)
 const save = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false, cap: true, hints: {} };   // cap: the 60 FPS cap, on unless switched off
 try { Object.assign(save, JSON.parse(localStorage.getItem('moonfall.v1') || '{}')); } catch (e) {}
 save.parts = Object.assign({ plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 }, save.parts);
@@ -6058,7 +6050,6 @@ function openMenu() {
   Sfx.bleep(880); ts.classList.add('arriving'); ts.classList.remove('clean');   // the sections flip in one by one
   clearTimeout(openMenu.t); openMenu.t = setTimeout(() => ts.classList.remove('arriving'), 1400);
   setTimeout(() => kbFocus($('startBtn')), 1000);
-  setTimeout(homeHint, 1600);
 }
 $('menuStart').addEventListener('click', openMenu);
 $('newsLevi').addEventListener('click', () => setCard('levi'));
@@ -6275,7 +6266,6 @@ function startRun(quick) {
   { const k = kidSettings(); kidRun = { mines: k.mines / 100, parts: k.drops / 100, health: k.drops / 100, hp: k.hp / 100, fall: k.fall / 100, shots: k.shots / 100, speed: k.speed, on: kidOn(k) }; }
   droneRun = !!save.drone && droneOpen();
   Sfx.init(); Music.stop(0.4); setCard(null, true);
-  hideHomeHint(); keepStorage(); armBack();
   resetRun(); countPlay();
   save.dives = (save.dives || 0) + 1; persist();   // dives this mission, shown when it's complete
   setState('intro'); introT = quick ? 0.94 : 0; introRunUp = !quick;
@@ -6305,7 +6295,7 @@ function pause() {
 }
 function resume() {
   if (state !== 'paused') return;
-  setState(prevState); showScreen(null); sayEl.style.visibility = ''; last = performance.now(); armBack();
+  setState(prevState); showScreen(null); sayEl.style.visibility = ''; last = performance.now();
   if (state === 'landing' || state === 'cafe' || state === 'cafeJump') Music.title();
   else if (bossTuneOn) Music.boss(bossTrack);
   else if (state === 'play' || introT >= 1.3) Music.start();
@@ -6314,7 +6304,6 @@ function toTitle() {
   if (perfOn && !perf.ending) { perfFinish(true); return; }   // Quit from pause ends the self-test and puts the save back
   menuFromRun = true;   // an update may reload this menu (see reloadForUpdate)
   checkUpdate();
-  disarmBack();
   const repairedThisRun = !readyStart && canLaunch();   // ready to fly since this run began: the ship or the computer finished
   endRun('quit');
   resetRun();
@@ -7925,59 +7914,6 @@ function showEnd() {
   showScreen('end');
   setTimeout(() => { if (state === 'ended') $('endTitleBtn').focus({ preventScroll: true }); }, 50);
 }
-// ---------- phones ----------
-// Fixes for iPhone and Android problems (see the notes, 2026-11-14):
-// 1. Home Screen. Safari wipes a site's saved data after 7 days of Safari use without a visit (ship repair, unlocks,
-//    badges, best); a Home Screen web app is exempt. The website build adds a manifest and icons (tools/build_site.py);
-//    iPhone players in Safari get a one-time hint on the main menu, and every player's browser is asked to keep the save
-//    (navigator.storage.persist: no prompt in Safari or Chrome, which decide by how the site is used; skipped in Firefox,
-//    which would ask).
-function homeHint() {
-  if (!UPDATE_URL || perfOn || save.homeHint || OS !== 'ios' || INSTALLED() || BROWSER === 'inapp' || state !== 'title') return;
-  $('homeHint').hidden = false;
-}
-function hideHomeHint() { if (!$('homeHint').hidden) { $('homeHint').hidden = true; save.homeHint = 1; persist(); } }
-$('homeHintOk').addEventListener('click', () => { Sfx.bleep(660); hideHomeHint(); });
-let storageAsked = false;
-function keepStorage() {
-  if (storageAsked || perfOn || /Firefox/.test(UA) || !(navigator.storage && navigator.storage.persist)) return;
-  storageAsked = true;
-  navigator.storage.persisted().then(p => p || navigator.storage.persist()).catch(() => {});
-}
-// 2. Back. Android's back gesture (and iPhone's edge swipe, when the tab has somewhere to go back to) left the page mid-run
-//    and the run ended as 'left'. A run (a tap, which Chrome needs for this) adds a history entry; going back takes that
-//    entry away and pauses the game instead. Resume adds it again; the menu takes it away quietly.
-let backArmed = false, backIgnore = 0;
-function armBack() {
-  if (backArmed || perfOn) return;
-  try { history.pushState({ moonfall: 'run' }, ''); backArmed = true; } catch (e) {}
-}
-function disarmBack() {
-  if (!backArmed) return;
-  backArmed = false;
-  if (history.state && history.state.moonfall === 'run') { backIgnore++; history.back(); }
-}
-addEventListener('popstate', () => {
-  if (backIgnore) { backIgnore--; return; }
-  if (!backArmed) return;
-  backArmed = false;
-  pause();
-});
-// 3. Screen awake: during the intro film, a run and the launch the screen shouldn't dim or lock (Screen Wake Lock API;
-//    Safari 16.4+, Chrome). The phone drops the lock when the page is hidden, so it's asked again on coming back.
-// var, not const or let: setState runs (and calls keepAwake) before this part of the script has been reached.
-var AWAKE_STATES = new Set(['opening', 'intro', 'play', 'landing', 'cafe', 'cafeJump', 'dying', 'launch']), wakeLock = null, wakeWant = false, wakeAsking = false;
-function keepAwake(on) {
-  wakeWant = on;
-  if (!navigator.wakeLock) return;
-  if (on && !wakeLock && !wakeAsking && !document.hidden) {
-    wakeAsking = true;
-    navigator.wakeLock.request('screen').then(l => {
-      wakeAsking = false; wakeLock = l; l.addEventListener('release', () => { if (wakeLock === l) wakeLock = null; });
-      if (!wakeWant) { wakeLock = null; l.release().catch(() => {}); }
-    }).catch(() => { wakeAsking = false; });
-  } else if (!on && wakeLock) { const l = wakeLock; wakeLock = null; l.release().catch(() => {}); }
-}
 // ---------- updates ----------
 // Owner: "let's build in an automatic reload ... so that they always get the latest version". The page is loaded once and
 // an open tab keeps running it, so a player could stay on an old version for days. The website build fills in
@@ -8017,7 +7953,7 @@ if (UPDATE_URL) { setInterval(checkUpdate, 300000); setInterval(reloadForUpdate,
 for (const ev of ['pointerdown', 'touchend', 'keydown']) addEventListener(ev, () => { lastInput = performance.now(); Sfx.wake(); }, { capture: true, passive: true });
 addEventListener('pageshow', () => Sfx.wake());
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) { checkUpdate(); Sfx.wake(); if (wakeWant) keepAwake(true); }
+  if (!document.hidden) { checkUpdate(); Sfx.wake(); }
   if (document.hidden) { keys.l = keys.r = false; pause(); if (state === 'title' || state === 'splash' || state === 'launch') Music.stop(0.1); if (runId && state !== 'over') endRun('left'); }
   else if (state === 'title') Music.title();
   // The launch stands still while hidden, so its music stops too; back during the groove, it starts again.
