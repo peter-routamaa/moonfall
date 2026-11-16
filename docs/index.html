@@ -1103,7 +1103,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 240;
+const VERSION = 241;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -6304,6 +6304,7 @@ $('newsTag').addEventListener('click', () => { if (state === 'title' && !cardSid
 // START on the clear main menu brings in the ship repair panel and the menu card.
 function openMenu() {
   if (!screens.title.classList.contains('clean')) return;
+  Sfx.init(); Music.title();   // the first tap after an update's reload (backFromUpdate) starts the sound here
   const ts = screens.title;
   Sfx.bleep(880); ts.classList.add('arriving'); ts.classList.remove('clean');   // the sections flip in one by one
   clearTimeout(openMenu.t); openMenu.t = setTimeout(() => ts.classList.remove('arriving'), 1400);
@@ -6652,7 +6653,6 @@ function resume() {
 }
 function toTitle() {
   if (perfOn && !perf.ending) { perfFinish(true); return; }   // Quit from pause ends the self-test and puts the save back
-  menuFromRun = true;   // an update may reload this menu (see reloadForUpdate)
   disarmBack();
   checkUpdate();
   endRun('quit');   // first: nothing from an escape preview is sent
@@ -8753,15 +8753,16 @@ function keepAwake(on) {
 // UPDATE_URL (version.json, written next to the page: {"v": VERSION}); the claude.ai copy has none and never checks.
 // It's asked when the tab comes back into view, on the way back to the menu, and every 5 minutes, at most once a minute,
 // past every cache (a fresh address and no-store). When a newer version is out, the page reloads at a moment that
-// costs the player nothing: on the main menu after a run (not the menu straight after the intro film, which a reload
-// would send back to the start screen and the film), with no card open and nothing pressed for 4 seconds; or on the
-// start screen before anything on it has been pressed. Never in a run, a film or the shop. The reload goes to
+// costs the player nothing: on the main menu, with no card or high score table open and nothing pressed for 4 seconds,
+// coming back to the main menu (?menu=1, see backFromUpdate) rather than the start screen and the film; or on the
+// start screen before anything on it has been pressed. Never in a run, a film or the shop. (Owner, after a phone kept
+// v0.224 for hours on a menu it hadn't played from: "Is the auto update not working?") The reload goes to
 // ?v=<new version>, a new address no cache has (GitHub Pages lets browsers keep the page 10 minutes), keeping the
 // address's other settings (?sound=1). If the reload still brings an older page (a cache that didn't let go),
 // sessionStorage remembers the try so it can't loop.
 const UPDATE_URL = 'version.json';
 let updateTo = 0, updateAsked = 0;
-let menuFromRun = false, lastInput = 0;   // the menu was reached from a run (toTitle); when anything was last pressed
+let lastInput = 0;   // when anything was last pressed
 function checkUpdate() {
   if (!UPDATE_URL || offRecord() || updateTo || Date.now() - updateAsked < 60000) return;
   updateAsked = Date.now();
@@ -8775,12 +8776,23 @@ function checkUpdate() {
 }
 function reloadForUpdate() {
   if (!updateTo || offRecord() || document.hidden || cardSide) return;
-  const quiet = state === 'title' ? menuFromRun && performance.now() - lastInput > 4000 : state === 'splash' && !lastInput;
+  const quiet = state === 'title' ? !scoreOpen && performance.now() - lastInput > 4000 : state === 'splash' && !lastInput;
   if (!quiet) return;
   const v = updateTo; updateTo = 0;
   try { sessionStorage.setItem('moonfall.updateTried', String(v)); } catch (e) {}
   const q = new URLSearchParams(location.search); q.delete('perf'); q.set('v', v);
+  if (state === 'title') q.set('menu', '1');
   location.replace(location.pathname + '?' + q + location.hash);
+}
+// After an update's reload from the menu (?menu=1): straight back to the main menu as the film leaves it (its START,
+// whose tap also wakes the sound), not the start screen; the flag comes off the address. True if it did.
+function backFromUpdate() {
+  const q = new URLSearchParams(location.search);
+  if (!q.has('menu')) return false;
+  q.delete('menu');
+  try { history.replaceState(history.state, '', location.pathname + (String(q) ? '?' + q : '') + location.hash); } catch (e) {}
+  splashPicked = true; endOpening();
+  return true;
 }
 if (UPDATE_URL) { setInterval(checkUpdate, 300000); setInterval(reloadForUpdate, 3000); setTimeout(checkUpdate, 20000); }
 for (const ev of ['pointerdown', 'touchend', 'keydown']) addEventListener(ev, () => { lastInput = performance.now(); Sfx.wake(); }, { capture: true, passive: true });
@@ -11223,6 +11235,7 @@ function start(data) {
   addEventListener('resize', resize);
   buildRepair(); resize(); buildShip(); drawIcons(); resetRun(); syncToggles(); renderRepair(); showScreen('title'); placeHorizon();
   setState('splash'); showScreen('splash');
+  backFromUpdate();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { placeHorizon(); measureCafeCard(); });
   window.claude?.hot?.snapshot?.(() => ({ best: save.best, season: save.season, parts: save.parts }));
   applyMoon(save.moon);
