@@ -1028,7 +1028,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 219;
+const VERSION = 220;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -1912,12 +1912,14 @@ const LEVI_KINDS = ['nautilus', 'whale', 'elder', 'jelly', 'angler', 'manta'];
 const LEVI_SETS = { dust: LEVI_KINDS, jungle: ['centipede', 'flytrap', 'moth', 'spider', 'frog', 'mantis'],
   machine: ['drill', 'sentinel', 'crab', 'wasp', 'beetle', 'gear'] };
 const leviSet = () => LEVI_SETS[moon];
-// Owner: "I don't want to see the same Leviathan again before I've been through all six". So the cafe ones
-// (even k) come out of a shuffled bag of the moon's six that lasts across runs. save.leviMet[moon] lists the ones met at
-// a cafe since the bag was last full; a run's cafes take the rest in a random order, then fresh shuffles of all six
-// (never the same one twice across the join). The passing ones (odd k) stay random, each differing from the cafe one
-// either side and the passer before.
-let leviOrder = [], leviCafes = [], leviFor = -1;
+// Owner: "I don't want to see the same Leviathan again before I've been through all six", and the bag counts only
+// fights. The fights (cafes 1, 3, 5 ...: creature 2n at cafe n, n odd) come out of a shuffled bag of the moon's six
+// that lasts across runs: save.leviMet[moon] lists the ones fought since the bag was last full; a run's fights take the
+// rest in a random order, then fresh shuffles of all six (never the same one twice across the join, nor first after the
+// last one fought in an earlier run). The creature hovering under a cafe with no fight (n even) is any of the six but the
+// fights either side. The passing ones (odd k) are random, each differing from the cafe one either side and the passer
+// before.
+let leviOrder = [], leviFights = [], leviFor = -1;
 function leviShuffle(list, salt) {
   for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(hash(salt + i * 3.17 + SEED * 1.37) * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
   return list;
@@ -1927,17 +1929,24 @@ function leviKind(k) {
   if (leviFor !== SEED) {
     leviFor = SEED; leviOrder = [];
     const met = (save.leviMet && save.leviMet[moon]) || [];
-    leviCafes = leviShuffle(set.map((_, i) => i).filter(i => !met.includes(set[i])), 0.5);
-    const last = set.indexOf(save.leviLast && save.leviLast[moon]);   // the last one met, in an earlier run
-    if (leviCafes.length > 1 && leviCafes[0] === last) leviCafes.push(leviCafes.shift());
+    leviFights = leviShuffle(set.map((_, i) => i).filter(i => !met.includes(set[i])), 0.5);
+    const last = set.indexOf(save.leviLast && save.leviLast[moon]);   // the last one fought, in an earlier run
+    if (leviFights.length > 1 && leviFights[0] === last) leviFights.push(leviFights.shift());
   }
-  const cafe = j => {   // cafe j's creature, j = 1, 2 ...
-    for (let b = 1; leviCafes.length < j; b++) {
+  const fight = f => {   // the f-th fight's creature, f = 1, 2 ...
+    for (let b = 1; leviFights.length < f; b++) {
       const next = leviShuffle(set.map((_, i) => i), b * 11.9);
-      if (next[0] === leviCafes[leviCafes.length - 1]) next.push(next.shift());
-      leviCafes.push(...next);
+      if (next[0] === leviFights[leviFights.length - 1]) next.push(next.shift());
+      leviFights.push(...next);
     }
-    return leviCafes[j - 1];
+    return leviFights[f - 1];
+  };
+  const cafe = j => {   // cafe j's creature, j = 1, 2 ...
+    if (j % 2) return fight((j + 1) / 2);
+    const avoid = [fight(j / 2), fight(j / 2 + 1)];
+    let r = Math.floor(hash(j * 5.77 + SEED * 2.11) * n);
+    while (avoid.includes(r)) r = (r + 1) % n;
+    return r;
   };
   while (leviOrder.length <= k) {
     const i = leviOrder.length;
@@ -1949,9 +1958,9 @@ function leviKind(k) {
   }
   return set[leviOrder[k]];
 }
-// A cafe's creature has been seen in a run: it leaves the bag until all six have been met.
+// A fight has started (startBoss): its creature leaves the bag until all six have been fought.
 function leviMeet(k) {
-  if (k % 2 || !k) return;
+  if (k % 2 || !k || !bossCafe(k / 2)) return;
   const kind = leviKind(k), m = (save.leviMet = save.leviMet || {}), met = m[moon] || (m[moon] = []);
   if (met.includes(kind)) return;
   met.push(kind); (save.leviLast = save.leviLast || {})[moon] = kind;
@@ -2000,7 +2009,7 @@ function leviathans(cam) {
     const D = leviMark(k), A = leviDepth(k), sy = H / 2 + (A - mid) * LEVI_PARALLAX, dir = hash(k * 4.3 + SEED) < 0.5 ? 1 : -1, sx = W / 2 + dir * (mid - A) * 0.14;
     if (bossHides(k)) continue;
     const kind = leviKind(k);
-    if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(kind); leviMeet(k); }
+    if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(kind); }
     if (state === 'play' && sy > -40 && sy < H + 40) near = true;
     if (cam < -H || sy < -220 || sy > H + 220) continue;
     const Q = palAt(D);   // its colour is worked out once per palette, not every frame
@@ -4497,7 +4506,7 @@ function speedAt(d) {
 //   season, oldBoards the board season, and earlier seasons' boards kept when a fresh one starts (high scores)
 //   boardCache, kidBoardCache   the online top 10s for the gravestones, kept 2 minutes (board flags)
 //   playerId          random ID for the private play stats; made or remade in countPlay (run stats)
-//   leviMet, leviLast the Leviathans met from each moon's bag and the last one met (the shaft); made when first used
+//   leviMet, leviLast the Leviathans fought from each moon's bag and the last one fought (the shaft); made when first used
 //   leviBeaten        Leviathan kind: times escaped (boss fights); made when first used
 //   cafeVisits, cafeTips   cafes visited ever, and the TIPS card seen (coffee stop)
 const save = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false, cap: true, hints: {} };   // cap: the 60 FPS cap, on unless switched off
@@ -6188,7 +6197,7 @@ function askLaunch() {
   confirmKind = 'launch'; confirmFrom = 'cafeLaunchBtn'; confirmStep = 0;
   confirmDlg.classList.remove('danger');
   $('confirmTitle').textContent = 'Launch the ship?';
-  $('confirmText').textContent = 'Your dive ends here at ' + depthM().toLocaleString('en-GB') + ' m, and it doesn\'t go on the high scores. Then you fly home!';
+  $('confirmText').textContent = 'Your dive ends here at ' + depthM().toLocaleString('en-GB') + ' m, and counts on the high scores. Then you fly home!';
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Launch!';
   $('confirmNo').textContent = 'Not yet';
   popConfirm();
@@ -6514,8 +6523,9 @@ function hsStep(k, d) {
   hsDraw();
   Sfx.bleep(d > 0 ? 880 : 660);
 }
-function showScores(m) {
-  scoreOpen = true; hsFrom = 'over'; hsPending = m; hsSlot = 0; hsNew = -1;
+// from: where the high scores go back to: 'over' (the game over screen) or 'launch' (the cafe's launch, see flyHome).
+function showScores(m, from) {
+  scoreOpen = true; hsFrom = from || 'over'; hsPending = m; hsSlot = 0; hsNew = -1;
   $('hsDepth').textContent = fmtM(m); $('hsRank').textContent = 'RANK ' + hsRankOf(m) + ' OF ' + HS_MAX;
   $('hsEntry').hidden = false; $('hsTable').hidden = true; hsDraw();
   $('hsDone').textContent = 'Continue';
@@ -6644,6 +6654,7 @@ async function syncOnline() {
 function closeScores() {
   scoreOpen = false;
   if (hsFrom === 'title') { showScreen('title'); $('bestBtn').focus({ preventScroll: true }); }
+  else if (hsFrom === 'launch') flyHome();
   else { showScreen('over'); $('againBtn').focus({ preventScroll: true }); }
 }
 // Arrows step once on press and repeat while held; keyboard presses arrive as clicks with no pointer.
@@ -7048,13 +7059,20 @@ $('tipsDone').addEventListener('click', () => cafeCard(null));
 $('cafeRepairBtn').addEventListener('click', () => cafeCard('repair'));
 $('cafeRepairDone').addEventListener('click', () => cafeCard(null));
 $('cafeLaunchBtn').addEventListener('click', askLaunch);
-// Launching from the cafe ends the dive where it is, as quitting does (it doesn't go on the high scores), then flies
-// the ship home. Only offered once the ship is repaired and the nav computer installed.
+// Launching from the cafe ends the dive where it is and flies the ship home. Only offered once the ship is repaired and
+// the nav computer installed. The dive counts like any other (owner: "that should still count in the high scores"): a
+// new best is kept, and a top 10 depth asks for initials first; the launch starts when the high scores close.
 function launchFromCafe() {
   if (state !== 'cafe' || !canLaunch()) return;
-  shopEl.hidden = true; cafeCard(null, true);
-  toTitle(); startLaunch();
+  shopEl.hidden = true; cafeCard(null, true); sayEl.hidden = true;
+  const m = depthM(), kb = kidRun.on;   // a Kid mode run has its own best and board
+  if (m > bestNow()) { if (kb) save.kidBest = m; else save.best = m; persist(); }
+  hsKid = kb;
+  setState('over'); hud.classList.add('off'); endRun('quit');
+  if (qualifies(m)) { showScores(m, 'launch'); return; }
+  flyHome();
 }
+function flyHome() { toTitle(); startLaunch(); }
 function renderShop() {
   for (const id of ['shopSpare', 'shopSpare2', 'shopBtnN']) $(id).textContent = player.spare;
   const afford = shopOffer.some(p => player.spare >= p.cost) || (!navDone() && player.spare > 0);
@@ -9010,6 +9028,7 @@ function bossMusic(B, out) {
 function startBoss(B) {
   const k2 = 2 * B.k, kind = leviKind(k2), mid = camY + H / 2, A = leviDepth(k2), dir = hash(k2 * 4.3 + SEED) < 0.5 ? 1 : -1;
   if (!player.leviFought.includes(kind)) player.leviFought.push(kind);   // run stats
+  leviMeet(k2);   // out of the bag until all six have been fought
   const x0 = W / 2 + dir * (mid - A) * 0.14, y0 = Math.max(-170, H / 2 + (A - mid) * LEVI_PARALLAX);
   boss = { B, kind, k2, n: (B.k + 1) / 2, dir, rot: 0, turnT: -1, turnFrom: dir, sideT: 0, lastTurn: 0, kick: 0, rage: false,
     phase: 'enter', t: 0, pt: 0, x0, y0, x: x0, y: y0, next: 0.6, queue: [], charge: 0, last: '', orbs: 0, d: 0, sil: mix(palAt(A).sO, P.ink, 0.42) };
