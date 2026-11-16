@@ -505,6 +505,11 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .confirm { margin: auto; border: 0; width: min(320px, calc(100vw - 32px)); }
 .confirm-pic { display: block; width: 56px; height: 56px; margin: 0 auto 4px; image-rendering: pixelated; }   /* a component won (askComp) */
 .confirm-pic[hidden] { display: none; }
+/* Jump in's card (askJump): the three moons, each with its components won, to pick the one to dive on. */
+.confirm-moons { margin: 2px 0 16px; }
+.confirm-moons[hidden] { display: none; }
+.confirm-moons .moon-btn { flex-direction: column; gap: 5px; padding: 9px 2px 8px; }
+.confirm-moons small { font: 700 10px/1 var(--display); color: var(--dust-dim); }
 .confirm:not([open]) { display: none; }
 /* Low on the screen, clear of the pilot on the menu: the escape preview's pop-up, opened by tapping him (askPreview). */
 .confirm.low { margin: auto auto max(16px, env(safe-area-inset-bottom, 0px)); }
@@ -614,10 +619,10 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .speed-flash b .pct { width: .72em; height: .8em; margin-left: .08em; vertical-align: -.02em; filter: drop-shadow(3px 3px 0 var(--ink)); }
 .speed-flash small { display: block; margin-top: 6px; font: 400 20px/1 var(--body); color: var(--dust); text-shadow: 2px 2px 0 var(--ink), -1px -1px 0 var(--ink); }   /* text only, mid-screen below the pilot: rocks stay visible through it */
 .speed-flash.on { animation: speedflash 1.5s steps(15); }
-/* A component unlocked: much bigger, gold, wrapping, and up for 3 s. */
+/* A component unlocked: gold, wrapping, and up for 3 s. */
 .speed-flash.big { padding-inline: 14px; }
-.speed-flash.big b { font-size: 44px; line-height: 1.05; color: var(--gold); }
-.speed-flash.big small { margin-top: 10px; font-size: 28px; }
+.speed-flash.big b { font-size: 22px; line-height: 1.1; color: var(--gold); }
+.speed-flash.big small { margin-top: 6px; font-size: 14px; }
 .speed-flash.big.on { animation-duration: 3s; animation-timing-function: steps(30); }
 /* The banner the self-test starts with (owner: "a big pop-up to say developer run in progress"), and the tag while it or an escape preview runs. */
 .run-banner { position: absolute; z-index: 30; left: 50%; top: 42%; width: min(86%, 330px); transform: translate(-50%, -50%); display: grid; gap: 8px; padding: 16px 18px 14px;
@@ -906,7 +911,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
      <div class="card face back" id="newsBack" hidden inert aria-hidden="true">
       <h2>New features</h2>
       <ul class="news-list">
-        <li><button class="news-item" id="newsLevi" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#C64B3B" d="M2 0h4v1h-4zM1 1h6v1h-6zM0 2h8v3h-8zM1 5h6v1h-6zM2 6h4v1h-4z"/><path fill="#F2C14E" d="M3 2h2v3h-2z"/><path fill="#1A1E2C" d="M3 3h1v1h-1z"/></svg></span><span class="news-name">Leviathan chases</span><span class="news-how">Giant creatures hunt you after every second cafe. Each moon has its own creatures. Tap to meet them!</span></button></li>
+        <li><button class="news-item" id="newsLevi" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#C64B3B" d="M2 0h4v1h-4zM1 1h6v1h-6zM0 2h8v3h-8zM1 5h6v1h-6zM2 6h4v1h-4z"/><path fill="#F2C14E" d="M3 2h2v3h-2z"/><path fill="#1A1E2C" d="M3 3h1v1h-1z"/></svg></span><span class="news-name">Leviathan chases</span><span class="news-how">Giant creatures hunt you after every second cafe. Escape one to win its ship component, needed to fly home: six on each moon. Tap to meet them!</span></button></li>
         <li><button class="news-item" id="newsMoons" type="button"><span class="news-ico"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><svg class="moon-ico machine" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg></span><span class="news-name">The new moons</span><span class="news-how">Fall into the Dust moon, the Jungle moon or the Machine moon. Swap any time in Settings. Tap to learn more.</span></button></li>
         <li><button class="news-item" id="newsHard" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#E8B83A" d="M0 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1zM3 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1z"/></svg></span><span class="news-name">Terminal Velocity</span><span class="news-how">Fix the ship once to earn it: 4 health, 15% faster and raging Leviathans. Tap to see Unlocks.</span></button></li>
         <li><button class="news-item" id="newsKid" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="var(--pink)" d="M1 0h2v1h-2zM5 0h2v1h-2zM0 1h8v2h-8zM1 3h6v1h-6zM2 4h4v1h-4zM3 5h2v1h-2z"/><path fill="#F7B6C4" d="M1 1h1v1h-1z"/></svg></span><span class="news-name">Kid mode</span><span class="news-how">An easier dive for younger pilots, with its own high scores. Tap to set it up.</span></button></li>
@@ -1053,6 +1058,11 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   <canvas class="confirm-pic" id="confirmPic" width="14" height="14" hidden aria-hidden="true"></canvas>
   <h2 id="confirmTitle">Reset ship repair?</h2>
   <p class="end-copy" id="confirmText"></p>
+  <div class="moon-row confirm-moons" id="confirmMoons" role="group" aria-label="Moon to dive on" hidden>
+    <button class="moon-btn" type="button" data-moon="dust" aria-pressed="false"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Dust</span><small data-count="dust"></small></button>
+    <button class="moon-btn" type="button" data-moon="jungle" aria-pressed="false"><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Jungle</span><small data-count="jungle"></small></button>
+    <button class="moon-btn" type="button" data-moon="machine" aria-pressed="false"><svg class="moon-ico machine" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><span>Machine</span><small data-count="machine"></small></button>
+  </div>
   <div class="row col">
     <button class="btn danger" id="confirmYes" type="button">Reset</button>
     <button class="btn quiet" id="confirmNo" type="button">Cancel</button>
@@ -1109,7 +1119,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 247;
+const VERSION = 249;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -1602,12 +1612,14 @@ function drawPart(pt, x, y, t, g) {
   sprite(g, pt.spr, x - pt.spr[0].length / 2, y - pt.spr.length / 2, PMAP);
 }
 // A Leviathan escaped: its component is his if he hasn't got it yet this mission, saved at once, with the part sound as
-// it crashes and a big banner naming it as the crash settles (crashNote: [headline, line]). Owner: no card then; "save
+// it crashes and a banner naming it as the crash settles (crashNote: [headline, line, component]), while the component
+// flies from him up to the PARTS counter like a part caught on the fall (COMP_FLY). Owner: no card then; "save
 // that pop-up for the next time you land at a cafe": save.compsNew lists the ones not yet shown there (askComps). The
 // one that finishes the ship says so (shipRepaired). One whose component he has already (only once all six of the
 // moon's are his, see leviKind) gives +1 health instead (owner: "if a boss is already beaten, have it drop 1 health"),
 // or a spare crystal at full health, like any crystal.
 let crashNote = null;
+const COMP_FLY = 1.1;   // s for the component's flight up to the PARTS counter (a part's takes 0.42 s)
 function winComponent(kind) {
   const cp = COMPONENTS.find(x => x.levi === kind);
   if (!cp) return;
@@ -1618,7 +1630,7 @@ function winComponent(kind) {
   }
   save.compsGot.push(cp.id);
   save.compsNew = (save.compsNew || []).concat(cp.id); persist(); renderRepair();
-  Sfx.part(); crashNote = [cp.name.toUpperCase(), 'Component ' + compsCount() + ' of ' + COMPONENTS.length + ' unlocked'];
+  Sfx.part(); crashNote = [cp.name.toUpperCase(), 'Component ' + compsCount() + ' of ' + COMPONENTS.length + ' unlocked', cp];
   if (repairFrac() >= 1) shipRepaired();
 }
 // The moment the ship is ready to fly (the last part caught, or the last component won).
@@ -4232,6 +4244,7 @@ function drawMoonAt(mx, my, R, rot) {
   c.globalAlpha = 1;
   return [csx, csy];
 }
+const SPACE_PLANET_IN = 0.55;
 // u: the pull back from the moon (0 to 1); off: the ship then flying away off the top of the screen (0 to 1, gone at 1).
 function drawSpace(u, off = 0) {
   const e = easeInOut(Math.max(0, Math.min(1, u))), Z = Math.pow(46 / 2400, e), R = 2400 * Z, fx = W / 2, fy = H * 0.72;
@@ -4242,7 +4255,10 @@ function drawSpace(u, off = 0) {
     c.fillStyle = i % 5 ? S.strata : (Math.floor(clock * 0.8 + hash(i) * 4) % 4 ? S.dust : S.lite);
     const z = i % 11 ? 1 : 2; c.fillRect(Math.round(sx), Math.round(sy), z, z);
   }
-  drawPlanet(Math.round(W * 0.8), Math.round(H * 0.24 + 30 * (1 - e)), true, clock * Math.PI / 12);
+  // Owner: the planet "just suddenly pops into view". It comes down from above the screen into its place instead, as
+  // the camera keeps rising after the ship (SPACE_PLANET_IN of the pull back).
+  const pk = Math.min(1, Math.max(0, u) / SPACE_PLANET_IN), pin = 1 - (1 - pk) * (1 - pk);
+  drawPlanet(Math.round(W * 0.8), Math.round(lerp(-80, H * 0.24, pin)), true, clock * Math.PI / 12);
   drawMoonAt(mx, my, R);
   // No smoke trail out here: there's no air to hold it (it thins out during the climb, see updateLaunch).
   if (off >= 1) return;
@@ -6014,9 +6030,9 @@ function hudPoint(el) {
   const g = game.getBoundingClientRect(), r = el.getBoundingClientRect();
   return { x: (r.left + r.width / 2 - g.left) / sc, y: (r.top + r.height / 2 - g.top) / sc };
 }
-function fly(kind, x, d, el, done, part) {
+function fly(kind, x, d, el, done, part, life) {
   const t = hudPoint(el);
-  flyers.push({ kind, part, x0: x, y0: d - camY, x1: t.x, y1: t.y, t: 0, life: 0.42, el, done });
+  flyers.push({ kind, part, x0: x, y0: d - camY, x1: t.x, y1: t.y, t: 0, life: life || 0.42, el, done });
 }
 function drawFlyers() {
   for (const f of flyers) {
@@ -6440,7 +6456,8 @@ const confirmDlg = $('confirmDlg');
 // confirmKind: which question is open: 'reset' (two steps), 'hard' (Terminal Velocity), 'launch' (from the cafe),
 // 'repaired' (after the dive that finished the ship), 'drone' (the helper drone, offered as a dive starts),
 // 'droneEnd' (the helper drone, after the standard ending: one button), 'preview' (the escape preview, before it starts)
-// or 'comps' (the components unlocked since the last cafe, as he lands at one: one button).
+// 'comps' (the components unlocked since the last cafe, as he lands at one: one button) or 'jump' (Jump in's card: the
+// components needed and the moon to dive on).
 let confirmStep = 0, resetTimer = 0, confirmKind = 'reset', confirmFrom = 'resetBtn';
 function clearRepair() {
   for (const pt of PARTS) save.parts[pt.id] = 0;
@@ -6449,13 +6466,14 @@ function clearRepair() {
 function popConfirm() {
   pctify($('confirmText')); pctify($('confirmYes'));
   $('confirmYes').classList.toggle('danger', confirmKind === 'reset' || confirmKind === 'hard');
-  $('confirmYes').classList.toggle('launch', ['launch', 'repaired', 'drone', 'droneEnd', 'preview', 'comps'].includes(confirmKind));
+  $('confirmYes').classList.toggle('launch', ['launch', 'repaired', 'drone', 'droneEnd', 'preview', 'comps', 'jump'].includes(confirmKind));
   $('confirmNo').hidden = confirmKind === 'droneEnd' || confirmKind === 'comps';
   $('confirmPic').hidden = confirmKind !== 'comps';
+  $('confirmMoons').hidden = confirmKind !== 'jump';
   confirmDlg.classList.toggle('low', confirmKind === 'preview');
   confirmDlg.classList.remove('pop-in'); void confirmDlg.offsetWidth; confirmDlg.classList.add('pop-in');
   if (!confirmDlg.open) confirmDlg.showModal();
-  $(confirmKind === 'droneEnd' || confirmKind === 'comps' ? 'confirmYes' : 'confirmNo').focus();
+  $(['droneEnd', 'comps', 'jump'].includes(confirmKind) ? 'confirmYes' : 'confirmNo').focus();
 }
 // Hard Dive's pop-up: one question, red like the reset's second step. With nothing to lose (no parts, no
 // components) it just switches on.
@@ -6488,6 +6506,30 @@ function askReset(step) {
   popConfirm();
 }
 $('resetBtn').addEventListener('click', () => askReset(1));
+// Owner: Jump in shows a card first, explaining that the ship needs the six Leviathans' components from each of the
+// three moons, with the moons (each one's components won) to change the moon before the dive. Dive! goes on (the
+// drone's question, if due, then the dive); Back or closing it stays on the menu. Not shown once every component is won.
+function askJump() {
+  if (offRecord() || compsCount() >= COMPONENTS.length) return false;
+  confirmKind = 'jump'; confirmFrom = 'startBtn'; confirmStep = 0;
+  confirmDlg.classList.remove('danger');
+  const per = LEVI_SETS.dust.length;
+  for (const el of document.querySelectorAll('#confirmMoons [data-count]')) {
+    const m = el.dataset.count, n = COMPONENTS.filter(cp => LEVI_SETS[m].includes(cp.levi) && compWon(cp)).length;
+    el.textContent = n + '/' + LEVI_SETS[m].length;
+    el.parentElement.setAttribute('aria-label', MOON_NAMES[m] + ', ' + n + ' of ' + LEVI_SETS[m].length + ' components');
+  }
+  syncMoon();
+  $('confirmTitle').textContent = 'Repair the ship';
+  $('confirmText').textContent = 'To fly home, the ship needs its parts, found as you fall, and ' + COMPONENTS.length + ' components. '
+    + 'Each Leviathan you escape gives you one: ' + per + ' on each moon, so you\'ll need to dive on all three. Pick your moon:';
+  $('confirmYes').hidden = false; $('confirmYes').textContent = 'Dive!';
+  $('confirmNo').textContent = 'Back';
+  popConfirm();
+  return true;
+}
+// Jump in (the button, or Space or Enter on the menu): the card above, then the drone's question, then the dive.
+function jumpIn() { if (!askJump() && !askDrone(false)) startRun(false); }
 // Owner: the next Jump In (or Fall again) says the helper drone is unlocked and asks whether to take it; now only for
 // saves that flew a ship home before the drone came with the ending (droneEarned). Either answer unlocks it (Not now leaves it switched off, for the Unlocks card) and starts the dive;
 // closing the pop-up any other way does neither, so it asks again next time. Returns true when it asked.
@@ -6593,6 +6635,7 @@ $('confirmYes').addEventListener('click', () => {
   if (confirmKind === 'droneEnd') { confirmDlg.close(); return; }
   if (confirmKind === 'preview') { confirmDlg.close(); startPreview(); return; }
   if (confirmKind === 'comps') { confirmDlg.close(); return; }
+  if (confirmKind === 'jump') { if (!askDrone(false)) { confirmDlg.close(); startRun(false); } return; }   // the drone's question replaces it
   if (confirmKind === 'hard') {   // start the mission over, then Terminal Velocity on
     confirmDlg.close(); clearRepair(); save.hard = true; persist(); renderRepair(); syncToggles(); Sfx.bleep(330); return;
   }
@@ -6851,7 +6894,7 @@ $('newMissionBtn').addEventListener('click', e => {
 $('endTitleBtn').addEventListener('click', toTitle);
 $('launchBtn').addEventListener('click', startLaunch);
 $('overLaunchBtn').addEventListener('click', () => { toTitle(); startLaunch(); });
-$('startBtn').addEventListener('click', () => { if (!askDrone(false)) startRun(false); });
+$('startBtn').addEventListener('click', jumpIn);
 // Start screen: Choose Moon opens the three moons; Start stays grey until one is picked, then plays the intro
 // on that moon (the moon behind the buttons changes as soon as it's picked). Nothing is picked to begin with.
 let splashPicked = false;
@@ -8580,6 +8623,7 @@ const SHAFT_START_Y = 260;   // how far down the shaft he starts his climb out, 
 // out at PORTAL_OUT s and walks to his spot, and it closes behind him; the rest is the same.
 let launchPortal = false;
 const PORTAL_HOME_X = 122, PORTAL_OUT = 0.9;
+const LAUNCH_STAND_Y = -28;   // his y standing on the crash site: the sprite is 28 px tall and the ground is at 0
 // The helper drone in the launch (owner: it "follows him into the blue portal but does not come out of the orange
 // portal"): when it's his and switched on, it's beside him from the moment he's seen (out of the portal, or up the
 // shaft) and zips into the hatch just before he climbs aboard.
@@ -8613,7 +8657,7 @@ function repairScene(t, dt, crossed) {
   if (launchPortal && t < R.arc) {
     player.hidden = t < PORTAL_OUT;
     const u = Math.max(0, (t - PORTAL_OUT) / (R.arc - PORTAL_OUT));
-    player.x = lerp(PORTAL_HOME_X, 84, u); player.y = -30 - (u > 0 ? 2 * (Math.floor(t * 6) % 2) : 0); player.pose = 'runL';
+    player.x = lerp(PORTAL_HOME_X, 84, u); player.y = LAUNCH_STAND_Y - (u > 0 ? 2 * (Math.floor(t * 6) % 2) : 0); player.pose = 'runL';
   } else if (t < R.up) {
     // Up the shaft on full thrust, keeping to its middle, slowing as he clears the top.
     const u = t / R.up;
@@ -8622,14 +8666,14 @@ function repairScene(t, dt, crossed) {
   } else if (t < R.arc) {
     // Out of the hole and over to his spot by the ship, coming down on the jets.
     const u = (t - R.up) / (R.arc - R.up);
-    player.x = lerp(shaftCentreX(0), 84, easeInOut(u)); player.y = lerp(-64, -30, u) - 18 * Math.sin(Math.PI * u); player.pose = 'standL';
+    player.x = lerp(shaftCentreX(0), 84, easeInOut(u)); player.y = lerp(-64, LAUNCH_STAND_Y, u) - 18 * Math.sin(Math.PI * u); player.pose = 'standL';
   } else if (t < R.arrive) {
-    player.x = 84; player.y = -30; player.pose = 'standL';
+    player.x = 84; player.y = LAUNCH_STAND_Y; player.pose = 'standL';
   } else if (t < R.toShip) {
-    player.x = lerp(84, 40, (t - R.arrive) / (R.toShip - R.arrive)); player.y = -30 - 2 * (Math.floor(t * 6) % 2); player.pose = 'runL';
+    player.x = lerp(84, 40, (t - R.arrive) / (R.toShip - R.arrive)); player.y = LAUNCH_STAND_Y - 2 * (Math.floor(t * 6) % 2); player.pose = 'runL';
   } else if (t < R.hop) {
     const k = easeInOut((t - R.toShip) / (R.hop - R.toShip));
-    player.x = lerp(40, 26, k); player.y = lerp(-30, -49, k); player.pose = 'standL';
+    player.x = lerp(40, 26, k); player.y = lerp(LAUNCH_STAND_Y, -49, k); player.pose = 'standL';
   } else if (t < R.weld) {
     player.x = 26; player.y = -49 + Math.round(Math.sin(t * 5)); player.pose = 'standL';
     // Welding: sparks fly from the torch tip, with a crackle every so often.
@@ -8641,13 +8685,13 @@ function repairScene(t, dt, crossed) {
     if (Math.floor(t / 0.18) !== Math.floor((t - dt) / 0.18)) Sfx.weld();
   } else if (t < R.drop) {
     const k = easeInOut((t - R.weld) / (R.drop - R.weld));
-    player.x = lerp(26, 70, k); player.y = lerp(-49, -30, k); player.pose = 'stand';
+    player.x = lerp(26, 70, k); player.y = lerp(-49, LAUNCH_STAND_Y, k); player.pose = 'stand';
   } else if (t < R.hammer) {
-    player.x = 70; player.y = -30; player.pose = 'standL';
+    player.x = 70; player.y = LAUNCH_STAND_Y; player.pose = 'standL';
   } else if (t < R.back) {
     const k = (t - R.hammer) / (R.back - R.hammer);
-    player.x = lerp(70, 84, k); player.y = -30 - 2 * (Math.floor(t * 6) % 2); player.pose = 'run';
-  } else { player.x = 84; player.y = -30; player.pose = 'standL'; }
+    player.x = lerp(70, 84, k); player.y = LAUNCH_STAND_Y - 2 * (Math.floor(t * 6) % 2); player.pose = 'run';
+  } else { player.x = 84; player.y = LAUNCH_STAND_Y; player.pose = 'standL'; }
   // The jetpack hisses while he's off the ground.
   if (t - dt <= 0) { if (launchPortal) Sfx.whoosh(); else Sfx.thrust(0.9); }
   if (launchPortal && crossed(PORTAL_OUT)) { Sfx.jump(); squash(-0.2); sparks(PORTAL_HOME_X, -26, PORTAL_ORANGE.slice(1), 16, 8); }
@@ -8725,12 +8769,12 @@ function updateLaunch(dt) {
   if (t < REPAIR.done) repairScene(t, dt, crossed);
   else if (t < L.wave) {
     player.x = lerp(LAUNCH_ORIGINAL_START_X, 64, (t - REPAIR.done) / (L.wave - REPAIR.done));
-    player.y = -30 - 2 * (Math.floor(t * 6) % 2); player.pose = 'runL';
+    player.y = LAUNCH_STAND_Y - 2 * (Math.floor(t * 6) % 2); player.pose = 'runL';
   }
-  else if (t < L.board) { player.x = 64; player.y = -30; player.pose = 'wave'; }
+  else if (t < L.board) { player.x = 64; player.y = LAUNCH_STAND_Y; player.pose = 'wave'; }
   else if (t < L.aboard) {
     player.x = lerp(64, 52, (t - L.board) / (L.aboard - L.board));
-    player.y = -30 - 2 * (Math.floor(t * 6) % 2);
+    player.y = LAUNCH_STAND_Y - 2 * (Math.floor(t * 6) % 2);
     player.pose = 'runL';
   }
   else player.hidden = true;
@@ -8961,7 +9005,7 @@ addEventListener('keydown', e => {
   }
   else if (k === 'Escape' && state === 'title' && cardSide) setCard(cardSide === 'kid' ? (kidFromNews ? 'news' : 'settings') : cardSide === 'levi' || cardSide === 'moons' || (cardSide === 'unlocks' && unlocksFromNews) ? 'news' : null);   // one step back
   else if (k === 'Escape' || k === 'p' || k === 'P') { if (state === 'paused') resume(); else pause(); }
-  else if ((k === ' ' || k === 'Enter') && state === 'title' && document.activeElement === document.body) { e.preventDefault(); if (screens.title.classList.contains('clean')) openMenu(); else startRun(false); }
+  else if ((k === ' ' || k === 'Enter') && state === 'title' && document.activeElement === document.body) { e.preventDefault(); if (screens.title.classList.contains('clean')) openMenu(); else jumpIn(); }
   else return;
   if (k.startsWith('Arrow') && !(e.target instanceof HTMLInputElement)) e.preventDefault();   // the Kid mode sliders step with them
 });
@@ -10163,7 +10207,11 @@ function updateBoss(dt) {
       shake = Math.max(shake, 2.4 * (1 - b.pt / 1.6));
       if (b.pt >= 1 && b.pt - dt < 1) {
         hud.classList.remove('boss'); bossTuneOn = false; Music.start(3.5);
-        if (crashNote) { flashBanner(crashNote[0], crashNote[1], true); crashNote = null; }
+        if (crashNote) {
+          flashBanner(crashNote[0], crashNote[1], true);
+          if (crashNote[2]) fly('part', player.x, player.y + PILOT_CY, $('partsHud'), null, crashNote[2], COMP_FLY);
+          crashNote = null;
+        }
       }
       target = b.pt < 0.8 ? Math.round(H * 0.42) : pilotScreenY;
       if (b.pt >= 2) boss = null;
