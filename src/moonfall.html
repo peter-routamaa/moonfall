@@ -1078,7 +1078,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 234;
+const VERSION = 235;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -1665,11 +1665,12 @@ function voidShape(V, d, C0, hw0) {
 // at about 25.7 km, after cafe CAVE_J's Leviathan fight. Owner: the last 200 m are "a wide cavern, similar to where we have
 // all the mines and the other pickups ... it funnels down into a thin, straight bit ... for the last 100 m, and then they
 // land in the cavern". So: the hall (cave.hall, CAVE_HALL tall, a void's width and contents: voidContents), its floor
-// funnelling into the neck (CAVE_NECK, straight down to the hole in the cave's flat roof at entryX). The cave is CAVE_H
+// funnelling into the neck (CAVE_NECK, CAVE_NECK_HW wide each side, straight down to the hole in the cave's flat roof at entryX). The cave is CAVE_H
 // tall and the whole screen wide, and its flat floor has one hole (holeX) where the shaft carries on for a player who
 // keeps falling. side is the wall with the portal; the chest stands between his landing spot and that wall.
 // CAVE_ABOVE puts the roof far enough below the Leviathan fight's end for the hall and neck (and above cafe CAVE_J + 1).
 const CAVE_J = 19, CAVE_H = 240, CAVE_NECK = 100 * PX_PER_M, CAVE_HALL = 100 * PX_PER_M, CAVE_ABOVE = 375 * PX_PER_M;
+const CAVE_NECK_HW = 2 * HOLE_HW;   // the neck's half-width: twice a void's hole (owner: "maybe twice as wide. It doesn't need to be quite as dangerous")
 let caveCache = null;
 function caveInfo() {
   if (caveCache && caveCache.seed === SEED) return caveCache;
@@ -1690,8 +1691,8 @@ function caveShape(cave, d, C0, hw0) {
   const hall = cave.hall;
   if (d < hall.T) { const u = smoothstep((d - hall.T + VOID_OPEN) / VOID_OPEN); return [lerp(C0, W / 2, u), lerp(hw0, VOID_HW, u)]; }
   if (d < hall.B - VOID_FLOOR) return [W / 2, VOID_HW];
-  if (d < hall.B) { const u = smoothstep((d - hall.B + VOID_FLOOR) / VOID_FLOOR); return [lerp(W / 2, cave.entryX, u), lerp(VOID_HW, HOLE_HW, u)]; }
-  if (d < cave.T) return [cave.entryX, HOLE_HW];
+  if (d < hall.B) { const u = smoothstep((d - hall.B + VOID_FLOOR) / VOID_FLOOR); return [lerp(W / 2, cave.entryX, u), lerp(VOID_HW, CAVE_NECK_HW, u)]; }
+  if (d < cave.T) return [cave.entryX, CAVE_NECK_HW];
   if (d < cave.F) return [W / 2, VOID_HW];
   if (d < cave.F + VOID_NECK) return [cave.holeX, HOLE_HW];
   const u = smoothstep((d - cave.F - VOID_NECK) / VOID_BACK);
@@ -5018,10 +5019,15 @@ const Sfx = (() => {
     droneGot() { tone('square', 1046, 1046, 0.06, 0.035); tone('square', 1568, 1568, 0.09, 0.035, 0.07); tone('sine', 2093, 2093, 0.08, 0.025, 0.15); },   // caught it: "boop-beep-bing"
     droneMiss() { tone('square', 700, 520, 0.12, 0.03); tone('square', 520, 330, 0.18, 0.03, 0.13); },           // too late: "bwoo-oo"
     droneWorry() { for (let i = 0; i < 3; i++) tone('sine', 1300 - i * 180, 1100 - i * 180, 0.06, 0.03, i * 0.08); },   // he got hurt
-    droneHello() { [784, 988, 1175, 1568].forEach((f, i) => tone('square', f, f * (i === 3 ? 1.06 : 1), 0.06, 0.035, i * 0.07)); },   // unlocked: a bright hello
-    droneChat() {   // idle babble: 3-5 quick notes at random pitches, now and then
+    // loud: a gain on top (CAVE_DRONE_LOUD in the deep cave, where it's meant to be heard over the music).
+    // Unlocked: a bright hello.
+    droneHello(loud = 1) { [784, 988, 1175, 1568].forEach((f, i) => tone('square', f, f * (i === 3 ? 1.06 : 1), 0.06, 0.035 * loud, i * 0.07)); },
+    droneChat(loud = 1) {   // idle babble: 3-5 quick notes at random pitches, now and then
       const n = 3 + Math.floor(Math.random() * 3);
-      for (let i = 0; i < n; i++) { const f = 700 + Math.random() * 1500; tone(Math.random() < 0.5 ? 'square' : 'sine', f, f * (0.85 + Math.random() * 0.3), 0.045, 0.022, i * 0.065); }
+      for (let i = 0; i < n; i++) {
+        const f = 700 + Math.random() * 1500;
+        tone(Math.random() < 0.5 ? 'square' : 'sine', f, f * (0.85 + Math.random() * 0.3), 0.045, 0.022 * loud, i * 0.065);
+      }
     },
     ashPuff() { noise(0.22, 'bandpass', 900, 0.3); noise(0.15, 'highpass', 3500, 0.06, 0.03); },
     // The Jungle hazards: leaves rustling, a branch creaking out of the rock, a pod bursting.
@@ -7469,6 +7475,7 @@ function pryHeave(t) {
 // The gift: part i pops out at GIFT_POP + i * GIFT_GAP s and hovers; all fly to him at GIFT_TAKE; the drone pops out at
 // GIFT_DRONE, loops about for GIFT_LOOPS s and settles by him; the drone's card shows GIFT_CARD s after it popped out.
 const GIFT_POP = 0.2, GIFT_GAP = 0.25, GIFT_TAKE = 2.3, GIFT_DRONE = 3.0, GIFT_LOOPS = 2.6, GIFT_CARD = 3.3;
+const CAVE_DRONE_LOUD = 1.25;   // the drone's sounds in the cave (owner: "I can't really hear the drone ... increase his noise ... by 25%")
 let caveGiftDrone = false;   // this gift includes the drone (he didn't have it yet)
 function caveReset() {
   cavePhase = ''; caveT = 0; caveDone = false; caveChest = 0; caveLift = caveLiftWant = 0; caveUi.hidden = true; caveGiftDrone = false;
@@ -7601,7 +7608,7 @@ function caveGift(cave, t, crossed) {
   if (crossed(GIFT_DRONE)) {   // the drone pops out: his for good, flying with him from now on
     save.droneOpen = true; save.drone = true; save.droneNew = true; persist(); award('drone');
     droneRun = true; drone.mode = 'follow'; drone.it = null; drone.lock = null;
-    Sfx.droneHello(); sparks(cave.chestX, cave.F - 20, ['#7FF4E6', '#FFFFFF', '#C4CCD6'], 18, 10);
+    Sfx.droneHello(CAVE_DRONE_LOUD); sparks(cave.chestX, cave.F - 20, ['#7FF4E6', '#FFFFFF', '#C4CCD6'], 18, 10);
   }
   if (dt0 >= 0) {
     // Out of the chest, loops about the cave, then settles beside him (drawDrone draws it at his position + ox, oy).
@@ -7609,7 +7616,7 @@ function caveGift(cave, t, crossed) {
     const out = Math.min(1, dt0 / 0.4), home = smoothstep((dt0 - GIFT_LOOPS) / 0.6);
     const wx = lerp(lerp(cave.chestX, lx, out), player.x - cave.side * 22, home), wy = lerp(lerp(cave.F - 20, ly, out), player.y + PILOT_CY - 14, home);
     drone.vx = (wx - player.x - drone.ox) * 30; drone.ox = wx - player.x; drone.oy = wy - player.y - PILOT_CY;
-    if (crossed(GIFT_DRONE + 0.9) || crossed(GIFT_DRONE + 2.1)) Sfx.droneChat();
+    if (crossed(GIFT_DRONE + 0.9) || crossed(GIFT_DRONE + 2.1)) Sfx.droneChat(CAVE_DRONE_LOUD);
     if (dt0 >= GIFT_CARD && cavePhase === 'gift') {
       cavePhase = 'friend';
       $('caveNote').textContent = 'You\'ve found the helper drone. You\'ve made a new friend for your next fall!';
@@ -7649,7 +7656,7 @@ function buildCaveArt() {
   } else {
     for (let x = 4; x < W - 6; x += 4 + Math.floor(rand() * 8)) {
       const w = moon === 'jungle' ? 2 : 4 + Math.floor(rand() * 6), len = 14 + Math.floor(rand() * (CAVE_ROOF_H - 18));
-      if (!clear(x, w, [cave.entryX, HOLE_HW + 6])) continue;
+      if (!clear(x, w, [cave.entryX, CAVE_NECK_HW + 6])) continue;
       for (let y = 0; y < len; y++) {
         if (moon === 'jungle') {   // a root that wanders a little, with a leaf now and then and moss on top
           const wx = x + Math.round(Math.sin(y * 0.25 + x) * 1.5);
@@ -8493,8 +8500,8 @@ const hammerHitAt = i => REPAIR.drop + 0.55 + i * 0.42;
 // His tools, drawn on top of him: jet flames while flying, the welding torch and its arc, the hammer's swing.
 function drawRepairTools(my) {
   const R = REPAIR, t = launchT, hx = Math.round(player.x - 12), hy = Math.round(my + 15);
-  if (t < R.arc || (t >= R.toShip && t < R.drop)) {
-    // Jet flames: long on the climb out of the shaft, shorter for the hops.
+  if ((t < R.arc && !launchPortal) || (t >= R.toShip && t < R.drop)) {
+    // Jet flames: long on the climb out of the shaft (not when he walks out of the cave's portal), shorter for the hops.
     const x0 = Math.round(player.x - 13), y0 = Math.round(my), L = (t < R.up ? 9 : 4) + (Math.floor(clock * 24) % 2) * 3;
     for (const nx of [x0 - 1, x0 + 25]) {
       c.fillStyle = P.lava; c.fillRect(nx - 1, y0 + 23, 5, L);
@@ -9519,7 +9526,10 @@ function updateDrone(dt) {
   }
   if (player.hp < D.hp) Sfx.droneWorry();   // he was hit
   D.hp = player.hp;
-  if (!(D.chatAt > clock)) { if (D.chatAt) Sfx.droneChat(); D.chatAt = clock + 7 + Math.random() * 9; }   // a babble every 7-16 s
+  if (!(D.chatAt > clock)) {   // a babble every 7-16 s, louder in the cave
+    if (D.chatAt) Sfx.droneChat(state === 'cave' ? CAVE_DRONE_LOUD : 1);
+    D.chatAt = clock + 7 + Math.random() * 9;
+  }
   [tx, ty] = droneIdle();
   const k = Math.min(1, dt * (D.mode === 'back' ? 6 : 4)), x0 = D.ox;
   D.ox += (tx - D.ox) * k; D.oy += (ty - D.oy) * k; D.vx = (D.ox - x0) / Math.max(dt, 1e-3);
