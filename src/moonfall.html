@@ -1078,7 +1078,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 235;
+const VERSION = 236;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -1662,14 +1662,14 @@ function voidShape(V, d, C0, hw0) {
   return [lerp(V.exitX, C0, u), lerp(HOLE_HW, hw0, u)];
 }
 // The deep cave (the end of the dive; the rest is in its own section) takes the place of the void before cafe CAVE_J + 1,
-// at about 25.7 km, after cafe CAVE_J's Leviathan fight. Owner: the last 200 m are "a wide cavern, similar to where we have
+// at about 20.5 km (owner: "approximately 20,000 m"), after cafe CAVE_J's Leviathan fight. Owner: the last 200 m are "a wide cavern, similar to where we have
 // all the mines and the other pickups ... it funnels down into a thin, straight bit ... for the last 100 m, and then they
 // land in the cavern". So: the hall (cave.hall, CAVE_HALL tall, a void's width and contents: voidContents), its floor
 // funnelling into the neck (CAVE_NECK, CAVE_NECK_HW wide each side, straight down to the hole in the cave's flat roof at entryX). The cave is CAVE_H
 // tall and the whole screen wide, and its flat floor has one hole (holeX) where the shaft carries on for a player who
 // keeps falling. side is the wall with the portal; the chest stands between his landing spot and that wall.
 // CAVE_ABOVE puts the roof far enough below the Leviathan fight's end for the hall and neck (and above cafe CAVE_J + 1).
-const CAVE_J = 19, CAVE_H = 240, CAVE_NECK = 100 * PX_PER_M, CAVE_HALL = 100 * PX_PER_M, CAVE_ABOVE = 375 * PX_PER_M;
+const CAVE_J = 15, CAVE_H = 240, CAVE_NECK = 100 * PX_PER_M, CAVE_HALL = 100 * PX_PER_M, CAVE_ABOVE = 375 * PX_PER_M;
 const CAVE_NECK_HW = 2 * HOLE_HW;   // the neck's half-width: twice a void's hole (owner: "maybe twice as wide. It doesn't need to be quite as dangerous")
 let caveCache = null;
 function caveInfo() {
@@ -6002,7 +6002,7 @@ function syncToggles() {
   const dt = $('droneT');
   dt.disabled = !droneOpen(); dt.setAttribute('aria-pressed', String(!!save.drone && droneOpen()));
   dt.setAttribute('aria-label', droneOpen() ? 'Helper drone' : 'Helper drone, locked until the ship is flown home or it is found in the cave');
-  $('droneNote').textContent = droneOpen() ? 'Unlocked: it\'s yours to take along' : 'Fly the repaired ship home, or find it in the chest at the end of the cave, about 25 km down';
+  $('droneNote').textContent = droneOpen() ? 'Unlocked: it\'s yours to take along' : 'Fly the repaired ship home, or find it in the chest at the end of the cave, about 20 km down';
   $('buzzNote').hidden = Buzz.canVibrate || !save.vib;
   // The pixel font's "m" is hard to read, so the main menu's BEST uses a drawn pixel m as tall as the
   // digits (M_ICON), like the percent sign on the speed-up banner.
@@ -6385,7 +6385,7 @@ function askPreview() {
   confirmFrom = screens.title.classList.contains('clean') ? 'menuStart' : 'startBtn';   // the menu's open or not yet
   confirmDlg.classList.remove('danger');
   $('confirmTitle').textContent = 'Escape preview';
-  $('confirmText').textContent = 'See how the dive can end: you\'ll start ' + PREVIEW_ABOVE_M + ' m above the deep cave, about 25 km down, '
+  $('confirmText').textContent = 'See how the dive can end: you\'ll start ' + PREVIEW_ABOVE_M + ' m above the deep cave, about 20 km down, '
     + 'falling at the starting speed. It\'s only a preview, so nothing is saved: your ship, drone, badges and scores stay as they are.';
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Start the preview';
   $('confirmNo').textContent = 'Not now';
@@ -7437,7 +7437,7 @@ function drawCafeSigns(cam) {
 }
 
 // ---------- the deep cave: the end of the dive ----------
-// Owner (2026-11-16): at about 25 km "a cool-looking cavern with maybe icicles hanging off the roof ... some of the
+// Owner (2026-11-16): deep down, "a cool-looking cavern with maybe icicles hanging off the roof ... some of the
 // little animals from the surface ... a big treasure chest that the player slowly walks over to and opens. Inside, it
 // will have a nav computer and any remaining pieces to repair the ship"; then "Congrats, you reached the end of the
 // cave" with "Claim ship repair kit", a blue portal in the wall that he walks through, and the ending, starting at an

@@ -74,7 +74,7 @@ DRIVER = r"""<script>
   await step('leave cafe', 'cafeJump|play', () => S.leaveCafe(), 60 * 3, safe);
   await step('deep fall', 'play|landing|cafe|cafeJump', () => {}, 60 * 90, safe);
   await step('back to falling', 'play', () => { if (M.state === 'cafe') S.leaveCafe(); }, 60 * 4, safe);   // the deep fall may end at a cafe
-  // The deep cave at about 25.7 km: he lands, looks about, prises the chest open, and keeps falling through the floor's hole.
+  // The deep cave at about 20.5 km: he lands, looks about, prises the chest open, and keeps falling through the floor's hole.
   await step('deep cave', 'cave', () => { const K = M.caveInfo(); P.y = K.T - 60; P.x = K.entryX; P.aim = P.x; }, 60 * 13, safe);
   await step('cave keep falling', 'play|cave', () => $('caveFall').click(), 60 * 4, safe);
   await step('death', 'over|dying', () => { P.inv = 0; P.shield = 0; P.hp = 1; M.rocks.length = 0; M.rocks.push({ d: P.y + 14, x0: P.x, x: P.x, size: 1, rr: 9, amp: 0, ph: 0, sp: 1, hot: true, isMine: true, dead: false }); }, 60 * 4);
