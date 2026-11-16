@@ -1059,7 +1059,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 225;
+const VERSION = 226;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -4980,6 +4980,7 @@ const Sfx = (() => {
     droneGot() { tone('square', 1046, 1046, 0.06, 0.035); tone('square', 1568, 1568, 0.09, 0.035, 0.07); tone('sine', 2093, 2093, 0.08, 0.025, 0.15); },   // caught it: "boop-beep-bing"
     droneMiss() { tone('square', 700, 520, 0.12, 0.03); tone('square', 520, 330, 0.18, 0.03, 0.13); },           // too late: "bwoo-oo"
     droneWorry() { for (let i = 0; i < 3; i++) tone('sine', 1300 - i * 180, 1100 - i * 180, 0.06, 0.03, i * 0.08); },   // he got hurt
+    droneBurp() { tone('square', 150, 70, 0.22, 0.05); tone('sawtooth', 110, 60, 0.18, 0.025, 0.04); },   // a little burp, in the deep cave
     droneHello() { [784, 988, 1175, 1568].forEach((f, i) => tone('square', f, f * (i === 3 ? 1.06 : 1), 0.06, 0.035, i * 0.07)); },   // unlocked: a bright hello
     droneChat() {   // idle babble: 3-5 quick notes at random pitches, now and then
       const n = 3 + Math.floor(Math.random() * 3);
@@ -7308,16 +7309,25 @@ function drawCafeSigns(cam) {
 // cave" with "Claim ship repair kit", a blue portal in the wall that he walks through, and the ending, starting at an
 // orange portal by the ship (launchPortal, see the launch). Also owner: an optional exit, so a player can keep falling
 // for score instead. Where the cave is and its shape: caveInfo, caveAt and caveShape (the shaft).
-// He drops through the roof's hole and lands (phase 'drop'), walks to the chest ('walk'), opens it ('open': the kit's
-// parts fly up out of it), and the card asks ('choice'). Claim: the kit repairs the ship, the portal opens and he walks
-// in ('portal'), and the dive ends (endDiveAndFlyHome). Keep falling: he walks to the floor's hole and drops ('leave').
+// Owner, later: finding the chest is a big thing even with the ship already repaired ("Congratulations, you've found the
+// ship repair kit"), the parts pop out when the gift is accepted, and the crate holds the helper drone too, which pops
+// out last, flies about chirping and burping, and gets its own card ("You've made a new friend for your next fall").
+// He drops through the roof's hole and lands (phase 'drop'), walks to the chest ('walk'), opens it ('open'), and the
+// card asks ('choice'). Claim ('gift'): the parts pop out one by one, hover, and fly to him, and the ship is repaired;
+// then, unless he has it already, the drone pops out, loops about and settles by him, and the second card shows
+// ('friend'). Then the portal opens and he walks in ('portal'), and the dive ends (endDiveAndFlyHome). Keep falling:
+// he walks to the floor's hole and drops ('leave').
 // The art is drawn once per run (caveReset): the roof's icicles, roots or pipes, and the floor's bits, by moon.
 // caveChest: how far the chest's lid is up (0 to 1); it stays open once opened.
 let cavePhase = '', caveT = 0, caveDone = false, caveFrom = null, caveArt = null, caveForMoon = '', caveChest = 0;
 const caveUi = $('caveUi');
 const CAVE_PORTAL_IN = 0.8;   // s from the portal starting to open until he walks to it
+// The gift: part i pops out at GIFT_POP + i * GIFT_GAP s and hovers; all fly to him at GIFT_TAKE; the drone pops out at
+// GIFT_DRONE, loops about for GIFT_LOOPS s and settles by him; the drone's card shows GIFT_CARD s after it popped out.
+const GIFT_POP = 0.2, GIFT_GAP = 0.25, GIFT_TAKE = 2.3, GIFT_DRONE = 3.0, GIFT_LOOPS = 2.6, GIFT_CARD = 3.3;
+let caveGiftDrone = false;   // this gift includes the drone (he didn't have it yet)
 function caveReset() {
-  cavePhase = ''; caveT = 0; caveDone = false; caveChest = 0; caveLift = caveLiftWant = 0; caveUi.hidden = true;
+  cavePhase = ''; caveT = 0; caveDone = false; caveChest = 0; caveLift = caveLiftWant = 0; caveUi.hidden = true; caveGiftDrone = false;
   if (!caveArt || caveForMoon !== moon || caveArt.seed !== SEED) buildCaveArt();
 }
 // The cave's camera: the floor 62% down the screen (the roof's art just under the HUD), raised by caveLift once the card
@@ -7335,7 +7345,7 @@ function checkCave() {
 function updateCave(dt) {
   caveT += dt;
   const cave = caveInfo(), t = caveT, crossed = at => t >= at && t - dt < at, standY = cave.F - 28, s = cave.side;
-  const toChest = cave.chestX - s * 20, lifted = cavePhase === 'choice' || cavePhase === 'portal' || cavePhase === 'leave';
+  const toChest = cave.chestX - s * 20, lifted = ['choice', 'gift', 'friend', 'portal', 'leave'].includes(cavePhase);
   caveLift += ((lifted ? caveLiftWant : 0) - caveLift) * Math.min(1, dt * 6);
   setDepth();   // the HUD's depth follows him down to the floor
   let cam = caveCamY(cave);
@@ -7357,6 +7367,8 @@ function updateCave(dt) {
     if (crossed(0.3)) { Sfx.buy(); shake = Math.max(shake, 0.4); }
     if (crossed(0.7)) { Sfx.part(); Buzz.part(); sparks(cave.chestX, cave.F - 20, ['#F2C14E', '#FFFFFF', '#A9781B'], 24, 10); }
     if (crossed(2.0)) showCaveCard();
+  } else if (cavePhase === 'gift') {
+    caveGift(cave, t, crossed);
   } else if (cavePhase === 'portal') {
     const walkDur = Math.abs(cave.portalX - s * 10 - toChest) / 80, at = t - CAVE_PORTAL_IN;
     if (crossed(0.05)) Sfx.whoosh();
@@ -7364,8 +7376,9 @@ function updateCave(dt) {
       player.x = lerp(toChest, cave.portalX - s * 10, at / walkDur); player.y = standY - 2 * (Math.floor(t * 5) % 2);
       player.pose = s > 0 ? 'run' : 'runL';
     }
+    if (droneRun) { drone.ox = -s * 18; drone.oy = -10; }   // the drone keeps close behind him
     if (at >= walkDur && !player.hidden) {
-      player.hidden = true; Sfx.jump(); sparks(cave.portalX, cave.F - 26, ['#8FD3FF', '#E6F6FF', '#2F7BD8'], 20, 10);
+      player.hidden = true; droneRun = false; Sfx.jump(); sparks(cave.portalX, cave.F - 26, ['#8FD3FF', '#E6F6FF', '#2F7BD8'], 20, 10);
     }
     if (at >= walkDur + 0.6) { cavePhase = ''; endDiveAndFlyHome(true); return; }
   } else if (cavePhase === 'leave') {
@@ -7383,10 +7396,9 @@ function updateCave(dt) {
 }
 function showCaveCard() {
   cavePhase = 'choice';
-  const ready = canLaunch(), m = depthM().toLocaleString('en-GB');
-  $('caveNote').textContent = ready ? 'You reached the end of the cave, ' + m + ' m down. Your ship is already repaired and ready to fly home.'
-    : 'You reached the end of the cave, ' + m + ' m down. The chest holds a ship repair kit: every missing part and the nav computer.';
-  $('caveClaim').textContent = ready ? 'Through the portal' : 'Claim ship repair kit';
+  $('caveNote').textContent = 'You\'ve found the ship repair kit, at the end of the cave ' + depthM().toLocaleString('en-GB')
+    + ' m down: every part and the nav computer you need to fly home.';
+  $('caveClaim').textContent = 'Claim ship repair kit'; $('caveFall').hidden = false;
   caveUi.hidden = false;
   measureCaveCard(); requestAnimationFrame(measureCaveCard);   // again once the page has laid the card out
   kbFocus($('caveClaim'));
@@ -7399,17 +7411,56 @@ function measureCaveCard() {
   caveLiftWant = card.height ? Math.max(0, Math.min(H * 0.62 - 120, H * 0.62 - (top - 30))) : 0;
 }
 addEventListener('resize', measureCaveCard);
+// The card's main button: on the first card it takes the gift, on the drone's card it opens the portal.
 function claimCave() {
-  if (state !== 'cave' || cavePhase !== 'choice') return;
-  caveUi.hidden = true;
-  if (!canLaunch()) {   // the kit: every part to its need, and the nav computer paid
+  if (state !== 'cave') return;
+  if (cavePhase === 'choice') { caveUi.hidden = true; caveGiftDrone = !save.droneOpen; cavePhase = 'gift'; caveT = 0; }
+  else if (cavePhase === 'friend') { caveUi.hidden = true; cavePhase = 'portal'; caveT = 0; }
+}
+// The gift, at t s after it was accepted: the parts pop out of the chest in turn and hover over it, fly to him and the
+// ship is repaired; then the drone (see GIFT_POP ...).
+const GIFT_ITEMS = [...PARTS, { id: 'nav', spr: NAV_SPR }];
+function giftItemAt(cave, i, t) {   // where gift item i is at t s, or null when it isn't out (or was taken)
+  const out = t - GIFT_POP - i * GIFT_GAP;
+  if (out < 0 || t > GIFT_TAKE + 0.35) return null;
+  const sx = cave.chestX, sy = cave.F - 14, hx = cave.chestX + (i - (GIFT_ITEMS.length - 1) / 2) * 18, hy = cave.F - 74;
+  const u = Math.min(1, out / 0.35), hover = Math.sin(clock * 4 + i) * 2;
+  let x = lerp(sx, hx, u), y = lerp(sy, hy, 1 - (1 - u) * (1 - u)) - 26 * Math.sin(Math.PI * u) + hover;
+  if (t > GIFT_TAKE) { const k = easeInOut((t - GIFT_TAKE) / 0.35); x = lerp(x, player.x, k); y = lerp(y, player.y + PILOT_CY, k); }
+  return [x, y];
+}
+function caveGift(cave, t, crossed) {
+  GIFT_ITEMS.forEach((_, i) => { if (crossed(GIFT_POP + i * GIFT_GAP)) { Sfx.part(); sparks(cave.chestX, cave.F - 20, ['#F2C14E', '#FFFFFF'], 8, 6); } });
+  if (crossed(GIFT_TAKE + 0.35)) {   // the kit: every part to its need, and the nav computer paid
     const was = repairFrac() >= 1;
     for (const pt of PARTS) save.parts[pt.id] = Math.max(save.parts[pt.id], pt.need);
     save.nav = NAV_PRICE; persist(); renderRepair();
     Sfx.repaired(); Buzz.shield(); pop('SHIP REPAIR KIT!', player.x, player.y - 10, 'part');
-    if (!was) shipRepairedRewards();
+    if (!was) award('repair');
+    sparks(player.x, player.y + PILOT_CY, ['#F2C14E', '#FFFFFF', '#A9781B', P.hot], 30, 14);
   }
-  cavePhase = 'portal'; caveT = 0;
+  if (!caveGiftDrone) { if (t > GIFT_TAKE + 0.9) { cavePhase = 'portal'; caveT = 0; } return; }
+  const dt0 = t - GIFT_DRONE;
+  if (crossed(GIFT_DRONE)) {   // the drone pops out: his for good, flying with him from now on
+    save.droneOpen = true; save.drone = true; save.droneNew = true; persist(); award('drone');
+    droneRun = true; drone.mode = 'follow'; drone.it = null; drone.lock = null;
+    Sfx.droneHello(); sparks(cave.chestX, cave.F - 20, ['#7FF4E6', '#FFFFFF', '#C4CCD6'], 18, 10);
+  }
+  if (dt0 >= 0) {
+    // Out of the chest, loops about the cave, then settles beside him (drawDrone draws it at his position + ox, oy).
+    const lx = cave.chestX + Math.sin(dt0 * 2.4) * 70, ly = cave.F - 96 + Math.sin(dt0 * 4.8) * 22;
+    const out = Math.min(1, dt0 / 0.4), home = smoothstep((dt0 - GIFT_LOOPS) / 0.6);
+    const wx = lerp(lerp(cave.chestX, lx, out), player.x - cave.side * 22, home), wy = lerp(lerp(cave.F - 20, ly, out), player.y + PILOT_CY - 14, home);
+    drone.vx = (wx - player.x - drone.ox) * 30; drone.ox = wx - player.x; drone.oy = wy - player.y - PILOT_CY;
+    if (crossed(GIFT_DRONE + 0.9) || crossed(GIFT_DRONE + 2.1)) Sfx.droneChat();
+    if (crossed(GIFT_DRONE + 1.5)) { Sfx.droneBurp(); pop('BURP!', wx, wy - 12); }
+    if (dt0 >= GIFT_CARD && cavePhase === 'gift') {
+      cavePhase = 'friend';
+      $('caveNote').textContent = 'You\'ve found the helper drone. You\'ve made a new friend for your next fall!';
+      $('caveClaim').textContent = 'Through the portal'; $('caveFall').hidden = true;
+      caveUi.hidden = false; measureCaveCard(); kbFocus($('caveClaim'));
+    }
+  }
 }
 function leaveCave() {
   if (state !== 'cave' || cavePhase !== 'choice') return;
@@ -7506,13 +7557,11 @@ function drawCave(cam) {
     sprite(c, BLOB[ph < 0.15 ? 1 : 0], bx - 7, Math.round(floorY - 12 - Math.sin(Math.PI * ph) * 9), MAP);
   }
   drawChest(cave.chestX, Math.round(floorY), caveChest);
-  // The kit's parts fly up out of the chest and fade; when the ship was already repaired, gold sparkles only.
-  if (state === 'cave' && cavePhase === 'open' && caveT > 0.7 && caveT < 2.4 && !canLaunch()) {
-    const u = (caveT - 0.7) / 1.7, list = [...PARTS, { spr: NAV_SPR }];
-    c.globalAlpha = Math.min(1, 3 * (1 - u));
-    list.forEach((pt, i) => drawPart(pt, cave.chestX + (i - (list.length - 1) / 2) * 16 * Math.min(1, u * 2), Math.round(floorY - 30 - 60 * (1 - (1 - u) * (1 - u))), clock));
-    c.globalAlpha = 1;
-  }
+  // The gift's parts, popping out and hovering over the chest, then flying to him.
+  if (state === 'cave' && cavePhase === 'gift') GIFT_ITEMS.forEach((pt, i) => {
+    const at = giftItemAt(cave, i, caveT);
+    if (at) drawPart(pt, Math.round(at[0]), Math.round(at[1] - cam), clock);
+  });
   const portalOpen = state === 'cave' && cavePhase === 'portal' ? smoothstep(caveT / CAVE_PORTAL_IN) * (player.hidden ? Math.max(0, 1 - (caveT - CAVE_PORTAL_IN - 1.4) * 2) : 1) : 0;
   if (portalOpen > 0) drawPortal(cave.portalX, Math.round(floorY), portalOpen, PORTAL_BLUE);
 }
@@ -9105,8 +9154,8 @@ function explode(x, d, r, quiet) {
 }
 
 // ---------- damage and pickups ----------
-// The ship has just reached 100% (a part caught, or the deep cave's kit): the Mechanic badge, and on Terminal Velocity
-// the helper drone unlocks and joins him at once.
+// A part caught has just taken the ship to 100%: the Mechanic badge, and on Terminal Velocity the helper drone unlocks and
+// joins him at once. (The deep cave's kit gives the badge and the drone in its own way: caveGift.)
 function shipRepairedRewards() {
   award('repair');
   if (hardRun && !save.droneOpen) {
