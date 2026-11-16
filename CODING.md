@@ -89,6 +89,7 @@ other.
 
 - It's in the right section; any new section is in the code map.
 - Its comments say what and why; none mention versions; comments on code you changed are updated.
+- Any `%` a player reads goes through `pctify` (the pixel fonts' `%` reads as a 2): static card text is listed where `pctify` is defined, text set at run time calls it after setting.
 - `python3 tools/checks.py` and `python3 tools/smoke.py` say OK (both run in the build anyway).
 - Anything drawn or worked out every frame: the PERFORMANCE.md checklist too.
 - The history (what changed, why, the owner's request) is in `MOONFALL-NOTES.md` and the commit message.

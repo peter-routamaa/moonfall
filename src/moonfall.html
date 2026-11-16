@@ -529,6 +529,9 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .repair-head b { font-size: 16px; color: var(--gold); font-variant-numeric: tabular-nums; }
 /* The font's own % is a smudge at this size, so it's drawn as pixels, the same height as the digits. */
 .repair-head .pct { margin-left: 2px; }
+/* The drawn % in running text (pctify), sized to the letters around it; in shadowed text it gets the same shadow. */
+.pct.inline { width: .56em; height: .62em; margin: 0 .04em 0 .06em; vertical-align: -.02em; }
+.speed-flash small .pct.inline { filter: drop-shadow(2px 2px 0 var(--ink)); }
 .repair-bar { display: flex; gap: 2px; height: 8px; }
 /* The copy on the cafe's Ship repair card sits inside the card's own padding. */
 #cafeRepair .repair { max-width: none; padding: 0; }
@@ -1028,7 +1031,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 221;
+const VERSION = 222;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -5676,7 +5679,7 @@ function renderRunParts() {
   }
   const line = $('repairLine'); line.textContent = 'Ship repair ';
   const a = document.createElement('b'), b = document.createElement('b');
-  a.textContent = Math.floor(repairStart * 100) + '%'; b.textContent = Math.floor(repairFrac() * 100) + '%';
+  a.textContent = Math.floor(repairStart * 100) + '%'; b.textContent = Math.floor(repairFrac() * 100) + '%'; pctify(a); pctify(b);
   line.append(a, ' \u2192 ', b);
 }
 function placeHorizon() {
@@ -5704,6 +5707,29 @@ const streakFlash = $('streakFlash'), spareHud = $('spareHud'), shopEl = $('shop
 // or "TOP SPEED!" at the last step), the speed lines rush for a moment (speedRush, read in speedLines) and the wind
 // whooshes. The page is touched once per speed-up, not every frame.
 const speedFlash = $('speedFlash'), PCT_ICON = document.querySelector('.repair-head .pct').outerHTML;
+// The pixel fonts' % looks like a 2, so every % a player reads is the drawn one from the ship repair panel. pctify
+// swaps each % in an element's text for it: run it after setting any text that may hold one. The self-test's card keeps
+// the plain % (it's plain text, made to be copied).
+function pctify(el) {
+  const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), found = [];
+  for (let node = walk.nextNode(); node; node = walk.nextNode()) if (node.nodeValue.includes('%')) found.push(node);
+  for (const node of found) {
+    const frag = document.createElement('span');   // one inline piece, so a grid or flex parent still sees one item
+    node.nodeValue.split('%').forEach((part, i) => {
+      if (i) {
+        const tpl = document.createElement('template');
+        tpl.innerHTML = PCT_ICON;
+        const icon = tpl.content.firstChild;
+        icon.classList.add('inline');
+        frag.append(icon);
+      }
+      if (part) frag.append(part);
+    });
+    node.replaceWith(frag);
+  }
+}
+// The cards whose text never changes.
+for (const id of ['cafeTips', 'howBack', 'unlocksBack', 'newsBack']) pctify($(id));
 let speedRush = 0;
 // The banner as he leaves a cafe ledge: 'up' (another 5%), 'top' (the cafe that reaches the cap) or 'max' (every cafe
 // after it: the speed is already at its cap, so no rush or whoosh, only the banner).
@@ -5713,6 +5739,7 @@ function speedUp(kind, total) {
   const headline = { up: 'SPEED +' + Math.round(CAFE_SPEEDUP * 100) + PCT_ICON, top: 'TOP SPEED!', max: 'MAX FALL SPEED' };
   speedFlash.firstChild.innerHTML = headline[kind];
   speedFlash.lastChild.textContent = kind === 'max' ? 'achieved' : 'Fall speed +' + Math.round(total * 100) + '%';
+  pctify(speedFlash.lastChild);
   speedFlash.classList.remove('on'); void speedFlash.offsetWidth; speedFlash.classList.add('on');
   if (kind === 'max') { Sfx.bleep(880); return; }
   speedRush = reduceMotion ? 0 : 1.2; Sfx.whoosh(); Buzz.part();
@@ -5813,6 +5840,7 @@ function pop(text, x, d, cls) {
   }
   const el = document.createElement('div');
   el.className = 'pop' + (cls ? ' ' + cls : ''); el.textContent = text;
+  if (String(text).includes('%')) pctify(el);
   el.style.left = Math.round(Math.max(24, Math.min(W - 24, x)) * sc) + 'px'; el.style.top = Math.round((d - camY) * sc) + 'px';
   game.appendChild(el); setTimeout(() => el.remove(), 850);
 }
@@ -6153,6 +6181,7 @@ function clearRepair() {
   save.dives = 0; save.nav = 0; missionsDone(); save.missionDone = false;   // the next finished mission counts
 }
 function popConfirm() {
+  pctify($('confirmText')); pctify($('confirmYes'));
   $('confirmYes').classList.toggle('danger', confirmKind !== 'launch');
   $('confirmYes').classList.toggle('launch', confirmKind === 'launch');
   confirmDlg.classList.remove('pop-in'); void confirmDlg.offsetWidth; confirmDlg.classList.add('pop-in');
@@ -6212,7 +6241,7 @@ $('confirmYes').addEventListener('click', () => {
   confirmDlg.close();
   clearRepair();
   persist(); renderRepair();
-  const b = $('resetBtn'); b.textContent = 'Repair reset to 0%';
+  const b = $('resetBtn'); b.textContent = 'Repair reset to 0%'; pctify(b);
   clearTimeout(resetTimer); resetTimer = setTimeout(() => (b.textContent = 'Reset ship repair'), 2500);
 });
 confirmDlg.addEventListener('close', () => { $(confirmFrom).focus({ preventScroll: true }); confirmKind = 'reset'; });
@@ -7005,7 +7034,7 @@ function openShop() {
   shopOffer.forEach((p, i) => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'perk'; b.dataset.i = i;
     const n = document.createElement('span'); n.className = 'perk-name'; n.textContent = p.name.toUpperCase();
-    const d = document.createElement('span'); d.className = 'perk-desc'; d.textContent = p.desc;
+    const d = document.createElement('span'); d.className = 'perk-desc'; d.textContent = p.desc; pctify(d);
     const cst = document.createElement('span'); cst.className = 'perk-cost';
     const ic = document.createElement('canvas'); ic.width = ic.height = 14; sprite(ic.getContext('2d'), ORB, 0, 0, MAPGRN);
     cst.append(ic, document.createTextNode(String(p.cost)));
