@@ -1089,7 +1089,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 246;
+const VERSION = 247;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -1582,16 +1582,23 @@ function drawPart(pt, x, y, t, g) {
   sprite(g, pt.spr, x - pt.spr[0].length / 2, y - pt.spr.length / 2, PMAP);
 }
 // A Leviathan escaped: its component is his if he hasn't got it yet this mission, saved at once, with the part sound as
-// it crashes and a big banner naming it as the crash settles (compWon). Owner: no card then; "save that pop-up for the
-// next time you land at a cafe": save.compsNew lists the ones not yet shown there (askComps). The one that finishes the
-// ship says so (shipRepaired).
-let compWon = null;
+// it crashes and a big banner naming it as the crash settles (crashNote: [headline, line]). Owner: no card then; "save
+// that pop-up for the next time you land at a cafe": save.compsNew lists the ones not yet shown there (askComps). The
+// one that finishes the ship says so (shipRepaired). One whose component he has already (only once all six of the
+// moon's are his, see leviKind) gives +1 health instead (owner: "if a boss is already beaten, have it drop 1 health"),
+// or a spare crystal at full health, like any crystal.
+let crashNote = null;
 function winComponent(kind) {
   const cp = COMPONENTS.find(x => x.levi === kind);
-  if (!cp || save.compsGot.includes(cp.id)) return;
+  if (!cp) return;
+  if (compWon(cp)) {
+    gainCrystal(player.x, player.y + PILOT_CY);
+    crashNote = ['+1 HEALTH', cp.name + ' already fitted'];
+    return;
+  }
   save.compsGot.push(cp.id);
   save.compsNew = (save.compsNew || []).concat(cp.id); persist(); renderRepair();
-  Sfx.part(); compWon = cp;
+  Sfx.part(); crashNote = [cp.name.toUpperCase(), 'Component ' + compsCount() + ' of ' + COMPONENTS.length + ' unlocked'];
   if (repairFrac() >= 1) shipRepaired();
 }
 // The moment the ship is ready to fly (the last part caught, or the last component won).
@@ -2060,11 +2067,14 @@ const LEVI_KINDS = ['nautilus', 'whale', 'elder', 'jelly', 'angler', 'manta'];
 const LEVI_SETS = { dust: LEVI_KINDS, jungle: ['centipede', 'flytrap', 'moth', 'spider', 'frog', 'mantis'],
   machine: ['drill', 'sentinel', 'crab', 'wasp', 'beetle', 'gear'] };
 const leviSet = () => LEVI_SETS[moon];
-// Owner: "I don't want to see the same Leviathan again before I've been through all six", and the bag counts only
-// fights. The fights (cafes 1, 3, 5 ...: creature 2n at cafe n, n odd) come out of a shuffled bag of the moon's six
-// that lasts across runs: save.leviMet[moon] lists the ones fought since the bag was last full; a run's fights take the
-// rest in a random order, then fresh shuffles of all six (never the same one twice across the join, nor first after the
-// last one fought in an earlier run). The creature hovering under a cafe with no fight (n even) is any of the six but the
+// Owner: "a player will not see the same Leviathan twice unless they've already beaten it ... There's no point in beating
+// a boss and then getting no reward ... unless they've already done all six on one moon." So a run's fights (cafes 1,
+// 3, 5 ...: creature 2n at cafe n, n odd) are first the moon's Leviathans whose component he hasn't won this mission,
+// in a random order (one that beat him can come again; one he escaped can't, while any is left). Once all six are his,
+// they come out of a shuffled bag of the six that lasts across runs (owner: "I don't want to see the same Leviathan
+// again before I've been through all six", counting fights): save.leviMet[moon] lists the ones fought since the bag
+// was last full. After either, fresh shuffles of all six, never the same one twice across a join, nor first after the
+// last one fought in an earlier run. The creature hovering under a cafe with no fight (n even) is any of the six but the
 // fights either side. The passing ones (odd k) are random, each differing from the cafe one either side and the passer
 // before.
 let leviOrder = [], leviFights = [], leviFor = -1;
@@ -2076,8 +2086,9 @@ function leviKind(k) {
   const set = leviSet(), n = set.length;
   if (leviFor !== SEED) {
     leviFor = SEED; leviOrder = [];
-    const met = (save.leviMet && save.leviMet[moon]) || [];
-    leviFights = leviShuffle(set.map((_, i) => i).filter(i => !met.includes(set[i])), 0.5);
+    const met = (save.leviMet && save.leviMet[moon]) || [], all = set.map((_, i) => i);
+    const missing = all.filter(i => !compWon(COMPONENTS.find(cp => cp.levi === set[i])));
+    leviFights = leviShuffle(missing.length ? missing : all.filter(i => !met.includes(set[i])), 0.5);
     const last = set.indexOf(save.leviLast && save.leviLast[moon]);   // the last one fought, in an earlier run
     if (leviFights.length > 1 && leviFights[0] === last) leviFights.push(leviFights.shift());
   }
@@ -4679,7 +4690,8 @@ if (!Array.isArray(save.compsGot)) {
   delete save.comps; delete save.nav;
 }
 if (!Array.isArray(save.compsNew)) save.compsNew = [];
-const compsCount = () => COMPONENTS.filter(cp => save.compsGot.includes(cp.id)).length;
+const compWon = cp => save.compsGot.includes(cp.id);
+const compsCount = () => COMPONENTS.filter(compWon).length;
 const partsDone = () => PARTS.every(pt => save.parts[pt.id] >= pt.need);
 const compsDone = () => compsCount() >= COMPONENTS.length;
 // The ship repair (owner: "Half and half"): the five falling parts make up half (each part's share of it as full as
@@ -6665,7 +6677,7 @@ function endRun(how) {
 
 // ---------- flow ----------
 function resetRun() {
-  compWon = null;   // a card still waiting from the last dive is dropped (the component itself is saved)
+  crashNote = null;   // a banner still waiting from the last dive is dropped (the component itself is saved)
   newSeed(); sayEl.style.visibility = ''; sq.q = sq.v = 0;
   rocks = []; items = []; particles = []; hazards = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; lastHazD = -9999; steerAcc = 0;
   for (const k in runParts) runParts[k] = 0;
@@ -10131,10 +10143,7 @@ function updateBoss(dt) {
       shake = Math.max(shake, 2.4 * (1 - b.pt / 1.6));
       if (b.pt >= 1 && b.pt - dt < 1) {
         hud.classList.remove('boss'); bossTuneOn = false; Music.start(3.5);
-        if (compWon) {
-          flashBanner(compWon.name.toUpperCase(), 'Component ' + compsCount() + ' of ' + COMPONENTS.length + ' unlocked', true);
-          compWon = null;
-        }
+        if (crashNote) { flashBanner(crashNote[0], crashNote[1], true); crashNote = null; }
       }
       target = b.pt < 0.8 ? Math.round(H * 0.42) : pilotScreenY;
       if (b.pt >= 2) boss = null;
