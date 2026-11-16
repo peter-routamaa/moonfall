@@ -878,7 +878,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <li><span class="ico"><canvas id="icoOrb" width="14" height="14"></canvas></span>Crystal: +1 health</li>
         <li><span class="ico"><canvas id="icoShield" width="28" height="28"></canvas></span>Bubble: 8s shield, hits wear it down</li>
         <li><span class="ico"><canvas id="icoPart" class="wide" width="30" height="30"></canvas></span>Gold ring: ship part, collect&nbsp;these</li>
-        <li><span class="ico"><canvas id="icoComp" width="14" height="14"></canvas></span>Escape a Leviathan: a ship component (10 to win)</li>
+        <li><span class="ico"><canvas id="icoComp" width="14" height="14"></canvas></span>Escape a Leviathan: its ship component (six on each moon)</li>
         <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Stop at a cafe for +1 health and to visit the shop. The fall gets 5% faster after each cafe, up to +40%</li>
       </ul>
       <button class="btn" id="howDone" type="button">Done</button>
@@ -1109,7 +1109,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 245;
+const VERSION = 246;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -1568,21 +1568,30 @@ const PARTS = [
   { id: 'fuel', name: 'Fuel', full: 'Fuel cells', need: 8, from: 900, w: 2.5, spr: upscale2x(['..kkk..', '.kqqqk.', '.kfFfk.', '.kFffk.', '.kfffk.', '.kffFk.', '.kqqqk.', '..kkk..']) },
   { id: 'core', name: 'Core', full: 'Core crystal', need: 4, from: 1500, w: 1.5, spr: upscale2x(['...k...', '..kwk..', '.kweek.', 'kweeEEk', '.keEEk.', '..kEk..', '...k...']) },
 ];
-// The ship's ten components (owner: "The nav computer should be a reward for beating one of the Leviathans. Let's come
-// up with 10 different ship components, and each time we finish ... a Leviathan, then another one is rewarded"): won in
-// this order, one for each Leviathan escaped (winComponent), kept between dives like the parts (save.comps is how many
-// are won). One entry each: id, name (the banner), full (spoken), and a 7x7 sprite drawn at 2x like the parts'.
+// The ship's 18 components, one guarded by each Leviathan, six on each moon (owner: "The nav computer should be a reward
+// for beating one of the Leviathans", then "add some extra ship components, one per Leviathan ... travel across all three
+// moons to collect six ship components from each one"). Escaping a Leviathan for the first time this mission gives its
+// component (winComponent); they're kept between dives like the parts (save.compsGot: the ids won). One entry each: id,
+// name (the banner), full (spoken), levi (the Leviathan that has it), and a 7x7 sprite drawn at 2x like the parts'.
 const COMPONENTS = [
-  { id: 'nav', name: 'Nav computer', full: 'Navigation computer', spr: upscale2x(['kkkkkkk', 'kEEEEEk', 'kEeEEEk', 'kEEeEEk', 'kkkkkkk', '..kqk..', '.kkkkk.']) },
-  { id: 'nozzle', name: 'Thruster nozzle', full: 'Thruster nozzle', spr: upscale2x(['..kkk..', '..kpk..', '.kpqpk.', '.kqpqk.', 'kpqqqpk', 'kcyyyck', '.kc.ck.']) },
-  { id: 'shield', name: 'Heat shield', full: 'Heat shield', spr: upscale2x(['..kkk..', '.kdcdk.', 'kdcdcdk', 'kcdcdck', 'kdcdcdk', 'kkkkkkk', '.......']) },
-  { id: 'gyro', name: 'Gyroscope', full: 'Gyroscope', spr: upscale2x(['..kkk..', '.kyqyk.', 'kyk.kyk', 'kqkekqk', 'kyk.kyk', '.kyqyk.', '..kkk..']) },
-  { id: 'radio', name: 'Radio antenna', full: 'Radio antenna', spr: upscale2x(['...w...', '..kwk..', '...k...', '..kqk..', '.kpppk.', '.kpEpk.', '.kkkkk.']) },
-  { id: 'oxygen', name: 'Oxygen tank', full: 'Oxygen tank', spr: upscale2x(['..kkk..', '.kpppk.', '.kEEEk.', '.kEeEk.', '.kEEEk.', '.kEEEk.', '..kkk..']) },
-  { id: 'legs', name: 'Landing legs', full: 'Landing legs', spr: upscale2x(['...k...', '..kqk..', '.kpqpk.', '.k.q.k.', 'k..q..k', 'k..q..k', 'kk.k.kk']) },
-  { id: 'pump', name: 'Fuel pump', full: 'Fuel pump', spr: upscale2x(['kkkkk..', 'kfffk..', 'kfFfkk.', 'kfffkqk', 'kfffk.k', 'kkkkk.k', 'kqqqk..']) },
-  { id: 'solar', name: 'Solar panel', full: 'Solar panel', spr: upscale2x(['kkkkkkk', 'kEkEkEk', 'kkkkkkk', 'kEkEkEk', 'kkkkkkk', '...k...', '..kkk..']) },
-  { id: 'key', name: 'Ignition key', full: 'Ignition key', spr: upscale2x(['.kkk...', 'kyyyk..', 'ky.yk..', 'kyyykkk', '.kkkyyk', '....kyk', '.....k.']) },
+  { id: 'nav', levi: 'nautilus', name: 'Nav computer', full: 'Navigation computer', spr: upscale2x(['kkkkkkk', 'kEEEEEk', 'kEeEEEk', 'kEEeEEk', 'kkkkkkk', '..kqk..', '.kkkkk.']) },
+  { id: 'oxygen', levi: 'whale', name: 'Oxygen tank', full: 'Oxygen tank', spr: upscale2x(['..kkk..', '.kpppk.', '.kEEEk.', '.kEeEk.', '.kEEEk.', '.kEEEk.', '..kkk..']) },
+  { id: 'radio', levi: 'elder', name: 'Radio antenna', full: 'Radio antenna', spr: upscale2x(['...w...', '..kwk..', '...k...', '..kqk..', '.kpppk.', '.kpEpk.', '.kkkkk.']) },
+  { id: 'solar', levi: 'jelly', name: 'Solar panel', full: 'Solar panel', spr: upscale2x(['kkkkkkk', 'kEkEkEk', 'kkkkkkk', 'kEkEkEk', 'kkkkkkk', '...k...', '..kkk..']) },
+  { id: 'shield', levi: 'angler', name: 'Heat shield', full: 'Heat shield', spr: upscale2x(['..kkk..', '.kdcdk.', 'kdcdcdk', 'kcdcdck', 'kdcdcdk', 'kkkkkkk', '.......']) },
+  { id: 'gyro', levi: 'manta', name: 'Gyroscope', full: 'Gyroscope', spr: upscale2x(['..kkk..', '.kyqyk.', 'kyk.kyk', 'kqkekqk', 'kyk.kyk', '.kyqyk.', '..kkk..']) },
+  { id: 'legs', levi: 'centipede', name: 'Landing legs', full: 'Landing legs', spr: upscale2x(['...k...', '..kqk..', '.kpqpk.', '.k.q.k.', 'k..q..k', 'k..q..k', 'kk.k.kk']) },
+  { id: 'pump', levi: 'flytrap', name: 'Fuel pump', full: 'Fuel pump', spr: upscale2x(['kkkkk..', 'kfffk..', 'kfFfkk.', 'kfffkqk', 'kfffk.k', 'kkkkk.k', 'kqqqk..']) },
+  { id: 'filter', levi: 'moth', name: 'Air filter', full: 'Air filter', spr: upscale2x(['kkkkkkk', 'kpqpqpk', 'kqpqpqk', 'kpqpqpk', 'kqpqpqk', 'kpqpqpk', 'kkkkkkk']) },
+  { id: 'harness', levi: 'spider', name: 'Seat harness', full: 'Seat harness', spr: upscale2x(['.kkkk..', '.kdcdk.', '.kcyck.', '.kdcdk.', 'kkkkkkk', 'kdddddk', 'k.....k']) },
+  { id: 'nozzle', levi: 'frog', name: 'Thruster nozzle', full: 'Thruster nozzle', spr: upscale2x(['..kkk..', '..kpk..', '.kpqpk.', '.kqpqk.', 'kpqqqpk', 'kcyyyck', '.kc.ck.']) },
+  { id: 'window', levi: 'mantis', name: 'Cockpit window', full: 'Cockpit window', spr: upscale2x(['..kkk..', '.keeek.', 'keeEeek', 'keEEEek', 'kEEEEEk', 'kkkkkkk', '.......']) },
+  { id: 'booster', levi: 'drill', name: 'Booster rocket', full: 'Booster rocket', spr: upscale2x(['...k...', '..kpk..', '..kpk..', '.kpEpk.', '.kpppk.', 'kqkqkqk', '.y.y.y.']) },
+  { id: 'starmap', levi: 'sentinel', name: 'Star map', full: 'Star map', spr: upscale2x(['kkkkkkk', 'knwnnnk', 'knnnynk', 'knynnnk', 'knnnwnk', 'kkkkkkk', '.......']) },
+  { id: 'clamp', levi: 'crab', name: 'Docking clamp', full: 'Docking clamp', spr: upscale2x(['kk...kk', 'kq...qk', 'kqk.kqk', '.kqqqk.', '..kqk..', '..kqk..', '..kkk..']) },
+  { id: 'fan', levi: 'wasp', name: 'Cooling fan', full: 'Cooling fan', spr: upscale2x(['.kkkkk.', 'kq.p.qk', 'k.ppp.k', 'kpp.ppk', 'k.ppp.k', 'kq.p.qk', '.kkkkk.']) },
+  { id: 'lifesup', levi: 'beetle', name: 'Life support', full: 'Life support unit', spr: upscale2x(['.kkkkk.', 'kpppppk', 'kpfffpk', 'kpfwfpk', 'kpfffpk', 'kpppppk', '.kkkkk.']) },
+  { id: 'key', levi: 'gear', name: 'Ignition key', full: 'Ignition key', spr: upscale2x(['.kkk...', 'kyyyk..', 'ky.yk..', 'kyyykkk', '.kkkyyk', '....kyk', '.....k.']) },
 ];
 function drawPart(pt, x, y, t, g) {
   g = g || c;
@@ -1592,14 +1601,15 @@ function drawPart(pt, x, y, t, g) {
   }
   sprite(g, pt.spr, x - pt.spr[0].length / 2, y - pt.spr.length / 2, PMAP);
 }
-// A Leviathan escaped: the next component is his (none once all ten are), saved at once, with the part sound as it
-// crashes and a big banner naming it as the crash settles (compWon). Owner: no card then; "save that pop-up for the
+// A Leviathan escaped: its component is his if he hasn't got it yet this mission, saved at once, with the part sound as
+// it crashes and a big banner naming it as the crash settles (compWon). Owner: no card then; "save that pop-up for the
 // next time you land at a cafe": save.compsNew lists the ones not yet shown there (askComps). The one that finishes the
 // ship says so (shipRepaired).
 let compWon = null;
-function winComponent() {
-  if (save.comps >= COMPONENTS.length) return;
-  const cp = COMPONENTS[save.comps++];
+function winComponent(kind) {
+  const cp = COMPONENTS.find(x => x.levi === kind);
+  if (!cp || save.compsGot.includes(cp.id)) return;
+  save.compsGot.push(cp.id);
   save.compsNew = (save.compsNew || []).concat(cp.id); persist(); renderRepair();
   Sfx.part(); compWon = cp;
   if (repairFrac() >= 1) shipRepaired();
@@ -4652,7 +4662,7 @@ function speedAt(d) {
 //   fps, cap, inv     frame counter shown, the 60 FPS cap, inverted thrusters (Settings; defaults here, inv unset)
 //   moon              the moon picked; applyMoon falls back to 'dust' for an unknown one
 //   parts             ship parts collected, by part id; repaired just below
-//   comps             ship components won from Leviathans (0 to COMPONENTS.length), in order; repaired just below
+//   compsGot          ids of the ship components won from Leviathans this mission (COMPONENTS); repaired just below
 //   compsNew          ids of components won since the last cafe, for its card (askComps)
 //   dives, launches   runs this mission (cleared with the repair) and ship launches ever
 //   missionsDone, missionDone   finished missions, and whether this repair was already counted; missionsDone() in
@@ -4675,20 +4685,27 @@ function speedAt(d) {
 const save = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false, cap: true, hints: {} };   // cap: the 60 FPS cap, on unless switched off
 try { Object.assign(save, JSON.parse(localStorage.getItem('moonfall.v1') || '{}')); } catch (e) {}
 save.parts = Object.assign({ plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 }, save.parts);
-// Saves from when the nav computer was bought at cafes (save.nav, crystals paid, 50 for it): a ship that was ready to
-// fly, or a mission already flown home, keeps every component (owner: "Keep them ready"); a nav computer paid off counts
-// as the first; part-payments are dropped.
-if (!Number.isFinite(save.comps)) {
-  const nav = save.nav >= 50, parts = PARTS.every(pt => save.parts[pt.id] >= pt.need);
-  save.comps = (parts && nav) || save.missionDone ? COMPONENTS.length : nav ? 1 : 0;
-  delete save.nav;
+// Older saves: save.comps, how many of the first ten components were won in order, or before that save.nav, crystals paid
+// for the nav computer at cafes (50 for it). A ship that was ready to fly (all ten, or all parts and the nav computer),
+// or a mission already flown home, keeps every component (owner: "Keep them ready"); a paid-off nav computer is that
+// component; a count below ten becomes the components of Leviathans already escaped (then the table's order).
+if (!Array.isArray(save.compsGot)) {
+  const counted = Number.isFinite(save.comps), parts = PARTS.every(pt => save.parts[pt.id] >= pt.need);
+  const ready = (counted ? save.comps >= 10 : parts && save.nav >= 50) || save.missionDone;
+  const escaped = COMPONENTS.filter(cp => (save.leviBeaten || {})[cp.levi]), rest = COMPONENTS.filter(cp => !escaped.includes(cp));
+  if (ready) save.compsGot = COMPONENTS.map(cp => cp.id);
+  else if (counted) save.compsGot = [...escaped, ...rest].slice(0, save.comps).map(cp => cp.id);
+  else save.compsGot = save.nav >= 50 ? ['nav'] : [];
+  delete save.comps; delete save.nav;
 }
+if (!Array.isArray(save.compsNew)) save.compsNew = [];
+const compsCount = () => COMPONENTS.filter(cp => save.compsGot.includes(cp.id)).length;
 const partsDone = () => PARTS.every(pt => save.parts[pt.id] >= pt.need);
-const compsDone = () => save.comps >= COMPONENTS.length;
+const compsDone = () => compsCount() >= COMPONENTS.length;
 // The ship repair (owner: "Half and half"): the five falling parts make up half (each part's share of it as full as
-// that part), the ten components the other half (5% each); at 1 it's ready to fly home.
+// that part), the components the other half (each 1/18 of it); at 1 it's ready to fly home.
 const repairFrac = () => PARTS.reduce((sum, pt) => sum + Math.min(1, save.parts[pt.id] / pt.need), 0) / PARTS.length / 2
-  + Math.min(1, save.comps / COMPONENTS.length) / 2;
+  + compsCount() / COMPONENTS.length / 2;
 const canLaunch = () => repairFrac() >= 1;
 // Kid mode: mines and Leviathan shots 0-100%; ship parts and health crystals 100-200% on one slider (drops); Health,
 // 100-200% of the pilot's health (5, or 4 on Terminal Velocity), rounded: 5, 6, 8, 9, 10; fall speed 50-100% (owner:
@@ -5838,7 +5855,7 @@ function buildRepairView(root) {
   const list = root.querySelector('.parts');
   for (let i = 0; i < 20; i++) view.bar.appendChild(document.createElement('i'));
   // The components, won from Leviathans, sit after the parts with the same look (the first one's picture).
-  const compRow = { id: 'comps', name: 'COMPONENTS', full: 'Ship components: one for each Leviathan you escape', spr: COMPONENTS[0].spr };
+  const compRow = { id: 'comps', name: 'COMPONENTS', full: 'Ship components: one for each Leviathan you escape, six on each moon', spr: COMPONENTS[0].spr };
   for (const pt of [...PARTS, compRow]) {
     const li = document.createElement('li'),
       name = document.createElement('span'),
@@ -5859,7 +5876,7 @@ function buildRepair() {
 function renderRepair() {
   badgesButton();   // the menu's badge count
   repair = repairFrac();
-  const pct = Math.floor(repair * 100), won = Math.min(save.comps, COMPONENTS.length), all = COMPONENTS.length;
+  const pct = Math.floor(repair * 100), won = compsCount(), all = COMPONENTS.length;
   for (const view of repairViews) {
     view.pct.textContent = pct;
     view.title.textContent = repair >= 1 ? 'SHIP REPAIRED' : 'SHIP REPAIR';
@@ -5874,14 +5891,15 @@ function renderRepair() {
     row.count.textContent = won + '/' + all; row.fill.style.width = (won / all * 100) + '%';
     row.li.classList.toggle('done', compsDone());
     row.li.setAttribute('aria-label', 'Ship components, one for each Leviathan you escape: ' + won + ' of ' + all
-      + (won ? ' (' + COMPONENTS.slice(0, won).map(cp => cp.name).join(', ') + ')' : ''));
+      + (won ? ' (' + COMPONENTS.filter(cp => save.compsGot.includes(cp.id)).map(cp => cp.name).join(', ') + ')' : ''));
   }
   $('launchBtn').hidden = !canLaunch();
   // The cafe's copy says what is left to do, and offers the launch once there is nothing left.
   $('cafeLaunchBtn').hidden = !canLaunch();
   let note = 'Collect ship parts as you fall, and escape Leviathans to win the ship\'s components.';
   if (canLaunch()) note = 'The ship is repaired, every component fitted. You can fly home!';
-  else if (partsDone()) note = 'Every part found! Escape Leviathans for the last ' + (all - won) + ' component' + (all - won === 1 ? '' : 's') + '.';
+  else if (partsDone()) note = 'Every part found! Escape Leviathans on all three moons for the last '
+    + (all - won) + ' component' + (all - won === 1 ? '' : 's') + '.';
   else if (compsDone()) note = 'Every component fitted. Keep collecting ship parts as you fall.';
   $('cafeRepairNote').textContent = note;
 }
@@ -6414,7 +6432,7 @@ const confirmDlg = $('confirmDlg');
 let confirmStep = 0, resetTimer = 0, confirmKind = 'reset', confirmFrom = 'resetBtn';
 function clearRepair() {
   for (const pt of PARTS) save.parts[pt.id] = 0;
-  save.dives = 0; save.comps = 0; save.compsNew = []; missionsDone(); save.missionDone = false;   // the next finished mission counts
+  save.dives = 0; save.compsGot = []; save.compsNew = []; missionsDone(); save.missionDone = false;   // the next finished mission counts
 }
 function popConfirm() {
   pctify($('confirmText')); pctify($('confirmYes'));
@@ -6430,7 +6448,7 @@ function popConfirm() {
 // Hard Dive's pop-up: one question, red like the reset's second step. With nothing to lose (no parts, no
 // components) it just switches on.
 function askHard() {
-  const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), c = save.comps || 0;
+  const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), c = compsCount();
   if (!n && !c) { save.hard = true; persist(); syncToggles(); return; }
   confirmKind = 'hard'; confirmFrom = 'hardT'; confirmStep = 0;
   confirmDlg.classList.add('danger');
@@ -6444,7 +6462,7 @@ function askHard() {
 function askReset(step) {
   confirmKind = 'reset'; confirmFrom = 'resetBtn';
   // Components won from Leviathans count as something to reset too, as in askHard.
-  const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), c = save.comps || 0, any = n + c > 0;
+  const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), c = compsCount(), any = n + c > 0;
   const what = [n ? `the ${n} ship part${n === 1 ? '' : 's'} you have collected` : '', c ? `the ${c} component${c === 1 ? '' : 's'} you have won` : ''].filter(Boolean).join(' and ');
   confirmStep = any ? step : 0;
   confirmDlg.classList.toggle('danger', step === 2);
@@ -6518,7 +6536,8 @@ function askPreview() {
   popConfirm();
 }
 // Landing at a cafe after escaping Leviathans: a card with the components unlocked since the last one (save.compsNew),
-// their pictures in a row, and what's left. Shown once; the list then empties.
+// their pictures in a row, each moon's count, and (owner) that "the player will need to travel across all three moons to
+// collect six ship components from each one". Shown once; the list then empties.
 const COMPS_SHOW_AFTER = 1.2;   // s after landing, once the barista has spoken
 function askComps() {
   const ids = save.compsNew || [], got = COMPONENTS.filter(cp => ids.includes(cp.id));
@@ -6531,11 +6550,13 @@ function askComps() {
   const g = pic.getContext('2d'); g.clearRect(0, 0, w, 14);
   got.forEach((cp, i) => sprite(g, cp.spr, i * 16, 0, PMAP));
   const names = got.map(cp => cp.name), list = n > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[n - 1] : names[0];
-  const left = COMPONENTS.length - save.comps;
+  const left = COMPONENTS.length - compsCount();
+  const onMoon = m => COMPONENTS.filter(cp => LEVI_SETS[m].includes(cp.levi) && save.compsGot.includes(cp.id)).length;
+  const perMoon = Object.keys(LEVI_SETS).map(m => MOON_NAMES[m].replace(' moon', '') + ' ' + onMoon(m) + '/' + LEVI_SETS[m].length).join(', ');
   $('confirmTitle').textContent = n > 1 ? 'Components unlocked!' : 'Component unlocked!';
-  $('confirmText').textContent = list + ': ' + save.comps + ' of ' + COMPONENTS.length + ' fitted. '
+  $('confirmText').textContent = list + ': ' + compsCount() + ' of ' + COMPONENTS.length + ' fitted (' + perMoon + '). '
     + (canLaunch() ? 'The ship is repaired: fly it home!'
-      : left ? 'Escape ' + left + ' more Leviathan' + (left === 1 ? '' : 's') + ' for the rest.'
+      : left ? 'Each moon\'s six Leviathans guard six components: travel to all three moons to collect them all.'
         : 'Every component fitted! Now finish collecting the ship parts.');
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Great!';
   popConfirm();
@@ -6647,7 +6668,7 @@ const runMore = () => ({
   errors: errN, error: errFirst,
   leviFought: player.leviFought.slice(0, 20), leviEscaped: player.leviRun.slice(0, 20),
   missions: missionsDone(), suit: Math.min(save.suit || 0, suitsOpen() - 1), badges: Object.keys(save.badges || {}).length,
-  nav: save.comps || 0, cafesPassed: ledgesPassed(player.y), droneCaught: drone.caught || 0,
+  nav: compsCount(), cafesPassed: ledgesPassed(player.y), droneCaught: drone.caught || 0,
   installed: INSTALLED(), browser: BROWSER, pauses: runPauses,
 });
 function endRun(how) {
@@ -7728,7 +7749,7 @@ function caveGift(cave, t, crossed) {
   if (crossed(GIFT_TAKE + 0.35)) {   // the kit: every part to its need, and every component
     const was = repairFrac() >= 1;
     for (const pt of PARTS) save.parts[pt.id] = Math.max(save.parts[pt.id], pt.need);
-    save.comps = COMPONENTS.length; persist(); renderRepair();
+    save.compsGot = COMPONENTS.map(cp => cp.id); persist(); renderRepair();
     Sfx.repaired(); Buzz.shield(); pop('SHIP REPAIR KIT!', player.x, player.y - 10, 'part');
     if (!was) award('repair');
     sparks(player.x, player.y + PILOT_CY, ['#F2C14E', '#FFFFFF', '#A9781B', P.hot], 30, 14);
@@ -10131,7 +10152,7 @@ function updateBoss(dt) {
       if (b.pt >= 1 && b.pt - dt < 1) {
         hud.classList.remove('boss'); bossTuneOn = false; Music.start(3.5);
         if (compWon) {
-          flashBanner(compWon.name.toUpperCase(), 'Component ' + (COMPONENTS.indexOf(compWon) + 1) + ' of ' + COMPONENTS.length + ' unlocked', true);
+          flashBanner(compWon.name.toUpperCase(), 'Component ' + compsCount() + ' of ' + COMPONENTS.length + ' unlocked', true);
           compWon = null;
         }
       }
@@ -10159,7 +10180,7 @@ function crashBoss() {
   save.leviBeaten = save.leviBeaten || {}; save.leviBeaten[b.kind] = (save.leviBeaten[b.kind] || 0) + 1; persist();
   player.leviRun.push(b.kind); player.bossWon = true;
   award('levi');
-  winComponent();
+  winComponent(b.kind);
   if (LEVI_KINDS.every(k => save.leviBeaten[k])) award('all6');
   if (LEVI_SETS.jungle.every(k => save.leviBeaten[k])) award('jungle3');
   if (LEVI_SETS.machine.every(k => save.leviBeaten[k])) award('machine6');
