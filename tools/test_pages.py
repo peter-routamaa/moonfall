@@ -88,7 +88,8 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     M.render(); document.title = 'ready'; return;
   }
   if (q.get('drone')) { M.save.droneOpen = true; M.save.drone = true; }   // &drone=1: the helper drone along (version 160)
-  document.getElementById('startBtn').click(); await wait(300);
+  { const had = M.save.droneOpen; M.save.droneOpen = true;   // Jump In without the drone offer (askDrone), then the save as it was
+    document.getElementById('startBtn').click(); await wait(300); M.save.droneOpen = had; }
   if (q.get('scene') === 'haz') {   // a contact sheet of the signature hazards; see tools/shoot_hazards.sh
     M.save.hints = { glaze: 1, crumble: 1, ash: 1, void: 1 };
     const cv = document.getElementById('cv'), ov = document.getElementById('ov');

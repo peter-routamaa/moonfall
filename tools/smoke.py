@@ -6,7 +6,7 @@ Version 216 (code review: "no tests of game logic"). The other tools each look a
 a fight, pixels); this one only asks "does anything throw?", everywhere a player can go, in about half a minute:
 the start screen, the intro film, the main menu and every card on it, a run (intro, falling with hazards, pause and
 resume, a cafe landing, the shop, the jump back out, a death, game over, the high score table), a long fall through
-the deeper layers, the self-test started and quit, the cave preview (ending, quit, death), the launch and the ending, and back to the menu.
+the deeper layers, the self-test started and quit, the escape preview (its pop-up, then ending, quit, death), the launch and the ending, and back to the menu.
 It runs the real game in Chrome with the same seeded random numbers and stepped frames as tools/same_pixels.py, and
 counts every uncaught error and rejected promise (the frame loop throws its errors on, see frame()). It also fails
 if a step doesn't reach the state it should, which means the script or the game's flow broke, not that all is well,
@@ -21,7 +21,7 @@ import same_pixels, test_pages
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHROME = os.environ.get('CHROME', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
 
-HOOK = ("window.__smoke = { setCard, openMenu, pause, resume, toTitle, leaveCafe, openShop, showEnd, perfStart, cafeCard, startPreview, "
+HOOK = ("window.__smoke = { setCard, openMenu, pause, resume, toTitle, leaveCafe, openShop, showEnd, perfStart, cafeCard, startPreview, askPreview, "
         "get previewOn() { return previewSave !== null; }, get perfOn() { return perfOn; }, get cardSide() { return cardSide; }, get wakeWant() { return typeof wakeWant === 'undefined' ? false : wakeWant; } };")
 
 DRIVER = r"""<script>
@@ -79,22 +79,24 @@ DRIVER = r"""<script>
   await step('self-test', 'intro|play', () => S.perfStart(), 60 * 3);
   await step('self-test quit', 'title', () => S.toTitle(), 20);
   if (S.perfOn) out.errors.push('self-test still on after quitting it');
-  // The cave preview (five taps on the pilot): off the record, so the save must come back exactly as it was, whether
+  // The escape preview (five taps on the pilot, then its pop-up): off the record, so the save must come back exactly as it was, whether
   // it ends at the ending, at its game over card, or by Quit from pause.
   const kept = JSON.stringify(M.save);
-  const unchanged = how => { if (JSON.stringify(M.save) !== kept) out.errors.push('cave preview changed the save (' + how + ')'); if (S.previewOn) out.errors.push('cave preview still on (' + how + ')'); };
-  await step('cave preview', 'cave', () => S.startPreview(), 60 * 10, safe);
+  const unchanged = how => { if (JSON.stringify(M.save) !== kept) out.errors.push('escape preview changed the save (' + how + ')'); if (S.previewOn) out.errors.push('escape preview still on (' + how + ')'); };
+  await step('escape preview asks', 'title', () => S.askPreview(), 10);
+  if (!$('confirmDlg').open) out.errors.push('escape preview: no pop-up before it starts');
+  await step('escape preview', 'cave', () => $('confirmYes').click(), 60 * 14, safe);
   await step('preview claim kit', 'cave', () => $('caveClaim').click(), 60 * 8, safe);
   await step('preview portal', 'launch', () => $('caveClaim').click(), 60 * 8);
   await step('preview ending', 'ended', () => S.showEnd(), 30);
-  if (!$('newMissionBtn').hidden) out.errors.push('cave preview ending offers New mission');
+  if (!$('newMissionBtn').hidden) out.errors.push('escape preview ending offers New mission');
   await step('preview to menu', 'title', () => $('endTitleBtn').click(), 30);
   unchanged('ending');
   await step('preview again', 'intro|play', () => S.startPreview(), 60 * 2, safe);
   await step('preview quit', 'title', () => S.toTitle(), 20);
   unchanged('quit');
   await step('preview to die', 'play', () => S.startPreview(), 60 * 2, safe);
-  await step('preview death', 'over', () => { P.y = M.caveInfo().T - 1500; P.inv = 0; P.shield = 0; P.hp = 1; M.rocks.length = 0; M.rocks.push({ d: P.y + 14, x0: P.x, x: P.x, size: 1, rr: 9, amp: 0, ph: 0, sp: 1, hot: true, isMine: true, dead: false }); }, 60 * 4);
+  await step('preview death', 'over', () => { P.y = M.caveInfo().T - 1500; P.inv = 0; P.shield = 0; P.hp = 1; M.rocks.length = 0; M.rocks.push({ d: P.y + 14, x0: P.x, x: P.x, size: 1, rr: 9, amp: 0, ph: 0, sp: 1, hot: true, isMine: true, dead: false }); }, 60 * 6);
   await step('preview game over', 'title', () => S.toTitle(), 20);
   unchanged('death');
   await step('launch', 'launch', () => M.startLaunch(), 60 * 20);
