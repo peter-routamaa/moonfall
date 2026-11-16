@@ -159,7 +159,8 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .kid-sl input::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 18px; margin-top: -6px; background: var(--gold); border: 0; border-radius: 0; box-shadow: inset -2px -2px 0 #B8862A; }
 .kid-sl input::-moz-range-thumb { width: 16px; height: 18px; background: var(--gold); border: 0; border-radius: 0; box-shadow: inset -2px -2px 0 #B8862A; }
 .kid-sl input:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
-#kidSpeedT { font-size: 11px; padding: 10px 7px 10px 9px; }
+.kid-togs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.kid-togs .set-tog { font-size: 11px; padding: 10px 7px 10px 9px; }
 #titleScreen.reading.kid .repair { --aside: 1; }
 @media (max-width: 360px) { #kidReset { font-size: 11px; letter-spacing: .02em; padding-inline: 6px; } }   /* one line at 320 px */
 #kidReset:disabled { background: transparent; opacity: .45; box-shadow: inset 0 0 0 2px var(--ink-soft); }
@@ -169,7 +170,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
   .kid-how { font-size: 15px; }
   .kid-sliders { gap: 6px; padding: 8px 10px 9px; }
   .kid-sl { row-gap: 3px; }
-  #kidSpeedT { padding: 8px 7px 8px 9px; }
+  .kid-togs .set-tog { padding: 8px 7px 8px 9px; }
   #kidReset { padding: 9px 14px 7px; }
 }
 #badgesBtn small { font: inherit; font-size: 11px; color: color-mix(in srgb, var(--dust) 75%, var(--blue)); }
@@ -529,6 +530,8 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 /* The font's own % is a smudge at this size, so it's drawn as pixels, the same height as the digits. */
 .repair-head .pct { margin-left: 2px; }
 .repair-bar { display: flex; gap: 2px; height: 8px; }
+/* The copy on the cafe's Ship repair card sits inside the card's own padding. */
+#cafeRepair .repair { max-width: none; padding: 0; }
 .repair-bar i { flex: 1; background: var(--ink-soft); }
 .repair-bar i.on { background: var(--gold); }
 .parts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
@@ -601,6 +604,9 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .cafe-ui .btn.settings { font-size: 20px; padding: 15px 13px 13px; }
 /* All three cafe buttons read from the left, lined up with the Shop label. */
 #tipsBtn { justify-content: flex-start; padding-left: 18px; }
+/* The longest cafe label: smaller so it stays on one line, left-aligned with its icon like TIPS. */
+#cafeRepairBtn { justify-content: flex-start; padding-left: 18px; font-size: 14px; letter-spacing: .02em; text-align: left; }
+@media (max-width: 360px) { #cafeRepairBtn { font-size: 12px; letter-spacing: 0; } }
 #shopGo { text-align: left; }
 .shop-items { display: grid; gap: 8px; }
 .perk { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 10px; row-gap: 5px; padding: 10px 12px 9px; border: 0; text-align: left; color: var(--dust); background: color-mix(in srgb, var(--dust) 7%, var(--ink)); box-shadow: inset 0 0 0 2px var(--ink-soft); cursor: pointer; touch-action: manipulation; }
@@ -660,7 +666,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   </div>
 
   <div class="fps" id="fps" hidden>-- FPS</div>
-  <!-- Cafe menu: a flip card like the title card. Front: SHOP, TIPS and Continue; Shop and Tips turn over to the back. -->
+  <!-- Cafe menu: a flip card like the title card. Front: SHOP, TIPS, SHIP REPAIR PROGRESS and Continue; the first three turn over to the back. -->
   <div class="cafe-ui" id="shop" hidden>
    <div class="flip" id="cafeFlip">
     <div class="flip-inner">
@@ -669,6 +675,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <p class="cafe-note" id="cafeNote">Spend your spare crystals in the shop</p>
       <button class="btn cafe-shop" id="shopBtn" type="button"><span>Shop</span><span class="shop-count"><canvas class="ico-orb" width="14" height="14"></canvas><b id="shopBtnN">0</b></span></button>
       <button class="btn settings" id="tipsBtn" type="button"><svg viewBox="0 0 9 9" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM6 2h1v1h-1zM7 2h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1z"/></svg>Tips</button>
+      <button class="btn settings" id="cafeRepairBtn" type="button"><svg viewBox="0 0 9 9" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M5 0h3v1h-3zM4 1h2v1h-2zM8 1h1v2h-1zM4 2h1v2h-1zM6 2h3v1h-3zM5 3h3v1h-3zM3 4h3v1h-3zM2 5h2v1h-2zM1 6h2v1h-2zM0 7h2v2h-2zM2 7h1v1h-1z"/></svg>Ship repair progress</button>
       <button class="btn" id="shopGo" type="button">Continue the fall</button>
      </div>
      <div class="card face back" id="cafeShop" hidden inert aria-hidden="true">
@@ -687,6 +694,16 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <li>The fall gets 5% faster after every cafe, whether you stop or not, up to 35%.</li>
       </ul>
       <button class="btn" id="tipsDone" type="button">Done</button>
+     </div>
+     <div class="card face back" id="cafeRepair" hidden inert aria-hidden="true">
+      <section class="repair cafe-repair" aria-label="Ship repair progress">
+      <div class="repair-head"><span class="repair-title">SHIP REPAIR</span><b><span class="repair-pct">0</span><svg class="pct" viewBox="0 0 9 10" width="9" height="10" shape-rendering="crispEdges" role="img" aria-label="%"><path fill="currentColor" d="M0 0h3v3h-3zM6 7h3v3h-3zM8 0h1v1h-1zM7 1h2v1h-2zM6 2h2v1h-2zM5 3h2v1h-2zM4 4h2v1h-2zM3 5h2v1h-2zM2 6h2v1h-2zM1 7h2v1h-2zM0 8h2v1h-2zM0 9h1v1h-1z"/></svg></b></div>
+      <div class="repair-bar"></div>
+      <ul class="parts"></ul>
+      </section>
+      <p class="cafe-note" id="cafeRepairNote"></p>
+      <button class="btn launch" id="cafeLaunchBtn" type="button" hidden>Escape the moon: launch the ship</button>
+      <button class="btn" id="cafeRepairDone" type="button">Done</button>
      </div>
     </div>
    </div>
@@ -719,7 +736,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
     <h1 class="logo">M<small>oon</small>F<small>all</small></h1>
     <p class="tag">Dodge. Collect. Repair. Escape.</p>
     <section class="panel repair" aria-label="Ship repair">
-      <div class="repair-head"><span id="repairTitle">SHIP REPAIR</span><b><span id="repairPct">0</span><svg class="pct" viewBox="0 0 9 10" width="9" height="10" shape-rendering="crispEdges" role="img" aria-label="%"><path fill="currentColor" d="M0 0h3v3h-3zM6 7h3v3h-3zM8 0h1v1h-1zM7 1h2v1h-2zM6 2h2v1h-2zM5 3h2v1h-2zM4 4h2v1h-2zM3 5h2v1h-2zM2 6h2v1h-2zM1 7h2v1h-2zM0 8h2v1h-2zM0 9h1v1h-1z"/></svg></b></div>
+      <div class="repair-head"><span class="repair-title" id="repairTitle">SHIP REPAIR</span><b><span class="repair-pct" id="repairPct">0</span><svg class="pct" viewBox="0 0 9 10" width="9" height="10" shape-rendering="crispEdges" role="img" aria-label="%"><path fill="currentColor" d="M0 0h3v3h-3zM6 7h3v3h-3zM8 0h1v1h-1zM7 1h2v1h-2zM6 2h2v1h-2zM5 3h2v1h-2zM4 4h2v1h-2zM3 5h2v1h-2zM2 6h2v1h-2zM1 7h2v1h-2zM0 8h2v1h-2zM0 9h1v1h-1z"/></svg></b></div>
       <div class="repair-bar" id="repairBar"></div>
       <ul class="parts" id="partsList"></ul>
       <button class="news" id="newsTag" type="button"><b>NEW FEATURES</b><small>(tap to see)</small></button>
@@ -768,7 +785,10 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <label class="kid-sl"><span class="kid-lbl">Fall speed</span><output id="kidFallV"></output><input type="range" id="kidFall" aria-label="Fall speed" min="50" max="100" step="25" data-key="fall"></label>
         <label class="kid-sl"><span class="kid-lbl">Leviathan shots</span><output id="kidShotsV"></output><input type="range" id="kidShots" aria-label="Leviathan shots" min="0" max="100" step="25" data-key="shots"></label>
       </div>
-      <button class="set-tog" id="kidSpeedT" type="button" aria-pressed="true" aria-label="Speed up after cafes"><span>Speed up after cafes</span></button>
+      <div class="kid-togs">
+      <button class="set-tog" id="kidSpeedT" type="button" aria-pressed="true" aria-label="Speed up after cafes"><span>Speed up<br>after cafes</span></button>
+      <button class="set-tog" id="kidDroneT" type="button" aria-pressed="false" aria-label="Helper drone"><span>Helper<br>drone</span></button>
+      </div>
       <button class="btn quiet" id="kidReset" type="button">Revert to standard mode</button>
       <button class="btn" id="kidDone" type="button">Done</button>
      </div>
@@ -1008,7 +1028,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 218;
+const VERSION = 219;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -4409,7 +4429,8 @@ const runParts = { plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 };
 let hardRun = false;   // this run is a Hard Dive (see startRun)
 const playerStart = () => ({
   x: 84, y: -30, v: 0, vx: 0, hp: hardRun ? 4 : 5, max: hardRun ? 4 : 5, inv: 0, blockT: 0, shield: 0, shieldMax: 8, orbs: 0, spare: 0, streak: 0,
-  bestStreak: 0, perks: {}, perkCafe: 0, toughN: 0, bought: [], slowUntil: 0, flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false,
+  bestStreak: 0, perks: {}, perkCafe: 0, toughN: 0, bought: [], slowUntil: 0, magnetUntil: 0,
+  flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false,
   fallRamp: 1, tangle: 0,
   hits: 0, closest: Infinity, closestMine: false, leviRun: [], bossWon: false, newBadges: [],   // run highlights and badges
   leviFought: []   // the Leviathans whose fight started this run (run stats)
@@ -4467,7 +4488,8 @@ function speedAt(d) {
 //   suit              the suit colour picked (Unlocks); clamped to the unlocked ones where it's read (suitMap)
 //   hard              Terminal Velocity switched on (Unlocks)
 //   droneOpen, drone, droneNew   the helper drone unlocked, switched on, and not yet announced (set in collect)
-//   kid               Kid mode's settings; kidSettings() below repairs them whenever they're read (v197-200 saves too)
+//   kid               Kid mode's settings (sliders, cafe speed-up, helper drone); kidSettings() below repairs
+//                     them whenever they're read (v197-200 saves too)
 //   hints             which one-time hints were shown (the void and each hazard kind); default here
 //   badges            badge id: when earned; repaired in badges
 //   scores, kidScores, outbox   this device's top 10s and the scores waiting to be sent; repaired in high scores
@@ -4491,21 +4513,23 @@ const canLaunch = () => repairFrac() >= 1 && navDone();
 // Kid mode: mines and Leviathan shots 0-100%; ship parts and health crystals 100-200% on one slider (drops); Health,
 // 100-200% of the pilot's health (5, or 4 on Terminal Velocity), rounded: 5, 6, 8, 9, 10; fall speed 50-100% (owner:
 // "a slider to slow fall speed"), the whole fall, cafe speed-ups and fights included. All in 25% steps, and the cafe
-// speed-up on or off. Saved as save.kid; fixed for the whole run at its start (kidRun), like Terminal Velocity.
-const KID_NORMAL = { mines: 100, drops: 100, hp: 100, fall: 100, shots: 100, speed: true };
+// speed-up on or off, and the helper drone on or off (it flies even before it's earned). Saved as save.kid; fixed
+// for the whole run at its start (kidRun), like Terminal Velocity.
+const KID_NORMAL = { mines: 100, drops: 100, hp: 100, fall: 100, shots: 100, speed: true, drone: false };
 const KID_RANGE = { mines: [0, 100], drops: [100, 200], hp: [100, 200], fall: [50, 100], shots: [0, 100] };
 function kidSettings() {
   const k = Object.assign({}, KID_NORMAL, save.kid);
   if (save.kid && save.kid.drops == null && (save.kid.parts || save.kid.health)) k.drops = Math.max(+save.kid.parts || 100, +save.kid.health || 100);   // v197-200 saves
   for (const key in KID_RANGE) { const [lo, hi] = KID_RANGE[key], v = Math.round(+k[key] / 25) * 25; k[key] = Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : KID_NORMAL[key]; }
   k.speed = k.speed !== false;
+  k.drone = k.drone === true;
   return k;
 }
 const kidOn = k => Object.keys(KID_NORMAL).some(key => k[key] !== KID_NORMAL[key]);
 // The best depth this run is measured against: Kid mode runs have their own.
 const bestNow = () => kidRun.on ? save.kidBest || 0 : save.best;
 // What this run uses, as fractions (mines 0.5 = half the mines). Normal until a run starts.
-let kidRun = { mines: 1, parts: 1, health: 1, hp: 1, fall: 1, shots: 1, speed: true, on: false }, kidShotAcc = 0;
+let kidRun = { mines: 1, parts: 1, health: 1, hp: 1, fall: 1, shots: 1, speed: true, drone: false, on: false }, kidShotAcc = 0;
 // A fixed roll in [0, 1) for one place in the shaft, so leaving out mines doesn't change the rest of the seeded layout.
 const kidRoll = n => { const x = Math.sin(n * 12.9898 + SEED * 78.233) * 43758.5453; return x - Math.floor(x); };
 // Leviathan shots are thinned evenly (at 50% every other one is fired, at 25% one in four), not at random.
@@ -5571,47 +5595,60 @@ const screens = {
 };
 const fmtM = m => String(m).padStart(4, '0');
 function showScreen(name) { for (const k in screens) screens[k].hidden = k !== name; }
-const partEls = {};
-function buildRepair() {
-  const bar = $('repairBar'), list = $('partsList');
-  for (let i = 0; i < 20; i++) bar.appendChild(document.createElement('i'));
-  for (const pt of PARTS) {
+// The ship repair panel is shown in two places: the main menu, and the cafe's Ship repair card. Each copy (a repair
+// view: its title, percentage, bar and part rows) is built the same way by buildRepairView, and renderRepair fills all.
+const repairViews = [];
+function buildRepairView(root) {
+  const view = { title: root.querySelector('.repair-title'), pct: root.querySelector('.repair-pct'), bar: root.querySelector('.repair-bar'), rows: {} };
+  const list = root.querySelector('.parts');
+  for (let i = 0; i < 20; i++) view.bar.appendChild(document.createElement('i'));
+  // The navigation computer, bought at cafes, sits after the parts with the same look.
+  const navPart = { id: 'nav', name: 'NAV COMPUTER', full: 'Navigation computer (buy it at a cafe)', spr: NAV_SPR };
+  for (const pt of [...PARTS, navPart]) {
     const li = document.createElement('li'),
       name = document.createElement('span'),
       count = document.createElement('span'),
       meter = document.createElement('span'),
       fill = document.createElement('b');
     li.title = pt.full; name.className = 'pn'; name.textContent = pt.name; count.className = 'pc'; meter.className = 'meter'; meter.appendChild(fill);
+    if (pt === navPart) li.className = 'navrow';
     li.append(partIcon(pt), name, count, meter); list.appendChild(li);
-    partEls[pt.id] = { li, count, fill };
+    view.rows[pt.id] = { li, count, fill };
   }
-  // The navigation computer, bought at cafes, sits after the parts with the same look.
-  const nav = { id: 'nav', name: 'NAV COMPUTER', full: 'Navigation computer (buy it at a cafe)', spr: NAV_SPR };
-  const li = document.createElement('li'), name = document.createElement('span'), count = document.createElement('span'),
-    meter = document.createElement('span'), fill = document.createElement('b');
-  li.title = nav.full; li.className = 'navrow'; name.className = 'pn'; name.textContent = nav.name; count.className = 'pc'; meter.className = 'meter'; meter.appendChild(fill);
-  li.append(partIcon(nav), name, count, meter); list.appendChild(li);
-  partEls.nav = { li, count, fill };
+  repairViews.push(view);
+}
+function buildRepair() {
+  buildRepairView(screens.title.querySelector('.repair'));
+  buildRepairView($('cafeRepair'));
 }
 const NAV_SPR = ['kkkkkkkkkkkk', 'knnnnnnnnnnk', 'knEEEEEEEEnk', 'knEeEEEEEEnk', 'knEEEeeEEEnk', 'knEEEEEEeEnk', 'knEEEEEEEEnk', 'knnnnnnnnnnk', 'kkkkkkkkkkkk', '....kqqk....', '..kkkkkkkk..'];
 function renderRepair() {
   badgesButton();   // the menu's badge count
   repair = repairFrac();
-  const pct = Math.floor(repair * 100);
-  $('repairPct').textContent = pct;
-  $('repairTitle').textContent = repair >= 1 ? 'SHIP REPAIRED' : 'SHIP REPAIR';
-  [...$('repairBar').children].forEach((el, i) => el.classList.toggle('on', i < Math.floor(repair * 20)));
-  for (const pt of PARTS) {
-    const el = partEls[pt.id], have = Math.min(save.parts[pt.id], pt.need);
-    el.count.textContent = have + '/' + pt.need; el.fill.style.width = (have / pt.need * 100) + '%';
-    el.li.classList.toggle('done', have >= pt.need);
-    el.li.setAttribute('aria-label', pt.full + ': ' + have + ' of ' + pt.need);
+  const pct = Math.floor(repair * 100), paid = Math.min(save.nav, NAV_PRICE);
+  for (const view of repairViews) {
+    view.pct.textContent = pct;
+    view.title.textContent = repair >= 1 ? 'SHIP REPAIRED' : 'SHIP REPAIR';
+    [...view.bar.children].forEach((el, i) => el.classList.toggle('on', i < Math.floor(repair * 20)));
+    for (const pt of PARTS) {
+      const el = view.rows[pt.id], have = Math.min(save.parts[pt.id], pt.need);
+      el.count.textContent = have + '/' + pt.need; el.fill.style.width = (have / pt.need * 100) + '%';
+      el.li.classList.toggle('done', have >= pt.need);
+      el.li.setAttribute('aria-label', pt.full + ': ' + have + ' of ' + pt.need);
+    }
+    const nav = view.rows.nav;
+    nav.count.textContent = paid + '/' + NAV_PRICE; nav.fill.style.width = (paid / NAV_PRICE * 100) + '%';
+    nav.li.classList.toggle('done', navDone());
+    nav.li.setAttribute('aria-label', 'Navigation computer, bought at cafes: ' + paid + ' of ' + NAV_PRICE + ' crystals paid');
   }
-  const nav = partEls.nav, paid = Math.min(save.nav, NAV_PRICE);
-  nav.count.textContent = paid + '/' + NAV_PRICE; nav.fill.style.width = (paid / NAV_PRICE * 100) + '%';
-  nav.li.classList.toggle('done', navDone());
-  nav.li.setAttribute('aria-label', 'Navigation computer, bought at cafes: ' + paid + ' of ' + NAV_PRICE + ' crystals paid');
   $('launchBtn').hidden = !canLaunch();
+  // The cafe's copy says what is left to do, and offers the launch once there is nothing left.
+  $('cafeLaunchBtn').hidden = !canLaunch();
+  let note = 'Collect ship parts as you fall, and pay for the nav computer in the shop.';
+  if (canLaunch()) note = 'The ship is repaired and the nav computer installed. You can fly home!';
+  else if (repair >= 1) note = 'The ship is repaired! Now pay for the nav computer in the shop.';
+  else if (navDone()) note = 'The nav computer is installed. Keep collecting ship parts as you fall.';
+  $('cafeRepairNote').textContent = note;
 }
 function renderRunParts() {
   const list = $('runParts'), got = PARTS.filter(pt => runParts[pt.id] > 0);
@@ -5659,12 +5696,16 @@ const streakFlash = $('streakFlash'), spareHud = $('spareHud'), shopEl = $('shop
 // whooshes. The page is touched once per speed-up, not every frame.
 const speedFlash = $('speedFlash'), PCT_ICON = document.querySelector('.repair-head .pct').outerHTML;
 let speedRush = 0;
-function speedUp(top, total) {
+// The banner as he leaves a cafe ledge: 'up' (another 5%), 'top' (the cafe that reaches the cap) or 'max' (every cafe
+// after it: the speed is already at its cap, so no rush or whoosh, only the banner).
+function speedUp(kind, total) {
   // The pixel font's % looks like a 2 at this size, so the banner uses the drawn percent sign
   // from the ship repair panel.
-  speedFlash.firstChild.innerHTML = top ? 'TOP SPEED!' : 'SPEED +' + Math.round(CAFE_SPEEDUP * 100) + PCT_ICON;
-  speedFlash.lastChild.textContent = 'Fall speed +' + Math.round(total * 100) + '%';
+  const headline = { up: 'SPEED +' + Math.round(CAFE_SPEEDUP * 100) + PCT_ICON, top: 'TOP SPEED!', max: 'MAX FALL SPEED' };
+  speedFlash.firstChild.innerHTML = headline[kind];
+  speedFlash.lastChild.textContent = kind === 'max' ? 'achieved' : 'Fall speed +' + Math.round(total * 100) + '%';
   speedFlash.classList.remove('on'); void speedFlash.offsetWidth; speedFlash.classList.add('on');
+  if (kind === 'max') { Sfx.bleep(880); return; }
   speedRush = reduceMotion ? 0 : 1.2; Sfx.whoosh(); Buzz.part();
 }
 function bump(el) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
@@ -5848,6 +5889,7 @@ function syncKid() {
     el.setAttribute('aria-valuetext', word || k[key] + '%');
   }
   $('kidSpeedT').setAttribute('aria-pressed', String(k.speed));
+  $('kidDroneT').setAttribute('aria-pressed', String(k.drone));
   const on = kidOn(k), kb = $('kidBtn');
   kb.dataset.on = String(on); kb.setAttribute('aria-label', 'Kid mode, ' + (on ? 'on' : 'off'));
   $('kidReset').disabled = !on;
@@ -5856,6 +5898,10 @@ for (const key in KID_SLIDERS) $(KID_SLIDERS[key]).addEventListener('input', e =
   save.kid = Object.assign(kidSettings(), { [key]: +e.target.value }); persist(); syncKid(); syncToggles();
 });
 $('kidSpeedT').addEventListener('click', () => { const k = kidSettings(); save.kid = Object.assign(k, { speed: !k.speed }); persist(); syncKid(); syncToggles(); });
+$('kidDroneT').addEventListener('click', () => {
+  const k = kidSettings();
+  save.kid = Object.assign(k, { drone: !k.drone }); persist(); syncKid(); syncToggles();
+});
 $('kidReset').addEventListener('click', () => { save.kid = Object.assign({}, KID_NORMAL); persist(); syncKid(); syncToggles(); Sfx.bleep(330); });
 $('kidBtn').addEventListener('click', () => setCard('kid'));
 $('kidDone').addEventListener('click', () => setCard(kidFromNews ? 'news' : 'settings'));   // back to New features if opened there
@@ -6091,12 +6137,15 @@ $('settingsDone').addEventListener('click', () => setCard(null));
 // ---------- confirm dialogs ----------
 // Reset ship repair (Settings): two confirmations, the second sterner, before the parts are cleared.
 const confirmDlg = $('confirmDlg');
-let confirmStep = 0, resetTimer = 0, confirmHard = false, confirmFrom = 'resetBtn';
+// confirmKind: which question is open: 'reset' (two steps), 'hard' (Terminal Velocity) or 'launch' (from the cafe).
+let confirmStep = 0, resetTimer = 0, confirmKind = 'reset', confirmFrom = 'resetBtn';
 function clearRepair() {
   for (const pt of PARTS) save.parts[pt.id] = 0;
   save.dives = 0; save.nav = 0; missionsDone(); save.missionDone = false;   // the next finished mission counts
 }
 function popConfirm() {
+  $('confirmYes').classList.toggle('danger', confirmKind !== 'launch');
+  $('confirmYes').classList.toggle('launch', confirmKind === 'launch');
   confirmDlg.classList.remove('pop-in'); void confirmDlg.offsetWidth; confirmDlg.classList.add('pop-in');
   if (!confirmDlg.open) confirmDlg.showModal();
   $('confirmNo').focus();
@@ -6106,7 +6155,7 @@ function popConfirm() {
 function askHard() {
   const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), c = save.nav || 0;
   if (!n && !c) { save.hard = true; persist(); syncToggles(); return; }
-  confirmHard = true; confirmFrom = 'hardT'; confirmStep = 0;
+  confirmKind = 'hard'; confirmFrom = 'hardT'; confirmStep = 0;
   confirmDlg.classList.add('danger');
   $('confirmTitle').textContent = 'Go Terminal Velocity?';
   const lost = [n ? `your ${n} ship part${n === 1 ? '' : 's'}` : '', c ? `the ${c} crystal${c === 1 ? '' : 's'} paid into the nav computer` : ''].filter(Boolean).join(' and ');
@@ -6117,7 +6166,7 @@ function askHard() {
   popConfirm();
 }
 function askReset(step) {
-  confirmHard = false; confirmFrom = 'resetBtn';
+  confirmKind = 'reset'; confirmFrom = 'resetBtn';
   // Crystals paid into the nav computer count as something to reset too, as in askHard.
   const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), c = save.nav || 0, any = n + c > 0;
   const what = [n ? `the ${n} ship part${n === 1 ? '' : 's'} you have collected` : '', c ? `the ${c} crystal${c === 1 ? '' : 's'} you paid into the nav computer` : ''].filter(Boolean).join(' and ');
@@ -6133,9 +6182,21 @@ function askReset(step) {
   popConfirm();
 }
 $('resetBtn').addEventListener('click', () => askReset(1));
+// The cafe's launch: the dive ends there, so it asks first.
+function askLaunch() {
+  if (state !== 'cafe' || !canLaunch()) return;
+  confirmKind = 'launch'; confirmFrom = 'cafeLaunchBtn'; confirmStep = 0;
+  confirmDlg.classList.remove('danger');
+  $('confirmTitle').textContent = 'Launch the ship?';
+  $('confirmText').textContent = 'Your dive ends here at ' + depthM().toLocaleString('en-GB') + ' m, and it doesn\'t go on the high scores. Then you fly home!';
+  $('confirmYes').hidden = false; $('confirmYes').textContent = 'Launch!';
+  $('confirmNo').textContent = 'Not yet';
+  popConfirm();
+}
 $('confirmNo').addEventListener('click', () => confirmDlg.close());
 $('confirmYes').addEventListener('click', () => {
-  if (confirmHard) {   // start the mission over, then Hard Dive on
+  if (confirmKind === 'launch') { confirmDlg.close(); launchFromCafe(); return; }
+  if (confirmKind === 'hard') {   // start the mission over, then Terminal Velocity on
     confirmDlg.close(); clearRepair(); save.hard = true; persist(); renderRepair(); syncToggles(); Sfx.bleep(330); return;
   }
   if (confirmStep === 1) { askReset(2); return; }
@@ -6145,7 +6206,7 @@ $('confirmYes').addEventListener('click', () => {
   const b = $('resetBtn'); b.textContent = 'Repair reset to 0%';
   clearTimeout(resetTimer); resetTimer = setTimeout(() => (b.textContent = 'Reset ship repair'), 2500);
 });
-confirmDlg.addEventListener('close', () => { $(confirmFrom).focus({ preventScroll: true }); confirmHard = false; });
+confirmDlg.addEventListener('close', () => { $(confirmFrom).focus({ preventScroll: true }); confirmKind = 'reset'; });
 
 // ---------- run stats (sent to the private play stats) ----------
 // Private stats for the owner's Supabase dashboard: a random ID made once per device (no name, nothing personal),
@@ -6264,8 +6325,12 @@ const HARD_SPEED = 1.15, hardOpen = () => missionsDone() > 0;
 let introRunUp = false;   // Jump in (the full run-up), not Play again, gets the shaft line
 function startRun(quick) {
   hardRun = !!save.hard && hardOpen();
-  { const k = kidSettings(); kidRun = { mines: k.mines / 100, parts: k.drops / 100, health: k.drops / 100, hp: k.hp / 100, fall: k.fall / 100, shots: k.shots / 100, speed: k.speed, on: kidOn(k) }; }
-  droneRun = !!save.drone && droneOpen();
+  {
+    const k = kidSettings();
+    kidRun = { mines: k.mines / 100, parts: k.drops / 100, health: k.drops / 100, hp: k.hp / 100, fall: k.fall / 100, shots: k.shots / 100,
+      speed: k.speed, drone: k.drone, on: kidOn(k) };
+  }
+  droneRun = (!!save.drone && droneOpen()) || kidRun.drone;   // Kid mode can bring it along before it's earned
   Sfx.init(); Music.stop(0.4); setCard(null, true);
   armBack();   // back now pauses the run (see phones)
   resetRun(); countPlay();
@@ -6907,8 +6972,10 @@ function updateCafe(dt) {
   camY = player.y - pilotScreenY - lift;
 }
 // -- the shop: spend spare crystals on one perk per cafe
+// Slow fall and the Magnet each work for their own stretch of the fall (owner: 500 m each), not until the next cafe.
+const SLOW_M = 500, MAGNET_M = 500;
 const PERKS = [
-  { id: 'magnet', name: 'Magnet', desc: 'Pulls in crystals', cost: 3, once: true },
+  { id: 'magnet', name: 'Magnet', desc: 'Pulls in crystals, ' + MAGNET_M + ' m', cost: 3, once: true },
   { id: 'tough', name: 'Tough suit', desc: '+1 max health', cost: 4, ok: () => player.max - player.toughN < 5 ? player.max < 7 : player.toughN < 2 },   // kid health above 5: still up to +2
   { id: 'longshield', name: 'Long shield', desc: 'Shields last 5 s more', cost: 2, once: true },
   { id: 'turbo', name: 'Turbo', desc: 'Faster thrusters', cost: 3, once: true },
@@ -6916,7 +6983,7 @@ const PERKS = [
   { id: 'lucky', name: 'Lucky charm', desc: 'More crystals', cost: 3, once: true },
   { id: 'finder', name: 'Part finder', desc: 'More ship parts', cost: 3, once: true },
   { id: 'patch', name: 'Patch kit', desc: 'Full health', cost: 3, ok: () => player.hp < player.max },
-  { id: 'slow', name: 'Slow fall', desc: '20% slower, 250 m', cost: 2, ok: () => player.slowUntil <= player.y },
+  { id: 'slow', name: 'Slow fall', desc: '20% slower, ' + SLOW_M + ' m', cost: 2, ok: () => player.slowUntil <= player.y },
 ];
 let shopOffer = [], shopDone = false;
 function openShop() {
@@ -6955,21 +7022,39 @@ let cafeSide = null, usingKeys = false;
 addEventListener('keydown', () => { usingKeys = true; }, true);
 addEventListener('pointerdown', () => { usingKeys = false; }, true);
 function kbFocus(el) { if (usingKeys && el) el.focus({ preventScroll: true }); }
-// The cafe's card: the shop and the tips on the back.
+// The cafe's card: the shop, the tips and the ship repair on the back.
+// Where keyboard focus goes on each face, and on the front coming back from each face.
+const CAFE_FACE_FOCUS = {
+  shop: () => $('shopItems').querySelector('.perk:not(:disabled)') || $('shopDone'),
+  tips: () => $('tipsDone'),
+  repair: () => (canLaunch() ? $('cafeLaunchBtn') : $('cafeRepairDone')),
+};
+const CAFE_FRONT_FOCUS = { shop: 'shopBtn', tips: 'tipsBtn', repair: 'cafeRepairBtn' };
 function cafeCard(side, instant) {
   const was = cafeSide;
   instant = !!instant || reduceMotion;
   cafeSide = side;
-  turnCard($('cafeFlip'), $('cafeFront'), { shop: $('cafeShop'), tips: $('cafeTips') }, was, side, instant, () => {
+  if (side === 'repair') renderRepair();   // parts caught and crystals paid since the menu last showed it
+  turnCard($('cafeFlip'), $('cafeFront'), { shop: $('cafeShop'), tips: $('cafeTips'), repair: $('cafeRepair') }, was, side, instant, () => {
     if (side === 'tips' && !save.cafeTips) { save.cafeTips = true; persist(); renderShop(); }
   });
-  const target = () => side === 'shop' ? ($('shopItems').querySelector('.perk:not(:disabled)') || $('shopDone')) : side === 'tips' ? $('tipsDone') : $(was === 'tips' ? 'tipsBtn' : was === 'shop' ? 'shopBtn' : 'shopGo');
+  const target = () => (side ? CAFE_FACE_FOCUS[side]() : $(CAFE_FRONT_FOCUS[was] || 'shopGo'));
   if (instant) kbFocus(target()); else setTimeout(() => { if (cafeSide === side && !shopEl.hidden) kbFocus(target()); }, 460);
 }
 $('shopBtn').addEventListener('click', () => cafeCard('shop'));
 $('tipsBtn').addEventListener('click', () => cafeCard('tips'));
 $('shopDone').addEventListener('click', () => cafeCard(null));
 $('tipsDone').addEventListener('click', () => cafeCard(null));
+$('cafeRepairBtn').addEventListener('click', () => cafeCard('repair'));
+$('cafeRepairDone').addEventListener('click', () => cafeCard(null));
+$('cafeLaunchBtn').addEventListener('click', askLaunch);
+// Launching from the cafe ends the dive where it is, as quitting does (it doesn't go on the high scores), then flies
+// the ship home. Only offered once the ship is repaired and the nav computer installed.
+function launchFromCafe() {
+  if (state !== 'cafe' || !canLaunch()) return;
+  shopEl.hidden = true; cafeCard(null, true);
+  toTitle(); startLaunch();
+}
 function renderShop() {
   for (const id of ['shopSpare', 'shopSpare2', 'shopBtnN']) $(id).textContent = player.spare;
   const afford = shopOffer.some(p => player.spare >= p.cost) || (!navDone() && player.spare > 0);
@@ -7004,7 +7089,8 @@ function buyPerk(i) {
   if (p.id === 'tough') { player.max++; player.toughN++; buildHP(); player.hp++; setHP('gain'); }
   else if (p.id === 'patch') { player.hp = player.max; setHP('gain'); }
   else if (p.id === 'bubble') giveShield(SHIELD_S + (player.perks.longshield ? 5 : 0));
-  else if (p.id === 'slow') player.slowUntil = player.y + 250 * PX_PER_M;
+  else if (p.id === 'slow') player.slowUntil = player.y + SLOW_M * PX_PER_M;
+  else if (p.id === 'magnet') player.magnetUntil = player.y + MAGNET_M * PX_PER_M;
   const b = $('shopItems').children[i];
   b.classList.add('bought'); b.querySelector('.perk-cost').textContent = 'BOUGHT';
   renderShop(); Sfx.buy(); Buzz.part();
@@ -7029,7 +7115,7 @@ function payNav() {
 }
 // Treats last until the next cafe: when he lands at a later cafe than the one
 // they came from, or falls past its ledge, the perks switch off and a Tough suit's extra health goes. Bubble to go and the
-// Patch kit act at once, and Slow fall keeps its own 250 m.
+// Patch kit act at once, and Slow fall and the Magnet keep their own SLOW_M / MAGNET_M (or end at the cafe, if sooner).
 function expireTreats(k) {
   if (!player.perkCafe || k <= player.perkCafe) return;
   const had = Object.keys(player.perks).some(id => player.perks[id]) || player.toughN > 0;
@@ -9951,6 +10037,7 @@ function update(dt) {
     // Magnet perk: crystals, parts and bubbles within reach fly to him, at a steady speed above his fall speed. Closing a
     // share of the gap each frame instead, a crystal settles about 36 px behind a falling pilot (outside the pickup box)
     // and chases him for ever.
+    if (player.perks.magnet && player.magnetUntil <= player.y) { player.perks.magnet = false; pop('MAGNET OVER', player.x, player.y - 10); }
     if (player.perks.magnet) for (const it of items) {
       const dx = player.x - it.x, dy = player.y + PILOT_CY - it.d, dist = Math.hypot(dx, dy);
       if (!it.dead && dist < 80) { const step = Math.min(1, (player.v + 320) * dt / Math.max(1, dist)); it.x += dx * step; it.d += dy * step; }
@@ -9964,7 +10051,7 @@ function update(dt) {
     if (ledgesPassed(player.y + PILOT_CY) > fasterN) {
       fasterN++; expireTreats(fasterN);
       const top = Math.round(CAFE_SPEED_MAX / CAFE_SPEEDUP);
-      if (fasterN <= top && kidRun.speed) speedUp(fasterN === top, fasterN * CAFE_SPEEDUP);   // banner, rush and whoosh
+      if (kidRun.speed) speedUp(fasterN < top ? 'up' : fasterN === top ? 'top' : 'max', Math.min(fasterN, top) * CAFE_SPEEDUP);   // banner, rush and whoosh
     }
     if (state === 'play') checkCafe();
     Sfx.wind(0.5 + 0.5 * smoothstep((player.v - 250) / 200));

@@ -199,6 +199,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     const face = q.get('face');
     if (face === 'shop') document.getElementById('shopBtn').click();
     if (face === 'tips') document.getElementById('tipsBtn').click();
+    if (face === 'repair') document.getElementById('cafeRepairBtn').click();
     if (q.get('buy')) { await wait(600); document.querySelector('.perk:not(:disabled)').click(); }
   }
   await wait(700); document.title = 'ready:' + M.state + ':' + document.getElementById('shop').hidden + ':' + document.getElementById('hud').className;

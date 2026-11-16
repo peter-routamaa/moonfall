@@ -21,7 +21,7 @@ import same_pixels, test_pages
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHROME = os.environ.get('CHROME', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
 
-HOOK = ("window.__smoke = { setCard, openMenu, pause, resume, toTitle, leaveCafe, openShop, showEnd, perfStart, "
+HOOK = ("window.__smoke = { setCard, openMenu, pause, resume, toTitle, leaveCafe, openShop, showEnd, perfStart, cafeCard, "
         "get perfOn() { return perfOn; }, get cardSide() { return cardSide; }, get wakeWant() { return typeof wakeWant === 'undefined' ? false : wakeWant; } };")
 
 DRIVER = r"""<script>
@@ -63,6 +63,8 @@ DRIVER = r"""<script>
   await step('resume after back', 'play', () => S.resume(), 10, safe);
   await step('cafe landing', 'cafe', () => { P.y = M.cafeInfo(1).Dl - 400; }, 60 * 12, () => { safe(); P.x = M.cafeInfo(1).padX; P.aim = P.x; });
   await step('shop', 'cafe', () => S.openShop(), 20);
+  for (const face of ['shop', 'tips', 'repair']) await step('cafe card ' + face, 'cafe', () => S.cafeCard(face, true), 20);
+  await step('cafe card closed', 'cafe', () => S.cafeCard(null, true), 10);
   await step('leave cafe', 'cafeJump|play', () => S.leaveCafe(), 60 * 3, safe);
   await step('deep fall', 'play|landing|cafe|cafeJump', () => {}, 60 * 90, safe);
   await step('back to falling', 'play', () => { if (M.state === 'cafe') S.leaveCafe(); }, 60 * 4, safe);   // the deep fall may end at a cafe
