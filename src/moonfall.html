@@ -1059,7 +1059,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 227;
+const VERSION = 228;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -4508,8 +4508,9 @@ const playerStart = () => ({
   leviFought: []   // the Leviathans whose fight started this run (run stats)
 });
 const player = { touch: false, ...playerStart() };
-// The helper drone, found in the chest at the end of the deep cave (save.droneOpen; owner: no longer locked behind
-// Terminal Velocity) and switched on the Unlocks card
+// The helper drone, unlocked by repairing the ship in any mode (offered as the next dive starts: askDrone) or found in
+// the chest at the end of the deep cave (save.droneOpen; owner: no longer locked behind Terminal Velocity), and
+// switched on the Unlocks card
 // (save.drone). It hovers beside the pilot and catches ship parts and crystals that go past him. Its place is kept
 // relative to the pilot's middle (ox, oy) so it falls with him. It picks its target ahead of time, so the player can
 // see what it's going for: as a part or crystal comes up within DRONE_AHEAD px below him it rolls once (1 in 2) and, if
@@ -4520,6 +4521,8 @@ let droneRun = false;
 const drone = { ox: 24, oy: -20, mode: 'follow', it: null, lock: null, caught: 0 };
 const DRONE_CHANCE = 0.5, DRONE_SPEED = 720, DRONE_AHEAD = 220;   // share it goes for; dash px/s; lock range below him
 const droneOpen = () => !!save.droneOpen;
+// The ship has been repaired (or a mission finished, which repaired it): the drone is his to take (askDrone).
+const droneEarned = () => repairFrac() >= 1 || missionsDone() > 0;
 let rocks = [], items = [], particles = [], nextSeg = 0, lastRockD = -999, lastShieldD = -9999, steerAcc = 0;
 // The shaft is generated SEG_LEN pixels at a time; the pilot's hitbox is HIT_HALF_W pixels either side of his middle.
 const SEG_LEN = 110, HIT_HALF_W = 8;
@@ -4560,7 +4563,7 @@ function speedAt(d) {
 //                     sprites fills them in from launches on an old save
 //   suit              the suit colour picked (Unlocks); clamped to the unlocked ones where it's read (suitMap)
 //   hard              Terminal Velocity switched on (Unlocks)
-//   droneOpen, drone, droneNew   the helper drone unlocked, switched on, and not yet announced (set in caveGift)
+//   droneOpen, drone, droneNew   the helper drone unlocked, switched on, and not yet announced (set in askDrone and caveGift)
 //   kid               Kid mode's settings (sliders, cafe speed-up, helper drone); kidSettings() below repairs
 //                     them whenever they're read (v197-200 saves too)
 //   hints             which one-time hints were shown (the void and each hazard kind); default here
@@ -5949,8 +5952,8 @@ function syncToggles() {
   $('hardNote').textContent = hardOpen() ? 'Unlocked by repairing the ship' : 'Repair the ship to unlock Terminal Velocity';
   const dt = $('droneT');
   dt.disabled = !droneOpen(); dt.setAttribute('aria-pressed', String(!!save.drone && droneOpen()));
-  dt.setAttribute('aria-label', droneOpen() ? 'Helper drone' : 'Helper drone, locked until it is found in the chest at the end of the cave');
-  $('droneNote').textContent = droneOpen() ? 'Found in the chest at the end of the cave' : 'Find it in the chest at the end of the cave, about 25 km down';
+  dt.setAttribute('aria-label', droneOpen() ? 'Helper drone' : 'Helper drone, locked until the ship is repaired or it is found in the cave');
+  $('droneNote').textContent = droneOpen() ? 'Unlocked: it\'s yours to take along' : 'Repair the ship, or find it in the chest at the end of the cave, about 25 km down';
   $('buzzNote').hidden = Buzz.canVibrate || !save.vib;
   // The pixel font's "m" is hard to read, so the main menu's BEST uses a drawn pixel m as tall as the
   // digits (M_ICON), like the percent sign on the speed-up banner.
@@ -6235,7 +6238,8 @@ $('settingsDone').addEventListener('click', () => setCard(null));
 // ---------- confirm dialogs ----------
 // Reset ship repair (Settings): two confirmations, the second sterner, before the parts are cleared.
 const confirmDlg = $('confirmDlg');
-// confirmKind: which question is open: 'reset' (two steps), 'hard' (Terminal Velocity) or 'launch' (from the cafe).
+// confirmKind: which question is open: 'reset' (two steps), 'hard' (Terminal Velocity), 'launch' (from the cafe) or
+// 'drone' (the helper drone, offered as a dive starts).
 let confirmStep = 0, resetTimer = 0, confirmKind = 'reset', confirmFrom = 'resetBtn';
 function clearRepair() {
   for (const pt of PARTS) save.parts[pt.id] = 0;
@@ -6243,8 +6247,8 @@ function clearRepair() {
 }
 function popConfirm() {
   pctify($('confirmText')); pctify($('confirmYes'));
-  $('confirmYes').classList.toggle('danger', confirmKind !== 'launch');
-  $('confirmYes').classList.toggle('launch', confirmKind === 'launch');
+  $('confirmYes').classList.toggle('danger', confirmKind === 'reset' || confirmKind === 'hard');
+  $('confirmYes').classList.toggle('launch', confirmKind === 'launch' || confirmKind === 'drone');
   confirmDlg.classList.remove('pop-in'); void confirmDlg.offsetWidth; confirmDlg.classList.add('pop-in');
   if (!confirmDlg.open) confirmDlg.showModal();
   $('confirmNo').focus();
@@ -6280,6 +6284,27 @@ function askReset(step) {
   popConfirm();
 }
 $('resetBtn').addEventListener('click', () => askReset(1));
+// Owner: once the ship is repaired, the next Jump In (or Fall again) says the helper drone is unlocked and asks whether
+// to take it. Either answer unlocks it (Not now leaves it switched off, for the Unlocks card) and starts the dive;
+// closing the pop-up any other way does neither, so it asks again next time. Returns true when it asked.
+let droneQuick = false;   // the dive to start after the answer: a quick restart (Fall again) or from the menu
+function askDrone(quick) {
+  if (perfOn || droneOpen() || !droneEarned()) return false;
+  confirmKind = 'drone'; confirmFrom = quick ? 'againBtn' : 'startBtn'; confirmStep = 0; droneQuick = quick;
+  confirmDlg.classList.remove('danger');
+  $('confirmTitle').textContent = 'Helper drone unlocked!';
+  $('confirmText').textContent = 'You repaired the ship, so the helper drone is yours. It falls with you and catches half of the ship parts and crystals you miss. Take it along?';
+  $('confirmYes').hidden = false; $('confirmYes').textContent = 'Yes, bring it';
+  $('confirmNo').textContent = 'Not now';
+  popConfirm();
+  return true;
+}
+function answerDrone(take) {
+  save.droneOpen = true; save.drone = take; persist(); award('drone'); syncToggles();
+  if (take) Sfx.droneHello();
+  confirmDlg.close();
+  startRun(droneQuick);
+}
 // The cafe's launch: the dive ends there, so it asks first.
 function askLaunch() {
   if (state !== 'cafe' || !canLaunch()) return;
@@ -6291,9 +6316,10 @@ function askLaunch() {
   $('confirmNo').textContent = 'Not yet';
   popConfirm();
 }
-$('confirmNo').addEventListener('click', () => confirmDlg.close());
+$('confirmNo').addEventListener('click', () => { if (confirmKind === 'drone') answerDrone(false); else confirmDlg.close(); });
 $('confirmYes').addEventListener('click', () => {
   if (confirmKind === 'launch') { confirmDlg.close(); launchFromCafe(); return; }
+  if (confirmKind === 'drone') { answerDrone(true); return; }
   if (confirmKind === 'hard') {   // start the mission over, then Terminal Velocity on
     confirmDlg.close(); clearRepair(); save.hard = true; persist(); renderRepair(); syncToggles(); Sfx.bleep(330); return;
   }
@@ -6537,7 +6563,7 @@ $('newMissionBtn').addEventListener('click', e => {
 $('endTitleBtn').addEventListener('click', toTitle);
 $('launchBtn').addEventListener('click', startLaunch);
 $('overLaunchBtn').addEventListener('click', () => { toTitle(); startLaunch(); });
-$('startBtn').addEventListener('click', () => startRun(false));
+$('startBtn').addEventListener('click', () => { if (!askDrone(false)) startRun(false); });
 // Start screen: Choose Moon opens the three moons; Start stays grey until one is picked, then plays the intro
 // on that moon (the moon behind the buttons changes as soon as it's picked). Nothing is picked to begin with.
 let splashPicked = false;
@@ -6560,7 +6586,7 @@ const splashMusic = () => { if (state === 'splash') { Sfx.init(); Music.splash(s
 document.addEventListener('click', splashMusic, true);
 document.addEventListener('keydown', splashMusic, true);
 $('introSkip').addEventListener('click', () => { if (state === 'opening') endOpening('skipped'); });
-$('againBtn').addEventListener('click', () => startRun(true));
+$('againBtn').addEventListener('click', () => { if (!askDrone(true)) startRun(true); });
 $('menuBtn').addEventListener('click', toTitle);
 $('pauseBtn').addEventListener('click', pause);
 $('resumeBtn').addEventListener('click', resume);
