@@ -595,6 +595,11 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .speed-flash b .pct { width: .72em; height: .8em; margin-left: .08em; vertical-align: -.02em; filter: drop-shadow(3px 3px 0 var(--ink)); }
 .speed-flash small { display: block; margin-top: 6px; font: 400 20px/1 var(--body); color: var(--dust); text-shadow: 2px 2px 0 var(--ink), -1px -1px 0 var(--ink); }   /* text only, mid-screen below the pilot: rocks stay visible through it */
 .speed-flash.on { animation: speedflash 1.5s steps(15); }
+/* A component unlocked: much bigger, gold, wrapping, and up for 3 s. */
+.speed-flash.big { padding-inline: 14px; }
+.speed-flash.big b { font-size: 44px; line-height: 1.05; color: var(--gold); }
+.speed-flash.big small { margin-top: 10px; font-size: 28px; }
+.speed-flash.big.on { animation-duration: 3s; animation-timing-function: steps(30); }
 /* The banner the self-test starts with (owner: "a big pop-up to say developer run in progress"), and the tag while it or an escape preview runs. */
 .run-banner { position: absolute; z-index: 30; left: 50%; top: 42%; width: min(86%, 330px); transform: translate(-50%, -50%); display: grid; gap: 8px; padding: 16px 18px 14px;
   background: var(--ink); color: var(--dust); border: 3px solid var(--gold); box-shadow: 5px 5px 0 var(--blue); text-align: center; pointer-events: none;
@@ -1084,7 +1089,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 244;
+const VERSION = 245;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -1567,15 +1572,16 @@ function drawPart(pt, x, y, t, g) {
   }
   sprite(g, pt.spr, x - pt.spr[0].length / 2, y - pt.spr.length / 2, PMAP);
 }
-// A Leviathan escaped: the next component is his (none once all ten are), saved at once; a pop and the part sound as
-// it crashes, and its card (askComp) as the crash settles (compWon; not in the self-test, which plays on by itself).
-// The one that finishes the ship says so (shipRepaired).
+// A Leviathan escaped: the next component is his (none once all ten are), saved at once, with the part sound as it
+// crashes and a big banner naming it as the crash settles (compWon). Owner: no card then; "save that pop-up for the
+// next time you land at a cafe": save.compsNew lists the ones not yet shown there (askComps). The one that finishes the
+// ship says so (shipRepaired).
 let compWon = null;
 function winComponent() {
   if (save.comps >= COMPONENTS.length) return;
-  const cp = COMPONENTS[save.comps++]; persist(); renderRepair();
-  Sfx.part(); pop('+' + cp.name.toUpperCase(), player.x, player.y - 10, 'part');
-  if (!perfOn) compWon = cp;
+  const cp = COMPONENTS[save.comps++];
+  save.compsNew = (save.compsNew || []).concat(cp.id); persist(); renderRepair();
+  Sfx.part(); compWon = cp;
   if (repairFrac() >= 1) shipRepaired();
 }
 // The moment the ship is ready to fly (the last part caught, or the last component won).
@@ -4627,6 +4633,7 @@ function speedAt(d) {
 //   moon              the moon picked; applyMoon falls back to 'dust' for an unknown one
 //   parts             ship parts collected, by part id; repaired just below
 //   comps             ship components won from Leviathans (0 to COMPONENTS.length), in order; repaired just below
+//   compsNew          ids of components won since the last cafe, for its card (askComps)
 //   dives, launches   runs this mission (cleared with the repair) and ship launches ever
 //   missionsDone, missionDone   finished missions, and whether this repair was already counted; missionsDone() in
 //                     sprites fills them in from launches on an old save
@@ -5937,8 +5944,9 @@ function speedUp(kind, total) {
   if (kind === 'max') { Sfx.bleep(880); return; }
   speedRush = reduceMotion ? 0 : 1.2; Sfx.whoosh(); Buzz.part();
 }
-// The big banner mid-screen (the speed-ups): head may hold the drawn percent sign (HTML).
-function flashBanner(head, sub) {
+// The big banner mid-screen (the speed-ups; big: a component unlocked): head may hold the drawn percent sign (HTML).
+function flashBanner(head, sub, big) {
+  speedFlash.classList.toggle('big', !!big);
   speedFlash.firstChild.innerHTML = head;
   speedFlash.lastChild.textContent = sub; pctify(speedFlash.lastChild);
   speedFlash.classList.remove('on'); void speedFlash.offsetWidth; speedFlash.classList.add('on');
@@ -6048,7 +6056,7 @@ function drawIcons() {
   const s = $('icoShield').getContext('2d'); s.clearRect(0, 0, 28, 28); drawBubble(14, 14, 0, s);
   const pc = $('icoPart').getContext('2d'); pc.clearRect(0, 0, 30, 30); drawPart(PARTS[0], 15, 15, 0.15, pc);
   sprite($('icoComp').getContext('2d'), COMPONENTS[0].spr, 0, 0, PMAP);   // the nav computer, the first component
-  // Each component's picture is painted once now, so its card (askComp) makes no image during a fight.
+  // Each component's picture is painted once now, so drawing one later (askComps) makes no new image.
   const cg = $('confirmPic').getContext('2d');
   for (const cp of COMPONENTS) sprite(cg, cp.spr, 0, 0, PMAP);
   cg.clearRect(0, 0, 14, 14);
@@ -6382,22 +6390,22 @@ const confirmDlg = $('confirmDlg');
 // confirmKind: which question is open: 'reset' (two steps), 'hard' (Terminal Velocity), 'launch' (from the cafe),
 // 'repaired' (after the dive that finished the ship), 'drone' (the helper drone, offered as a dive starts),
 // 'droneEnd' (the helper drone, after the standard ending: one button), 'preview' (the escape preview, before it starts)
-// or 'comp' (a component won from a Leviathan: one button, the dive waits).
+// or 'comps' (the components unlocked since the last cafe, as he lands at one: one button).
 let confirmStep = 0, resetTimer = 0, confirmKind = 'reset', confirmFrom = 'resetBtn';
 function clearRepair() {
   for (const pt of PARTS) save.parts[pt.id] = 0;
-  save.dives = 0; save.comps = 0; missionsDone(); save.missionDone = false;   // the next finished mission counts
+  save.dives = 0; save.comps = 0; save.compsNew = []; missionsDone(); save.missionDone = false;   // the next finished mission counts
 }
 function popConfirm() {
   pctify($('confirmText')); pctify($('confirmYes'));
   $('confirmYes').classList.toggle('danger', confirmKind === 'reset' || confirmKind === 'hard');
-  $('confirmYes').classList.toggle('launch', ['launch', 'repaired', 'drone', 'droneEnd', 'preview', 'comp'].includes(confirmKind));
-  $('confirmNo').hidden = confirmKind === 'droneEnd' || confirmKind === 'comp';
-  $('confirmPic').hidden = confirmKind !== 'comp';
+  $('confirmYes').classList.toggle('launch', ['launch', 'repaired', 'drone', 'droneEnd', 'preview', 'comps'].includes(confirmKind));
+  $('confirmNo').hidden = confirmKind === 'droneEnd' || confirmKind === 'comps';
+  $('confirmPic').hidden = confirmKind !== 'comps';
   confirmDlg.classList.toggle('low', confirmKind === 'preview');
   confirmDlg.classList.remove('pop-in'); void confirmDlg.offsetWidth; confirmDlg.classList.add('pop-in');
   if (!confirmDlg.open) confirmDlg.showModal();
-  $(confirmKind === 'droneEnd' || confirmKind === 'comp' ? 'confirmYes' : 'confirmNo').focus();
+  $(confirmKind === 'droneEnd' || confirmKind === 'comps' ? 'confirmYes' : 'confirmNo').focus();
 }
 // Hard Dive's pop-up: one question, red like the reset's second step. With nothing to lose (no parts, no
 // components) it just switches on.
@@ -6489,25 +6497,29 @@ function askPreview() {
   setTimeout(() => { for (const b of buttons) b.disabled = false; if (confirmDlg.open) $('confirmNo').focus(); }, PREVIEW_ASK_WAIT);
   popConfirm();
 }
-// A component won (owner: "Big card, game waits"): as the escaped Leviathan's crash settles, the dive holds (no pause
-// screen) under a card with the component's picture; Continue (or closing it) carries on.
-function askComp(cp) {
-  if (state !== 'play') return;
-  prevState = state; setState('paused'); Sfx.thrust(0); steerAcc = 0; presses.clear();
-  confirmKind = 'comp'; confirmFrom = 'pauseBtn'; confirmStep = 0;
+// Landing at a cafe after escaping Leviathans: a card with the components unlocked since the last one (save.compsNew),
+// their pictures in a row, and what's left. Shown once; the list then empties.
+const COMPS_SHOW_AFTER = 1.2;   // s after landing, once the barista has spoken
+function askComps() {
+  const ids = save.compsNew || [], got = COMPONENTS.filter(cp => ids.includes(cp.id));
+  if (state !== 'cafe' || !got.length || confirmDlg.open) return;
+  save.compsNew = []; persist();
+  confirmKind = 'comps'; confirmFrom = 'shopBtn'; confirmStep = 0;
   confirmDlg.classList.remove('danger');
-  const g = $('confirmPic').getContext('2d'); g.clearRect(0, 0, 14, 14); sprite(g, cp.spr, 0, 0, PMAP);
+  const pic = $('confirmPic'), n = got.length, w = n * 16 - 2;
+  pic.width = w; pic.style.width = Math.min(4, Math.floor(260 / w)) * w + 'px'; pic.style.height = 'auto';
+  const g = pic.getContext('2d'); g.clearRect(0, 0, w, 14);
+  got.forEach((cp, i) => sprite(g, cp.spr, i * 16, 0, PMAP));
+  const names = got.map(cp => cp.name), list = n > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[n - 1] : names[0];
   const left = COMPONENTS.length - save.comps;
-  $('confirmTitle').textContent = 'Component unlocked!';
-  $('confirmText').textContent = cp.name + ', ' + save.comps + ' of ' + COMPONENTS.length + '. '
-    + (canLaunch() ? 'The ship is repaired: fly it home from the main menu!'
-      : left ? 'Escape ' + left + ' more Leviathan' + (left === 1 ? '' : 's') + ' for the rest.' : 'Every component won! Now finish collecting the ship parts.');
-  $('confirmYes').hidden = false; $('confirmYes').textContent = 'Continue';
+  $('confirmTitle').textContent = n > 1 ? 'Components unlocked!' : 'Component unlocked!';
+  $('confirmText').textContent = list + ': ' + save.comps + ' of ' + COMPONENTS.length + ' fitted. '
+    + (canLaunch() ? 'The ship is repaired: fly it home!'
+      : left ? 'Escape ' + left + ' more Leviathan' + (left === 1 ? '' : 's') + ' for the rest.'
+        : 'Every component fitted! Now finish collecting the ship parts.');
+  $('confirmYes').hidden = false; $('confirmYes').textContent = 'Great!';
   popConfirm();
 }
-// The dive goes on after the component's card. The frame loop kept running under it (the music too), so unlike
-// resume() nothing needs restarting.
-function endHold() { if (state === 'paused' && $('pauseScreen').hidden) setState(prevState); }
 // The cafe's launch: the dive ends there, so it asks first.
 function askLaunch() {
   if (state !== 'cafe' || !canLaunch()) return;
@@ -6527,7 +6539,7 @@ $('confirmYes').addEventListener('click', () => {
   if (confirmKind === 'repaired') { confirmDlg.close(); flyHome(); return; }
   if (confirmKind === 'droneEnd') { confirmDlg.close(); return; }
   if (confirmKind === 'preview') { confirmDlg.close(); startPreview(); return; }
-  if (confirmKind === 'comp') { endHold(); confirmDlg.close(); return; }   // on with the dive at once (the close event comes later)
+  if (confirmKind === 'comps') { confirmDlg.close(); return; }
   if (confirmKind === 'hard') {   // start the mission over, then Terminal Velocity on
     confirmDlg.close(); clearRepair(); save.hard = true; persist(); renderRepair(); syncToggles(); Sfx.bleep(330); return;
   }
@@ -6538,10 +6550,7 @@ $('confirmYes').addEventListener('click', () => {
   const b = $('resetBtn'); b.textContent = 'Repair reset to 0%'; pctify(b);
   clearTimeout(resetTimer); resetTimer = setTimeout(() => (b.textContent = 'Reset ship repair'), 2500);
 });
-confirmDlg.addEventListener('close', () => {
-  if (confirmKind === 'comp') endHold();   // however the component's card closed, the dive goes on
-  $(confirmFrom).focus({ preventScroll: true }); confirmKind = 'reset';
-});
+confirmDlg.addEventListener('close', () => { $(confirmFrom).focus({ preventScroll: true }); confirmKind = 'reset'; });
 
 // ---------- run stats (sent to the private play stats) ----------
 // Private stats for the owner's Supabase dashboard: a random ID made once per device (no name, nothing personal),
@@ -7247,6 +7256,7 @@ function cafeArrive(C) {
   if (!sayEl.isConnected) game.appendChild(sayEl);
   sayEl.style.animation = 'none'; void sayEl.offsetWidth; sayEl.style.animation = '';
   placeSay(C);
+  if ((save.compsNew || []).length) setTimeout(askComps, COMPS_SHOW_AFTER * 1000);   // askComps checks he's still here
 }
 function baristaLine(C) {
   const m = Math.round(C.Dl / PX_PER_M), ini = /^[A-Z]{3}$/.test(save.initials || '') ? save.initials : '', dives = save.dives || 0;
@@ -8517,6 +8527,10 @@ const SHAFT_START_Y = 260;   // how far down the shaft he starts his climb out, 
 // out at PORTAL_OUT s and walks to his spot, and it closes behind him; the rest is the same.
 let launchPortal = false;
 const PORTAL_HOME_X = 122, PORTAL_OUT = 0.9;
+// The helper drone in the launch (owner: it "follows him into the blue portal but does not come out of the orange
+// portal"): when it's his and switched on, it's beside him from the moment he's seen (out of the portal, or up the
+// shaft) and zips into the hatch just before he climbs aboard.
+let launchDrone = false;
 const REPAIR_HITS = 4, WELD_AT = { x: 9, y: -34 }, HAMMER_AT = { x: 49, y: -15 };
 const LAUNCH = Object.fromEntries(Object.entries({ wave: 1.0, board: 3.0, aboard: 3.5, rumble: 4.0, lift: 6.5, climb: 8.0, groove: 9.9, space: 15.0, away: 20.0, end: 21.4 })
   .map(([k, v]) => [k, v + REPAIR.done]));
@@ -8643,6 +8657,7 @@ const LAUNCH_ORIGINAL_START_X = 84;
 function startLaunch() {
   Sfx.init(); resetRun(); cineReset();
   setState('launch'); launchT = 0; launchShip = null;
+  launchDrone = !!save.drone && droneOpen(); drone.ox = 0; drone.oy = 0;   // it comes out with him
   showScreen(null); hud.classList.add('off'); Sfx.wind(0);
   if (launchPortal) Music.victory(); else Music.stop(0.2);   // home through the cave's portal: its song plays on
   showCoach('TAP TO SKIP', 1800);
@@ -8666,6 +8681,14 @@ function updateLaunch(dt) {
     player.pose = 'runL';
   }
   else player.hidden = true;
+  if (launchDrone && !player.hidden) {
+    if (t < L.board) droneHover(dt);
+    else {   // over to the hatch, ahead of him
+      const k = Math.min(1, dt * 5);
+      drone.ox += (52 - player.x - drone.ox) * k; drone.oy += (-14 - player.y - PILOT_CY - drone.oy) * k;
+    }
+  }
+  if (launchDrone && launchPortal && crossed(PORTAL_OUT + 0.15)) Sfx.droneChat();
   if (crossed(L.wave + 0.25)) Sfx.bye();
   if (crossed(L.aboard)) { sparks(52, -14, [P.dust, P.strata, P.shade], 10); Sfx.hatch(); }
   if (crossed(L.rumble)) { Sfx.engine(); Buzz.launch(); }
@@ -9601,7 +9624,12 @@ function nearMiss(k) {
 const droneRoll = it => hash(it.d * 0.37 + it.x * 1.3 + SEED) < DRONE_CHANCE;
 // Once unlocked and switched on, it hovers by the pilot at the crash site on the main menu, drifting a little, and goes
 // with him on the run-up and the leap.
-const droneShown = () => state === 'title' ? !!save.drone && droneOpen() : droneRun;
+const DRONE_STATES = ['title', 'intro', 'play', 'landing', 'cafe', 'cafeJump', 'cave', 'dying', 'paused', 'launch'];   // drawn in these
+function droneShown() {
+  if (state === 'title') return !!save.drone && droneOpen();
+  if (state === 'launch') return launchDrone && !player.hidden && launchT < LAUNCH.aboard - 0.15;   // gone into the hatch
+  return droneRun;
+}
 // Where it
 // idles beside him: a sway side to side and a bob (two waves each, so it never looks like a loop), plus a wander, a new
 // little spot nearby every 0.8-2.2 s that it glides to.
@@ -10082,7 +10110,10 @@ function updateBoss(dt) {
       shake = Math.max(shake, 2.4 * (1 - b.pt / 1.6));
       if (b.pt >= 1 && b.pt - dt < 1) {
         hud.classList.remove('boss'); bossTuneOn = false; Music.start(3.5);
-        if (compWon) { const cp = compWon; compWon = null; askComp(cp); }
+        if (compWon) {
+          flashBanner(compWon.name.toUpperCase(), 'Component ' + (COMPONENTS.indexOf(compWon) + 1) + ' of ' + COMPONENTS.length + ' unlocked', true);
+          compWon = null;
+        }
       }
       target = b.pt < 0.8 ? Math.round(H * 0.42) : pilotScreenY;
       if (b.pt >= 2) boss = null;
@@ -10916,7 +10947,7 @@ function render() {
       ring(player.x, my + PILOT_CY, Math.round(14 + 14 * (1 - a)), P.dust);
     }
     drawManSquashed(player.x + (state === 'dying' ? Math.round(Math.sin(clock * 40) * 2) : 0), my, player.pose, clock, player.thr);
-    if (droneShown() && ['title', 'intro', 'play', 'landing', 'cafe', 'cafeJump', 'cave', 'dying', 'paused'].includes(state)) { const ga = c.globalAlpha; c.globalAlpha = 1; drawDrone(my); c.globalAlpha = ga; }
+    if (droneShown() && DRONE_STATES.includes(state)) { const ga = c.globalAlpha; c.globalAlpha = 1; drawDrone(my); c.globalAlpha = ga; }
     if (state === 'launch' && launchT < REPAIR.done) drawRepairTools(my);
     if (state === 'cave' && cavePhase === 'open') drawCrowbar(my);
     c.globalAlpha = 1;
