@@ -32,8 +32,9 @@ DRIVER = r"""<script>
   addEventListener('unhandledrejection', e => out.errors.push('promise: ' + String(e.reason && e.reason.message || e.reason)));
   document.addEventListener('visibilitychange', e => e.stopImmediatePropagation(), true);
   const wait = ms => new Promise(f => setTimeout(f, ms));
+  const seen = new Set();   // every state the run passed through, frame by frame
   let t = performance.now() + 1000;
-  const run = (n, keep) => { for (let i = 0; i < n; i++) { t += 1000 / 60; if (keep) keep(); try { M.frame(t); } catch (e) { out.errors.push('frame: ' + (e && e.message || e)); } } };
+  const run = (n, keep) => { for (let i = 0; i < n; i++) { t += 1000 / 60; if (keep) keep(); try { M.frame(t); } catch (e) { out.errors.push('frame: ' + (e && e.message || e)); } seen.add(M.state); } };
   const safe = () => { P.inv = 1; P.hp = P.max; };
   // A step does something, plays some frames, and says which state it should end in ('' for any).
   const step = async (name, want, fn, frames, keep) => {
@@ -70,6 +71,7 @@ DRIVER = r"""<script>
   await step('launch', 'launch', () => M.startLaunch(), 60 * 20);
   await step('ending', 'launch|ended', () => S.showEnd(), 30);
   await step('menu again', 'title', () => S.toTitle(), 30);
+  out.seen = [...seen];
   const pre = document.createElement('pre'); pre.id = 'out'; pre.textContent = JSON.stringify(out); document.body.appendChild(pre);
 })();
 </script>"""
@@ -113,7 +115,9 @@ def main():
         for e in res['errors']: print(f'ERROR {moon}: {e}')
         for s in bad: print(f"FAIL {moon}: step '{s['name']}' ended in state '{s['state']}'")
         print(f"{moon}: {len(res['steps'])} steps, {len(res['errors'])} errors, {len(bad)} steps off course, {len(probs)} problems from the game's own checks")
-        fails += len(res['errors']) + len(bad) + len(probs)
+        unseen = sorted(set(re.findall(r"setState\('(\w+)'\)", game)) - set(res.get('seen', [])))
+        for st in unseen: print(f"FAIL {moon}: the game can enter state '{st}' but the smoke test never reached it; add a step for it")
+        fails += len(res['errors']) + len(bad) + len(unseen) + len(probs)
     print('FAIL: the smoke test found problems (above)' if fails else 'OK: every screen played on every moon, no errors')
     sys.exit(1 if fails else 0)
 
