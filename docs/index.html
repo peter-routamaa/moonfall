@@ -1015,7 +1015,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 //   and fight art together), alien life on the walls and in the shaft, the moon surface, game state, saved settings (and
 //   what a save holds), sound (and his voice), music, haptics, DOM (elements and the HUD), settings and Kid mode, the
 //   title card and its faces, confirm dialogs, run stats, flow, menu buttons, high scores, coffee stop (cafes: drawing,
-//   landing, the counter, the shop, the signs), badges, board flags, the opening film, fireworks, the launch,
+//   landing, the counter, the shop, the signs), badges, board flags, the opening film, fireworks, the launch, phones,
 //   updates, input, hazards (one entry per hazard in HAZARDS), level generation, effects, damage and pickups, the helper
 //   drone, boss fights (the attacks in BOSS_ATTACKS, their shots in SHOT_TYPES), update, render, cinematic touches,
 //   sizing and loop, the performance self-test.
@@ -1028,7 +1028,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 217;
+const VERSION = 218;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -4420,6 +4420,7 @@ function setState(next) {
   if (!STATES.has(next)) console.error('MoonFall: unknown state', next);
   state = next;
   document.getElementById('game').dataset.state = next;
+  if (AWAKE_STATES) keepAwake(AWAKE_STATES.has(next));   // the screen stays on in these states (see phones)
   if (next === 'title') setTimeout(prepLeviPics, 0);   // the Leviathans card's portraits, in idle moments (after start-up)
 }
 let state = 'title', prevState = 'play', clock = 0, introT = 0, dieT = 0, camY = -360, shake = 0, repair = 0, repairStart = 0, readyStart = false;
@@ -6286,6 +6287,7 @@ function startRun(quick) {
   { const k = kidSettings(); kidRun = { mines: k.mines / 100, parts: k.drops / 100, health: k.drops / 100, hp: k.hp / 100, fall: k.fall / 100, shots: k.shots / 100, speed: k.speed, on: kidOn(k) }; }
   droneRun = !!save.drone && droneOpen();
   Sfx.init(); Music.stop(0.4); setCard(null, true);
+  armBack();   // back now pauses the run (see phones)
   resetRun(); countPlay();
   save.dives = (save.dives || 0) + 1; persist();   // dives this mission, shown when it's complete
   setState('intro'); introT = quick ? 0.94 : 0; introRunUp = !quick;
@@ -6315,7 +6317,7 @@ function pause() {
 }
 function resume() {
   if (state !== 'paused') return;
-  setState(prevState); showScreen(null); sayEl.style.visibility = ''; last = performance.now();
+  setState(prevState); showScreen(null); sayEl.style.visibility = ''; last = performance.now(); armBack();
   if (state === 'landing' || state === 'cafe' || state === 'cafeJump') Music.title();
   else if (bossTuneOn) Music.boss(bossTrack);
   else if (state === 'play' || introT >= 1.3) Music.start();
@@ -6323,6 +6325,7 @@ function resume() {
 function toTitle() {
   if (perfOn && !perf.ending) { perfFinish(true); return; }   // Quit from pause ends the self-test and puts the save back
   menuFromRun = true;   // an update may reload this menu (see reloadForUpdate)
+  disarmBack();
   checkUpdate();
   const repairedThisRun = !readyStart && canLaunch();   // ready to fly since this run began: the ship or the computer finished
   endRun('quit');
@@ -7934,6 +7937,47 @@ function showEnd() {
   showScreen('end');
   setTimeout(() => { if (state === 'ended') $('endTitleBtn').focus({ preventScroll: true }); }, 50);
 }
+// ---------- phones ----------
+// Two fixes for playing on a phone (the iPhone and Android review, see the notes, 2026-11-14).
+// 1. Back. Android's back gesture (and iPhone's edge swipe, when the tab has somewhere to go back to) would leave the
+//    page mid-run, ending the run as 'left'. Starting a run (a tap, which Chrome needs for this) adds a history entry;
+//    going back takes that entry away and pauses the game instead. Resume adds it again; the menu takes it away quietly.
+//    backIgnore counts the menu's own history.back() calls: their popstate can arrive after a new run has started.
+//    If the current entry is already a run entry (the page was reloaded mid-run), it's reused rather than stacked.
+let backArmed = false, backIgnore = 0;
+function armBack() {
+  if (backArmed || perfOn) return;
+  if (history.state && history.state.moonfall === 'run') { backArmed = true; return; }
+  try { history.pushState({ moonfall: 'run' }, ''); backArmed = true; } catch (e) {}
+}
+function disarmBack() {
+  if (!backArmed) return;
+  backArmed = false;
+  if (history.state && history.state.moonfall === 'run') { backIgnore++; history.back(); }
+}
+addEventListener('popstate', () => {
+  if (backIgnore) { backIgnore--; return; }
+  if (!backArmed) return;
+  backArmed = false;
+  pause();
+});
+// 2. Screen awake: during the intro film, a run and the launch the screen shouldn't dim or lock (the Screen Wake Lock
+//    API; Safari 16.4+, Chrome). The phone drops the lock when the page is hidden, so it's asked for again on coming back.
+//    var, not const or let: setState runs (and calls keepAwake) before this part of the script has been reached.
+var AWAKE_STATES = new Set(['opening', 'intro', 'play', 'landing', 'cafe', 'cafeJump', 'dying', 'launch']), wakeLock = null, wakeWant = false, wakeAsking = false;
+function keepAwake(on) {
+  wakeWant = on;
+  if (!navigator.wakeLock) return;
+  if (on && !wakeLock && !wakeAsking && !document.hidden) {
+    wakeAsking = true;
+    navigator.wakeLock.request('screen').then(l => {
+      wakeAsking = false; wakeLock = l;
+      l.addEventListener('release', () => { if (wakeLock === l) wakeLock = null; });
+      if (!wakeWant) { wakeLock = null; l.release().catch(() => {}); }   // the state moved on while the request was out
+    }).catch(() => { wakeAsking = false; });
+  } else if (!on && wakeLock) { const l = wakeLock; wakeLock = null; l.release().catch(() => {}); }
+}
+
 // ---------- updates ----------
 // Owner: "let's build in an automatic reload ... so that they always get the latest version". The page is loaded once and
 // an open tab keeps running it, so a player could stay on an old version for days. The website build fills in
@@ -7973,7 +8017,7 @@ if (UPDATE_URL) { setInterval(checkUpdate, 300000); setInterval(reloadForUpdate,
 for (const ev of ['pointerdown', 'touchend', 'keydown']) addEventListener(ev, () => { lastInput = performance.now(); Sfx.wake(); }, { capture: true, passive: true });
 addEventListener('pageshow', () => Sfx.wake());
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) { checkUpdate(); Sfx.wake(); }
+  if (!document.hidden) { checkUpdate(); Sfx.wake(); if (wakeWant) keepAwake(true); }
   if (document.hidden) { keys.l = keys.r = false; pause(); if (state === 'title' || state === 'splash' || state === 'launch') Music.stop(0.1); if (runId && state !== 'over') endRun('left'); }
   else if (state === 'title') Music.title();
   // The launch stands still while hidden, so its music stops too; back during the groove, it starts again.
