@@ -4224,6 +4224,7 @@ function drawMoonAt(mx, my, R, rot) {
   c.globalAlpha = 1;
   return [csx, csy];
 }
+const SPACE_PLANET_IN = 0.55;
 // u: the pull back from the moon (0 to 1); off: the ship then flying away off the top of the screen (0 to 1, gone at 1).
 function drawSpace(u, off = 0) {
   const e = easeInOut(Math.max(0, Math.min(1, u))), Z = Math.pow(46 / 2400, e), R = 2400 * Z, fx = W / 2, fy = H * 0.72;
@@ -4234,7 +4235,10 @@ function drawSpace(u, off = 0) {
     c.fillStyle = i % 5 ? S.strata : (Math.floor(clock * 0.8 + hash(i) * 4) % 4 ? S.dust : S.lite);
     const z = i % 11 ? 1 : 2; c.fillRect(Math.round(sx), Math.round(sy), z, z);
   }
-  drawPlanet(Math.round(W * 0.8), Math.round(H * 0.24 + 30 * (1 - e)), true, clock * Math.PI / 12);
+  // Owner: the planet "just suddenly pops into view". It comes down from above the screen into its place instead, as
+  // the camera keeps rising after the ship (SPACE_PLANET_IN of the pull back).
+  const pk = Math.min(1, Math.max(0, u) / SPACE_PLANET_IN), pin = 1 - (1 - pk) * (1 - pk);
+  drawPlanet(Math.round(W * 0.8), Math.round(lerp(-80, H * 0.24, pin)), true, clock * Math.PI / 12);
   drawMoonAt(mx, my, R);
   // No smoke trail out here: there's no air to hold it (it thins out during the climb, see updateLaunch).
   if (off >= 1) return;
@@ -8599,6 +8603,7 @@ const SHAFT_START_Y = 260;   // how far down the shaft he starts his climb out, 
 // out at PORTAL_OUT s and walks to his spot, and it closes behind him; the rest is the same.
 let launchPortal = false;
 const PORTAL_HOME_X = 122, PORTAL_OUT = 0.9;
+const LAUNCH_STAND_Y = -28;   // his y standing on the crash site: the sprite is 28 px tall and the ground is at 0
 // The helper drone in the launch (owner: it "follows him into the blue portal but does not come out of the orange
 // portal"): when it's his and switched on, it's beside him from the moment he's seen (out of the portal, or up the
 // shaft) and zips into the hatch just before he climbs aboard.
@@ -8632,7 +8637,7 @@ function repairScene(t, dt, crossed) {
   if (launchPortal && t < R.arc) {
     player.hidden = t < PORTAL_OUT;
     const u = Math.max(0, (t - PORTAL_OUT) / (R.arc - PORTAL_OUT));
-    player.x = lerp(PORTAL_HOME_X, 84, u); player.y = -30 - (u > 0 ? 2 * (Math.floor(t * 6) % 2) : 0); player.pose = 'runL';
+    player.x = lerp(PORTAL_HOME_X, 84, u); player.y = LAUNCH_STAND_Y - (u > 0 ? 2 * (Math.floor(t * 6) % 2) : 0); player.pose = 'runL';
   } else if (t < R.up) {
     // Up the shaft on full thrust, keeping to its middle, slowing as he clears the top.
     const u = t / R.up;
@@ -8641,14 +8646,14 @@ function repairScene(t, dt, crossed) {
   } else if (t < R.arc) {
     // Out of the hole and over to his spot by the ship, coming down on the jets.
     const u = (t - R.up) / (R.arc - R.up);
-    player.x = lerp(shaftCentreX(0), 84, easeInOut(u)); player.y = lerp(-64, -30, u) - 18 * Math.sin(Math.PI * u); player.pose = 'standL';
+    player.x = lerp(shaftCentreX(0), 84, easeInOut(u)); player.y = lerp(-64, LAUNCH_STAND_Y, u) - 18 * Math.sin(Math.PI * u); player.pose = 'standL';
   } else if (t < R.arrive) {
-    player.x = 84; player.y = -30; player.pose = 'standL';
+    player.x = 84; player.y = LAUNCH_STAND_Y; player.pose = 'standL';
   } else if (t < R.toShip) {
-    player.x = lerp(84, 40, (t - R.arrive) / (R.toShip - R.arrive)); player.y = -30 - 2 * (Math.floor(t * 6) % 2); player.pose = 'runL';
+    player.x = lerp(84, 40, (t - R.arrive) / (R.toShip - R.arrive)); player.y = LAUNCH_STAND_Y - 2 * (Math.floor(t * 6) % 2); player.pose = 'runL';
   } else if (t < R.hop) {
     const k = easeInOut((t - R.toShip) / (R.hop - R.toShip));
-    player.x = lerp(40, 26, k); player.y = lerp(-30, -49, k); player.pose = 'standL';
+    player.x = lerp(40, 26, k); player.y = lerp(LAUNCH_STAND_Y, -49, k); player.pose = 'standL';
   } else if (t < R.weld) {
     player.x = 26; player.y = -49 + Math.round(Math.sin(t * 5)); player.pose = 'standL';
     // Welding: sparks fly from the torch tip, with a crackle every so often.
@@ -8660,13 +8665,13 @@ function repairScene(t, dt, crossed) {
     if (Math.floor(t / 0.18) !== Math.floor((t - dt) / 0.18)) Sfx.weld();
   } else if (t < R.drop) {
     const k = easeInOut((t - R.weld) / (R.drop - R.weld));
-    player.x = lerp(26, 70, k); player.y = lerp(-49, -30, k); player.pose = 'stand';
+    player.x = lerp(26, 70, k); player.y = lerp(-49, LAUNCH_STAND_Y, k); player.pose = 'stand';
   } else if (t < R.hammer) {
-    player.x = 70; player.y = -30; player.pose = 'standL';
+    player.x = 70; player.y = LAUNCH_STAND_Y; player.pose = 'standL';
   } else if (t < R.back) {
     const k = (t - R.hammer) / (R.back - R.hammer);
-    player.x = lerp(70, 84, k); player.y = -30 - 2 * (Math.floor(t * 6) % 2); player.pose = 'run';
-  } else { player.x = 84; player.y = -30; player.pose = 'standL'; }
+    player.x = lerp(70, 84, k); player.y = LAUNCH_STAND_Y - 2 * (Math.floor(t * 6) % 2); player.pose = 'run';
+  } else { player.x = 84; player.y = LAUNCH_STAND_Y; player.pose = 'standL'; }
   // The jetpack hisses while he's off the ground.
   if (t - dt <= 0) { if (launchPortal) Sfx.whoosh(); else Sfx.thrust(0.9); }
   if (launchPortal && crossed(PORTAL_OUT)) { Sfx.jump(); squash(-0.2); sparks(PORTAL_HOME_X, -26, PORTAL_ORANGE.slice(1), 16, 8); }
@@ -8744,12 +8749,12 @@ function updateLaunch(dt) {
   if (t < REPAIR.done) repairScene(t, dt, crossed);
   else if (t < L.wave) {
     player.x = lerp(LAUNCH_ORIGINAL_START_X, 64, (t - REPAIR.done) / (L.wave - REPAIR.done));
-    player.y = -30 - 2 * (Math.floor(t * 6) % 2); player.pose = 'runL';
+    player.y = LAUNCH_STAND_Y - 2 * (Math.floor(t * 6) % 2); player.pose = 'runL';
   }
-  else if (t < L.board) { player.x = 64; player.y = -30; player.pose = 'wave'; }
+  else if (t < L.board) { player.x = 64; player.y = LAUNCH_STAND_Y; player.pose = 'wave'; }
   else if (t < L.aboard) {
     player.x = lerp(64, 52, (t - L.board) / (L.aboard - L.board));
-    player.y = -30 - 2 * (Math.floor(t * 6) % 2);
+    player.y = LAUNCH_STAND_Y - 2 * (Math.floor(t * 6) % 2);
     player.pose = 'runL';
   }
   else player.hidden = true;
