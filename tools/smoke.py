@@ -22,7 +22,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHROME = os.environ.get('CHROME', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
 
 HOOK = ("window.__smoke = { setCard, openMenu, pause, resume, toTitle, leaveCafe, openShop, showEnd, perfStart, "
-        "get perfOn() { return perfOn; }, get cardSide() { return cardSide; } };")
+        "get perfOn() { return perfOn; }, get cardSide() { return cardSide; }, get wakeWant() { return typeof wakeWant === 'undefined' ? false : wakeWant; } };")
 
 DRIVER = r"""<script>
 (async () => {
@@ -57,6 +57,10 @@ DRIVER = r"""<script>
   await step('falling', 'play', () => {}, 60 * 20, safe);
   await step('pause', 'paused', () => S.pause(), 10);
   await step('resume', 'play', () => S.resume(), 10, safe);
+  if (!S.wakeWant) out.errors.push('screen awake: not asked for during a run');
+  // The phone's back gesture mid-run pauses instead of leaving (see phones in the game).
+  await step('back gesture', 'paused', () => dispatchEvent(new PopStateEvent('popstate', { state: null })), 10);
+  await step('resume after back', 'play', () => S.resume(), 10, safe);
   await step('cafe landing', 'cafe', () => { P.y = M.cafeInfo(1).Dl - 400; }, 60 * 12, () => { safe(); P.x = M.cafeInfo(1).padX; P.aim = P.x; });
   await step('shop', 'cafe', () => S.openShop(), 20);
   await step('leave cafe', 'cafeJump|play', () => S.leaveCafe(), 60 * 3, safe);
@@ -65,6 +69,7 @@ DRIVER = r"""<script>
   await step('death', 'over|dying', () => { P.inv = 0; P.shield = 0; P.hp = 1; M.rocks.length = 0; M.rocks.push({ d: P.y + 14, x0: P.x, x: P.x, size: 1, rr: 9, amp: 0, ph: 0, sp: 1, hot: true, isMine: true, dead: false }); }, 60 * 4);
   await step('high scores', '', () => M.openTable && M.openTable(), 30);
   await step('back to menu', 'title', () => S.toTitle(), 30);
+  if (S.wakeWant) out.errors.push('screen awake: still asked for on the menu');
   await step('self-test', 'intro|play', () => S.perfStart(), 60 * 3);
   await step('self-test quit', 'title', () => S.toTitle(), 20);
   if (S.perfOn) out.errors.push('self-test still on after quitting it');
