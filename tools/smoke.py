@@ -61,7 +61,12 @@ DRIVER = r"""<script>
   for (const card of ['settings', 'how', 'news', 'levi', 'badges', 'unlocks', 'moons', 'kid'])
     await step('card ' + card, 'title', () => S.setCard(card, true), 20);
   await step('cards closed', 'title', () => S.setCard(null, true), 10);
-  await step('start', 'intro|play', () => $('startBtn').click(), 60 * 4);
+  // Jump in shows the card with the components and the moons; Back stays on the menu, Dive! starts the dive.
+  await step('jump in card', 'title', () => $('startBtn').click(), 10);
+  if (!$('confirmDlg').open || $('confirmMoons').hidden) out.errors.push('jump in: no card with the moons');
+  await step('jump in back', 'title', () => $('confirmNo').click(), 10);
+  if ($('confirmDlg').open) out.errors.push('jump in: Back left the card open');
+  await step('start', 'intro|play', () => { $('startBtn').click(); $('confirmYes').click(); }, 60 * 4);
   await step('falling', 'play', () => {}, 60 * 20, safe);
   await step('pause', 'paused', () => S.pause(), 10);
   await step('resume', 'play', () => S.resume(), 10, safe);

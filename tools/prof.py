@@ -161,7 +161,7 @@ DRIVER = r"""<script>
   if (M.state === 'opening') { $('introSkip').click(); await wait(100); }
   await run(60, 'menu');
   // The fall.
-  $('startBtn').click(); await wait(100);
+  $('startBtn').click(); if (document.getElementById('confirmDlg').open) document.getElementById('confirmYes').click(); await wait(100);
   const kinds = X.kinds(), fights = kinds.length, H = M.H;
   let cafeK = 1, atCafe = 0, fought = 0, lastBoss = null;
   for (let i = 0; i < fights; i++) M.setLevi(2 * (2 * i + 1), kinds[i]);   // cafe 1, 3, 5 ... each get the next kind

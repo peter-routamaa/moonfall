@@ -59,7 +59,7 @@ DRIVER = r"""<script>
     if (M.applyMoon) { M.applyMoon(moon); M.save.moon = moon; }
     ($('splashSkip') || { click() { $('chooseBtn').click(); document.querySelector('.splash-moon[data-moon="' + moon + '"]').click(); $('splashBtn').click(); $('introSkip').click(); } }).click(); await wait(300);
     for (let i = 0; i < 120; i++) step();
-    $('startBtn').click(); await wait(100);
+    $('startBtn').click(); if (document.getElementById('confirmDlg').open) document.getElementById('confirmYes').click(); await wait(100);
     const kinds = X.kinds(), fights = kinds.length;
     for (let i = 0; i < fights; i++) M.setLevi(2 * (2 * i + 1), kinds[i]);
     let cafeK = 1, atCafe = 0, fought = 0, cur = null, guard = 0, shaft = [], shaftFrames = 0, shaftMax = 0; const sc = { rect: 0, img: 0, offRect: 0, offImg: 0 };

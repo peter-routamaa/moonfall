@@ -23,7 +23,7 @@ DRIVER = r"""<script>
   const step = () => { t += 1000 / 60; if (document.getElementById('confirmDlg').open && !document.getElementById('confirmPic').hidden) document.getElementById('confirmYes').click(); M.frame(t); };   // Continue on a component's card, as a player would
   (document.getElementById('splashSkip') || { click() { const g = id => document.getElementById(id); g('chooseBtn').click(); document.querySelector('.splash-moon[data-moon="' + (window.__mf.moon || 'dust') + '"]').click(); g('splashBtn').click(); g('introSkip').click(); if (g('menuStart') && !new URLSearchParams(location.search).get('clean')) g('menuStart').click(); } }).click(); await wait(300);
   for (let i = 0; i < 60; i++) step();
-  document.getElementById('startBtn').click(); await wait(100);
+  document.getElementById('startBtn').click(); if (document.getElementById('confirmDlg').open) document.getElementById('confirmYes').click(); await wait(100);
   const times = [];
   for (let i = 0; i < 3600; i++) {
     P.inv = 1; P.hp = 5;
