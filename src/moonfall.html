@@ -19,6 +19,7 @@
   --purple-dk: #5B3AA8;
   --gold: #F2C14E;
   --gold-dk: #A9781B;
+  --pink: #E8708A;   /* Kid mode: its Settings tile and the heart on the New features card */
   --display: "Silkscreen", ui-monospace, "Courier New", monospace;
   --body: "VT323", ui-monospace, "Courier New", monospace;
   color-scheme: dark;
@@ -143,6 +144,20 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 /* Kid mode. A tile in the Settings grid's empty slot (its badge says ON while any setting is off
    normal) opens its own face: sliders in 25% steps, the cafe speed-up switch, Revert to standard mode and Done. */
 .set-tog.kid-tog[data-on="true"] { border-color: var(--green); background: transparent; }
+/* Owner: "make kid mode more pronounced ... a different-coloured border and possibly a slight wiggle". While it's off
+   the tile has a pink border and tint (no strike-through: it opens a card, it isn't switched off) and gives a short
+   wiggle every 5 s; once it's on it keeps the green border and stays still. */
+.set-tog.kid-tog[data-on="false"] { border-color: var(--pink); background: color-mix(in srgb, var(--pink) 14%, transparent);
+  animation: kidwiggle 5s steps(1, end) infinite; transform-origin: 50% 60%; }
+.set-tog.kid-tog[data-on="false"]::after { background: var(--pink); color: var(--ink); }
+@keyframes kidwiggle {
+  0%, 84%, 100% { transform: none; }
+  86% { transform: rotate(-3deg); }
+  88% { transform: rotate(3deg); }
+  90% { transform: rotate(-2deg); }
+  92% { transform: rotate(2deg); }
+  94% { transform: rotate(-1deg); }
+}
 .set-tog.kid-tog[data-on="true"]::after { content: 'ON'; background: var(--green); color: var(--ink); }
 #kidBack h2 { text-align: center; }
 #kidBack { gap: 12px; }
@@ -641,6 +656,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   .btn.launch { animation: none; }
   .news { animation: none; }
   .btn.bob { animation: none; }
+  .set-tog.kid-tog { animation: none; }
   .intro-skip { animation: none; }
   #titleScreen.arriving * { animation: none !important; }
   .intro-cap { transition: none; }
@@ -833,7 +849,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <li><button class="news-item" id="newsLevi" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#C64B3B" d="M2 0h4v1h-4zM1 1h6v1h-6zM0 2h8v3h-8zM1 5h6v1h-6zM2 6h4v1h-4z"/><path fill="#F2C14E" d="M3 2h2v3h-2z"/><path fill="#1A1E2C" d="M3 3h1v1h-1z"/></svg></span><span class="news-name">Leviathan chases</span><span class="news-how">Giant creatures hunt you after every second cafe. Each moon has its own creatures. Tap to meet them!</span></button></li>
         <li><button class="news-item" id="newsMoons" type="button"><span class="news-ico"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg><svg class="moon-ico machine" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg></span><span class="news-name">The new moons</span><span class="news-how">Fall into the Dust moon, the Jungle moon or the Machine moon. Swap any time in Settings. Tap to learn more.</span></button></li>
         <li><button class="news-item" id="newsHard" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#E8B83A" d="M0 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1zM3 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1z"/></svg></span><span class="news-name">Terminal Velocity</span><span class="news-how">Fix the ship once to earn it: 4 health, 15% faster and raging Leviathans. Tap to see Unlocks.</span></button></li>
-        <li><button class="news-item" id="newsKid" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="#E8708A" d="M1 0h2v1h-2zM5 0h2v1h-2zM0 1h8v2h-8zM1 3h6v1h-6zM2 4h4v1h-4zM3 5h2v1h-2z"/><path fill="#F7B6C4" d="M1 1h1v1h-1z"/></svg></span><span class="news-name">Kid mode</span><span class="news-how">An easier dive for younger pilots, with its own high scores. Tap to set it up.</span></button></li>
+        <li><button class="news-item" id="newsKid" type="button"><span class="news-ico big"><svg viewBox="0 0 8 7" width="16" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="var(--pink)" d="M1 0h2v1h-2zM5 0h2v1h-2zM0 1h8v2h-8zM1 3h6v1h-6zM2 4h4v1h-4zM3 5h2v1h-2z"/><path fill="#F7B6C4" d="M1 1h1v1h-1z"/></svg></span><span class="news-name">Kid mode</span><span class="news-how">An easier dive for younger pilots, with its own high scores. Tap to set it up.</span></button></li>
       </ul>
       <button class="btn" id="newsDone" type="button">Done</button>
      </div>
@@ -1031,7 +1047,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 222;
+const VERSION = 223;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
