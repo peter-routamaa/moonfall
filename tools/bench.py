@@ -20,7 +20,7 @@ DRIVER = r"""<script>
   document.addEventListener('visibilitychange', e => e.stopImmediatePropagation(), true);
   if (document.fonts) await document.fonts.ready; await wait(300);
   let t = performance.now() + 1000;
-  const step = () => { t += 1000 / 60; M.frame(t); };
+  const step = () => { t += 1000 / 60; if (document.getElementById('confirmDlg').open && !document.getElementById('confirmPic').hidden) document.getElementById('confirmYes').click(); M.frame(t); };   // Continue on a component's card, as a player would
   (document.getElementById('splashSkip') || { click() { const g = id => document.getElementById(id); g('chooseBtn').click(); document.querySelector('.splash-moon[data-moon="' + (window.__mf.moon || 'dust') + '"]').click(); g('splashBtn').click(); g('introSkip').click(); if (g('menuStart') && !new URLSearchParams(location.search).get('clean')) g('menuStart').click(); } }).click(); await wait(300);
   for (let i = 0; i < 60; i++) step();
   document.getElementById('startBtn').click(); await wait(100);

@@ -54,7 +54,7 @@ DRIVER = r"""<script>
     const C = CanvasRenderingContext2D.prototype, fr = C.fillRect, di = C.drawImage, n = { rect: 0, img: 0, offRect: 0, offImg: 0 };
     C.fillRect = function (x, y, w, h) { if (this.canvas.id) n.rect++; else n.offRect++; fr.call(this, x, y, w, h); };
     C.drawImage = function (...a) { if (this.canvas.id) n.img++; else n.offImg++; return di.apply(this, a); };
-    const step = () => { t += 1000 / 60; M.frame(t); };
+    const step = () => { t += 1000 / 60; if (document.getElementById('confirmDlg').open && !document.getElementById('confirmPic').hidden) document.getElementById('confirmYes').click(); M.frame(t); };   // Continue on a component's card, as a player would
     for (let i = 0; i < 60; i++) step();
     if (M.applyMoon) { M.applyMoon(moon); M.save.moon = moon; }
     ($('splashSkip') || { click() { $('chooseBtn').click(); document.querySelector('.splash-moon[data-moon="' + moon + '"]').click(); $('splashBtn').click(); $('introSkip').click(); } }).click(); await wait(300);

@@ -29,7 +29,7 @@ DRIVER = r"""<script>
   const fp = name => { for (const id of ['cv', 'ov']) { const cv = document.getElementById(id), d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
     let h = 2166136261; for (let i = 0; i < d.length; i += 3) { h ^= d[i]; h = Math.imul(h, 16777619); } out.push(name + ':' + id + ':' + (h >>> 0).toString(16)); } };
   let t = performance.now() + 1000;
-  const run = (n, keep) => { for (let i = 0; i < n; i++) { t += 1000 / 60; if (keep) keep(); M.frame(t); } };
+  const run = (n, keep) => { for (let i = 0; i < n; i++) { t += 1000 / 60; if (keep) keep(); if (document.getElementById('confirmDlg').open && !document.getElementById('confirmPic').hidden) document.getElementById('confirmYes').click(); M.frame(t); } };   // Continue on a component's card, as a player would
   const mine = () => M.rocks.push({ d: P.y + 14, x0: P.x, x: P.x, size: 1, rr: 9, amp: 0, ph: 0, sp: 1, hot: true, isMine: true, dead: false });
   if (document.fonts) await document.fonts.ready; await wait(300);
   run(30); fp('splash');

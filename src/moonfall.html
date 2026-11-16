@@ -484,6 +484,8 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .btn.danger { background: var(--lava); color: var(--dust); box-shadow: 4px 4px 0 var(--dust-dim); }
 .btn.danger:active { box-shadow: 2px 2px 0 var(--dust-dim); }
 .confirm { margin: auto; border: 0; width: min(320px, calc(100vw - 32px)); }
+.confirm-pic { display: block; width: 56px; height: 56px; margin: 0 auto 4px; image-rendering: pixelated; }   /* a component won (askComp) */
+.confirm-pic[hidden] { display: none; }
 .confirm:not([open]) { display: none; }
 /* Low on the screen, clear of the pilot on the menu: the escape preview's pop-up, opened by tapping him (askPreview). */
 .confirm.low { margin: auto auto max(16px, env(safe-area-inset-bottom, 0px)); }
@@ -1023,6 +1025,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   </section>
 </div>
 <dialog class="card confirm" id="confirmDlg" aria-labelledby="confirmTitle" aria-describedby="confirmText">
+  <canvas class="confirm-pic" id="confirmPic" width="14" height="14" hidden aria-hidden="true"></canvas>
   <h2 id="confirmTitle">Reset ship repair?</h2>
   <p class="end-copy" id="confirmText"></p>
   <div class="row col">
@@ -1081,7 +1084,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 242;
+const VERSION = 243;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -1564,15 +1567,16 @@ function drawPart(pt, x, y, t, g) {
   }
   sprite(g, pt.spr, x - pt.spr[0].length / 2, y - pt.spr.length / 2, PMAP);
 }
-// A Leviathan escaped: the next component is his (none once all ten are). A banner names it as the Leviathan
-// crashes; the one that finishes the ship says so (shipRepaired).
+// A Leviathan escaped: the next component is his (none once all ten are), saved at once; a pop and the part sound as
+// it crashes, and its card (askComp) as the crash settles (compWon; not in the self-test, which plays on by itself).
+// The one that finishes the ship says so (shipRepaired).
+let compWon = null;
 function winComponent() {
   if (save.comps >= COMPONENTS.length) return;
   const cp = COMPONENTS[save.comps++]; persist(); renderRepair();
-  flashBanner(cp.name.toUpperCase(), 'Component ' + save.comps + ' of ' + COMPONENTS.length);
   Sfx.part(); pop('+' + cp.name.toUpperCase(), player.x, player.y - 10, 'part');
+  if (!perfOn) compWon = cp;
   if (repairFrac() >= 1) shipRepaired();
-  else if (partsDone()) showCoach((COMPONENTS.length - save.comps) + ' COMPONENTS TO GO: ESCAPE MORE LEVIATHANS', 3200);
 }
 // The moment the ship is ready to fly (the last part caught, or the last component won).
 function shipRepaired() {
@@ -4654,9 +4658,10 @@ if (!Number.isFinite(save.comps)) {
 }
 const partsDone = () => PARTS.every(pt => save.parts[pt.id] >= pt.need);
 const compsDone = () => save.comps >= COMPONENTS.length;
-// The ship repair: the five parts and the components as a sixth, each a share; at 1 it's ready to fly home.
-const repairFrac = () => (PARTS.reduce((sum, pt) => sum + Math.min(1, save.parts[pt.id] / pt.need), 0)
-  + Math.min(1, save.comps / COMPONENTS.length)) / (PARTS.length + 1);
+// The ship repair (owner: "Half and half"): the five falling parts make up half (each part's share of it as full as
+// that part), the ten components the other half (5% each); at 1 it's ready to fly home.
+const repairFrac = () => PARTS.reduce((sum, pt) => sum + Math.min(1, save.parts[pt.id] / pt.need), 0) / PARTS.length / 2
+  + Math.min(1, save.comps / COMPONENTS.length) / 2;
 const canLaunch = () => repairFrac() >= 1;
 // Kid mode: mines and Leviathan shots 0-100%; ship parts and health crystals 100-200% on one slider (drops); Health,
 // 100-200% of the pilot's health (5, or 4 on Terminal Velocity), rounded: 5, 6, 8, 9, 10; fall speed 50-100% (owner:
@@ -5932,7 +5937,7 @@ function speedUp(kind, total) {
   if (kind === 'max') { Sfx.bleep(880); return; }
   speedRush = reduceMotion ? 0 : 1.2; Sfx.whoosh(); Buzz.part();
 }
-// The big banner mid-screen (the speed-ups, a component won): head may hold the drawn percent sign (HTML).
+// The big banner mid-screen (the speed-ups): head may hold the drawn percent sign (HTML).
 function flashBanner(head, sub) {
   speedFlash.firstChild.innerHTML = head;
   speedFlash.lastChild.textContent = sub; pctify(speedFlash.lastChild);
@@ -6043,6 +6048,10 @@ function drawIcons() {
   const s = $('icoShield').getContext('2d'); s.clearRect(0, 0, 28, 28); drawBubble(14, 14, 0, s);
   const pc = $('icoPart').getContext('2d'); pc.clearRect(0, 0, 30, 30); drawPart(PARTS[0], 15, 15, 0.15, pc);
   sprite($('icoComp').getContext('2d'), COMPONENTS[0].spr, 0, 0, PMAP);   // the nav computer, the first component
+  // Each component's picture is painted once now, so its card (askComp) makes no image during a fight.
+  const cg = $('confirmPic').getContext('2d');
+  for (const cp of COMPONENTS) sprite(cg, cp.spr, 0, 0, PMAP);
+  cg.clearRect(0, 0, 14, 14);
   const mg = $('icoCafe').getContext('2d'); mg.clearRect(0, 0, 14, 14);
   mg.fillStyle = P.lite; mg.fillRect(3, 0, 1, 2); mg.fillRect(6, 1, 1, 2);
   mg.fillStyle = P.dust; mg.fillRect(1, 4, 9, 10); mg.fillRect(10, 6, 3, 1); mg.fillRect(12, 6, 1, 5); mg.fillRect(10, 10, 3, 1);
@@ -6372,7 +6381,8 @@ $('settingsDone').addEventListener('click', () => setCard(null));
 const confirmDlg = $('confirmDlg');
 // confirmKind: which question is open: 'reset' (two steps), 'hard' (Terminal Velocity), 'launch' (from the cafe),
 // 'repaired' (after the dive that finished the ship), 'drone' (the helper drone, offered as a dive starts),
-// 'droneEnd' (the helper drone, after the standard ending: one button) or 'preview' (the escape preview, before it starts).
+// 'droneEnd' (the helper drone, after the standard ending: one button), 'preview' (the escape preview, before it starts)
+// or 'comp' (a component won from a Leviathan: one button, the dive waits).
 let confirmStep = 0, resetTimer = 0, confirmKind = 'reset', confirmFrom = 'resetBtn';
 function clearRepair() {
   for (const pt of PARTS) save.parts[pt.id] = 0;
@@ -6381,12 +6391,13 @@ function clearRepair() {
 function popConfirm() {
   pctify($('confirmText')); pctify($('confirmYes'));
   $('confirmYes').classList.toggle('danger', confirmKind === 'reset' || confirmKind === 'hard');
-  $('confirmYes').classList.toggle('launch', ['launch', 'repaired', 'drone', 'droneEnd', 'preview'].includes(confirmKind));
-  $('confirmNo').hidden = confirmKind === 'droneEnd';
+  $('confirmYes').classList.toggle('launch', ['launch', 'repaired', 'drone', 'droneEnd', 'preview', 'comp'].includes(confirmKind));
+  $('confirmNo').hidden = confirmKind === 'droneEnd' || confirmKind === 'comp';
+  $('confirmPic').hidden = confirmKind !== 'comp';
   confirmDlg.classList.toggle('low', confirmKind === 'preview');
   confirmDlg.classList.remove('pop-in'); void confirmDlg.offsetWidth; confirmDlg.classList.add('pop-in');
   if (!confirmDlg.open) confirmDlg.showModal();
-  $(confirmKind === 'droneEnd' ? 'confirmYes' : 'confirmNo').focus();
+  $(confirmKind === 'droneEnd' || confirmKind === 'comp' ? 'confirmYes' : 'confirmNo').focus();
 }
 // Hard Dive's pop-up: one question, red like the reset's second step. With nothing to lose (no parts, no
 // components) it just switches on.
@@ -6478,6 +6489,25 @@ function askPreview() {
   setTimeout(() => { for (const b of buttons) b.disabled = false; if (confirmDlg.open) $('confirmNo').focus(); }, PREVIEW_ASK_WAIT);
   popConfirm();
 }
+// A component won (owner: "Big card, game waits"): as the escaped Leviathan's crash settles, the dive holds (no pause
+// screen) under a card with the component's picture; Continue (or closing it) carries on.
+function askComp(cp) {
+  if (state !== 'play') return;
+  prevState = state; setState('paused'); Sfx.thrust(0); steerAcc = 0; presses.clear();
+  confirmKind = 'comp'; confirmFrom = 'pauseBtn'; confirmStep = 0;
+  confirmDlg.classList.remove('danger');
+  const g = $('confirmPic').getContext('2d'); g.clearRect(0, 0, 14, 14); sprite(g, cp.spr, 0, 0, PMAP);
+  const left = COMPONENTS.length - save.comps;
+  $('confirmTitle').textContent = 'Component won!';
+  $('confirmText').textContent = cp.name + ', ' + save.comps + ' of ' + COMPONENTS.length + '. '
+    + (canLaunch() ? 'The ship is repaired: fly it home from the main menu!'
+      : left ? 'Escape ' + left + ' more Leviathan' + (left === 1 ? '' : 's') + ' for the rest.' : 'Every component won! Now finish collecting the ship parts.');
+  $('confirmYes').hidden = false; $('confirmYes').textContent = 'Continue';
+  popConfirm();
+}
+// The dive goes on after the component's card. The frame loop kept running under it (the music too), so unlike
+// resume() nothing needs restarting.
+function endHold() { if (state === 'paused' && $('pauseScreen').hidden) setState(prevState); }
 // The cafe's launch: the dive ends there, so it asks first.
 function askLaunch() {
   if (state !== 'cafe' || !canLaunch()) return;
@@ -6497,6 +6527,7 @@ $('confirmYes').addEventListener('click', () => {
   if (confirmKind === 'repaired') { confirmDlg.close(); flyHome(); return; }
   if (confirmKind === 'droneEnd') { confirmDlg.close(); return; }
   if (confirmKind === 'preview') { confirmDlg.close(); startPreview(); return; }
+  if (confirmKind === 'comp') { endHold(); confirmDlg.close(); return; }   // on with the dive at once (the close event comes later)
   if (confirmKind === 'hard') {   // start the mission over, then Terminal Velocity on
     confirmDlg.close(); clearRepair(); save.hard = true; persist(); renderRepair(); syncToggles(); Sfx.bleep(330); return;
   }
@@ -6507,7 +6538,10 @@ $('confirmYes').addEventListener('click', () => {
   const b = $('resetBtn'); b.textContent = 'Repair reset to 0%'; pctify(b);
   clearTimeout(resetTimer); resetTimer = setTimeout(() => (b.textContent = 'Reset ship repair'), 2500);
 });
-confirmDlg.addEventListener('close', () => { $(confirmFrom).focus({ preventScroll: true }); confirmKind = 'reset'; });
+confirmDlg.addEventListener('close', () => {
+  if (confirmKind === 'comp') endHold();   // however the component's card closed, the dive goes on
+  $(confirmFrom).focus({ preventScroll: true }); confirmKind = 'reset';
+});
 
 // ---------- run stats (sent to the private play stats) ----------
 // Private stats for the owner's Supabase dashboard: a random ID made once per device (no name, nothing personal),
@@ -6601,6 +6635,7 @@ function endRun(how) {
 
 // ---------- flow ----------
 function resetRun() {
+  compWon = null;   // a card still waiting from the last dive is dropped (the component itself is saved)
   newSeed(); sayEl.style.visibility = ''; sq.q = sq.v = 0;
   rocks = []; items = []; particles = []; hazards = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; lastHazD = -9999; steerAcc = 0;
   for (const k in runParts) runParts[k] = 0;
@@ -10045,7 +10080,10 @@ function updateBoss(dt) {
       const booms = [0.12, 0.26, 0.4, 0.55];
       for (let i = 0; i < booms.length; i++) if (b.pt >= booms[i] && b.pt - dt < booms[i]) explode(b.x + (i % 2 ? 1 : -1) * (20 + i * 14), b.d + md * 0.6 + (Math.random() - 0.5) * 30, 20, true);
       shake = Math.max(shake, 2.4 * (1 - b.pt / 1.6));
-      if (b.pt >= 1 && b.pt - dt < 1) { hud.classList.remove('boss'); bossTuneOn = false; Music.start(3.5); }
+      if (b.pt >= 1 && b.pt - dt < 1) {
+        hud.classList.remove('boss'); bossTuneOn = false; Music.start(3.5);
+        if (compWon) { const cp = compWon; compWon = null; askComp(cp); }
+      }
       target = b.pt < 0.8 ? Math.round(H * 0.42) : pilotScreenY;
       if (b.pt >= 2) boss = null;
     }

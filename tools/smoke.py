@@ -34,13 +34,15 @@ DRIVER = r"""<script>
   const wait = ms => new Promise(f => setTimeout(f, ms));
   const seen = new Set();   // every state the run passed through, frame by frame
   let t = performance.now() + 1000;
-  const run = (n, keep) => { for (let i = 0; i < n; i++) { t += 1000 / 60; if (keep) keep(); try { M.frame(t); } catch (e) { out.errors.push('frame: ' + (e && e.message || e)); } seen.add(M.state); } };
+  // A component's card (a Leviathan escaped) gets Continue, as a player would; compCards counts them.
+  const run = (n, keep) => { for (let i = 0; i < n; i++) { t += 1000 / 60; if (keep) keep(); if ($('confirmDlg').open && !$('confirmPic').hidden) { out.compCards = (out.compCards || 0) + 1; $('confirmYes').click(); } try { M.frame(t); } catch (e) { out.errors.push('frame: ' + (e && e.message || e)); } seen.add(M.state); } };
   const safe = () => { P.inv = 1; P.hp = P.max; };
   // A step does something, plays some frames, and says which state it should end in ('' for any).
   const step = async (name, want, fn, frames, keep) => {
     await wait(20);   // lets the last step's history.back() land, as a person's pace would (see phones in the game)
     try { await fn(); } catch (e) { out.errors.push(name + ': ' + (e && e.message || e)); }
     run(frames || 0, keep);
+    if ($('confirmDlg').open && !$('confirmPic').hidden) run(1, keep);   // a component's card on the step's last frame
     const ok = !want || want.split('|').includes(M.state);
     out.steps.push({ name, state: M.state, ok });
   };

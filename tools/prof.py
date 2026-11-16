@@ -134,6 +134,7 @@ DRIVER = r"""<script>
     }
     PR.phase(name); const ph = PR.cur; for (const k in PR.frameFn) PR.frameFn[k] = 0;
     t += 1000 / 60;
+    if (document.getElementById('confirmDlg').open && !document.getElementById('confirmPic').hidden) document.getElementById('confirmYes').click();   // Continue on a component's card, as a player would
     const a = performance.now(); M.frame(t); const ms = performance.now() - a;
     ph.n++; ph.times.push(ms); total++;
     if (SHOTS.has(total)) for (const id of ['cv', 'ov']) localStorage.setItem('shot:' + location.pathname + ':' + moon + ':' + total + ':' + id, $(id).toDataURL());
