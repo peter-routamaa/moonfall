@@ -27,14 +27,19 @@ here.
    to", "until", old values. History goes in `MOONFALL-NOTES.md` and the commit message. Keep the owner's words only when
    they state a decision a later editor must respect. When you change code, fix its comment in the same edit; never
    leave a comment that describes a rule or function that isn't there.
-   **[checked: tools/checks.py, no "version N" in comments]**
+   **[checked: tools/checks.py, no "version N", version tag (v197, v197-200, v0.224), "no longer", "used to", "was
+   replaced" or "previously" in a comment. A comment that must name a version for another reason (how the version
+   number is shown) puts `history-ok` in it]**
 5. **Names say what things are, and never hide another.** No one- or two-letter names for anything that lives more
    than a few lines (loop counters and pixel-art coordinates are fine). A local never reuses the name of a global or
-   a well-known value: `S` (scenery palette), `P` (palette), `W`, `H`, `c`, `clock`, `moon`, `state`, `save`,
-   `player`, `boss`, `camY`. **[checked: tools/checks.py]**
+   a well-known value: `S` (scenery palette), `P` (palette), `W`, `H`, `sc` (the scale), `cv` (the world canvas), `c`,
+   `clock`, `moon`, `state`, `save`, `player`, `boss`, `camY`. **[checked: tools/checks.py, with the JavaScript parser:
+   parameters, every name in a declaration, destructuring, loop variables, catch parameters]**
 6. **Lines a reader can follow.** In logic, one statement per line; pixel-art drawing may pack a few `fillRect` calls
    together. No ternary nested more than two deep (pick with `if`, or a small lookup table). Aim for 120 characters,
-   160 at most, except data tables and sprite rows.
+   160 at most, except data tables and sprite rows. **[checked: tools/checks.py, as ratchets: the number of script
+   lines over 160 characters that aren't data rows (only literals, names, brackets and commas), and of ternaries nested
+   more than two deep, may not go up; lower `LONG_LINES_MAX` / `DEEP_TERNARIES_MAX` when a tidy-up brings one down]**
 7. **One error must never stop the game.** There is one frame loop (`frame()`, which survives errors); don't add
    another. Code that borrows shared state to draw elsewhere (`c`, `clock`, `player.x`, `stampDirect`, `bossTmp`) puts
    it back in a `try { } finally { }`. A `setTimeout` checks the state is still what it was made for when it fires.
@@ -114,7 +119,8 @@ What the 2026-11-15 review found, by rule:
 10. Kid mode sliders had no spoken names; reduced motion turned the low-health blink into a flicker.
 11. Launch music kept playing in the background; long noises stopped with a click. Later, on an iPhone, the sound
     crackled and cut in and out after 15-20 minutes of play: no finished sound was ever disconnected.
-12. The pixel check said DIFFERENT on identical files, so nobody could trust it.
+12. The pixel check said DIFFERENT on identical files, so nobody could trust it. A later review found it hashed only
+    one byte in three, so a change in one colour channel could pass as SAME.
 13. A release check printed OK after running no fights at all.
 
 These rules catch the problems we know about. A fresh look at the code now and then (before a big feature, or every

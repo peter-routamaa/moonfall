@@ -26,8 +26,10 @@ DRIVER = r"""<script>
   const M = window.__mf, wait = ms => new Promise(f => setTimeout(f, ms)), out = [];
   document.addEventListener('visibilitychange', e => e.stopImmediatePropagation(), true);
   const P = M.player || M.pl;
-  const fp = name => { for (const id of ['cv', 'ov']) { const cv = document.getElementById(id), d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
-    let h = 2166136261; for (let i = 0; i < d.length; i += 3) { h ^= d[i]; h = Math.imul(h, 16777619); } out.push(name + ':' + id + ':' + (h >>> 0).toString(16)); } };
+  // Each pixel's whole RGBA value goes into the hash (as fight_makes.py's fpOf), so a change in one channel of one pixel shows.
+  const fp = name => { for (const id of ['cv', 'ov']) { const cv = document.getElementById(id);
+    const d = new Uint32Array(cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data.buffer);
+    let h = 2166136261; for (let i = 0; i < d.length; i++) { h ^= d[i]; h = Math.imul(h, 16777619); } out.push(name + ':' + id + ':' + (h >>> 0).toString(16)); } };
   let t = performance.now() + 1000;
   const run = (n, keep) => { for (let i = 0; i < n; i++) { t += 1000 / 60; if (keep) keep(); __tools.continueCard(); M.frame(t); } };   // Continue on a component's card, as a player would
   const mine = () => M.rocks.push({ d: P.y + 14, x0: P.x, x: P.x, size: 1, rr: 9, amp: 0, ph: 0, sp: 1, hot: true, isMine: true, dead: false });
