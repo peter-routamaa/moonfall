@@ -1100,7 +1100,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 252;
+const VERSION = 253;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -6610,12 +6610,12 @@ function askComps() {
   const names = got.map(cp => cp.name), list = n > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[n - 1] : names[0];
   const left = COMPONENTS.length - compsCount();
   const onMoon = m => COMPONENTS.filter(cp => LEVI_SETS[m].includes(cp.levi) && save.compsGot.includes(cp.id)).length;
-  const perMoon = Object.keys(LEVI_SETS).map(m => MOON_NAMES[m].replace(' moon', '') + ' ' + onMoon(m) + '/' + LEVI_SETS[m].length).join('\n');
+  const perMoon = Object.keys(LEVI_SETS).map(m => MOON_NAMES[m] + ': ' + onMoon(m) + '/' + LEVI_SETS[m].length).join('\n');
   $('confirmTitle').textContent = n > 1 ? 'Components unlocked!' : 'Component unlocked!';
-  $('confirmText').textContent = list + ' fitted to the ship. Components: ' + compsCount() + ' of ' + COMPONENTS.length + '\n'
+  $('confirmText').textContent = list + ' fitted to the ship. Components: ' + compsCount() + ' of ' + COMPONENTS.length + '\n\n'
     + perMoon + '\n\n'
     + (canLaunch() ? 'The ship is repaired: fly it home!'
-      : left ? 'Each moon\'s six Leviathans guard six components: travel to all three moons to collect them all.'
+      : left ? 'Each moon\'s six Leviathans guard components: travel to all three moons to collect them all.'
         : 'Every component fitted! Now finish collecting the ship parts.');
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Great!';
   popConfirm();
