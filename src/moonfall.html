@@ -1099,7 +1099,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 
 // Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
 // published version.
-const VERSION = 263;
+const VERSION = 264;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -2230,7 +2230,7 @@ function leviathans(cam) {
   // The cafe above's, the one passing between the two cafes, and the cafe below's: no other is ever near the screen.
   for (let k = Math.max(1, 2 * j); k <= 2 * j + 2; k++) {
     const D = leviMark(k), A = leviDepth(k), sy = H / 2 + (A - mid) * LEVI_PARALLAX, dir = hash(k * 4.3 + SEED) < 0.5 ? 1 : -1, sx = W / 2 + dir * (mid - A) * 0.14;
-    if (bossHides(k) || k === 2 * CAVE_J + 1) continue;   // that passer would swim through the deep cave
+    if (bossHides(k) || k === CAVE_LEVI_K) continue;   // that passer would swim through the deep cave (it waits there: caveLeviathan)
     const kind = leviKind(k);
     if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(kind); }
     if (state === 'play' && sy > -40 && sy < H + 40) near = true;
@@ -8339,10 +8339,25 @@ function drawPortal(x, y, open, cols) {
     if (w > 6) { c.fillStyle = (Math.floor((dy + clock * 18) / 4) % 2) ? cols[2] : cols[3]; c.fillRect(Math.round(x - w + 4), yy, Math.round(2 * w - 8), 1); }
   }
 }
+// Owner: "in the cave at 20k, can we have one of the Leviathans in the background, same as you do at the cafes?" The
+// creature that would have passed there (CAVE_LEVI_K, left out of the shaft's own, see leviathans) hangs on the cave's
+// back wall, dim like the cafes' and drifting slowly side to side, behind the fireworks, the roof and the floor; it groans
+// once as it comes into view, as theirs do.
+const CAVE_LEVI_K = 2 * CAVE_J + 1;
+function caveLeviathan(cave, cam) {
+  const kind = leviKind(CAVE_LEVI_K), dir = hash(CAVE_LEVI_K * 4.3 + SEED) < 0.5 ? 1 : -1;
+  const sx = W / 2 + Math.sin(clock * 0.25) * 28, sy = cave.T + CAVE_ROOF_H + (CAVE_H - CAVE_ROOF_H - CAVE_FLOOR_H) / 2 - cam;
+  if (sy < -220 || sy > H + 220) return;
+  const inView = sy > -40 && sy < H + 40;
+  if ((state === 'play' || state === 'cave') && inView && !leviSeen.has(CAVE_LEVI_K)) { leviSeen.add(CAVE_LEVI_K); Sfx.groan(kind); }
+  const Q = palAt(cave.T);
+  LEVIATHANS[kind].draw(sx, sy, dir, CAVE_LEVI_K, Q.lev0 || (Q.lev0 = mix(Q.sO, P.ink, 0.42)));
+}
 function drawCave(cam) {
   if (!caveArt) return;
   const cave = caveInfo(), top = cave.T - cam, floorY = cave.F - cam;
   if (floorY < -40 || top > H + CAVE_ROOF_H) return;
+  caveLeviathan(cave, cam);
   if (fireworks.length && fwShow.world) drawFireworks(cam);   // far off, behind the roof's art and everything on the floor
   c.drawImage(caveArt.roof, 0, Math.round(top));
   c.drawImage(caveArt.floor, 0, Math.round(floorY - CAVE_FLOOR_H));
@@ -9054,7 +9069,12 @@ function drawFireworks(cam) {
 // it, lands and hammers the hull, steps back as the smoke clears and a shine runs over the ship. Then the launch runs on
 // its original timings, shifted to start once the repair is done: wave, climb aboard, rumble, tip upright, blast off.
 const REPAIR = { up: 1.6, arc: 2.7, arrive: 3.2, toShip: 4.2, hop: 4.8, weld: 7.6, drop: 8.2, hammer: 10.4, back: 10.9, shine: 11.6, done: 12.0 };
-const SHAFT_START_Y = 260;   // how far down the shaft he starts his climb out, in pixels
+const SHAFT_START_Y = 500;   // how far down the shaft he starts his climb out, in pixels
+// Owner: "make the very beginning of the final cinematic a little bit longer by showing the player flying up through a
+// little bit more of the ... shaft". Up the shaft, the ending starts CLIMB_EXTRA s before 0 (launchT from -CLIMB_EXTRA),
+// so the climb is longer and every later time stays where it is; out of the cave's portal it starts at 0.
+const CLIMB_EXTRA = 1.2;
+let launchStart = 0;
 // After the deep cave's portal (launchPortal) he steps out of an orange portal by the ship instead: it opens, he comes
 // out at PORTAL_OUT s and walks to his spot, and it closes behind him; the rest is the same.
 let launchPortal = false;
@@ -9156,7 +9176,7 @@ function repairScene(t, dt, crossed) {
     player.x = lerp(PORTAL_HOME_X, 84, u); player.y = LAUNCH_STAND_Y - (u > 0 ? 2 * (Math.floor(t * 6) % 2) : 0); player.pose = 'runL';
   } else if (t < R.up) {
     // Up the shaft on full thrust, keeping to its middle, slowing as he clears the top.
-    const u = t / R.up;
+    const u = (t - launchStart) / (R.up - launchStart);
     player.y = lerp(SHAFT_START_Y, -64, 1 - (1 - u) * (1 - u));
     player.x = Math.round(shaftCentreX(Math.max(0, player.y + PILOT_CY))); player.pose = 'stand';
   } else if (t < R.arc) {
@@ -9189,7 +9209,7 @@ function repairScene(t, dt, crossed) {
     player.x = lerp(70, 84, k); player.y = LAUNCH_STAND_Y - 2 * (Math.floor(t * 6) % 2); player.pose = 'run';
   } else { player.x = 84; player.y = LAUNCH_STAND_Y; player.pose = 'standL'; }
   // The jetpack hisses while he's off the ground.
-  if (t - dt <= 0) { if (launchPortal) Sfx.whoosh(); else Sfx.thrust(0.9); }
+  if (t - dt <= launchStart) { if (launchPortal) Sfx.whoosh(); else Sfx.thrust(0.9); }
   if (launchPortal && crossed(PORTAL_OUT)) { Sfx.jump(); squash(-0.2); sparks(PORTAL_HOME_X, -26, PORTAL_ORANGE.slice(1), 16, 8); }
   if (!launchPortal && crossed(R.arc)) { Sfx.thrust(0); Sfx.land(); Buzz.orb(); squash(0.3); sparks(84, -2, [P.strata, P.shade, P.dust], 12); }
   if (crossed(R.toShip)) Sfx.thrust(0.5);
@@ -9249,7 +9269,8 @@ function drawRepairTools(my) {
 const LAUNCH_ORIGINAL_START_X = 84;
 function startLaunch() {
   Sfx.init(); resetRun(); cineReset();
-  setState('launch'); launchT = 0; launchShip = null;
+  launchStart = launchPortal ? 0 : -CLIMB_EXTRA;
+  setState('launch'); launchT = launchStart; launchShip = null;
   launchDrone = true; drone.ox = 0; drone.oy = 0;   // it comes out with him
   fitComps = COMPONENTS.filter(cp => (LEVI_SETS[moon] || []).includes(cp.levi)).slice(0, DRONE_FIT.spots.length);
   showScreen(null); hud.classList.add('off'); Sfx.wind(0);
