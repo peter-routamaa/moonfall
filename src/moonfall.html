@@ -1100,7 +1100,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 254;
+const VERSION = 255;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -1596,7 +1596,7 @@ function drawPart(pt, x, y, t, g) {
 // it crashes and a banner naming it as the crash settles (crashNote: [headline, line, component]), while the component
 // flies from him up to the PARTS counter like a part caught on the fall (COMP_FLY). Owner: no card then; "save
 // that pop-up for the next time you land at a cafe": save.compsNew lists the ones not yet shown there (askComps). The
-// one that finishes the ship says so (shipRepaired). One whose component he has already (only once all six of the
+// one that finishes the ship says so (shipRepaired); the 18th also fills any part still short, so the ship is ready. One whose component he has already (only once all six of the
 // moon's are his, see leviKind) gives +1 health instead (owner: "if a boss is already beaten, have it drop 1 health"),
 // or a spare crystal at full health, like any crystal.
 let crashNote = null;
@@ -1610,8 +1610,11 @@ function winComponent(kind) {
     return;
   }
   save.compsGot.push(cp.id);
+  const gift = compsDone() && !partsDone();   // the last component brings every part still missing (owner: quality of life)
+  if (gift) { fillParts(); save.partsGift = true; }
   save.compsNew = (save.compsNew || []).concat(cp.id); persist(); renderRepair();
-  Sfx.part(); crashNote = [cp.name.toUpperCase(), 'Component ' + compsCount() + ' of ' + COMPONENTS.length + ' unlocked', cp];
+  const of = compsCount() + ' of ' + COMPONENTS.length, line = gift ? of + ' + all missing parts' : 'Component ' + of + ' unlocked';   // fits 320 px
+  Sfx.part(); crashNote = [cp.name.toUpperCase(), line, cp];
   if (repairFrac() >= 1) shipRepaired();
 }
 // The moment the ship is ready to fly (the last part caught, or the last component won).
@@ -4672,6 +4675,7 @@ function speedAt(d) {
 //   parts             ship parts collected, by part id; repaired just below
 //   compsGot          ids of the ship components won from Leviathans this mission (COMPONENTS); repaired just below
 //   compsNew          ids of components won since the last cafe, for its card (askComps)
+//   partsGift         the last component filled the missing parts (winComponent); said on the cafe card, then cleared
 //   dives, launches   runs this mission (cleared with the repair) and ship launches ever
 //   missionsDone, missionDone   finished missions, and whether this repair was already counted; missionsDone() in
 //                     sprites fills them in from launches on an old save
@@ -4710,6 +4714,7 @@ if (!Array.isArray(save.compsNew)) save.compsNew = [];
 const compWon = cp => save.compsGot.includes(cp.id);
 const compsCount = () => COMPONENTS.filter(compWon).length;
 const partsDone = () => PARTS.every(pt => save.parts[pt.id] >= pt.need);
+const fillParts = () => { for (const pt of PARTS) save.parts[pt.id] = Math.max(save.parts[pt.id], pt.need); };   // every part to its need
 const compsDone = () => compsCount() >= COMPONENTS.length;
 // The ship repair (owner: "Half and half"): the five falling parts make up half (each part's share of it as full as
 // that part), the components the other half (each 1/18 of it); at 1 it's ready to fly home.
@@ -6600,7 +6605,8 @@ const COMPS_SHOW_AFTER = 1.2;   // s after landing, once the barista has spoken
 function askComps() {
   const ids = save.compsNew || [], got = COMPONENTS.filter(cp => ids.includes(cp.id));
   if (state !== 'cafe' || !got.length || confirmDlg.open) return;
-  save.compsNew = []; persist();
+  const gift = !!save.partsGift;
+  save.compsNew = []; delete save.partsGift; persist();
   confirmKind = 'comps'; confirmFrom = 'shopBtn'; confirmStep = 0;
   confirmDlg.classList.remove('danger');
   const pic = $('confirmPic'), n = got.length, w = n * 16 - 2;
@@ -6614,6 +6620,7 @@ function askComps() {
   $('confirmTitle').textContent = n > 1 ? 'Components unlocked!' : 'Component unlocked!';
   $('confirmText').textContent = list + ' fitted to the ship. Components: ' + compsCount() + ' of ' + COMPONENTS.length + '\n\n'
     + perMoon + '\n\n'
+    + (gift ? 'The last Leviathan also gave you every ship part you were missing. ' : '')
     + (canLaunch() ? 'The ship is repaired: fly it home!'
       : left ? 'Each moon\'s six Leviathans guard components: travel to all three moons to collect them all.'
         : 'Every component fitted! Now finish collecting the ship parts.');
@@ -7815,7 +7822,7 @@ function caveGift(cave, t, crossed) {
   GIFT_ITEMS.forEach((_, i) => { if (crossed(GIFT_POP + i * GIFT_GAP)) { Sfx.part(); sparks(cave.chestX, cave.F - 20, ['#F2C14E', '#FFFFFF'], 8, 6); } });
   if (crossed(GIFT_TAKE + 0.35)) {   // the kit: every part to its need, and every component
     const was = repairFrac() >= 1;
-    for (const pt of PARTS) save.parts[pt.id] = Math.max(save.parts[pt.id], pt.need);
+    fillParts();
     save.compsGot = COMPONENTS.map(cp => cp.id); persist(); renderRepair();
     Sfx.repaired(); Buzz.shield(); pop('SHIP REPAIR KIT!', player.x, player.y - 10, 'part');
     if (!was) award('repair');

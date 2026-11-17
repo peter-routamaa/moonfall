@@ -209,6 +209,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
   if (q.get('scene') === 'cafe') {
     const n = +(q.get('n') || 1), C = M.cafeInfo(n); pl.spare = +(q.get('spare') || 5); pl.hp = 4; if (q.get('kind')) M.setLevi(2 * n, q.get('kind'));
     if (q.get('comps')) M.save.compsGot = M.COMPONENTS.slice(0, +q.get('comps')).map(cp => cp.id);   // &comps=3: the first three components already won
+    if (q.get('gift')) { M.save.partsGift = true; for (const k in M.save.parts) M.save.parts[k] = 99; }   // &gift=1: the last component filled the parts
     if (q.get('compsnew')) M.save.compsNew = q.get('compsnew').split(',');   // &compsnew=shield,gyro: their card as he lands   // &n=2: the second cafe (2000 m), and so on
     pl.y = C.Dl - 28 - 120; pl.x = C.padX; pl.aim = pl.x; pl.vx = 0; M.checkCafe();
     for (let i = 0; i < 60 * 3.2; i++) M.update(1 / 60);
