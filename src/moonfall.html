@@ -1099,7 +1099,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 
 // Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
 // published version.
-const VERSION = 264;
+const VERSION = 265;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -9069,11 +9069,11 @@ function drawFireworks(cam) {
 // it, lands and hammers the hull, steps back as the smoke clears and a shine runs over the ship. Then the launch runs on
 // its original timings, shifted to start once the repair is done: wave, climb aboard, rumble, tip upright, blast off.
 const REPAIR = { up: 1.6, arc: 2.7, arrive: 3.2, toShip: 4.2, hop: 4.8, weld: 7.6, drop: 8.2, hammer: 10.4, back: 10.9, shine: 11.6, done: 12.0 };
-const SHAFT_START_Y = 500;   // how far down the shaft he starts his climb out, in pixels
+const SHAFT_START_Y = 800;   // how far down the shaft he starts his climb out, in pixels
 // Owner: "make the very beginning of the final cinematic a little bit longer by showing the player flying up through a
 // little bit more of the ... shaft". Up the shaft, the ending starts CLIMB_EXTRA s before 0 (launchT from -CLIMB_EXTRA),
 // so the climb is longer and every later time stays where it is; out of the cave's portal it starts at 0.
-const CLIMB_EXTRA = 1.2;
+const CLIMB_EXTRA = 2.6;
 let launchStart = 0;
 // After the deep cave's portal (launchPortal) he steps out of an orange portal by the ship instead: it opens, he comes
 // out at PORTAL_OUT s and walks to his spot, and it closes behind him; the rest is the same.
@@ -11738,7 +11738,7 @@ function introTimeScale() {
 // How far the bars are in, 0 to 1. They leave as the pilot lands (intro) and as the ship flies off (ending).
 function cineBars() {
   if (state === 'opening') return smoothstep(openT / 0.7) * (1 - smoothstep((openT - OPEN.pre - OPEN.land - 0.15) / 0.6));
-  if (state === 'launch') return smoothstep(launchT / 0.7) * (1 - smoothstep((launchT - LAUNCH.away) / 1.2));
+  if (state === 'launch') return smoothstep((launchT - launchStart) / 0.7) * (1 - smoothstep((launchT - LAUNCH.away) / 1.2));
   return 0;
 }
 // A lens streak: a thin horizontal line of light through a bright point, brightest and whitest in the middle.
@@ -11764,7 +11764,7 @@ function drawCinema() {
   if (cineFlash > 0 && !reduceMotion) {
     g.globalAlpha = Math.ceil(cineFlash / cineFlashLen * 4) / 4 * 0.9; g.fillStyle = cineFlashCol; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
   }
-  const fade = state === 'opening' ? 1 - openT / 0.6 : 1 - launchT / 0.5;
+  const fade = state === 'opening' ? 1 - openT / 0.6 : 1 - (launchT - launchStart) / 0.5;   // from the ending's real start
   if (fade > 0) { g.globalAlpha = Math.ceil(fade * 4) / 4; g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.globalAlpha = 1; }
   const b = Math.round(Math.round(H * CINE_BAR) * cineBars());
   if (b > 0) { g.fillStyle = '#000'; g.fillRect(0, 0, W, b); g.fillRect(0, H - 1 - b, W, b + 1); }
