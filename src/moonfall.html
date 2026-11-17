@@ -8178,53 +8178,89 @@ $('caveFall').addEventListener('click', leaveCave);
 // The art, by moon: things hanging from the roof (CAVE_ROOF_H tall, drawn from the roof down) and things standing on the
 // floor (CAVE_FLOOR_H tall, standing on it), both clear of the holes, the chest and the portal.
 const CAVE_ROOF_H = 110, CAVE_FLOOR_H = 18;
-const CAVE_COLOURS = {
-  dust: { a: '#CFE9F7', b: '#F4FBFF', c: '#8CC3E3', glow: '#9FE3FF' },     // icicles
-  jungle: { a: '#6B4325', b: '#4E8F35', c: '#3A2412', glow: '#B8F070' },   // roots, leaves, glowing moss
-  machine: { a: '#7B8591', b: '#A9B2BC', c: '#B2552A', glow: '#7FD6E8' },  // pipes, cables, rust
+// A row of things hanging from the roof, clear of the hole he drops through: width() for each one's width, then
+// hang(x, y, w, len) for each row y of it and, if given, after(x) once it's done. The random numbers are drawn in this
+// order (gap, width, length), so each moon's roof is the same for a seed.
+function caveHangers(rand, cave, width, hang, after) {
+  for (let x = 4; x < W - 6; x += 4 + Math.floor(rand() * 8)) {
+    const w = width(), len = 14 + Math.floor(rand() * (CAVE_ROOF_H - 18));
+    if (!caveClear(x, w, [cave.entryX, CAVE_NECK_HW + 6])) continue;
+    for (let y = 0; y < len; y++) hang(x, y, w, len);
+    if (after) after(x);
+  }
+}
+// True when x to x + w keeps clear of every [middle, half width] in holes.
+const caveClear = (x, w, ...holes) => holes.every(([hx, hw]) => x + w < hx - hw || x > hx + hw);
+// One entry per moon: its colours (a, b, c and glow), roof(g, col, rand, cave) painting the roof's canvas, and
+// floor(g, col, rand, x, h) painting one bit h tall at x on the floor's. A moon without an entry gets the Dust moon's.
+const CAVE_MOONS = {
+  dust: {   // icicles, and ice spikes on the floor
+    col: { a: '#CFE9F7', b: '#F4FBFF', c: '#8CC3E3', glow: '#9FE3FF' },
+    roof(g, col, rand, cave) {
+      caveHangers(rand, cave, () => 4 + Math.floor(rand() * 6), (x, y, w, len) => {   // narrowing to a point, lit down one side
+        const ww = Math.max(1, Math.round(w * (1 - y / len)));
+        g.fillStyle = col.a; g.fillRect(x, y, ww, 1);
+        g.fillStyle = col.b; g.fillRect(x, y, 1, 1);
+        if (ww > 2) { g.fillStyle = col.c; g.fillRect(x + ww - 1, y, 1, 1); }
+      });
+    },
+    floor(g, col, rand, x, h) {
+      for (let y = 0; y < h; y++) {
+        const ww = Math.max(1, Math.round(4 * (1 - y / h)));
+        g.fillStyle = y === h - 1 ? col.b : col.a; g.fillRect(x + 2 - (ww >> 1), CAVE_FLOOR_H - 1 - y, ww, 1);
+      }
+    },
+  },
+  jungle: {   // roots with leaves and glowing moss, and ferns and mushrooms on the floor
+    col: { a: '#6B4325', b: '#4E8F35', c: '#3A2412', glow: '#B8F070' },
+    roof(g, col, rand, cave) {
+      caveHangers(rand, cave, () => 2, (x, y) => {   // a root that wanders a little, with a leaf now and then
+        const wx = x + Math.round(Math.sin(y * 0.25 + x) * 1.5);
+        g.fillStyle = col.a; g.fillRect(wx, y, 2, 1);
+        if (y % 7 === 3 && rand() < 0.6) { g.fillStyle = col.b; g.fillRect(wx + (rand() < 0.5 ? -3 : 2), y, 3, 2); }
+      }, x => { if (rand() < 0.5) { g.fillStyle = col.glow; g.fillRect(x - 1, 0, 4, 2); } });   // moss on top
+    },
+    floor(g, col, rand, x, h) {
+      for (let y = 0; y < h; y++) {
+        g.fillStyle = y < 3 ? col.glow : col.b;
+        g.fillRect(x + 2 + (y % 2), CAVE_FLOOR_H - 1 - y, 1, 1); g.fillRect(x + (y % 3), CAVE_FLOOR_H - 1 - y, 1, 1);
+      }
+    },
+  },
+  machine: {   // a pipe along the roof, cables hanging in loops, rust streaks; scrap and cogs on the floor
+    col: { a: '#7B8591', b: '#A9B2BC', c: '#B2552A', glow: '#7FD6E8' },
+    roof(g, col, rand) {
+      g.fillStyle = P.ink; g.fillRect(0, 2, W, 10); g.fillStyle = col.a; g.fillRect(0, 3, W, 8); g.fillStyle = col.b; g.fillRect(0, 4, W, 2);
+      for (let x = 6; x < W; x += 28) { g.fillStyle = P.ink; g.fillRect(x, 2, 3, 10); }
+      for (let n = 0; n < 7; n++) {
+        const x0 = 14 + rand() * (W - 60), span = 24 + rand() * 30, sag = 14 + rand() * 30;
+        for (let x = 0; x <= span; x++) {
+          const y = 11 + Math.round(sag * Math.sin(Math.PI * x / span));
+          g.fillStyle = P.ink; g.fillRect(Math.round(x0 + x), y, 1, 2);
+        }
+      }
+      for (let n = 0; n < 10; n++) {
+        const x = Math.round(8 + rand() * (W - 16));
+        g.fillStyle = col.c; g.fillRect(x, 11, 2, 4 + Math.round(rand() * 10));
+      }
+    },
+    floor(g, col, rand, x, h) {
+      g.fillStyle = P.ink; g.fillRect(x, CAVE_FLOOR_H - h, 6, h);
+      g.fillStyle = rand() < 0.5 ? col.a : col.c; g.fillRect(x + 1, CAVE_FLOOR_H - h + 1, 4, h - 1);
+    },
+  },
 };
 function buildCaveArt() {
-  const cave = caveInfo(), col = CAVE_COLOURS[moon] || CAVE_COLOURS.dust, rand = rng32(Math.floor(SEED * 997) + 25);
+  const cave = caveInfo(), art = CAVE_MOONS[moon] || CAVE_MOONS.dust, col = art.col, rand = rng32(Math.floor(SEED * 997) + 25);
   // The same two canvases every run (setting a width clears one), so a new run makes no new images for a cave it may
   // never reach.
   const roof = caveArt ? caveArt.roof : document.createElement('canvas'), floor = caveArt ? caveArt.floor : document.createElement('canvas');
   roof.width = floor.width = W; roof.height = CAVE_ROOF_H; floor.height = CAVE_FLOOR_H;
   const rg = roof.getContext('2d'), fg = floor.getContext('2d');
-  const clear = (x, w, ...holes) => holes.every(([hx, hw]) => x + w < hx - hw || x > hx + hw);
-  if (moon === 'machine') {   // a pipe along the roof, cables hanging in loops, rust streaks
-    rg.fillStyle = P.ink; rg.fillRect(0, 2, W, 10); rg.fillStyle = col.a; rg.fillRect(0, 3, W, 8); rg.fillStyle = col.b; rg.fillRect(0, 4, W, 2);
-    for (let x = 6; x < W; x += 28) { rg.fillStyle = P.ink; rg.fillRect(x, 2, 3, 10); }
-    for (let n = 0; n < 7; n++) {
-      const x0 = 14 + rand() * (W - 60), span = 24 + rand() * 30, sag = 14 + rand() * 30;
-      for (let x = 0; x <= span; x++) { const y = 11 + Math.round(sag * Math.sin(Math.PI * x / span)); rg.fillStyle = P.ink; rg.fillRect(Math.round(x0 + x), y, 1, 2); }
-    }
-    for (let n = 0; n < 10; n++) { const x = Math.round(8 + rand() * (W - 16)); rg.fillStyle = col.c; rg.fillRect(x, 11, 2, 4 + Math.round(rand() * 10)); }
-  } else {
-    for (let x = 4; x < W - 6; x += 4 + Math.floor(rand() * 8)) {
-      const w = moon === 'jungle' ? 2 : 4 + Math.floor(rand() * 6), len = 14 + Math.floor(rand() * (CAVE_ROOF_H - 18));
-      if (!clear(x, w, [cave.entryX, CAVE_NECK_HW + 6])) continue;
-      for (let y = 0; y < len; y++) {
-        if (moon === 'jungle') {   // a root that wanders a little, with a leaf now and then and moss on top
-          const wx = x + Math.round(Math.sin(y * 0.25 + x) * 1.5);
-          rg.fillStyle = col.a; rg.fillRect(wx, y, 2, 1);
-          if (y % 7 === 3 && rand() < 0.6) { rg.fillStyle = col.b; rg.fillRect(wx + (rand() < 0.5 ? -3 : 2), y, 3, 2); }
-        } else {   // an icicle, narrowing to a point, lit down one side
-          const ww = Math.max(1, Math.round(w * (1 - y / len)));
-          rg.fillStyle = col.a; rg.fillRect(x, y, ww, 1);
-          rg.fillStyle = col.b; rg.fillRect(x, y, 1, 1);
-          if (ww > 2) { rg.fillStyle = col.c; rg.fillRect(x + ww - 1, y, 1, 1); }
-        }
-      }
-      if (moon === 'jungle' && rand() < 0.5) { rg.fillStyle = col.glow; rg.fillRect(x - 1, 0, 4, 2); }
-    }
-  }
-  // The floor's bits: ice spikes, ferns and mushrooms, or scrap and cogs.
-  for (let x = 6; x < W - 8; x += 8 + Math.floor(rand() * 12)) {
-    if (!clear(x, 6, [cave.holeX, HOLE_HW + 6], [cave.chestX, 24], [cave.entryX, 14], [cave.portalX, 22])) continue;
-    const h = 4 + Math.floor(rand() * (CAVE_FLOOR_H - 5));
-    if (moon === 'machine') { fg.fillStyle = P.ink; fg.fillRect(x, CAVE_FLOOR_H - h, 6, h); fg.fillStyle = rand() < 0.5 ? col.a : col.c; fg.fillRect(x + 1, CAVE_FLOOR_H - h + 1, 4, h - 1); }
-    else if (moon === 'jungle') { for (let y = 0; y < h; y++) { fg.fillStyle = y < 3 ? col.glow : col.b; fg.fillRect(x + 2 + (y % 2), CAVE_FLOOR_H - 1 - y, 1, 1); fg.fillRect(x + (y % 3), CAVE_FLOOR_H - 1 - y, 1, 1); } }
-    else { for (let y = 0; y < h; y++) { const ww = Math.max(1, Math.round(4 * (1 - y / h))); fg.fillStyle = y === h - 1 ? col.b : col.a; fg.fillRect(x + 2 - (ww >> 1), CAVE_FLOOR_H - 1 - y, ww, 1); } }
+  art.roof(rg, col, rand, cave);
+  for (let x = 6; x < W - 8; x += 8 + Math.floor(rand() * 12)) {   // the floor's bits
+    if (!caveClear(x, 6, [cave.holeX, HOLE_HW + 6], [cave.chestX, 24], [cave.entryX, 14], [cave.portalX, 22])) continue;
+    art.floor(fg, col, rand, x, 4 + Math.floor(rand() * (CAVE_FLOOR_H - 5)));
   }
   caveArt = { roof, floor, seed: SEED }; caveForMoon = moon;
 }
@@ -8345,6 +8381,9 @@ const BADGES = [
   ['repair', 'Mechanic', 'Repair the ship'],
   ['drone', 'Co-pilot', 'Earn the helper drone'],
 ];
+// The badge for escaping every Leviathan of a moon (crashBoss), by moon. jungle3's id stays as it is, so whoever has it
+// keeps it.
+const MOON_BADGE = { dust: 'all6', jungle: 'jungle3', machine: 'machine6' };
 if (!save.badges || typeof save.badges !== 'object') save.badges = {};
 // Players who repaired the ship or earned the drone before these badges existed get them quietly.
 if (!save.badges.repair && (missionsDone() > 0 || repairFrac() >= 1)) save.badges.repair = Date.now();
@@ -9434,8 +9473,9 @@ function rollBoulder(k, dt) {
   const { L, R } = edgeAt(k.d);
   k.x0 = Math.max(L + k.rr + 1, Math.min(R - k.rr - 1, k.x0));
 }
-function glazedAt(side, cd) {
-  for (const h of hazards) if (h.kind === 'glaze' && h.side === side && cd > h.d - 10 && cd < h.d + h.len + 10) return true;
+// A hazard he bounces off (its entry's bounces) on that side's wall at depth cd.
+function bouncyAt(side, cd) {
+  for (const h of hazards) if (HAZARDS[h.kind].bounces && h.side === side && cd > h.d - 10 && cd < h.d + h.len + 10) return true;
   return false;
 }
 // Glazed ice: a hard bounce back across the shaft instead of a hit (from collide, where he meets the wall).
@@ -9470,10 +9510,13 @@ const AH_PUFF = ['#C9774A', '#B49A86', '#8E857C', '#6E6863'];   // the ash plume
 //                 stream r in a fixed order (len, gx, ph, reach ...); false if there's no room for it here
 //   update(h, dt, soon, seen)   optional: each frame of a run (soon: seconds until he reaches it; seen: on screen)
 //   hit(h, cd)    optional: whether it touches him (cd: his middle's depth), and what that does (called from collide)
+//   hurts         optional, when its hit hurts him: what that counts as, 'rock' or 'lava' (hit calls hurt with it: the
+//                 sound, buzz and stat; the stats know only wall, rock, mine and lava, and the run's moon)
+//   bounces       optional: true when he bounces off the wall along its len rows (collide: bouncyAt, bounceOff)
 //   draw(h, cam, y, L, R, Q)    on screen (y: its row on screen; L, R: the walls there; Q: the rock's palette)
 // checkHazards() checks every entry at load. Budget its drawing like anything else (PERFORMANCE.md, "A new moon").
 const HAZARDS = {
-  glaze: { moon: 'dust', layer: 0, hint: 'GLAZED ICE BOUNCES YOU',   // he bounces off it in collide (glazedAt, bounceOff)
+  glaze: { moon: 'dust', layer: 0, hint: 'GLAZED ICE BOUNCES YOU', bounces: true,
     place(h, r) { h.len = Math.round(70 + r() * 70); return true; },
     draw(h, cam, y, L, R, Q) {
       // A frosty crust over the wall's edge, jagged with little ice spikes, with glints sliding along it.
@@ -9616,7 +9659,7 @@ const HAZARDS = {
         c.fillStyle = JH.vineL; c.fillRect(px - 1, top + len - 1, 2, 2);
       }
     } },
-  thorns: { moon: 'jungle', layer: 1, hint: 'THORNS GROW OUT OF THE WALL',
+  thorns: { moon: 'jungle', layer: 1, hint: 'THORNS GROW OUT OF THE WALL', hurts: 'rock',
     place(h, r) { return hazReach(h, 0.42); },
     update(h, dt, soon, seen) {
       if (!h.rustled && soon < THORN_WARN) { h.rustled = true; if (seen) Sfx.rustle(); }
@@ -9633,7 +9676,7 @@ const HAZARDS = {
       const { L, R } = edgeAt(h.d), tip = Math.round(h.reach * h.grow);
       if (h.side < 0 ? player.x - HIT_HALF_W + 2 < L + tip : player.x + HIT_HALF_W - 2 > R - tip) {
         if (player.inv <= 0 && player.shield <= 0) { player.vx = -h.side * 150; sparks(player.x, cd, [JH.thorn, JH.bark, JH.leaf], 8); }
-        hurt('thorn');
+        hurt(HAZARDS.thorns.hurts);
       }
     },
     draw(h, cam, y, L, R, Q) {
@@ -9655,7 +9698,7 @@ const HAZARDS = {
       }
       if (tip > 3) { const tx = s < 0 ? base + tip : base - tip - 4; c.fillStyle = P.ink; c.fillRect(tx - 1, y - 2, 6, 4); c.fillStyle = JH.thorn; c.fillRect(tx, y - 1, 4, 2); }
     } },
-  spores: { moon: 'jungle', layer: 2, hint: 'SPORE PODS BURST. STEER CLEAR',
+  spores: { moon: 'jungle', layer: 2, hint: 'SPORE PODS BURST. STEER CLEAR', hurts: 'lava',
     place(h, r) {
       if (!hazReach(h, 0.42)) return false;
       h.r = Math.min(46, Math.round(h.reach * 0.62));
@@ -9673,7 +9716,7 @@ const HAZARDS = {
       const a = clock - h.burstAt;
       if (a > SPORE_HURT) return;
       const [cx, cy] = sporeCentre(h), r = sporeR(h), dx = (player.x - cx) / (r + HIT_HALF_W - 4), dy = (cd - cy) / (r * 0.8 + 8);
-      if (dx * dx + dy * dy < 1) hurt('spore');
+      if (dx * dx + dy * dy < 1) hurt(HAZARDS.spores.hurts);
     },
     draw(h, cam, y, L, R, Q) {
       const s = h.side;
@@ -9699,7 +9742,7 @@ const HAZARDS = {
         disc(base - s * 2, yy, 4, JH.podD);   // the burst pod's husk
       }
     } },
-  crusher: { moon: 'machine', layer: 0, hint: 'CRUSHERS SLAM OUT OF THE WALL',
+  crusher: { moon: 'machine', layer: 0, hint: 'CRUSHERS SLAM OUT OF THE WALL', hurts: 'rock',
     place(h, r) { h.ph = r() * 10; return hazReach(h, 0.4); },
     update(h, dt, soon, seen) {
       const was = h.ext || 0; h.ext = crushExt(h);
@@ -9710,7 +9753,7 @@ const HAZARDS = {
       const { L, R } = edgeAt(h.d), tip = Math.round(h.reach * h.ext);
       if (h.side < 0 ? player.x - HIT_HALF_W + 2 < L + tip : player.x + HIT_HALF_W - 2 > R - tip) {
         if (player.inv <= 0 && player.shield <= 0) { player.vx = -h.side * 170; sparks(player.x, cd, [MH.steelL, MH.stripe, P.dust], 8); }
-        hurt('crush');
+        hurt(HAZARDS.crusher.hurts);
       }
     },
     draw(h, cam, y, L, R, Q) {
@@ -9730,7 +9773,7 @@ const HAZARDS = {
       c.fillStyle = MH.steelL; c.fillRect(fx + (s < 0 ? 5 : 1), y - 11, 2, 22);
       c.fillStyle = MH.steelD; for (let i = 0; i < 4; i++) c.fillRect(s < 0 ? fx + 8 : fx - 2, y - 10 + i * 6, 2, 3);   // its teeth
     } },
-  saw: { moon: 'machine', layer: 1, hint: 'SAWS RUN ALONG THEIR RAILS',
+  saw: { moon: 'machine', layer: 1, hint: 'SAWS RUN ALONG THEIR RAILS', hurts: 'rock',
     place(h, r) { h.ph = r() * 10; return hazReach(h, 0.4); },
     update(h, dt, soon, seen) {
       if (seen && !h.heard) { h.heard = true; Sfx.saw(); }
@@ -9741,7 +9784,7 @@ const HAZARDS = {
       const [sx] = sawAt(h), dx = player.x - sx, dy = (cd - h.d) * 0.8;
       if (dx * dx + dy * dy < (SAW_R + HIT_HALF_W - 3) ** 2) {
         if (player.inv <= 0 && player.shield <= 0) { player.vx = Math.sign(dx || -h.side) * 160; sparks(player.x, cd, [MH.blade, P.hot, MH.stripe], 8); }
-        hurt('saw');
+        hurt(HAZARDS.saw.hurts);
       }
     },
     draw(h, cam, y, L, R, Q) {
@@ -9756,7 +9799,7 @@ const HAZARDS = {
       for (let i = 0; i < 10; i++) { const a = an + i * Math.PI / 5; c.fillRect(Math.round(sx + Math.cos(a) * (SAW_R + 1)) - 1, Math.round(y + Math.sin(a) * (SAW_R + 1)) - 1, 3, 3); }
       c.fillStyle = MH.steelD; for (let i = 0; i < 3; i++) { const a = an * 0.5 + i * 2.09; c.fillRect(Math.round(sx + Math.cos(a) * 6), Math.round(y + Math.sin(a) * 6), 2, 2); }
     } },
-  laser: { moon: 'machine', layer: 2, hint: 'LASER GATES. FIND THE GAP',
+  laser: { moon: 'machine', layer: 2, hint: 'LASER GATES. FIND THE GAP', hurts: 'lava',
     place(h, r) {   // right across the shaft, with one gap at least 30 px off either wall
       const e = edgeAt(h.d), w = e.R - e.L;
       if (w < 120) return false;
@@ -9770,7 +9813,7 @@ const HAZARDS = {
     hit(h, cd) {   // a burning beam hurts, outside the gap
       if (!h.lit) return;
       if (Math.abs(cd - h.d) > 3 + 8) return;
-      if (player.x - HIT_HALF_W + 2 < h.gx - LASER_GAP / 2 || player.x + HIT_HALF_W - 2 > h.gx + LASER_GAP / 2) hurt('laser');
+      if (player.x - HIT_HALF_W + 2 < h.gx - LASER_GAP / 2 || player.x + HIT_HALF_W - 2 > h.gx + LASER_GAP / 2) hurt(HAZARDS.laser.hurts);
     },
     draw(h, cam, y, L, R, Q) {
       // Emitters on both walls and either side of the gap; between them the beam: a blinking dotted line, then a burn.
@@ -9812,6 +9855,8 @@ function checkHazards() {
     if (typeof Z.hint !== 'string' || !Z.hint) bad('no hint');
     if (typeof Z.draw !== 'function') bad('no draw(h, cam, y, L, R, Q)');
     for (const n of ['place', 'update', 'hit']) if (!fn(Z, n)) bad(n + ' should be a function');
+    if (Z.hurts !== undefined && !['rock', 'lava'].includes(Z.hurts)) bad("hurts should be 'rock' or 'lava' (what its hit counts as)");
+    if (Z.bounces !== undefined && Z.bounces !== true) bad('bounces should be true or left out');
   }
 }
 // Maybe give this segment its layer's hazard; true if it did (the segment then gets no rock). It draws from its own
@@ -10024,15 +10069,13 @@ function hurt(kind, x, d, size) {
   // Hit-stop: the world freezes for a beat so the hit lands, with a white flash on the pilot.
   hitStop = kind === 'mine' ? 0.12 : 0.07; player.flash = 0.14;
   player.streak = 0;
-  const as = HURT_AS[kind] || kind;
-  Buzz[as](); Sfx[as]();
+  Buzz[kind](); Sfx[kind]();
   setHP('hit', dmg);
   pop(dmg === 0.5 ? '-½' : '-' + dmg, player.x, player.y - 6, 'bad');
-  // The stats only know wall, rock, mine and lava, so a boss shot counts as lava, and the other moons' hazards as one of
-  // those (HURT_AS; the run's moon is in its stats too).
-  if (player.hp <= 0) { lastHit = kind === 'boss' ? 'lava' : as; die(); } else Sfx.hurtVoice(as);
+  // The stats only know wall, rock, mine and lava, so a boss shot counts as lava (a hazard's hit is already one of
+  // those: its entry's hurts).
+  if (player.hp <= 0) { lastHit = kind === 'boss' ? 'lava' : kind; die(); } else Sfx.hurtVoice(kind);
 }
-const HURT_AS = { thorn: 'rock', spore: 'lava', crush: 'rock', saw: 'rock', laser: 'lava' };
 // A shield lasts SHIELD_S (8 s); a mine takes half of it, any other hit a quarter.
 const SHIELD_S = 8, SHIELD_MINE_CUT = 0.5, SHIELD_HIT_CUT = 0.25, CLOSE_PX = 10;
 let orbChain = 0, lastOrbT = -9;
@@ -10634,9 +10677,7 @@ function crashBoss() {
   player.leviRun.push(b.kind); player.bossWon = true;
   award('levi');
   winComponent(b.kind);
-  if (LEVI_KINDS.every(k => save.leviBeaten[k])) award('all6');
-  if (LEVI_SETS.jungle.every(k => save.leviBeaten[k])) award('jungle3');
-  if (LEVI_SETS.machine.every(k => save.leviBeaten[k])) award('machine6');
+  for (const m in LEVI_SETS) if (MOON_BADGE[m] && LEVI_SETS[m].every(k => save.leviBeaten[k])) award(MOON_BADGE[m]);
   const e = edgeAt(hit), Q = palAt(hit);
   for (const x of [e.L + 3, e.R - 3]) sparks(x, hit, [Q.b0, Q.shade, Q.ink, P.dust], 18, 8);
 }
@@ -10926,7 +10967,7 @@ const SHOT_TYPES = {
     } },
   mortar: {   // the crab's shell: harmless while its marker shows, then a burst there
     update(s, dt, live, py) {
-      if (s.t >= s.warn && s.t - dt < s.warn) { Sfx.bossShot(true); Sfx.crush(); shake = Math.max(shake, 0.7); sparks(s.x, camY + s.y, LEVIATHANS.crab.shot.slice(1).concat(P.dust), 8, 10); }
+      if (s.t >= s.warn && s.t - dt < s.warn) { Sfx.bossShot(true); Sfx.crush(); shake = Math.max(shake, 0.7); sparks(s.x, camY + s.y, shotColours().slice(1).concat(P.dust), 8, 10); }
       if (s.t > s.warn + s.dur) { s.dead = true; return; }
       if (live && s.t > s.warn && Math.hypot(player.x - s.x, py - s.y) < s.R + HIT_HALF_W - 5) bossHit(s, false);
     },
@@ -11187,14 +11228,14 @@ function collide(prevX) {
     if (e.iR) { if (e.iL < iL) iL = e.iL; if (e.iR > iR) iR = e.iR; }
   }
   if (player.x - HIT_HALF_W < maxL) {
-    if (glazedAt(-1, cd)) bounceOff(-1, maxL, cd, fresh);
+    if (bouncyAt(-1, cd)) bounceOff(-1, maxL, cd, fresh);
     else {
       player.x = maxL + HIT_HALF_W + 2; player.vx = 170; player.aim = Math.max(player.aim, player.x + 12); player.touch = true;
       if (fresh) sparks(maxL, cd, [P.rock, P.shade, P.dust], 7);
       hurt('wall');
     }
   } else if (player.x + HIT_HALF_W > minR) {
-    if (glazedAt(1, cd)) bounceOff(1, minR, cd, fresh);
+    if (bouncyAt(1, cd)) bounceOff(1, minR, cd, fresh);
     else {
       player.x = minR - HIT_HALF_W - 2; player.vx = -170; player.aim = Math.min(player.aim, player.x - 12); player.touch = true;
       if (fresh) sparks(minR, cd, [P.rock, P.shade, P.dust], 7);
