@@ -1100,7 +1100,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 251;
+const VERSION = 252;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -6610,10 +6610,10 @@ function askComps() {
   const names = got.map(cp => cp.name), list = n > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[n - 1] : names[0];
   const left = COMPONENTS.length - compsCount();
   const onMoon = m => COMPONENTS.filter(cp => LEVI_SETS[m].includes(cp.levi) && save.compsGot.includes(cp.id)).length;
-  const perMoon = Object.keys(LEVI_SETS).map(m => MOON_NAMES[m].replace(' moon', '') + ' ' + onMoon(m) + '/' + LEVI_SETS[m].length).join(', ');
+  const perMoon = Object.keys(LEVI_SETS).map(m => MOON_NAMES[m].replace(' moon', '') + ' ' + onMoon(m) + '/' + LEVI_SETS[m].length).join('\n');
   $('confirmTitle').textContent = n > 1 ? 'Components unlocked!' : 'Component unlocked!';
-  $('confirmText').textContent = list + ' fitted to the ship. Components: ' + compsCount() + ' of ' + COMPONENTS.length
-    + ' (' + perMoon + ').\n\n'
+  $('confirmText').textContent = list + ' fitted to the ship. Components: ' + compsCount() + ' of ' + COMPONENTS.length + '\n'
+    + perMoon + '\n\n'
     + (canLaunch() ? 'The ship is repaired: fly it home!'
       : left ? 'Each moon\'s six Leviathans guard six components: travel to all three moons to collect them all.'
         : 'Every component fitted! Now finish collecting the ship parts.');
@@ -6639,7 +6639,7 @@ $('confirmYes').addEventListener('click', () => {
   if (confirmKind === 'repaired') { confirmDlg.close(); flyHome(); return; }
   if (confirmKind === 'droneEnd') { confirmDlg.close(); return; }
   if (confirmKind === 'preview') { confirmDlg.close(); startPreview(); return; }
-  if (confirmKind === 'comps') { confirmDlg.close(); return; }
+  if (confirmKind === 'comps') { confirmDlg.close(); releaseShop(); return; }
   if (confirmKind === 'jump') { if (!askDrone(false)) { confirmDlg.close(); startRun(false); } return; }   // the drone's question replaces it
   if (confirmKind === 'hard') {   // start the mission over, then Terminal Velocity on
     confirmDlg.close(); clearRepair(); save.hard = true; persist(); renderRepair(); syncToggles(); Sfx.bleep(330); return;
@@ -6651,7 +6651,12 @@ $('confirmYes').addEventListener('click', () => {
   const b = $('resetBtn'); b.textContent = 'Repair reset to 0%'; pctify(b);
   clearTimeout(resetTimer); resetTimer = setTimeout(() => (b.textContent = 'Reset ship repair'), 2500);
 });
-confirmDlg.addEventListener('close', () => { $(confirmFrom).focus({ preventScroll: true }); confirmKind = 'reset'; flipMenuAway(false); });
+confirmDlg.addEventListener('close', () => {
+  if (confirmDlg.open) return;   // the close event is async: a card asked for since then is up and stays as it is
+  const kind = confirmKind;
+  $(confirmFrom).focus({ preventScroll: true }); confirmKind = 'reset'; flipMenuAway(false);
+  if (kind === 'comps') releaseShop();
+});
 
 // ---------- run stats (sent to the private play stats) ----------
 // Private stats for the owner's Supabase dashboard: a random ID made once per device (no name, nothing personal),
@@ -6754,7 +6759,7 @@ function resetRun() {
   $('partsRun').textContent = '0'; repair = repairFrac(); repairStart = repair; readyStart = canLaunch();
   Object.assign(player, playerStart());
   player.hp = player.max = Math.round(player.max * kidRun.hp);   // Kid mode health
-  cafeVisited.clear(); cafeRetire(); signArt.clear(); shopEl.hidden = true; flyers = []; hitStop = 0;
+  cafeVisited.clear(); cafeRetire(); signArt.clear(); shopHeld = false; shopEl.hidden = true; flyers = []; hitStop = 0;
   buildHP(); $('spareRun').textContent = '0'; spareHud.hidden = true; streakFlash.classList.remove('on'); speedFlash.classList.remove('on'); speedRush = 0; buildFlags(); refreshBoard();
   Music.reset();
   sayEl.hidden = true;
@@ -7330,6 +7335,8 @@ function drawCafe(cam) {
 // Coffee stop: auto-landing on the pad, a cup at the counter, then a run and jump back into the shaft.
 const cafeVisited = new Set();
 let cafeT = 0, cafeK = 0, landFrom = null;
+let shopHeld = false;   // the menu waits behind a card (askComps) and opens once it's closed
+function releaseShop() { if (shopHeld && state === 'cafe') { shopHeld = false; openShop(); } }
 function checkCafe() {
   const feet = player.y + 28, k = cafeIdx(feet);
   if (k < 1 || cafeVisited.has(k)) return;
@@ -7342,7 +7349,7 @@ function checkCafe() {
 }
 function leaveCafe() {
   sayEl.hidden = true;
-  setState('cafeJump'); cafeT = 0; shopEl.hidden = true; cafeCard(null, true); Sfx.jump(); squash(-0.22);
+  setState('cafeJump'); cafeT = 0; shopHeld = false; shopEl.hidden = true; cafeCard(null, true); Sfx.jump(); squash(-0.22);
 }
 // -- landing, the counter and leaving: land on the pad, a cup at the counter, run and jump back in
 // -- the barista's greeting: a speech bubble while he's at the counter. The line
@@ -7357,7 +7364,6 @@ function cafeArrive(C) {
   if (!sayEl.isConnected) game.appendChild(sayEl);
   sayEl.style.animation = 'none'; void sayEl.offsetWidth; sayEl.style.animation = '';
   placeSay(C);
-  if ((save.compsNew || []).length) setTimeout(askComps, COMPS_SHOW_AFTER * 1000);   // askComps checks he's still here
 }
 function baristaLine(C) {
   const m = Math.round(C.Dl / PX_PER_M), ini = /^[A-Z]{3}$/.test(save.initials || '') ? save.initials : '', dives = save.dives || 0;
@@ -7404,6 +7410,7 @@ function updateCafe(dt) {
       player.pose = C.side < 0 ? 'runL' : 'run';
     }
     else { player.x = C.counterX; player.y = standY; player.pose = C.side < 0 ? 'standL' : 'stand'; }
+    if (crossed(COMPS_SHOW_AFTER)) askComps();
     if (crossed(1.55)) Sfx.mug();
     if (crossed(1.4)) {
       if (player.hp < player.max) {
@@ -7413,7 +7420,7 @@ function updateCafe(dt) {
       } else pop('REFRESHED', player.x, player.y - 10, 'good');
     }
     if (crossed(1.6)) {
-      openShop();
+      if (confirmDlg.open) shopHeld = true; else openShop();
       // A Leviathan below: its paint canvases are made now, while nothing moves, not as he jumps.
       const B = bossAt(player.y + 300);
       if (B && !bossGone.has(B.k)) bossBufs(leviKind(2 * B.k));
