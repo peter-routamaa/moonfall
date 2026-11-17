@@ -486,6 +486,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .confirm { margin: auto; border: 0; width: min(320px, calc(100vw - 32px)); }
 .confirm-pic { display: block; width: 56px; height: 56px; margin: 0 auto 4px; image-rendering: pixelated; }   /* a component won (askComp) */
 .confirm-pic[hidden] { display: none; }
+#confirmText { white-space: pre-line; }   /* a blank line (\n\n) in a card's text starts a new paragraph */
 /* Jump in's card (askJump): the three moons, each with its components won, to pick the one to dive on. */
 .confirm-moons { margin: 2px 0 16px; }
 .confirm-moons[hidden] { display: none; }
@@ -1099,7 +1100,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 250;
+const VERSION = 251;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -6611,7 +6612,8 @@ function askComps() {
   const onMoon = m => COMPONENTS.filter(cp => LEVI_SETS[m].includes(cp.levi) && save.compsGot.includes(cp.id)).length;
   const perMoon = Object.keys(LEVI_SETS).map(m => MOON_NAMES[m].replace(' moon', '') + ' ' + onMoon(m) + '/' + LEVI_SETS[m].length).join(', ');
   $('confirmTitle').textContent = n > 1 ? 'Components unlocked!' : 'Component unlocked!';
-  $('confirmText').textContent = list + ': ' + compsCount() + ' of ' + COMPONENTS.length + ' fitted (' + perMoon + '). '
+  $('confirmText').textContent = list + ' fitted to the ship. Components: ' + compsCount() + ' of ' + COMPONENTS.length
+    + ' (' + perMoon + ').\n\n'
     + (canLaunch() ? 'The ship is repaired: fly it home!'
       : left ? 'Each moon\'s six Leviathans guard six components: travel to all three moons to collect them all.'
         : 'Every component fitted! Now finish collecting the ship parts.');
