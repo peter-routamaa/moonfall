@@ -1100,7 +1100,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 256;
+const VERSION = 257;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -1598,15 +1598,16 @@ function drawPart(pt, x, y, t, g) {
 // that pop-up for the next time you land at a cafe": save.compsNew lists the ones not yet shown there (askComps). The
 // one that finishes the ship says so (shipRepaired); the 18th also fills any part still short, so the ship is ready. One whose component he has already (only once all six of the
 // moon's are his, see leviKind) gives +1 health instead (owner: "if a boss is already beaten, have it drop 1 health"),
-// or a spare crystal at full health, like any crystal.
+// or a spare crystal at full health, like any crystal, and the banner says which.
 let crashNote = null;
 const COMP_FLY = 1.1;   // s for the component's flight up to the PARTS counter (a part's takes 0.42 s)
 function winComponent(kind) {
   const cp = COMPONENTS.find(x => x.levi === kind);
   if (!cp) return;
   if (compWon(cp)) {
+    const spare = player.hp >= player.max;   // at full health the crystal is kept as a spare (gainCrystal)
     gainCrystal(player.x, player.y + PILOT_CY);
-    crashNote = ['+1 HEALTH', cp.name + ' already fitted'];
+    crashNote = [spare ? '+1 SPARE CRYSTAL' : '+1 HEALTH', cp.name + ' already fitted'];
     return;
   }
   save.compsGot.push(cp.id);
@@ -1617,9 +1618,13 @@ function winComponent(kind) {
   Sfx.part(); crashNote = [cp.name.toUpperCase(), line, cp];
   if (repairFrac() >= 1) shipRepaired();
 }
-// The moment the ship is ready to fly (the last part caught, or the last component won).
+// The moment the ship is ready to fly (the last part caught, or the last component won). During a Leviathan's crash the
+// screen shows only health, so the words wait until the crash is over (repairedLater, read where the boss is let go).
+const REPAIRED_LINE = 'SHIP REPAIRED! LAUNCH IT FROM THE MAIN MENU';
+let repairedLater = false;
 function shipRepaired() {
-  showCoach('SHIP REPAIRED! LAUNCH IT FROM THE MAIN MENU', 3500); Sfx.repaired(); Buzz.shield();
+  if (boss) repairedLater = true; else showCoach(REPAIRED_LINE, 3500);
+  Sfx.repaired(); Buzz.shield();
   sparks(player.x, player.y + PILOT_CY, ['#F2C14E', '#FFFFFF', '#A9781B', P.hot], 40, 16);
   award('repair');
 }
@@ -1793,7 +1798,7 @@ function splitFind(k) {
   const sp = { s0: 1500 + k * 1800 + 260 + Math.floor(hash(k * 3.7 + SEED) * 600), len: 500 + Math.floor(hash(k * 5.3 + SEED) * 220) };
   const a = sp.s0 - 450, b = sp.s0 + sp.len + 450;
   for (let j = Math.max(1, cafeIdx(a) - 1); j <= cafeIdx(b) + 1; j++) if (cafeD(j) + 420 > a && cafeD(j) - 420 < b) return null;
-  for (let dd = a; dd <= b + 400; dd += 200) if (voidAt(dd) || bossAt(dd)) return null;
+  for (let dd = a; dd <= b + 400; dd += 200) if (voidAt(dd) || bossAt(dd) || caveAt(dd)) return null;
   return sp;
 }
 function splitU(d) {
@@ -1819,7 +1824,7 @@ function shaftCentreX(d) {
 }
 function ledge(d, side) {
   const q = Math.floor(d / 72), h = hash(q * 2.7 + side * 50 + SEED);
-  if (h > 0.3 || d < 320 || voidAt(d) || bossAt(d)) return 0;
+  if (h > 0.3 || d < 320 || voidAt(d) || bossAt(d) || caveAt(d)) return 0;
   return Math.round(Math.min(10 + h * 44, shaftHalfW(d) * 0.4) * (1 - splitNear(d)) * (1 - cavernAt(d)) * (1 - Math.abs(2 * (d - q * 72) / 72 - 1)));
 }
 // Wall materials change every 500 m and blend over 120 m around each boundary (dithered so there is no hard line).
@@ -4691,12 +4696,17 @@ function speedAt(d) {
 //   season, oldBoards the board season, and earlier seasons' boards kept when a fresh one starts (high scores)
 //   boardCache, kidBoardCache   the online top 10s for the gravestones, kept 2 minutes (board flags)
 //   playerId          random ID for the private play stats; made or remade in countPlay (run stats)
-//   leviMet, leviLast the Leviathans fought from each moon's bag and the last one fought (the shaft); made when first used
+//   leviMet, leviLast the Leviathans fought from each moon's bag and the last one fought (the shaft); made when first used,
+//                     repaired just below
 //   leviBeaten        Leviathan kind: times escaped (boss fights); made when first used
 //   cafeVisits, cafeTips   cafes visited ever, and the TIPS card seen (coffee stop)
 const save = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false, cap: true, hints: {} };   // cap: the 60 FPS cap, on unless switched off
 try { Object.assign(save, JSON.parse(localStorage.getItem('moonfall.v1') || '{}')); } catch (e) {}
 save.parts = Object.assign({ plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 }, save.parts);
+// Fields read every frame are put right here if a damaged save has them as the wrong type (they'd throw each frame).
+if (!save.hints || typeof save.hints !== 'object') save.hints = {};
+for (const k of ['leviMet', 'leviLast']) if (!save[k] || typeof save[k] !== 'object' || Array.isArray(save[k])) delete save[k];
+if (save.leviMet) for (const m of Object.keys(save.leviMet)) if (!Array.isArray(save.leviMet[m])) delete save.leviMet[m];
 // Older saves: save.comps, how many of the first ten components were won in order, or before that save.nav, crystals paid
 // for the nav computer at cafes (50 for it). A ship that was ready to fly (all ten, or all parts and the nav computer),
 // or a mission already flown home, keeps every component (owner: "Keep them ready"); a paid-off nav computer is that
@@ -4747,9 +4757,12 @@ const kidRoll = n => { const x = Math.sin(n * 12.9898 + SEED * 78.233) * 43758.5
 function bossShot(s) { kidShotAcc += kidRun.shots; if (kidShotAcc >= 0.999) { kidShotAcc -= 1; bossShots.push(s); } }
 function persist() { if (offRecord()) return; try { localStorage.setItem('moonfall.v1', JSON.stringify(save)); } catch (e) {} }
 // Puts the save back exactly as it was (json: JSON.stringify(save) from before), after the self-test or an escape preview.
+// The sound and music switches may have been changed on the pause screen meanwhile, so the audio and the toggles follow
+// the save that comes back.
 function putSaveBack(json) {
   for (const k of Object.keys(save)) delete save[k];
   Object.assign(save, JSON.parse(json));
+  Sfx.setOn(save.snd); Music.setOn(); syncToggles();
 }
 // Switches the game over to a moon: its rock layers and scenery colours, and everything painted from them
 // is thrown away to be painted again (the shaft's tiles and back layers, the hills and the surface props). The hazards,
@@ -5742,6 +5755,7 @@ const Music = (() => {
       level(false, (fade || 0.3) / 3);
     },
     setOn() { if (bus) level(playing, 0.05); },
+    song() { return playing ? mode : ''; },   // the looping song now playing ('' for none), to pick it up again later
     setDepth(m) {
       if (mode === 'boss' || mode === 'victory') return;
       const L = m < 250 ? 1 : m < 600 ? 2 : 3;
@@ -6470,7 +6484,8 @@ const confirmDlg = $('confirmDlg');
 let confirmStep = 0, resetTimer = 0, confirmKind = 'reset', confirmFrom = 'resetBtn';
 function clearRepair() {
   for (const pt of PARTS) save.parts[pt.id] = 0;
-  save.dives = 0; save.compsGot = []; save.compsNew = []; missionsDone(); save.missionDone = false;   // the next finished mission counts
+  save.dives = 0; save.compsGot = []; save.compsNew = []; delete save.partsGift;
+  missionsDone(); save.missionDone = false;   // the next finished mission counts
 }
 function popConfirm() {
   pctify($('confirmText')); pctify($('confirmYes'));
@@ -6583,6 +6598,7 @@ function tellDroneEnd() {
   popConfirm();
 }
 // The escape preview (five taps on the pilot) says what it is before the dive starts (see the escape preview).
+let previewAsks = 0;
 function askPreview() {
   if (offRecord() || state !== 'title' || cardSide) return;
   confirmKind = 'preview'; confirmStep = 0;
@@ -6594,9 +6610,15 @@ function askPreview() {
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Start the preview';
   $('confirmNo').textContent = 'Not now';
   // Owner: taps still coming at the pilot dismissed it. It opens low (popConfirm), and its buttons wait a moment.
-  const buttons = [$('confirmYes'), $('confirmNo')];
+  // The wait is for this pop-up only: closed sooner, its buttons come back at once (the close handler) and the timer
+  // leaves whatever card is open by then alone.
+  const buttons = [$('confirmYes'), $('confirmNo')], ask = ++previewAsks;
   for (const b of buttons) b.disabled = true;
-  setTimeout(() => { for (const b of buttons) b.disabled = false; if (confirmDlg.open) $('confirmNo').focus(); }, PREVIEW_ASK_WAIT);
+  setTimeout(() => {
+    if (ask !== previewAsks || !confirmDlg.open || confirmKind !== 'preview') return;
+    for (const b of buttons) b.disabled = false;
+    $('confirmNo').focus();
+  }, PREVIEW_ASK_WAIT);
   popConfirm();
 }
 // Landing at a cafe after escaping Leviathans: a card with the components unlocked since the last one (save.compsNew),
@@ -6649,14 +6671,14 @@ $('confirmNo').addEventListener('click', () => {
   if (kind === 'comps') releaseShop();   // Not yet: on to the cafe menu
 });
 $('confirmYes').addEventListener('click', () => {
-  if (confirmKind === 'launch') { confirmDlg.close(); launchFromCafe(); return; }
+  if (confirmKind === 'launch') { confirmDlg.close(); cafeFromPause(); launchFromCafe(); return; }
   if (confirmKind === 'drone') { answerDrone(true); return; }
   if (confirmKind === 'repaired') { confirmDlg.close(); flyHome(); return; }
   if (confirmKind === 'droneEnd') { confirmDlg.close(); return; }
   if (confirmKind === 'preview') { confirmDlg.close(); startPreview(); return; }
   if (confirmKind === 'comps') {   // Fly home! when the ship is ready, else Great!
     confirmDlg.close();
-    if (canLaunch()) { shopHeld = false; launchFromCafe(); } else releaseShop();
+    if (canLaunch()) { cafeFromPause(); shopHeld = false; launchFromCafe(); } else releaseShop();
     return;
   }
   if (confirmKind === 'jump') { if (!askDrone(false)) { confirmDlg.close(); startRun(false); } return; }   // the drone's question replaces it
@@ -6673,6 +6695,7 @@ $('confirmYes').addEventListener('click', () => {
 confirmDlg.addEventListener('close', () => {
   if (confirmDlg.open) return;   // the close event is async: a card asked for since then is up and stays as it is
   const kind = confirmKind;
+  $('confirmYes').disabled = $('confirmNo').disabled = false;   // the escape preview's wait, if it was closed during it
   $(confirmFrom).focus({ preventScroll: true }); confirmKind = 'reset'; flipMenuAway(false);
   if (kind === 'comps') releaseShop();
 });
@@ -6769,7 +6792,7 @@ function endRun(how) {
 
 // ---------- flow ----------
 function resetRun() {
-  crashNote = null;   // a banner still waiting from the last dive is dropped (the component itself is saved)
+  crashNote = null; repairedLater = false;   // words still waiting from the last dive are dropped (what they announce is saved)
   newSeed(); sayEl.style.visibility = ''; sq.q = sq.v = 0;
   rocks = []; items = []; particles = []; hazards = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; lastHazD = -9999; steerAcc = 0;
   for (const k in runParts) runParts[k] = 0;
@@ -6836,6 +6859,7 @@ function pause() {
 function resume() {
   if (state !== 'paused') return;
   setState(prevState); showScreen(null); sayEl.style.visibility = ''; last = performance.now(); armBack();
+  releaseShop();   // a cafe card answered while paused
   if (caveSong) Music.victory();
   else if (state === 'landing' || state === 'cafe' || state === 'cafeJump' || state === 'cave') Music.title();
   else if (bossTuneOn) Music.boss(bossTrack);
@@ -6963,6 +6987,7 @@ const BAD_INITIALS = new Set(['ARS', 'ASS', 'BCH', 'CNT', 'COC', 'COK', 'CUM', '
 const showName = i => BAD_INITIALS.has(i) ? '???' : i;
 if (!Array.isArray(save.scores)) save.scores = save.best > 0 ? [{ i: '???', m: save.best, t: 0 }] : [];
 if (!Array.isArray(save.outbox)) save.outbox = [];
+save.outbox = save.outbox.filter(o => o && typeof o === 'object');   // a damaged entry would hold up every score after it
 // Kid mode's own board: its own top 10 on this device, its own
 // best and its own online board (the function's ?kid=1). A run counts as Kid mode when any kid setting was off normal.
 if (!Array.isArray(save.kidScores)) save.kidScores = [];
@@ -7354,8 +7379,12 @@ function drawCafe(cam) {
 // Coffee stop: auto-landing on the pad, a cup at the counter, then a run and jump back into the shaft.
 const cafeVisited = new Set();
 let cafeT = 0, cafeK = 0, landFrom = null;
-let shopHeld = false;   // the menu waits behind a card (askComps) and opens once it's closed
-function releaseShop() { if (shopHeld && state === 'cafe') { shopHeld = false; openShop(); } }
+// The menu waits behind a card (askComps) and opens once it's closed. A card answered while the game is paused (the
+// phone locked or the app switched with the card up) leaves it held, and resume() lets it go.
+let shopHeld = false;
+function releaseShop() { if (shopHeld && state === 'cafe' && !confirmDlg.open) { shopHeld = false; openShop(); } }
+// A card's Fly home! answered on the pause screen: back to the cafe first, so the launch can start from there.
+function cafeFromPause() { if (state === 'paused' && prevState === 'cafe') resume(); }
 function checkCafe() {
   const feet = player.y + 28, k = cafeIdx(feet);
   if (k < 1 || cafeVisited.has(k)) return;
@@ -7690,6 +7719,8 @@ function drawCafeSigns(cam) {
 let cavePhase = '', caveT = 0, caveDone = false, caveFrom = null, caveArt = null, caveForMoon = '', caveChest = 0;
 const caveUi = $('caveUi');
 const CAVE_PORTAL_IN = 0.8;   // s from the portal starting to open until he walks to it
+const CAVE_PORTAL_SHUT = 0.5;   // s for the blue portal to close behind him (portalShutAt: caveT as he stepped in)
+let portalShutAt = 0;
 // Looking about after landing: LOOK_TIME s, facing away from the chest (-1) or toward it (1) from each time on; he
 // spots it at LOOK_SPOT. He walks to it at CAVE_WALK px/s.
 const LOOK_TIME = 5, LOOK_FACE = [[0, -1], [1.1, 1], [2.1, -1], [3.0, 1]], LOOK_SPOT = 3.3, CAVE_WALK = 34;
@@ -7733,6 +7764,7 @@ function checkCave() {
 function updateCave(dt) {
   caveT += dt;
   const cave = caveInfo(), t = caveT, crossed = at => t >= at && t - dt < at, standY = cave.F - 28, s = cave.side;
+  if (droneRun && cavePhase !== 'gift' && cavePhase !== 'portal') droneHover(dt);   // those two move it themselves
   const toChest = cave.chestX - s * 20, lifted = ['choice', 'gift', 'friend', 'portal', 'leave'].includes(cavePhase);
   caveLift += ((lifted ? caveLiftWant : 0) - caveLift) * Math.min(1, dt * 6);
   setDepth();   // the HUD's depth follows him down to the floor
@@ -7779,7 +7811,7 @@ function updateCave(dt) {
     }
     if (droneRun) { drone.ox = -s * 18; drone.oy = -10; }   // the drone keeps close behind him
     if (at >= walkDur && !player.hidden) {
-      player.hidden = true; droneRun = false; Sfx.jump(); sparks(cave.portalX, cave.F - 26, ['#8FD3FF', '#E6F6FF', '#2F7BD8'], 20, 10);
+      player.hidden = true; portalShutAt = t; droneRun = false; Sfx.jump(); sparks(cave.portalX, cave.F - 26, ['#8FD3FF', '#E6F6FF', '#2F7BD8'], 20, 10);
     }
     if (at >= walkDur + 0.6) { cavePhase = ''; endDiveAndFlyHome(true); return; }
   } else if (cavePhase === 'leave') {
@@ -7878,7 +7910,9 @@ const CAVE_COLOURS = {
 };
 function buildCaveArt() {
   const cave = caveInfo(), col = CAVE_COLOURS[moon] || CAVE_COLOURS.dust, rand = rng32(Math.floor(SEED * 997) + 25);
-  const roof = document.createElement('canvas'), floor = document.createElement('canvas');
+  // The same two canvases every run (setting a width clears one), so a new run makes no new images for a cave it may
+  // never reach.
+  const roof = caveArt ? caveArt.roof : document.createElement('canvas'), floor = caveArt ? caveArt.floor : document.createElement('canvas');
   roof.width = floor.width = W; roof.height = CAVE_ROOF_H; floor.height = CAVE_FLOOR_H;
   const rg = roof.getContext('2d'), fg = floor.getContext('2d');
   const clear = (x, w, ...holes) => holes.every(([hx, hw]) => x + w < hx - hw || x > hx + hw);
@@ -7976,7 +8010,7 @@ function drawCave(cam) {
     const at = giftItemAt(cave, i, caveT);
     if (at) drawPart(pt, Math.round(at[0]), Math.round(at[1] - cam), clock);
   });
-  const portalOpen = state === 'cave' && cavePhase === 'portal' ? smoothstep(caveT / CAVE_PORTAL_IN) * (player.hidden ? Math.max(0, 1 - (caveT - CAVE_PORTAL_IN - 1.4) * 2) : 1) : 0;
+  const portalOpen = state === 'cave' && cavePhase === 'portal' ? smoothstep(caveT / CAVE_PORTAL_IN) * (player.hidden ? Math.max(0, 1 - (caveT - portalShutAt) / CAVE_PORTAL_SHUT) : 1) : 0;
   if (portalOpen > 0) drawPortal(cave.portalX, Math.round(floorY), portalOpen, PORTAL_BLUE);
 }
 
@@ -8796,6 +8830,7 @@ function skipLaunch() {
 }
 function updateLaunch(dt) {
   launchT += dt;
+  if (!backArmed && !backIgnore) armBack();   // a back gesture skips to the end screen (phones)
   const L = LAUNCH, t = launchT, crossed = at => t >= at && t - dt < at;
   // First the repair; then he runs back, turns to wave goodbye, and climbs aboard.
   if (t < REPAIR.done) repairScene(t, dt, crossed);
@@ -8889,6 +8924,8 @@ function showEnd() {
 //    going back takes that entry away and pauses the game instead. Resume adds it again; the menu takes it away quietly.
 //    backIgnore counts the menu's own history.back() calls: their popstate can arrive after a new run has started.
 //    If the current entry is already a run entry (the page was reloaded mid-run), it's reused rather than stacked.
+//    The launch adds one too, once the menu's own back has landed (updateLaunch): going back there skips to the end
+//    screen, where the mission is counted, instead of leaving the page first.
 let backArmed = false, backIgnore = 0;
 function armBack() {
   if (backArmed || perfOn) return;
@@ -8904,7 +8941,7 @@ addEventListener('popstate', () => {
   if (backIgnore) { backIgnore--; return; }
   if (!backArmed) return;
   backArmed = false;
-  pause();
+  if (state === 'launch') skipLaunch(); else pause();
 });
 // 2. Screen awake: during the intro film, a run and the launch the screen shouldn't dim or lock (the Screen Wake Lock
 //    API; Safari 16.4+, Chrome). The phone drops the lock when the page is hidden, so it's asked for again on coming back.
@@ -8929,10 +8966,10 @@ function keepAwake(on) {
 // UPDATE_URL (version.json, written next to the page: {"v": VERSION}); the claude.ai copy has none and never checks.
 // It's asked when the tab comes back into view, on the way back to the menu, and every 5 minutes, at most once a minute,
 // past every cache (a fresh address and no-store). When a newer version is out, the page reloads at a moment that
-// costs the player nothing: on the main menu, with no card or high score table open and nothing pressed for 4 seconds,
+// costs the player nothing: on the main menu, with no card, pop-up, high score table or self-test results open and
+// nothing pressed for 4 seconds,
 // coming back to the main menu (?menu=1, see backFromUpdate) rather than the start screen and the film; or on the
-// start screen before anything on it has been pressed. Never in a run, a film or the shop. (Owner, after a phone kept
-// v0.224 for hours on a menu it hadn't played from: "Is the auto update not working?") The reload goes to
+// start screen before anything on it has been pressed. Never in a run, a film or the shop. The reload goes to
 // ?v=<new version>, a new address no cache has (GitHub Pages lets browsers keep the page 10 minutes), keeping the
 // address's other settings (?sound=1). If the reload still brings an older page (a cache that didn't let go),
 // sessionStorage remembers the try so it can't loop.
@@ -8951,7 +8988,7 @@ function checkUpdate() {
   }).catch(() => {});
 }
 function reloadForUpdate() {
-  if (!updateTo || offRecord() || document.hidden || cardSide) return;
+  if (!updateTo || offRecord() || document.hidden || cardSide || confirmDlg.open || $('perfCard')) return;
   const quiet = state === 'title' ? !scoreOpen && performance.now() - lastInput > 4000 : state === 'splash' && !lastInput;
   if (!quiet) return;
   const v = updateTo; updateTo = 0;
@@ -8973,10 +9010,19 @@ function backFromUpdate() {
 if (UPDATE_URL) { setInterval(checkUpdate, 300000); setInterval(reloadForUpdate, 3000); setTimeout(checkUpdate, 20000); }
 for (const ev of ['pointerdown', 'touchend', 'keydown']) addEventListener(ev, () => { lastInput = performance.now(); Sfx.wake(); }, { capture: true, passive: true });
 addEventListener('pageshow', () => Sfx.wake());
+// The score entry and the end screen can carry a song on from a cafe or the cave (endDiveAndFlyHome): it stops while
+// the page is hidden and the same song starts again on return.
+let songHidden = '';
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) { checkUpdate(); Sfx.wake(); if (wakeWant) keepAwake(true); }
-  if (document.hidden) { keys.l = keys.r = false; pause(); if (state === 'title' || state === 'splash' || state === 'launch') Music.stop(0.1); if (runId && state !== 'over') endRun('left'); }
+  if (document.hidden) {
+    keys.l = keys.r = false; pause();
+    if (state === 'over' || state === 'ended') songHidden = Music.song();
+    if (['title', 'splash', 'launch', 'over', 'ended'].includes(state)) Music.stop(0.1);
+    if (runId && state !== 'over') endRun('left');
+  }
   else if (state === 'title') Music.title();
+  else if ((state === 'over' || state === 'ended') && songHidden) { Music.begin(songHidden); songHidden = ''; }
   // The launch stands still while hidden, so its music stops too; back during the groove (or the cave's song), it starts again.
   else if (state === 'launch' && launchPortal) Music.victory();
   else if (state === 'launch' && launchT >= LAUNCH.groove && launchT < LAUNCH.space) { Music.setZone(0, true); Music.setDepth(900); Music.start(); }
@@ -9490,6 +9536,7 @@ function placeHazard(k, d0) {
   if (d - lastRockD < 90) return false;   // room to get past the rock above first
   if (cavernAt(d - 300) > 0.02 || cavernAt(d) > 0.02 || cavernAt(d + 300) > 0.02) return false;
   if (voidAt(d - 300) || voidAt(d) || voidAt(d + 300)) return false;
+  if (caveAt(d - 300) || caveAt(d) || caveAt(d + 300)) return false;
   const h = { kind, d, side: r() < 0.5 ? -1 : 1 }, Z = HAZARDS[kind];
   if (Z.place && !Z.place(h, r)) return false;   // its own extras (each draws at most one more number from r)
   // Not where the shaft splits around an island.
@@ -9841,7 +9888,9 @@ function drawDrone(my) {
 // does. It opens the fight and comes round more often than the others (SIG_CHANCE).
 const SIG_CHANCE = 0.35;
 // Patterns that close off part of the cavern: two of them at once (enraged) could leave nowhere to go, so never paired.
-const BOSS_ZONE = { curtain: true, beam: true, lure: true, sweep: true, shriek: true, snap: true, pincer: true, web: true, slag: true, mortar: true };
+// sonar and scales are walls with one gap, like curtain: two such walls would put two gaps in different places.
+const BOSS_ZONE = { curtain: true, beam: true, lure: true, sweep: true, shriek: true, snap: true, pincer: true, web: true, slag: true, mortar: true,
+  sonar: true, scales: true };
 const BOSS_AMMO = 1.25;   // volleys per attack, against the patterns' own counts (fireMore)
 const BOSS_PAUSE = 0.6;   // the pause between attacks, against their own rests (so the shots a second go up with the volleys)
 const BOSS_ENTER = 1.8, BOSS_LIFT = 1.6;   // s to come forward (and turn to dive); s of fall before the funnel when it stops firing
@@ -10246,7 +10295,10 @@ function updateBoss(dt) {
         }
       }
       target = b.pt < 0.8 ? Math.round(H * 0.42) : pilotScreenY;
-      if (b.pt >= 2) boss = null;
+      if (b.pt >= 2) {
+        boss = null;
+        if (repairedLater) { repairedLater = false; showCoach(REPAIRED_LINE, 3500); }
+      }
     }
   }
   // The camera eases him to his place, never so fast that it scrolls back up the shaft.

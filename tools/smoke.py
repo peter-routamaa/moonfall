@@ -34,8 +34,10 @@ DRIVER = r"""<script>
   const wait = ms => new Promise(f => setTimeout(f, ms));
   const seen = new Set();   // every state the run passed through, frame by frame
   let t = performance.now() + 1000;
-  // A component's card (a Leviathan escaped) gets Continue, as a player would; compCards counts them.
-  const run = (n, keep) => { for (let i = 0; i < n; i++) { t += 1000 / 60; if (keep) keep(); if ($('confirmDlg').open && !$('confirmPic').hidden) { out.compCards = (out.compCards || 0) + 1; $('confirmYes').click(); } try { M.frame(t); } catch (e) { out.errors.push('frame: ' + (e && e.message || e)); } seen.add(M.state); } };
+  // A component's card (a Leviathan escaped) gets Continue, as a player would; compCards counts them. A step that answers
+  // the card itself turns autoCard off.
+  let autoCard = true;
+  const run = (n, keep) => { for (let i = 0; i < n; i++) { t += 1000 / 60; if (keep) keep(); if (autoCard && $('confirmDlg').open && !$('confirmPic').hidden) { out.compCards = (out.compCards || 0) + 1; $('confirmYes').click(); } try { M.frame(t); } catch (e) { out.errors.push('frame: ' + (e && e.message || e)); } seen.add(M.state); } };
   const safe = () => { P.inv = 1; P.hp = P.max; };
   // A step does something, plays some frames, and says which state it should end in ('' for any).
   const step = async (name, want, fn, frames, keep) => {
@@ -74,7 +76,16 @@ DRIVER = r"""<script>
   // The phone's back gesture mid-run pauses instead of leaving (see phones in the game).
   await step('back gesture', 'paused', () => dispatchEvent(new PopStateEvent('popstate', { state: null })), 10);
   await step('resume after back', 'play', () => S.resume(), 10, safe);
-  await step('cafe landing', 'cafe', () => { P.y = M.cafeInfo(1).Dl - 400; }, 60 * 12, () => { safe(); P.x = M.cafeInfo(1).padX; P.aim = P.x; });
+  // The cafe with a component's card up when the phone is locked: the card is answered on the pause screen, and the
+  // cafe's menu must still open on Resume.
+  autoCard = false;
+  await step('cafe landing', 'cafe', () => { M.save.compsNew = [M.COMPONENTS[0].id]; P.y = M.cafeInfo(1).Dl - 400; }, 60 * 12, () => { safe(); P.x = M.cafeInfo(1).padX; P.aim = P.x; });
+  if (!$('confirmDlg').open) out.errors.push('cafe: no component card');
+  await step('pause with the card up', 'paused', () => S.pause(), 10);
+  await step('card answered while paused', 'paused', () => $('confirmYes').click(), 10);
+  await step('resume to the cafe', 'cafe', () => S.resume(), 20);
+  if ($('shop').hidden) out.errors.push('cafe: no menu after its card was answered while paused');
+  autoCard = true;
   await step('shop', 'cafe', () => S.openShop(), 20);
   for (const face of ['shop', 'tips', 'repair']) await step('cafe card ' + face, 'cafe', () => S.cafeCard(face, true), 20);
   await step('cafe card closed', 'cafe', () => S.cafeCard(null, true), 10);
@@ -113,6 +124,8 @@ DRIVER = r"""<script>
   await step('preview game over', 'title', () => S.toTitle(), 20);
   unchanged('death');
   await step('launch', 'launch', () => M.startLaunch(), 60 * 20);
+  // The back gesture during the launch skips to the end screen (where the mission is counted) instead of leaving.
+  await step('back skips the launch', 'ended', () => dispatchEvent(new PopStateEvent('popstate', { state: null })), 10);
   await step('ending', 'launch|ended', () => S.showEnd(), 30);
   await step('menu again', 'title', () => S.toTitle(), 30);
   out.seen = [...seen];
