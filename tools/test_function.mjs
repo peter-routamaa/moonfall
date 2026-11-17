@@ -148,9 +148,9 @@ const lost = await call('POST', { initials: 'LST', depth: 700, player: RP, run: 
 check('database failure after the insert answers 500', lost[0] === 500 && db.scores.filter(x => x.run === R3).length === 1, lost);
 const retry = await call('POST', { initials: 'LST', depth: 700, player: RP, run: R3 }, '7.7.7.5');
 check('the retry finds the saved row instead of adding one', retry[0] === 200 && db.scores.filter(x => x.run === R3).length === 1, retry);
-// The connection is the last x-forwarded-for entry (the platform's); anything in front of it is the caller's to set.
-const spoof = []; for (let k = 0; k < 7; k++) spoof.push((await call('POST', { initials: 'SPF', depth: 5 }, `${k}.0.0.${k}, 8.8.8.8`))[0]);
-check('a made-up first hop doesn\'t escape the score limit', spoof.join(',') === '200,200,200,200,200,200,429', spoof);
+// The connection is the first x-forwarded-for entry (the platform puts the caller's address there); the rest are its own.
+const hopsTried = []; for (let k = 0; k < 7; k++) hopsTried.push((await call('POST', { initials: 'SPF', depth: 5 }, `8.8.8.8, ${k}.0.0.${k}`))[0]);
+check('the first forwarded entry is the connection', hopsTried.join(',') === '200,200,200,200,200,200,429', hopsTried);
 // Play pings: 30 new runs a minute per connection.
 const pings = []; for (let k = 0; k < 32; k++) pings.push((await call('POST', { event: 'play', player: (1e15 + k).toString(16).padStart(16, '0'), run: R1 }, '6.6.6.6'))[0]);
 check('30 new runs a minute per connection, then 429', pings.filter(x => x === 200).length === 30 && pings.at(-1) === 429, pings.join());

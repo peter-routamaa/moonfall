@@ -152,12 +152,10 @@ async function hash(text: string) {
 }
 
 // The connection a request came from, hashed with the secret key (so the stored value can't be turned back into an
-// address), or null. CLIENT_HOP picks the entry of x-forwarded-for that the platform adds itself: a caller can put
-// anything in front of it, so the first entry can't be trusted.
-const CLIENT_HOP = 'last';
+// address), or null. Supabase's front door (Cloudflare) replaces any x-forwarded-for a caller sends, and its first
+// entry is the caller's address (the same as cf-connecting-ip; tried on the live function with made-up headers).
 async function connection(req: Request) {
-  const hops = (req.headers.get('x-forwarded-for') ?? '').split(',').map(h => h.trim()).filter(Boolean);
-  const ip = CLIENT_HOP === 'last' ? hops.at(-1) : hops[0];
+  const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim();
   return ip ? await hash(ip + KEY) : null;
 }
 
