@@ -84,8 +84,15 @@ brought it back inside; `levi_budget.py` would have failed version 137 on all th
 - **`disc()` and `ring()` keep an image per colour and size for good.** Call them only with a small fixed set of colours
   and sizes. For a colour or size that animates, either set `stampDirect` around the drawing (as `bossStage` does) or
   use `fillRect`. Discs wider than 48 px radius and rings over 60 are drawn row by row every time: keep those rare.
-- **One scratch canvas for throwaway work.** `scratch(w, h)` hands out a shared 240 x 160 canvas, cleared. `checks()`
-  repaints one 2 x 2 canvas for every new colour. Don't make a canvas to use once.
+- **One scratch canvas for throwaway work.** `scratch(w, h)` hands out a shared 240 x 160 canvas, cleared. Don't make a
+  canvas to use once.
+- **No pattern made in a fight.** `checks()` keeps the last `CHECK_KEEP` colours' patterns and drops the oldest; a
+  colour that lasts one paint (fading in, rock blends) gets no pattern, and `bossBand` colours the one white-check
+  pattern (`checkWhite`) instead. In a fight only patterns the warm-up made are used.
+- **No garbage per frame in shapes.** `fillPoly` sorts each row's crossings in one reused array, and shape helpers
+  (`corner`, `tri`, `quad`, `bezXY`, the Leviathans' `...Leg`, `...Arm`, `...Wing` and so on) hand back reused lists:
+  take the numbers out before the next call. No `for (const s of [-1, 1])` in a draw (a new array each time); count.
+  Shot images are found through nested maps (outline, body, core, radius), never a key string built per frame.
 - **A fight makes nothing** (version 179; the owner saw the frame rate halve the first time a Leviathan fired and
   steady after). While a fight is on, `stampAllow` is 0: a `disc`, `ring`, shot or elder body that has no image yet is
   drawn the direct way instead of having one made (`mayStamp()`). Their images are made in the approach, a few a frame
