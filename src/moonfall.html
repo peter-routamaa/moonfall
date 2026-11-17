@@ -1072,7 +1072,11 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 //   splash (start screen) -> opening (the intro film, can be skipped) -> title (main menu)
 //   -> intro (run-up and leap) -> play (falling) -> dying -> over (game over and high scores) -> title ...
 //   During a run: play -> landing -> cafe -> cafeJump -> play (a coffee stop), and paused from most states.
-//   From the title once the ship is repaired: launch -> ended.
+//   About 20 km down: play -> cave (the deep cave, the end of the dive) -> the ending through its portal, or back to
+//   play down the floor's hole.
+//   The ending, launch -> ended, once the ship is repaired: from the title's launch button, or from the game over card,
+//   the high scores after it, a cafe or the deep cave's portal, which all end the dive with flyHome (over -> title ->
+//   launch in one step).
 //   frame() runs once per screen refresh and calls update(dt), which moves things on for the current state, then render().
 //
 // A RUN: startRun -> resetRun -> intro -> beginPlay -> play ... collide -> hurt -> die -> gameOver -> showScores.
@@ -1089,9 +1093,9 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 //   ship parts, the shaft, Leviathans (one entry per kind in LEVIATHANS: its numbers, colours, attacks, background shape
 //   and fight art together), alien life on the walls and in the shaft, the moon surface, game state, saved settings (and
 //   what a save holds), sound (and his voice), music, haptics, DOM (elements and the HUD), settings and Kid mode, the
-//   title card and its faces, confirm dialogs, run stats, flow, menu buttons, high scores, coffee stop (cafes: drawing,
-//   landing, the counter, the shop, the signs), the deep cave (the end of the dive), badges, board flags, the opening film, fireworks, the launch, phones,
-//   updates, input, hazards (one entry per hazard in HAZARDS), level generation, effects, damage and pickups, the helper
+//   title card and its faces, confirm dialogs (every pop-up), run stats, flow, menu buttons, high scores, coffee stop
+//   (cafes: drawing, landing, the counter, the shop, the signs), the deep cave (the end of the dive), the escape preview,
+//   badges, board flags, the opening film, fireworks, the launch, phones, updates, input, hazards (one entry per hazard in HAZARDS), level generation, effects, damage and pickups, the helper
 //   drone, boss fights (the attacks in BOSS_ATTACKS, their shots in SHOT_TYPES), update, render, cinematic touches,
 //   sizing and loop, the performance self-test.
 // TABLES THAT ARE CHECKED: checkHazards and checkLeviathans run once at load and report a missing or wrong field
@@ -4775,21 +4779,6 @@ const playerStart = () => ({
   leviFought: []   // the Leviathans whose fight started this run (run stats)
 });
 const player = { touch: false, ...playerStart() };
-// The helper drone, unlocked by flying the repaired ship home (after the standard ending: tellDroneEnd; for saves that
-// finished a mission before that, offered as the next dive starts: askDrone) or found in the chest at the end of the
-// deep cave (save.droneOpen; owner: no longer locked behind Terminal Velocity), and switched on the Unlocks card
-// (save.drone). It hovers beside the pilot and catches ship parts and crystals that go past him. Its place is kept
-// relative to the pilot's middle (ox, oy) so it falls with him. It picks its target ahead of time, so the player can
-// see what it's going for: as a part or crystal comes up within DRONE_AHEAD px below him it rolls once (1 in 2) and, if
-// it's free, locks on, with a dotted cyan sight to it. If he takes it himself the lock just ends; if it goes past him,
-// the drone dashes along the sight and catches it. One lock at a time; an item that passes while it was busy gets its
-// roll then. It reaches across the whole shaft; the only limit is catching it before it leaves the top of the screen.
-let droneRun = false;
-const drone = { ox: 24, oy: -20, mode: 'follow', it: null, lock: null, caught: 0 };
-const DRONE_CHANCE = 0.5, DRONE_SPEED = 720, DRONE_AHEAD = 220;   // share it goes for; dash px/s; lock range below him
-const droneOpen = () => !!save.droneOpen;
-// A mission finished (the ship flown home) before the drone came with the ending: the drone is his to take (askDrone).
-const droneEarned = () => missionsDone() > 0;
 let rocks = [], items = [], particles = [], nextSeg = 0, lastRockD = -999, lastShieldD = -9999, steerAcc = 0;
 // The shaft is generated SEG_LEN pixels at a time; the pilot's hitbox is HIT_HALF_W pixels either side of his middle.
 const SEG_LEN = 110, HIT_HALF_W = 8;
@@ -7142,6 +7131,17 @@ function showOver() {
   setTimeout(() => { if (state === 'over') $('againBtn').focus({ preventScroll: true }); }, 50);
   if (overRepaired) { overRepaired = false; askRepaired(); }
 }
+// Ends the dive where he is and flies home: viaPortal (the deep cave) starts the ending at the orange portal by the ship
+// instead of up the shaft. The dive counts like any other (owner: it "should still count in the high scores").
+function endDiveAndFlyHome(viaPortal) {
+  const m = depthM(), kb = kidRun.on, counts = !previewSave;   // a Kid mode run has its own best and board; a preview has none
+  if (counts && m > bestNow()) { if (kb) save.kidBest = m; else save.best = m; persist(); }
+  hsKid = kb; launchPortal = !!viaPortal;
+  setState('over'); hud.classList.add('off'); endRun(viaPortal ? 'cave' : 'launch');
+  if (counts && qualifies(m)) { showScores(m, 'launch'); return; }
+  flyHome();
+}
+function flyHome() { toTitle(); startLaunch(); }
 
 // ---------- menu buttons ----------
 let armTimer = 0;
@@ -7158,7 +7158,7 @@ $('newMissionBtn').addEventListener('click', e => {
 });
 $('endTitleBtn').addEventListener('click', toTitle);
 $('launchBtn').addEventListener('click', startLaunch);
-$('overLaunchBtn').addEventListener('click', () => { toTitle(); startLaunch(); });
+$('overLaunchBtn').addEventListener('click', flyHome);
 $('startBtn').addEventListener('click', jumpIn);
 // Start screen: Choose Moon opens the three moons; Start stays grey until one is picked, then plays the intro
 // on that moon (the moon behind the buttons changes as soon as it's picked). Nothing is picked to begin with.
@@ -7754,11 +7754,7 @@ function openShop() {
   kbFocus($('shopGo'));
 }
 // Turns the cafe card to the shop, the tips or back to the front, growing or shrinking upward like the title card.
-let cafeSide = null, usingKeys = false;
-// The cafe card only moves focus for keyboard players, so touch players never see a stray focus ring.
-addEventListener('keydown', () => { usingKeys = true; }, true);
-addEventListener('pointerdown', () => { usingKeys = false; }, true);
-function kbFocus(el) { if (usingKeys && el) el.focus({ preventScroll: true }); }
+let cafeSide = null;
 // The cafe's card: the shop, the tips and the ship repair on the back.
 // Where keyboard focus goes on each face, and on the front coming back from each face.
 const CAFE_FACE_FOCUS = {
@@ -7793,17 +7789,6 @@ function launchFromCafe() {
   shopEl.hidden = true; cafeCard(null, true); sayEl.hidden = true;
   endDiveAndFlyHome(false);
 }
-// Ends the dive where he is and flies home: viaPortal (the deep cave) starts the ending at the orange portal by the ship
-// instead of up the shaft. The dive counts like any other (owner: it "should still count in the high scores").
-function endDiveAndFlyHome(viaPortal) {
-  const m = depthM(), kb = kidRun.on, counts = !previewSave;   // a Kid mode run has its own best and board; a preview has none
-  if (counts && m > bestNow()) { if (kb) save.kidBest = m; else save.best = m; persist(); }
-  hsKid = kb; launchPortal = !!viaPortal;
-  setState('over'); hud.classList.add('off'); endRun(viaPortal ? 'cave' : 'launch');
-  if (counts && qualifies(m)) { showScores(m, 'launch'); return; }
-  flyHome();
-}
-function flyHome() { toTitle(); startLaunch(); }
 function renderShop() {
   for (const id of ['shopSpare', 'shopSpare2', 'shopBtnN']) $(id).textContent = player.spare;
   const afford = shopOffer.some(p => player.spare >= p.cost);
@@ -8232,6 +8217,7 @@ function drawCave(cam) {
   if (portalOpen > 0) drawPortal(cave.portalX, Math.round(floorY), portalOpen, PORTAL_BLUE);
 }
 
+// ---------- the escape preview ----------
 // The escape preview (owner: "so that people can watch the third ending if they're unlikely to ever make it that far"):
 // five quick taps on the pilot by the ship, on the main menu, ask (askPreview), then start a dive PREVIEW_ABOVE_M (200 m)
 // above the cave's roof, at the top of the hall (owner: "let's start 200 m up"), at the starting speed (owner: "the default speed at which the game would normally start at 0 m":
@@ -9312,6 +9298,11 @@ addEventListener('keyup', e => {
 });
 // Switching windows while steering loses the key's release: let go of both.
 addEventListener('blur', () => { keys.l = keys.r = false; });
+// Cards move keyboard focus (kbFocus) only for keyboard players, so touch players never see a stray focus ring.
+let usingKeys = false;
+addEventListener('keydown', () => { usingKeys = true; }, true);
+addEventListener('pointerdown', () => { usingKeys = false; }, true);
+function kbFocus(el) { if (usingKeys && el) el.focus({ preventScroll: true }); }
 
 // ---------- hazards: three on each moon, one entry each in HAZARDS ----------
 // Ice: glazed stretches of wall that bounce him back across the shaft (no damage). Sandstone: ledges that shake, then
@@ -10013,6 +10004,21 @@ function nearMiss(k) {
 }
 
 // ---------- the helper drone ----------
+// The helper drone, unlocked by flying the repaired ship home (after the standard ending: tellDroneEnd; for saves that
+// finished a mission before that, offered as the next dive starts: askDrone) or found in the chest at the end of the
+// deep cave (save.droneOpen; owner: no longer locked behind Terminal Velocity), and switched on the Unlocks card
+// (save.drone). It hovers beside the pilot and catches ship parts and crystals that go past him. Its place is kept
+// relative to the pilot's middle (ox, oy) so it falls with him. It picks its target ahead of time, so the player can
+// see what it's going for: as a part or crystal comes up within DRONE_AHEAD px below him it rolls once (1 in 2) and, if
+// it's free, locks on, with a dotted cyan sight to it. If he takes it himself the lock just ends; if it goes past him,
+// the drone dashes along the sight and catches it. One lock at a time; an item that passes while it was busy gets its
+// roll then. It reaches across the whole shaft; the only limit is catching it before it leaves the top of the screen.
+let droneRun = false;
+const drone = { ox: 24, oy: -20, mode: 'follow', it: null, lock: null, caught: 0 };
+const DRONE_CHANCE = 0.5, DRONE_SPEED = 720, DRONE_AHEAD = 220;   // share it goes for; dash px/s; lock range below him
+const droneOpen = () => !!save.droneOpen;
+// A mission finished (the ship flown home) before the drone came with the ending: the drone is his to take (askDrone).
+const droneEarned = () => missionsDone() > 0;
 // The drone: hovering on the shaft's middle side of him, bobbing; dashing to a missed part or crystal and
 // catching it (as if he had); then back. It gives up on one that leaves the top of the screen.
 const droneRoll = it => hash(it.d * 0.37 + it.x * 1.3 + SEED) < DRONE_CHANCE;
