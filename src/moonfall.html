@@ -179,7 +179,6 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .kid-sl input:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 .kid-togs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .kid-togs .set-tog { font-size: 11px; padding: 10px 7px 10px 9px; }
-#titleScreen.reading.kid .repair { --aside: 1; }
 @media (max-width: 360px) { #kidReset { font-size: 11px; letter-spacing: .02em; padding-inline: 6px; } }   /* one line at 320 px */
 #kidReset:disabled { background: transparent; opacity: .45; box-shadow: inset 0 0 0 2px var(--ink-soft); }
 @media (max-height: 700px) {
@@ -342,17 +341,9 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
    flips the panel up and away (folding its height) and back down when the card closes, instead of it vanishing; .aside
    is where it rests while away. */
 #titleScreen .repair.aside, #titleScreen .news.aside { display: none; }
-#titleScreen.reading .repair { --aside: 1; }   /* every card, every phone; the per-card rules below are older and now covered by it */
-/* The Leviathans card is taller: the panel steps aside for it on phones up to 760 px tall. */
-@media (max-height: 760px) { #titleScreen.reading.levi .repair { --aside: 1; } }
-/* And for the moons card up to 800 px tall. */
-@media (max-height: 800px) { #titleScreen.reading.moons .repair { --aside: 1; } }
-/* And for Instructions on phones up to 680 px tall (its Done button ran 8 px off a 627 px screen). */
-@media (max-height: 680px) { #titleScreen.reading.how .repair { --aside: 1; } }
-/* Settings (owner: "make the settings popup take more screenspace so everything isn't as cramped"): the panel steps
-   aside on every phone, and on phones 700 px tall or more the card spreads out into the room: bigger tiles and labels,
-   more space between them. */
-#titleScreen.reading.settings .repair { --aside: 1; }
+#titleScreen.reading .repair { --aside: 1; }   /* for every card, on every phone */
+/* Settings (owner: "make the settings popup take more screenspace so everything isn't as cramped"): on phones 700 px
+   tall or more the card spreads out into the room the panel leaves: bigger tiles and labels, more space between them. */
 @media (min-height: 700px) {   /* not on a 640 px phone, so Done can sit 50 px up there */
   #titleBack { gap: 16px; padding: 18px 16px; }
   #titleBack .set-list { gap: 10px; }
@@ -364,11 +355,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   #titleBack .moon-row .moon-ico { width: 16px; height: 16px; }
   #titleBack #resetBtn { font-size: 14px; padding: 13px 14px 11px; }
 }
-/* And for Badges (ten rows) up to 700 px tall (its Done sat on the bottom edge of a 640 px screen). */
-@media (max-height: 700px) { #titleScreen.reading.badges .repair { --aside: 1; } }
-/* And for Unlocks (the suits, Hard Dive and the helper drone) on every phone: with three boxes it filled
-   an 844 px screen beside the panel. On short phones the card tightens up. */
-#titleScreen.reading.unlocks .repair { --aside: 1; }
+/* Unlocks (the suits, Hard Dive and the helper drone) tightens up on short phones, and Badges too on the shortest. */
 @media (max-height: 700px) {   /* so Done sits 50 px up at 667 */
   #unlocksBack { gap: 7px; padding: 10px 12px; }
   #unlocksBack .suit-box { padding: 7px 10px 8px; gap: 4px; }
@@ -387,8 +374,6 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   .badge-list { gap: 4px; }
   .badge-how { font-size: 16px; }
 }
-/* And for New features on every phone, whose card then slides up to the middle (placeNews). */
-#titleScreen.reading.newsopen .repair { --aside: 1; }
 #titleFlip { transition: transform .45s cubic-bezier(.3, .7, .2, 1); }
 #titleFlip.lift-instant { transition: none; }
 .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -1106,7 +1091,8 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 //   as save.moon.
 // ======================================================================================================================
 
-// Shown on the title card as v0. and the number (v0.215); add one with every published version.
+// Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
+// published version.
 const VERSION = 258;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
@@ -2350,7 +2336,7 @@ function wallArt(Q) {
     wallMask = mk(); const g = wallMask.getContext('2d'); g.fillStyle = '#fff';
     for (const side of [-1, 1]) { for (let s = 0; s < 16; s++) wedgeRows(g, side, s, wedgeY(side, s)); for (let s = 0; s < 8; s++) spurRows(g, side, s, spurY(side, s)); }
   }
-  if (wallArts.length < 18) { const cv = mk(); old = { Q: null, cv, g: cv.getContext('2d'), used: 0 }; wallArts.push(old); }
+  if (wallArts.length < 18) { const sheet = mk(); old = { Q: null, cv: sheet, g: sheet.getContext('2d'), used: 0 }; wallArts.push(old); }
   const g = old.g;
   g.globalCompositeOperation = 'copy'; g.drawImage(wallMask, 0, 0);
   g.globalCompositeOperation = 'source-atop';
@@ -2475,7 +2461,7 @@ const LEVIATHANS = {};
 // A glowing eye whose pupil looks straight at him, not just the way the creature faces; brighter
 // once the boss is enraged. bossLook is the way to him in the drawing's own frame, set for each paint (bossStage).
 let bossLook = [1, 0];
-function bossEye(x, y, r, p, look) {
+function bossEye(x, y, r, p) {
   const glow = (boss && boss.rage ? 0.55 : 0.3) * (0.6 + 0.4 * Math.sin(clock * 6)), m = Math.max(1, r - 2);
   c.globalAlpha = glow; disc(x, y, r + 3, p.eye); c.globalAlpha = 1;
   disc(x, y, r + 1, p.deep); disc(x, y, r, p.eye);
@@ -2586,7 +2572,7 @@ LEVIATHANS.whale = {
       for (let j = 1; j < 10; j++) bpx(sx - dir * Math.sin(clock * 2 + j * 0.5) * j * 0.35, sy + j, 1, 1, p.light); }
     for (let i = 0; i < 17; i++) { const [bx, by] = whaleAt(x, y, dir, k, 0.13 + i * 0.045); if ((Math.floor(clock * 4) + i) % 5) bpx(bx, by + 2, 2, 1, p.eye); }   // glowing side line, red
     const [ex, ey, er] = whaleAt(x, y, dir, k, 0.065);
-    bossEye(ex, ey - er * 0.3, 3, p, dir);
+    bossEye(ex, ey - er * 0.3, 3, p);
   },
 };
 // -- Vespergaunt, the elder thing (Dust moon) --
@@ -2841,7 +2827,7 @@ LEVIATHANS.angler = {
       const v = 14 + i * 6, r = (v + 4) / 40, h = 8 - (i % 2) * 3, top = Math.round(Y(-14 + 30 * Math.sqrt(1 - r * r)));
       bpx(X(v) - 1, top, 3, h, p.mark); bpx(X(v), top + h - 1, 1, 1, p.deep);
     }
-    bossEye(X(20), Y(-20), 4, p, dir);
+    bossEye(X(20), Y(-20), 4, p);
     const lx = X(48), ly = Y(-44) + bob, pulse = 0.5 + 0.5 * Math.sin(clock * 5);   // the lure, glowing
     c.globalAlpha = 0.18 + 0.2 * pulse; disc(lx, ly, 12 + Math.round(pulse * 3), p.eye); c.globalAlpha = 0.35; disc(lx, ly, 7, p.eye); c.globalAlpha = 1;
     disc(lx, ly, 3, p.eye); bpx(lx - 1, ly - 1, 2, 2, P.dust);
@@ -2908,7 +2894,7 @@ LEVIATHANS.manta = {
     for (let i = 0; i < 10; i++) bpx(X(-18 + hash(i * 3.3 + k) * 24), y + (hash(i * 7.1 + k) - 0.5) * 24 * sk, 2, 2, p.mark);   // belly spots
     for (let i = 0; i < 3; i++) bscar(X(10 - i * 6), y - 26 * sk, X(4 - i * 6), y - 46 * sk, p, i * 7 + 2);   // three claw scars across the left wing
     bscar(X(-6), y + 30 * sk, X(-14), y + 44 * sk, p, 23, mix(p.eye, p.deep, 0.4));   // a fresh cut near the bite
-    for (const s of [-1, 1]) { bline(X(24), y + s * 22 * sk, x - dir * lag, y + s * span, p.light, 1); bossEye(X(25), y + s * 18 * sk, 2, p, dir); }   // leading edges and eyes
+    for (const s of [-1, 1]) { bline(X(24), y + s * 22 * sk, x - dir * lag, y + s * span, p.light, 1); bossEye(X(25), y + s * 18 * sk, 2, p); }   // leading edges and eyes
   },
 };
 // -- Coilheart, the nautilus (Dust moon) --
@@ -2971,7 +2957,7 @@ LEVIATHANS.nautilus = {
       for (let i = 1; i <= 5; i++) { const [nx, ny] = pt(-0.07 + (hash(i * 3.7) - 0.5) * 0.18, R0 - 11 - i * 7); bline(px, py, nx, ny, p.deep, 3); bline(px + 1, py, nx + 1, ny, glow, 1); px = nx; py = ny; }
       for (let i = 0; i < 7; i++) { const [bx, by] = pt(0.9 + hash(i * 5.3) * 0.7, R0 * (0.6 + hash(i * 2.2) * 0.3)); bpx(bx, by, 2, 2, p.light); bpx(bx + 1, by + 1, 1, 1, p.deep); } }   // barnacles
     bscar(X(14), Y(-30), X(30), Y(-20), p, 13);   // a scar across the hood
-    bossEye(X(22), Y(-10), 4, p, dir);
+    bossEye(X(22), Y(-10), 4, p);
     for (let i = 0; i < 12; i++) {   // pale tentacle tips
       const bx = X(28), by = Y(-8 + i * 2.6), j = 13, a = 0.1 + i * 0.1 + Math.sin(clock * 1.2 + i * 0.8 + j * 0.3) * 0.25 + j * 0.035;
       bpx(bx + dir * j * 2.6 * sk * 0.85 * Math.cos(a) - 1, by + j * 2.6 * sk * 0.85 * Math.sin(a) - 1, 2, 2, p.hi);
@@ -5413,9 +5399,9 @@ const Music = (() => {
     duck = ctx.createGain(); duck.connect(bus);
     muff = ctx.createBiquadFilter(); muff.type = 'lowpass'; muff.frequency.value = OPEN_HZ; muff.connect(duck);
     // The boss tracks' distortion: a soft clipper, then a low-pass to take the fizz off.
-    grit = ctx.createWaveShaper(); const cv = new Float32Array(1024);
-    for (let i = 0; i < 1024; i++) cv[i] = Math.tanh(4 * (i / 511.5 - 1));
-    grit.curve = cv; grit.oversample = '2x';
+    grit = ctx.createWaveShaper(); const curve = new Float32Array(1024);
+    for (let i = 0; i < 1024; i++) curve[i] = Math.tanh(4 * (i / 511.5 - 1));
+    grit.curve = curve; grit.oversample = '2x';
     const gf = ctx.createBiquadFilter(), gg = ctx.createGain(); gf.type = 'lowpass'; gf.frequency.value = 1500; gg.gain.value = 0.16;
     grit.connect(gf); gf.connect(gg); gg.connect(muff);
     const dl = ctx.createDelay(1), fb = ctx.createGain(), wet = ctx.createGain();
@@ -6708,13 +6694,16 @@ function popConfirm() {
 // Hard Dive's pop-up: one question, red like the reset's second step. With nothing to lose (no parts, no
 // components) it just switches on.
 function askHard() {
-  const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), c = compsCount();
-  if (!n && !c) { save.hard = true; persist(); syncToggles(); return; }
+  const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), comps = compsCount();
+  if (!n && !comps) { save.hard = true; persist(); syncToggles(); return; }
   confirmKind = 'hard'; confirmFrom = 'hardT'; confirmStep = 0;
   confirmDlg.classList.add('danger');
   $('confirmTitle').textContent = 'Go Terminal Velocity?';
-  const lost = [n ? `your ${n} ship part${n === 1 ? '' : 's'}` : '', c ? `your ${c} component${c === 1 ? '' : 's'}` : ''].filter(Boolean).join(' and ');
-  $('confirmText').textContent = `Terminal Velocity starts your mission over: ${lost} go${n + c === 1 && !(n && c) ? 'es' : ''} back to zero, and the ship repair to 0%. Your best depth, badges, suits and unlocks are kept.`;
+  const lost = [n ? `your ${n} ship part${n === 1 ? '' : 's'}` : '', comps ? `your ${comps} component${comps === 1 ? '' : 's'}` : '']
+    .filter(Boolean).join(' and ');
+  const goes = n + comps === 1 && !(n && comps) ? 'goes' : 'go';
+  $('confirmText').textContent = `Terminal Velocity starts your mission over: ${lost} ${goes} back to zero, and the ship repair to 0%. `
+    + 'Your best depth, badges, suits and unlocks are kept.';
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Reset and go hard';
   $('confirmNo').textContent = 'Cancel';
   popConfirm();
@@ -6722,8 +6711,9 @@ function askHard() {
 function askReset(step) {
   confirmKind = 'reset'; confirmFrom = 'resetBtn';
   // Components won from Leviathans count as something to reset too, as in askHard.
-  const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), c = compsCount(), any = n + c > 0;
-  const what = [n ? `the ${n} ship part${n === 1 ? '' : 's'} you have collected` : '', c ? `the ${c} component${c === 1 ? '' : 's'} you have won` : ''].filter(Boolean).join(' and ');
+  const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), comps = compsCount(), any = n + comps > 0;
+  const what = [n ? `the ${n} ship part${n === 1 ? '' : 's'} you have collected` : '',
+    comps ? `the ${comps} component${comps === 1 ? '' : 's'} you have won` : ''].filter(Boolean).join(' and ');
   confirmStep = any ? step : 0;
   confirmDlg.classList.toggle('danger', step === 2);
   $('confirmTitle').textContent = step === 1 ? 'Reset ship repair?' : 'Are you sure?';
@@ -8844,7 +8834,7 @@ const FW_SHOWS = {
   // Owner: "The background is quite bland. How about fireworks in the distance?" Small, dim and quiet, on the cave's
   // back wall between the roof's art and the floor, while he's there.
   cave: { state: 'cave', secs: Infinity, gap: [0.35, 0.4], rise: false, world: true, sparks: [22, 10], speed: [36, 20], size: 2, alpha: 0.85, sound: false,
-    at: () => { const k = caveInfo(), top = k.T + CAVE_ROOF_H * 0.6 + Math.random() * 60; return { x: 24 + Math.random() * (W - 48), y: top, top }; } },
+    at: () => { const cave = caveInfo(), top = cave.T + CAVE_ROOF_H * 0.6 + Math.random() * 60; return { x: 24 + Math.random() * (W - 48), y: top, top }; } },
 };
 let fireworks = [], fwTime = 0, fwNext = 0, fwShow = FW_SHOWS.title;
 function startFireworks(kind) { fwShow = FW_SHOWS[kind] || FW_SHOWS.title; fwTime = fwShow.secs; fwNext = 0.4; fireworks = []; }
@@ -10974,9 +10964,9 @@ function checks(col) {
 // The checks in white, made once (bossBufs makes it ahead of a fight).
 function checkWhite() {
   if (!checkW) {
-    const cv = document.createElement('canvas'); cv.width = cv.height = 2;
-    const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 1, 1); g.fillRect(1, 1, 1, 1);
-    checkW = g.createPattern(cv, 'repeat');
+    const tile = document.createElement('canvas'); tile.width = tile.height = 2;
+    const g = tile.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 1, 1); g.fillRect(1, 1, 1, 1);
+    checkW = g.createPattern(tile, 'repeat');
   }
   return checkW;
 }
@@ -11007,8 +10997,8 @@ function bossBand(buf, off, col, up, checked) {
 function bossBuf(kind) {
   const [L, T, R, B] = LEVIATHANS[kind].box, w = R - L + 12, h = B - T + 12;
   const mk = () => { const v = document.createElement('canvas'); v.width = w; v.height = h; return v; };
-  const cv = mk(), rim = mk();
-  return { kind, cv, g: cv.getContext('2d'), rim, rg: rim.getContext('2d'), w, h, stage: 0, ox: 0, oy: 0, dir: 1, clock: 0, p: null, fade: 1, look: [1, 0], direct: false };
+  const body = mk(), rim = mk();
+  return { kind, cv: body, g: body.getContext('2d'), rim, rg: rim.getContext('2d'), w, h, stage: 0, ox: 0, oy: 0, dir: 1, clock: 0, p: null, fade: 1, look: [1, 0], direct: false };
 }
 // One of the three painting steps into `buf`: (0) the creature's shape in its base colour with its colour regions,
 // (1) the shading, (2) its features and the light rim. The paint keeps the clock and colours of its first step, so the
@@ -11699,13 +11689,17 @@ function perfReport() {
     'SCENE       FRAMES  FPS SCRIPT   P95 WORST'], split = ['', 'FRAMES THAT TOOK  1    2    3   4+ SCREEN FRAMES'];
   let allGap = 0, allCpu = 0;
   PERF_SCENES.forEach((name, s) => {
-    const g = [], c = [], took = [0, 0, 0, 0];
-    for (let i = 0; i < N; i++) if (p.scene[i] === s) { g.push(p.gap[i]); c.push(p.cpu[i]); took[Math.min(3, Math.max(0, Math.round(p.gap[i] / base) - 1))]++; }
-    if (!g.length) return;
-    const sum = a => a.reduce((x, y) => x + y, 0), sg = sum(g), sc = sum(c), cs = c.slice().sort((a, b) => a - b);
-    allGap += sg; allCpu += sc;
-    out.push(name.padEnd(11) + pad(g.length, 7) + pad(Math.round(1000 * g.length / sg), 5) + pad((sc / g.length).toFixed(1), 7) + pad(cs[Math.floor(cs.length * 0.95)].toFixed(1), 6)
-      + pad(Math.round(Math.max(...g)), 6));
+    const gaps = [], cpus = [], took = [0, 0, 0, 0];   // this scene's frame times and script times, ms
+    for (let i = 0; i < N; i++) {
+      if (p.scene[i] !== s) continue;
+      gaps.push(p.gap[i]); cpus.push(p.cpu[i]);
+      took[Math.min(3, Math.max(0, Math.round(p.gap[i] / base) - 1))]++;
+    }
+    if (!gaps.length) return;
+    const sum = a => a.reduce((x, y) => x + y, 0), gapSum = sum(gaps), cpuSum = sum(cpus), cpuSorted = cpus.slice().sort((a, b) => a - b);
+    allGap += gapSum; allCpu += cpuSum;
+    out.push(name.padEnd(11) + pad(gaps.length, 7) + pad(Math.round(1000 * gaps.length / gapSum), 5) + pad((cpuSum / gaps.length).toFixed(1), 7)
+      + pad(cpuSorted[Math.floor(cpuSorted.length * 0.95)].toFixed(1), 6) + pad(Math.round(Math.max(...gaps)), 6));
     split.push(name.padEnd(11) + pad(took[0], 8) + pad(took[1], 5) + pad(took[2], 5) + pad(took[3], 5));
   });
   const made = PERF_SCENES.map((name, s) => p.made[s] ? name + ' ' + p.made[s] : '').filter(Boolean);
