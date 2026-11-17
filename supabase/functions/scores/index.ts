@@ -1,5 +1,5 @@
 // MoonFall online high scores and play counter.
-//   GET  -> { top }                 the 10 deepest runs (GET ?kid=1: the Kid mode board's, version 197)
+//   GET  -> { top }                 the 10 deepest runs (GET ?kid=1: the Kid mode board's)
 //   POST -> { top, rank, id }       body { initials: "ABC", depth: 812, escaped: true, moon: "jungle", kid: true,
 //                                   player: "<16 hex>", run: "<16 hex>" }; saves the run (escaped: the player had repaired the ship;
 //                                   moon: dust, jungle or machine; both optional, null if missing; kid: a Kid mode run, on its own
@@ -8,9 +8,9 @@
 //   POST -> { ok }                  body { event: "play", player: "<16 hex>", run: "<16 hex>", ver }; a run started (owner's stats)
 //   POST -> { ok }                  body { event: "end", player, run, depth, secs, how, orbs, parts, cafes, initials,
 //                                         fps, worst, device, os, screen, treats, streak, sound, music, repair, intro, ver }; how it went
-//                                   (ver: the game's version number, e.g. 106; moon: dust, jungle or machine, version 113; both optional)
-//                                   Both run pings may carry hard, droneOpen, drone (booleans, version 190; optional) and kid (version 197).
-//                                   The end ping may carry (version 192; optional) errors, error, leviFought, leviEscaped,
+//                                   (ver: the game's version number, e.g. 258; moon: dust, jungle or machine; both optional)
+//                                   Both run pings may carry hard, droneOpen, drone and kid (booleans; optional).
+//                                   The end ping may carry (optional) errors, error, leviFought, leviEscaped,
 //                                   missions, suit, badges, nav, cafesPassed, droneCaught, installed, browser, pauses,
 //                                   and the frame-rate figures hz, fpsFight, slowPct (all optional).
 // The game only knows this function's URL. The secret key comes from the function's own
@@ -28,7 +28,7 @@ function secretKey() {
 const BASE = Deno.env.get('SUPABASE_URL') ?? '';
 const KEY = secretKey();
 const REST = `${BASE}/rest/v1`;
-// Fresh boards (version 213, owner 2026-11-14: "everyone to start with a fresh scoreboard ... keep old scores for the dashboard"):
+// Fresh boards (owner: "everyone to start with a fresh scoreboard ... keep old scores for the dashboard"):
 // the boards and ranks only count scores saved after this moment. Older rows stay in the table for the stats. Set it to the
 // go-live time when deploying a new season (the game's BOARD_SEASON starts each phone's own board fresh at the same release).
 const BOARD_FROM = '2026-11-14T11:23:00Z';
@@ -59,7 +59,7 @@ const auth: Record<string, string> = { apikey: KEY, ...(KEY.startsWith('eyJ') ? 
 const reply = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 
-// kid: the Kid mode board (version 197); every older score is on the normal one. Only this season's scores (BOARD_FROM).
+// kid: the Kid mode board; every score without it is on the normal one. Only this season's scores (BOARD_FROM).
 async function top(kid: boolean) {
   const r = await fetch(`${REST}/scores?select=id,initials,depth,escaped,moon&kid=eq.${kid}&${SEASON}&order=depth.desc,id.asc&limit=${TOP}`, { headers: auth });
   if (!r.ok) throw new Error(`top: ${r.status} ${await r.text()}`);
@@ -106,17 +106,17 @@ async function update(table: string, filter: string, row: unknown) {
 }
 
 const whole = (v: unknown, max: number) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= max;
-// The game's version number, sent with both pings since version 106; empty from older copies.
+// The game's version number, sent with both pings; empty from copies too old to send it.
 const version = (v: unknown) => (whole(v, 100000) && (v as number) >= 1 ? v : null);
-// Which moon (version 113): the original Dust moon, the Jungle moon or (version 145) the Machine moon; empty from older copies.
+// Which moon: the Dust, Jungle or Machine moon; empty from copies too old to send it.
 const moonOf = (v: unknown) => (v === 'dust' || v === 'jungle' || v === 'machine' ? v : null);
-// Version 190: Terminal Velocity run, helper drone unlocked on the device, drone flying this run.
+// Terminal Velocity run, helper drone unlocked on the device, drone flying this run, Kid mode run.
 const bool = (v: unknown) => (typeof v === 'boolean' ? v : null);
 const flags = (b: Record<string, unknown>) => ({ hard: bool(b.hard), drone_open: bool(b.droneOpen), drone: bool(b.drone), kid: bool(b.kid) });
-// Version 192: errors, Leviathans fought and escaped, progress on the device, cafes passed, drone catches, how it's played.
+// Errors, Leviathans fought and escaped, progress on the device, cafes passed, drone catches, how it's played.
 const BROWSER = new Set(['safari', 'chrome', 'firefox', 'edge', 'samsung', 'opera', 'inapp', 'other']);
 const kinds = (v: unknown) => (Array.isArray(v) && v.length <= 20 && v.every(k => typeof k === 'string' && /^[a-z]{2,16}$/.test(k)) ? v : null);
-// Frame-rate figures (Performance pass, 2026-11-13): refresh rate, fps in Leviathan fights, % of frames missing a refresh.
+// Frame-rate figures: refresh rate, fps in Leviathan fights, % of frames missing a refresh.
 const tenth = (v: unknown, max: number) => (typeof v === 'number' && v >= 0 && v <= max ? Math.round(v * 10) / 10 : null);
 const frames = (b: Record<string, unknown>) => ({
   hz: whole(b.hz, 500) && (b.hz as number) >= 20 ? b.hz : null, fps_fight: tenth(b.fpsFight, 500), slow_pct: tenth(b.slowPct, 100),
