@@ -1099,7 +1099,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 
 // Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
 // published version.
-const VERSION = 262;
+const VERSION = 263;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -9065,44 +9065,64 @@ const LAUNCH_STAND_Y = -28;   // his y standing on the crash site: the sprite is
 // he repairs (DRONE_FIT) and zips into the hatch just before he climbs aboard.
 let launchDrone = false;
 // Owner: "when the man is repairing the ship, let's show the helper drone ... placing the items that are collected off
-// the Leviathan ... six of them going into the ship". One trip per component of this moon's six Leviathans (fitComps),
-// `trip` s apart from `from` on: it carries one from beside him (pile) to its spot on the hull in `carry` s, where it goes
-// in with a spark and the part sound, then flies back for the next. All six are in before he steps back (REPAIR.back).
-// The spots run along the crashed ship's upper hull, from its raised nose down to the ground; the pile is clear of it, to
-// the right.
-const DRONE_FIT = { from: REPAIR.toShip + 0.1, trip: 1.05, carry: 0.75, pile: { x: 122, y: -12 },
-  spots: [{ x: 48, y: -40 }, { x: 58, y: -34 }, { x: 68, y: -28 }, { x: 78, y: -22 }, { x: 88, y: -16 }, { x: 98, y: -10 }] };
+// the Leviathan ... six of them", then "just have them hovering around the ship ... use the dotted line for where he's
+// going to place the components, and they can just come out of his inventory ... some laser blasts as well that can act
+// as a repair gun". One visit per component of this moon's six Leviathans (fitComps), `visit` s apart from `from` on:
+// it flies to a place above the next spot on the hull (`over`), locks its dotted sight on the spot (`aim`), the
+// component comes out of it and flies down the line into the hull (`fit` s, in by `fit`), then two repair-gun blasts
+// (`blasts`, s into the visit). All six are in before he steps back (REPAIR.back).
+const DRONE_FIT = { from: REPAIR.toShip + 0.1, visit: 1.05, aim: 0.3, send: 0.5, fit: 0.72, blasts: [0.8, 0.93], blastLen: 0.07,
+  // Spots along the crashed ship's upper hull, from its raised nose down to the ground; it hovers above each, a little
+  // to one side.
+  spots: [{ x: 48, y: -40 }, { x: 58, y: -34 }, { x: 68, y: -28 }, { x: 78, y: -22 }, { x: 88, y: -16 }, { x: 98, y: -10 }],
+  over: { dx: [-10, 12], dy: -26 } };
 let fitComps = [];
-// Which trip is on at t (k, -1 for none), how far through it (s) and whether it's carrying: one reused answer, read at once.
-const FIT_NOW = { k: -1, s: 0, carrying: false };
-function fitTrip(t) {
-  const F = DRONE_FIT, k = Math.floor((t - F.from) / F.trip), on = t >= F.from && k < fitComps.length;
-  FIT_NOW.k = on ? k : -1; FIT_NOW.s = on ? t - F.from - k * F.trip : 0; FIT_NOW.carrying = on && FIT_NOW.s < F.carry;
+// The visit on at t (k, -1 for none) and how far through it (s): one reused answer, read at once.
+const FIT_NOW = { k: -1, s: 0 };
+// Its sight while it aims and sends: a stand-in target for drawDrone's dotted line and brackets (world x, d).
+const FIT_SIGHT = { x: 0, d: 0, dead: false };
+function fitVisit(t) {
+  const F = DRONE_FIT, k = Math.floor((t - F.from) / F.visit), on = t >= F.from && k < fitComps.length;
+  FIT_NOW.k = on ? k : -1; FIT_NOW.s = on ? t - F.from - k * F.visit : 0;
   return FIT_NOW;
 }
-// Puts the drone on its trip (its offset from him, as the hover and the hatch do).
-function droneFit(t, dt, crossed) {
-  const F = DRONE_FIT, trip = fitTrip(t), spot = F.spots[trip.k];
-  let x, y;
-  if (trip.carrying) {
-    const u = easeInOut(trip.s / F.carry);
-    x = lerp(F.pile.x, spot.x, u); y = lerp(F.pile.y, spot.y, u) - 14 * Math.sin(Math.PI * u);
-  } else {
-    const u = easeInOut((trip.s - F.carry) / (F.trip - F.carry));
-    x = lerp(spot.x, F.pile.x, u); y = lerp(spot.y, F.pile.y, u);
-  }
-  const ox = x - player.x;
-  drone.vx = (ox - drone.ox) / Math.max(dt, 1e-3); drone.ox = ox; drone.oy = y - player.y - PILOT_CY;
-  if (crossed(F.from + trip.k * F.trip + F.carry)) {
-    Sfx.part(); sparks(spot.x, spot.y, ['#F2C14E', '#FFFFFF', '#A9781B'], 10, 6);
-  }
+// Where it hovers for visit k, written into `into` (reused, so a frame makes nothing).
+const FIT_FROM = { x: 0, y: 0 }, FIT_TO = { x: 0, y: 0 };
+function fitOver(k, into) {
+  into.x = DRONE_FIT.spots[k].x + DRONE_FIT.over.dx[k % 2]; into.y = DRONE_FIT.spots[k].y + DRONE_FIT.over.dy;
+  return into;
 }
-// The component it carries, under it (drawn with the repair tools).
+// Puts the drone on its visit (its offset from him, as the hover and the hatch do), with its sounds and sparks.
+function droneFit(t, dt, crossed) {
+  const F = DRONE_FIT, v = fitVisit(t), spot = F.spots[v.k], o = fitOver(v.k, FIT_TO), at = s => crossed(F.from + v.k * F.visit + s);
+  // From the last hover place, or (the first visit) from wherever it is beside him.
+  const prev = v.k > 0 ? fitOver(v.k - 1, FIT_FROM) : FIT_FROM;
+  if (v.k === 0) { FIT_FROM.x = player.x + drone.ox; FIT_FROM.y = player.y + PILOT_CY + drone.oy; }
+  const u = easeInOut(Math.min(1, v.s / F.aim)), bob = Math.sin(t * 6) * 1.5;
+  const x = lerp(prev.x, o.x, u), y = lerp(prev.y, o.y, u) + bob, ox = x - player.x;
+  drone.vx = (ox - drone.ox) / Math.max(dt, 1e-3); drone.ox = ox; drone.oy = y - player.y - PILOT_CY;
+  const sighting = v.s >= F.aim && v.s < F.fit;
+  FIT_SIGHT.x = spot.x; FIT_SIGHT.d = spot.y; drone.lock = sighting ? FIT_SIGHT : null;
+  if (at(F.aim)) Sfx.droneLock();
+  if (at(F.send)) Sfx.droneGo();
+  if (at(F.fit)) { Sfx.part(); sparks(spot.x, spot.y, ['#F2C14E', '#FFFFFF', '#A9781B'], 10, 6); }
+  for (const b of F.blasts) if (at(b)) { Sfx.bossShot(false); sparks(spot.x, spot.y, ['#8EEBF5', '#FFFFFF'], 6, 5); }
+}
+// The component on its way out of the drone into the hull, and the repair gun's beam (drawn with the repair tools).
 function drawFitComp(my) {
-  const trip = fitTrip(launchT);
-  if (trip.k < 0 || !trip.carrying) return;
-  const cp = fitComps[trip.k], w = cp.spr[0].length, h = cp.spr.length;
-  sprite(c, cp.spr, Math.round(player.x + drone.ox - w / 2), Math.round(my + PILOT_CY + drone.oy + 6), PMAP);
+  const F = DRONE_FIT, v = fitVisit(launchT);
+  if (v.k < 0) return;
+  const spot = F.spots[v.k], dx = Math.round(player.x + drone.ox), dy = Math.round(my + PILOT_CY + drone.oy);
+  const sx = spot.x, sy = Math.round(my + spot.y - player.y);
+  if (v.s >= F.send && v.s < F.fit) {
+    const cp = fitComps[v.k], w = cp.spr[0].length, h = cp.spr.length, u = easeInOut((v.s - F.send) / (F.fit - F.send));
+    sprite(c, cp.spr, Math.round(lerp(dx, sx, u) - w / 2), Math.round(lerp(dy + 6, sy, u) - h / 2), PMAP);
+  }
+  for (const b of F.blasts) {
+    if (v.s < b || v.s >= b + F.blastLen) continue;
+    bline(dx, dy + 4, sx, sy, '#8EEBF5', 2); bline(dx, dy + 4, sx, sy, '#FFFFFF', 1);
+    disc(sx, sy, 3, '#FFFFFF');
+  }
 }
 const REPAIR_HITS = 4, WELD_AT = { x: 9, y: -34 }, HAMMER_AT = { x: 49, y: -15 };
 const LAUNCH = Object.fromEntries(Object.entries({ wave: 1.0, board: 3.0, aboard: 3.5, rumble: 4.0, lift: 6.5, climb: 8.0, groove: 9.9, space: 15.0, away: 20.0, end: 21.4 })
@@ -9256,7 +9276,8 @@ function updateLaunch(dt) {
   }
   else player.hidden = true;
   if (launchDrone && !player.hidden) {
-    if (fitTrip(t).k >= 0) droneFit(t, dt, crossed);
+    if (fitVisit(t).k >= 0) droneFit(t, dt, crossed);
+    else if (drone.lock === FIT_SIGHT) drone.lock = null;
     else if (t < L.board) droneHover(dt);
     else {   // over to the hatch, ahead of him
       const k = Math.min(1, dt * 5);
