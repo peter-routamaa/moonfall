@@ -1100,7 +1100,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 255;
+const VERSION = 256;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -6465,7 +6465,7 @@ const confirmDlg = $('confirmDlg');
 // confirmKind: which question is open: 'reset' (two steps), 'hard' (Terminal Velocity), 'launch' (from the cafe),
 // 'repaired' (after the dive that finished the ship), 'drone' (the helper drone, offered as a dive starts),
 // 'droneEnd' (the helper drone, after the standard ending: one button), 'preview' (the escape preview, before it starts)
-// 'comps' (the components unlocked since the last cafe, as he lands at one: one button) or 'jump' (Jump in's card: the
+// 'comps' (the components unlocked since the last cafe, as he lands at one: one button, two once the ship can fly) or 'jump' (Jump in's card: the
 // components needed and the moon to dive on).
 let confirmStep = 0, resetTimer = 0, confirmKind = 'reset', confirmFrom = 'resetBtn';
 function clearRepair() {
@@ -6476,13 +6476,14 @@ function popConfirm() {
   pctify($('confirmText')); pctify($('confirmYes'));
   $('confirmYes').classList.toggle('danger', confirmKind === 'reset' || confirmKind === 'hard');
   $('confirmYes').classList.toggle('launch', ['launch', 'repaired', 'drone', 'droneEnd', 'preview', 'comps', 'jump'].includes(confirmKind));
-  $('confirmNo').hidden = confirmKind === 'droneEnd' || confirmKind === 'comps';
+  $('confirmNo').hidden = confirmKind === 'droneEnd' || (confirmKind === 'comps' && !canLaunch());
   $('confirmPic').hidden = confirmKind !== 'comps';
   $('confirmMoons').hidden = confirmKind !== 'jump';
   confirmDlg.classList.toggle('low', confirmKind === 'preview');
   confirmDlg.classList.remove('pop-in'); void confirmDlg.offsetWidth; confirmDlg.classList.add('pop-in');
   if (!confirmDlg.open) confirmDlg.showModal();
-  $(['droneEnd', 'comps', 'jump'].includes(confirmKind) ? 'confirmYes' : 'confirmNo').focus();
+  const yesFirst = ['droneEnd', 'jump'].includes(confirmKind) || (confirmKind === 'comps' && !canLaunch());   // a launch waits for a choice
+  $(yesFirst ? 'confirmYes' : 'confirmNo').focus();
 }
 // Hard Dive's pop-up: one question, red like the reset's second step. With nothing to lose (no parts, no
 // components) it just switches on.
@@ -6600,7 +6601,8 @@ function askPreview() {
 }
 // Landing at a cafe after escaping Leviathans: a card with the components unlocked since the last one (save.compsNew),
 // their pictures in a row, each moon's count, and (owner) that "the player will need to travel across all three moons to
-// collect six ship components from each one". Shown once; the list then empties.
+// collect six ship components from each one". Shown once; the list then empties. When the ship is ready to fly it offers
+// the launch (Fly home! / Not yet), as the cafe's own launch button does.
 const COMPS_SHOW_AFTER = 1.2;   // s after landing, once the barista has spoken
 function askComps() {
   const ids = save.compsNew || [], got = COMPONENTS.filter(cp => ids.includes(cp.id));
@@ -6621,10 +6623,12 @@ function askComps() {
   $('confirmText').textContent = list + ' fitted to the ship. Components: ' + compsCount() + ' of ' + COMPONENTS.length + '\n\n'
     + perMoon + '\n\n'
     + (gift ? 'The last Leviathan also gave you every ship part you were missing. ' : '')
-    + (canLaunch() ? 'The ship is repaired: fly it home!'
+    + (canLaunch() ? 'The ship is repaired! Fly home now? Your dive ends here at ' + depthM().toLocaleString('en-GB')
+      + '\u00a0m and counts on the high scores.'
       : left ? 'Each moon\'s six Leviathans guard components: travel to all three moons to collect them all.'
         : 'Every component fitted! Now finish collecting the ship parts.');
-  $('confirmYes').hidden = false; $('confirmYes').textContent = 'Great!';
+  $('confirmYes').hidden = false; $('confirmYes').textContent = canLaunch() ? 'Fly home!' : 'Great!';
+  $('confirmNo').textContent = 'Not yet';   // shown only when the ship can fly (popConfirm)
   popConfirm();
 }
 // The cafe's launch: the dive ends there, so it asks first.
@@ -6634,19 +6638,27 @@ function askLaunch() {
   confirmDlg.classList.remove('danger');
   $('confirmTitle').textContent = 'Congratulations!';
   $('confirmText').textContent = 'The ship is repaired and every component fitted. Fly home now? Your dive ends here at '
-    + depthM().toLocaleString('en-GB') + ' m and counts on the high scores.';
+    + depthM().toLocaleString('en-GB') + '\u00a0m and counts on the high scores.';
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Fly home!';
   $('confirmNo').textContent = 'Not yet';
   popConfirm();
 }
-$('confirmNo').addEventListener('click', () => { if (confirmKind === 'drone') answerDrone(false); else confirmDlg.close(); });
+$('confirmNo').addEventListener('click', () => {
+  const kind = confirmKind;
+  if (kind === 'drone') answerDrone(false); else confirmDlg.close();
+  if (kind === 'comps') releaseShop();   // Not yet: on to the cafe menu
+});
 $('confirmYes').addEventListener('click', () => {
   if (confirmKind === 'launch') { confirmDlg.close(); launchFromCafe(); return; }
   if (confirmKind === 'drone') { answerDrone(true); return; }
   if (confirmKind === 'repaired') { confirmDlg.close(); flyHome(); return; }
   if (confirmKind === 'droneEnd') { confirmDlg.close(); return; }
   if (confirmKind === 'preview') { confirmDlg.close(); startPreview(); return; }
-  if (confirmKind === 'comps') { confirmDlg.close(); releaseShop(); return; }
+  if (confirmKind === 'comps') {   // Fly home! when the ship is ready, else Great!
+    confirmDlg.close();
+    if (canLaunch()) { shopHeld = false; launchFromCafe(); } else releaseShop();
+    return;
+  }
   if (confirmKind === 'jump') { if (!askDrone(false)) { confirmDlg.close(); startRun(false); } return; }   // the drone's question replaces it
   if (confirmKind === 'hard') {   // start the mission over, then Terminal Velocity on
     confirmDlg.close(); clearRepair(); save.hard = true; persist(); renderRepair(); syncToggles(); Sfx.bleep(330); return;
