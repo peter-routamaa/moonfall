@@ -9,7 +9,9 @@ phone (published as private claude.ai pages, each with its own save, so the real
         repair card's launch flies home: initials, the ending.
   cave  a fresh save; the dive starts above the deep cave (as the escape preview does) but counts for real: the chest,
         the drone, the portal, initials, the ending.
-Every load starts the demo again from the same save (the page's own save is reset when it opens). The title shows
+Publish each with src/voices/*.mp3 as supporting files at voices/ (the voice clips load from there; without them the
+death, hurt and other voice lines are silent). Every load starts the demo again from the same save (the page's own save
+is reset when it opens). The title shows
 "v0.N DEMO". With --check, each demo is played headless far enough to show its setup works, and the script exits 1 if
 one doesn't.
 """
