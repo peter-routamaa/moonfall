@@ -1099,7 +1099,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 
 // Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
 // published version.
-const VERSION = 265;
+const VERSION = 266;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -8342,7 +8342,8 @@ function drawPortal(x, y, open, cols) {
 // Owner: "in the cave at 20k, can we have one of the Leviathans in the background, same as you do at the cafes?" The
 // creature that would have passed there (CAVE_LEVI_K, left out of the shaft's own, see leviathans) hangs on the cave's
 // back wall, dim like the cafes' and drifting slowly side to side, behind the fireworks, the roof and the floor; it groans
-// once as it comes into view, as theirs do.
+// once as it comes into view, as theirs do. It's clipped to the open cave above the floor: the rock under the floor is
+// drawn before the cave, so legs reaching lower would show in front of it.
 const CAVE_LEVI_K = 2 * CAVE_J + 1;
 function caveLeviathan(cave, cam) {
   const kind = leviKind(CAVE_LEVI_K), dir = hash(CAVE_LEVI_K * 4.3 + SEED) < 0.5 ? 1 : -1;
@@ -8351,7 +8352,11 @@ function caveLeviathan(cave, cam) {
   const inView = sy > -40 && sy < H + 40;
   if ((state === 'play' || state === 'cave') && inView && !leviSeen.has(CAVE_LEVI_K)) { leviSeen.add(CAVE_LEVI_K); Sfx.groan(kind); }
   const Q = palAt(cave.T);
-  LEVIATHANS[kind].draw(sx, sy, dir, CAVE_LEVI_K, Q.lev0 || (Q.lev0 = mix(Q.sO, P.ink, 0.42)));
+  c.save();
+  try {
+    c.beginPath(); c.rect(0, Math.round(cave.T - cam), W, cave.F - cave.T); c.clip();
+    LEVIATHANS[kind].draw(sx, sy, dir, CAVE_LEVI_K, Q.lev0 || (Q.lev0 = mix(Q.sO, P.ink, 0.42)));
+  } finally { c.restore(); }
 }
 function drawCave(cam) {
   if (!caveArt) return;
