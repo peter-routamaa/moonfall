@@ -83,6 +83,8 @@ here.
 | Anything about the café, its shop or perks | coffee stop |
 | A badge | badges |
 | A new screen, card or card face | the HTML, then "the title card and its faces" (title cards) or "DOM: elements and the HUD" |
+| A game number a card states (a speed-up, a health, a share) | a `<span data-fact="name">` in the card, filled from its constant in `fillFacts` ("DOM: elements and the HUD") |
+| Anything about the escape preview (five taps on the pilot) | the escape preview |
 | A setting | "settings and Kid mode", and the save's field list in "saved settings" |
 | A new field in the save | "saved settings": add it to the list of fields there, with where it's repaired |
 | A run statistic sent to the stats | run stats, plus a migration and the scores function (README, *Play stats*) |
