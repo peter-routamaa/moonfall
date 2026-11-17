@@ -4768,7 +4768,8 @@ const runParts = { plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 };
 let hardRun = false;   // this run is a Hard Dive (see startRun)
 const PILOT_HP = 5, HARD_HP = 4;   // his health as a run starts, standard and on Terminal Velocity
 const playerStart = () => ({
-  x: 84, y: -30, v: 0, vx: 0, hp: hardRun ? HARD_HP : PILOT_HP, max: hardRun ? HARD_HP : PILOT_HP, inv: 0, blockT: 0, shield: 0, shieldMax: 8, orbs: 0, spare: 0, streak: 0,
+  x: 84, y: -30, v: 0, vx: 0, hp: hardRun ? HARD_HP : PILOT_HP, max: hardRun ? HARD_HP : PILOT_HP,
+  inv: 0, blockT: 0, shield: 0, shieldMax: 8, orbs: 0, spare: 0, streak: 0,
   bestStreak: 0, perks: {}, perkCafe: 0, toughN: 0, bought: [], slowUntil: 0, magnetUntil: 0,
   flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false,
   fallRamp: 1, tangle: 0,
@@ -4896,7 +4897,9 @@ const KID_NORMAL = { mines: 100, drops: 100, hp: 100, fall: 100, shots: 100, spe
 const KID_RANGE = { mines: [0, 100], drops: [100, 200], hp: [100, 200], fall: [50, 100], shots: [0, 100] };
 function kidSettings() {
   const k = Object.assign({}, KID_NORMAL, save.kid);
-  if (save.kid && save.kid.drops == null && (save.kid.parts || save.kid.health)) k.drops = Math.max(+save.kid.parts || 100, +save.kid.health || 100);   // separate parts and health sliders become drops
+  if (save.kid && save.kid.drops == null && (save.kid.parts || save.kid.health)) {   // separate parts and health sliders become drops
+    k.drops = Math.max(+save.kid.parts || 100, +save.kid.health || 100);
+  }
   for (const key in KID_RANGE) { const [lo, hi] = KID_RANGE[key], v = Math.round(+k[key] / 25) * 25; k[key] = Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : KID_NORMAL[key]; }
   k.speed = k.speed !== false;
   k.drone = k.drone === true;
@@ -6073,7 +6076,9 @@ function buildRepairView(root) {
   const list = root.querySelector('.parts');
   for (let i = 0; i < 20; i++) view.bar.appendChild(document.createElement('i'));
   // The components, won from Leviathans, sit after the parts with the same look (the first one's picture).
-  const compRow = { id: 'comps', name: 'COMPONENTS', full: 'Ship components: one for each Leviathan you escape, ' + numberWord(LEVI_SETS.dust.length) + ' on each moon', spr: COMPONENTS[0].spr };
+  const compRow = { id: 'comps', name: 'COMPONENTS',
+    full: 'Ship components: one for each Leviathan you escape, ' + numberWord(LEVI_SETS.dust.length) + ' on each moon',
+    spr: COMPONENTS[0].spr };
   for (const pt of [...PARTS, compRow]) {
     const li = document.createElement('li'),
       name = document.createElement('span'),
@@ -6813,8 +6818,9 @@ function askJump() {
 // Jump in (the button, or Space or Enter on the menu): the card above, then the drone's question, then the dive.
 function jumpIn() { if (!askJump() && !askDrone(false)) startRun(false); }
 // Owner: the next Jump In (or Fall again) says the helper drone is unlocked and asks whether to take it, for a save
-// that has flown a ship home but hasn't got the drone (droneEarned and not droneOpen). Either answer unlocks it (Not now leaves it switched off, for the Unlocks card) and starts the dive;
-// closing the pop-up any other way does neither, so it asks again next time. Returns true when it asked.
+// that has flown a ship home but hasn't got the drone (droneEarned and not droneOpen). Either answer unlocks it (Not now
+// leaves it switched off, for the Unlocks card) and starts the dive; closing the pop-up any other way does neither, so it
+// asks again next time. Returns true when it asked.
 let droneQuick = false;   // the dive to start after the answer: a quick restart (Fall again) or from the menu
 function askDrone(quick) {
   if (offRecord() || droneOpen() || !droneEarned()) return false;
@@ -10967,7 +10973,10 @@ const SHOT_TYPES = {
     } },
   mortar: {   // the crab's shell: harmless while its marker shows, then a burst there
     update(s, dt, live, py) {
-      if (s.t >= s.warn && s.t - dt < s.warn) { Sfx.bossShot(true); Sfx.crush(); shake = Math.max(shake, 0.7); sparks(s.x, camY + s.y, shotColours().slice(1).concat(P.dust), 8, 10); }
+      if (s.t >= s.warn && s.t - dt < s.warn) {
+        Sfx.bossShot(true); Sfx.crush(); shake = Math.max(shake, 0.7);
+        sparks(s.x, camY + s.y, shotColours().slice(1).concat(P.dust), 8, 10);
+      }
       if (s.t > s.warn + s.dur) { s.dead = true; return; }
       if (live && s.t > s.warn && Math.hypot(player.x - s.x, py - s.y) < s.R + HIT_HALF_W - 5) bossHit(s, false);
     },
@@ -11129,7 +11138,8 @@ function bossBuf(kind) {
   const [L, T, R, B] = LEVIATHANS[kind].box, w = R - L + 12, h = B - T + 12;
   const mk = () => { const v = document.createElement('canvas'); v.width = w; v.height = h; return v; };
   const body = mk(), rim = mk();
-  return { kind, cv: body, g: body.getContext('2d'), rim, rg: rim.getContext('2d'), w, h, stage: 0, ox: 0, oy: 0, dir: 1, clock: 0, p: null, fade: 1, look: [1, 0], direct: false };
+  return { kind, cv: body, g: body.getContext('2d'), rim, rg: rim.getContext('2d'), w, h,
+    stage: 0, ox: 0, oy: 0, dir: 1, clock: 0, p: null, fade: 1, look: [1, 0], direct: false };
 }
 // One of the three painting steps into `buf`: (0) the creature's shape in its base colour with its colour regions,
 // (1) the shading, (2) its features and the light rim. The paint keeps the clock and colours of its first step, so the
