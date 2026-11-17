@@ -1,6 +1,7 @@
 """Quick checks on the game's source that need no browser, and fail if something has drifted out of step.
 
-    python3 tools/checks.py [game.html]        (default: src/moonfall.html)
+    python3 tools/checks.py [game.html] [--server=index.ts]
+        (defaults: src/moonfall.html and supabase/functions/scores/index.ts; the commit hook passes the staged copies)
 
 Runs in a moment, from the commit hook (tools/hooks/pre-commit) and the website build (tools/build_site.py). Checks:
   - the rude initials: BAD_INITIALS in the game and BAD in the scores function (supabase/functions/scores/index.ts)
@@ -29,9 +30,14 @@ def initials(text, name):
 
 
 def main():
-    src = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'src', 'moonfall.html')
+    args = [a for a in sys.argv[1:] if not a.startswith('--server=')]
+    server_path = next((a[len('--server='):] for a in sys.argv[1:] if a.startswith('--server=')),
+                       os.path.join(ROOT, 'supabase', 'functions', 'scores', 'index.ts'))
+    if len(args) > 1 or any(a.startswith('--') for a in args):
+        sys.exit('checks: usage: python3 tools/checks.py [game.html] [--server=index.ts]')
+    src = args[0] if args else os.path.join(ROOT, 'src', 'moonfall.html')
     game = open(src, encoding='utf-8').read()
-    server = open(os.path.join(ROOT, 'supabase', 'functions', 'scores', 'index.ts'), encoding='utf-8').read()
+    server = open(server_path, encoding='utf-8').read()
     problems = []
 
     g, s = initials(game, 'BAD_INITIALS'), initials(server, 'BAD')

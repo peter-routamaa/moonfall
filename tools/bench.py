@@ -12,7 +12,7 @@ stands still inside a frame, so every time reads 0.
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import same_pixels, test_pages
+import chrome, same_pixels, test_pages
 
 DRIVER = r"""<script>
 (async () => {
@@ -20,10 +20,10 @@ DRIVER = r"""<script>
   document.addEventListener('visibilitychange', e => e.stopImmediatePropagation(), true);
   if (document.fonts) await document.fonts.ready; await wait(300);
   let t = performance.now() + 1000;
-  const step = () => { t += 1000 / 60; if (document.getElementById('confirmDlg').open && !document.getElementById('confirmPic').hidden) document.getElementById('confirmYes').click(); M.frame(t); };   // Continue on a component's card, as a player would
-  (document.getElementById('splashSkip') || { click() { const g = id => document.getElementById(id); g('chooseBtn').click(); document.querySelector('.splash-moon[data-moon="' + (window.__mf.moon || 'dust') + '"]').click(); g('splashBtn').click(); g('introSkip').click(); if (g('menuStart') && !new URLSearchParams(location.search).get('clean')) g('menuStart').click(); } }).click(); await wait(300);
+  const step = () => { t += 1000 / 60; __tools.continueCard(); M.frame(t); };   // Continue on a component's card, as a player would
+  __tools.skipSplash(); await wait(300);
   for (let i = 0; i < 60; i++) step();
-  document.getElementById('startBtn').click(); if (document.getElementById('confirmDlg').open) document.getElementById('confirmYes').click(); await wait(100);
+  __tools.jumpIn(); await wait(100);
   const times = [];
   for (let i = 0; i < 3600; i++) {
     P.inv = 1; P.hp = 5;
@@ -42,14 +42,12 @@ DRIVER = r"""<script>
 </script>"""
 
 def page(src_path):
-    game = open(src_path).read()
-    anchor = 'requestAnimationFrame(t => { last = t; frame(t); });'
-    game = game.replace(anchor, test_pages.HOOK + '\n' + anchor)
-    return test_pages.HEAD + same_pixels.SEEDED + game + DRIVER + '</body></html>'
+    game = chrome.inject(open(src_path).read(), test_pages.HOOK, 'bench')
+    return test_pages.HEAD + same_pixels.SEEDED + chrome.HELPERS + game + DRIVER + '</body></html>'
 
 if __name__ == '__main__':
-    before = sys.argv[1]; after = sys.argv[2] if len(sys.argv) > 2 else os.path.join(same_pixels.ROOT, 'src', 'moonfall.html')
-    out = os.path.join(same_pixels.ROOT, 'tools', 'out')
+    before = sys.argv[1]; after = sys.argv[2] if len(sys.argv) > 2 else os.path.join(chrome.ROOT, 'src', 'moonfall.html')
+    out = os.path.join(chrome.ROOT, 'tools', 'out')
     for name, path in (('before', before), ('after', after)):
         open(os.path.join(out, 'bench-' + name + '.html'), 'w').write(page(path))
     print('wrote tools/out/bench-before.html and tools/out/bench-after.html')

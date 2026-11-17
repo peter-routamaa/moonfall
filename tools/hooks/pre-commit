@@ -1,23 +1,33 @@
 #!/bin/sh
 # Stops a commit that would put an over-budget Leviathan into the repo (see PERFORMANCE.md and tools/levi_budget.py),
-# or a game whose source checks fail (tools/checks.py).
+# or a game or scores function whose source checks fail (tools/checks.py).
 # Turned on once per clone with:  git config core.hooksPath tools/hooks
-# It runs only when src/moonfall.html is part of the commit, checks the version being committed (not the working
-# file), and takes about two seconds. If Chrome is missing it warns and lets the commit through; the build
-# (tools/build_site.py) runs the same check and never skips it.
-git diff --cached --name-only --diff-filter=AM | grep -qx 'src/moonfall.html' || exit 0
-root=$(git rev-parse --show-toplevel)
-[ -f "$root/tools/levi_budget.py" ] || exit 0
-tmp=$(mktemp -d) || exit 0
+# It runs when src/moonfall.html or supabase/functions/scores/index.ts is part of the commit, and checks the versions
+# being committed (the staged copies, not the working files):
+#   - tools/checks.py on both (the game's rude initials list is compared with the function's), in a moment;
+#   - tools/levi_budget.py on the game, when the game changed, in about two seconds. If Chrome is missing it warns
+#     and lets the commit through; the build (tools/build_site.py) runs the same check and never skips it.
+# Anything else that goes wrong stops the commit: a check that cannot run must not pass (CODING.md rule 13).
+staged=$(git diff --cached --name-only --diff-filter=ACMR) || { echo "pre-commit: could not list the staged files"; exit 1; }
+game=0; server=0
+printf '%s\n' "$staged" | grep -qx 'src/moonfall.html' && game=1
+printf '%s\n' "$staged" | grep -qx 'supabase/functions/scores/index.ts' && server=1
+[ "$game" -eq 1 ] || [ "$server" -eq 1 ] || exit 0
+root=$(git rev-parse --show-toplevel) || exit 1
+tmp=$(mktemp -d) || { echo "pre-commit: could not make a temporary folder"; exit 1; }
 trap 'rm -rf "$tmp"' EXIT
-git show :src/moonfall.html > "$tmp/staged.html" || exit 0
-# The quick source checks (no browser): the rude initials lists in the game and the scores function match.
-if ! checks=$(python3 "$root/tools/checks.py" "$tmp/staged.html" 2>&1); then
+if ! git show :src/moonfall.html > "$tmp/staged.html" || ! git show :supabase/functions/scores/index.ts > "$tmp/index.ts"; then
+  echo "pre-commit: commit stopped. Could not read the staged src/moonfall.html or supabase/functions/scores/index.ts."
+  exit 1
+fi
+# The quick source checks (no browser), on the staged game and scores function.
+if ! checks=$(python3 "$root/tools/checks.py" "$tmp/staged.html" "--server=$tmp/index.ts" 2>&1); then
   printf '%s\n' "$checks"
   echo "pre-commit: commit stopped by tools/checks.py (above). Fix it, then commit again. Do not skip this with --no-verify."
   exit 1
 fi
 echo "pre-commit: $(printf '%s\n' "$checks" | tail -1)"
+[ "$game" -eq 1 ] || exit 0
 out=$(python3 "$root/tools/levi_budget.py" "$tmp/staged.html" 2>&1)
 code=$?
 if [ "$code" -eq 0 ]; then

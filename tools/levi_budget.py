@@ -11,18 +11,25 @@ What it measures, for each creature, averaged over 30 moments of its animation (
   background  one frame of its far-off shape (its draw, via LEVI_DRAW, as drawn in the shaft and behind a cafe): rectangles + stamps
   paint       one full fight paint, the three bossStage steps, in a settled rock colour: rectangles, stamps
   fading      the same while it fades in from its silhouette (every colour new, so nothing is stamped): rectangles
+  worst frame not an average: the most drawing calls any one frame of it needs in those moments (see WORST below)
 The page runs the real game code headless in Chrome (set CHROME to its path if it isn't the Mac one); counts are exact
 and repeat run to run, so a change shows up as a number, not a feeling.
 """
-import json, os, re, subprocess, sys, tempfile
+import os, sys, tempfile
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import chrome
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CHROME = os.environ.get('CHROME', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
+ROOT = chrome.ROOT
 
 # The budgets: the top of each range in PERFORMANCE.md's Leviathan table. Change them there and here together.
 # (Version 141: background 735 -> 750 and stamps 190 -> 195, the numbers this script measures for the Mantis and the
 # Nautilus, accepted since versions 131 and 110; the old table was counted with a different throwaway page.)
 BUDGET = {'background': 750, 'paint_rect': 2172, 'paint_img': 195, 'fading_rect': 3334}
+# The worst single frame, which the averages above can hide: the most drawing calls (rectangles + stamps) one frame of
+# the creature needs in any of the 30 moments, whether its background shape, one step of a settled fight paint, or the
+# whole fading-in paint of a fight's first frame. The heaviest is 3,103 (the Centipede's fade-in, 2026-11-17), so 3,500
+# leaves about 13% room. Also in PERFORMANCE.md's budget section; change both together.
+WORST = 3500
 
 HOOK = """window.__lb = { LEVI_DRAW, LEVI_SETS, bossBuf, bossStage, applyMoon, palAt, setC(g) { const w = c; c = g; return w; },
   setBossTmp(cv) { bossTmp = cv; bossTmpG = cv.getContext('2d'); },
@@ -55,16 +62,21 @@ window.addEventListener('load', () => setTimeout(() => {
         }
         const buf = L.bossBuf(kind), y = 6000 - L.camY;   // 750 m down: the middle of a rock layer, a settled colour
         const tmp = document.createElement('canvas'); tmp.width = buf.w; tmp.height = buf.h; L.setBossTmp(tmp);   // as bossBufs does in the thin shaft
+        // A paint's rectangles and stamps, and the drawing calls of its heaviest single step.
         const paint = (fading, i) => {
           const b = { kind, k2: 2, dir: 1, rot: 0, t: 2 + i * 0.37, phase: fading ? 'enter' : 'fight', pt: fading ? 0.3 : 3, x: 160, y, sil: '#101418', d: 0 };
           L.setClock(i * 0.41); buf.stage = 0; n.rect = 0; n.img = 0;
-          L.bossStage(b, buf); L.bossStage(b, buf); L.bossStage(b, buf);
-          return [n.rect, n.img];
+          let step = 0;
+          for (let s = 0; s < 3; s++) { const was = n.rect + n.img; L.bossStage(b, buf); step = Math.max(step, n.rect + n.img - was); }
+          return [n.rect, n.img, step];
         };
+        // The worst frame: a frame of a fight paints one step, except the fight's first frame, which paints all three
+        // while it fades in; the background shape is one frame on its own.
+        let worst = max(bg);
         paint(false, 0);   // the first paint makes its colour images
-        for (let i = 0; i < N; i++) { const [r, m] = paint(false, i); pr.push(r); pi.push(m); }
-        for (let i = 0; i < N; i++) fd.push(paint(true, i)[0]);
-        out.rows.push({ moon, kind, background: avg(bg), backgroundMax: max(bg), paint_rect: avg(pr), paint_img: avg(pi), paintMax: max(pr), fading_rect: avg(fd), fadingMax: max(fd) });
+        for (let i = 0; i < N; i++) { const [r, m, step] = paint(false, i); pr.push(r); pi.push(m); worst = Math.max(worst, step); }
+        for (let i = 0; i < N; i++) { const [r, m] = paint(true, i); fd.push(r); worst = Math.max(worst, r + m); }
+        out.rows.push({ moon, kind, background: avg(bg), backgroundMax: max(bg), paint_rect: avg(pr), paint_img: avg(pi), paintMax: max(pr), fading_rect: avg(fd), fadingMax: max(fd), worst });
       } catch (e) { out.errors.push(moon + ' ' + kind + ': ' + e); }
     }
   }
@@ -77,43 +89,39 @@ window.addEventListener('load', () => setTimeout(() => {
 def main():
     src = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'src', 'moonfall.html')
     game = open(src, encoding='utf-8').read()
-    anchor = 'window.claude?.hot?.ready ? window.claude.hot.ready(start)'
-    if game.count(anchor) != 1:
-        sys.exit('levi_budget: could not find the start line in ' + src)
-    page = game.replace(anchor, HOOK + '\n' + anchor) + PAGE
-    if not os.path.exists(CHROME):
-        print('levi_budget: Chrome not found at ' + CHROME + '; set CHROME to its path')
-        sys.exit(2)   # 2 = could not run (1 = over budget)
+    # Its hook goes in at the top level, after start() is defined (not inside it, as the other tools' do): it only
+    # needs the tables and functions, not a running game.
+    page = chrome.inject(game, HOOK, 'levi_budget', anchor='window.claude?.hot?.ready ? window.claude.hot.ready(start)') + PAGE
+    chrome.need_chrome('levi_budget')   # exit 2 = could not run (1 = over budget)
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, 'levi-budget.html')
         open(path, 'w', encoding='utf-8').write(page)
-        dom = subprocess.run([CHROME, '--headless=new', '--disable-gpu', '--no-first-run', '--user-data-dir=' + os.path.join(tmp, 'chrome'),
-                              '--allow-file-access-from-files', '--virtual-time-budget=60000', '--dump-dom', 'file://' + path],
-                             capture_output=True, text=True, timeout=300).stdout
-    m = re.search(r'<pre id="out">(.*?)</pre>', dom, re.S)
-    if not m:
+        dom = chrome.dump_dom('file://' + path, os.path.join(tmp, 'chrome'), 60000, 300)
+    res = chrome.result(dom)
+    if res is None:
         sys.exit('levi_budget: the page did not finish (no result); open the game in a browser and check the console')
-    res = json.loads(m.group(1).replace('&quot;', '"').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>'))
     over = []
-    print(f"{'moon':7} {'kind':10} {'background':>16} {'paint rects':>16} {'stamps':>7} {'fading rects':>16}")
+    print(f"{'moon':7} {'kind':10} {'background':>16} {'paint rects':>16} {'stamps':>7} {'fading rects':>16} {'worst frame':>12}")
     for r in res['rows']:
         flags = []
+        if not isinstance(r.get('worst'), int): flags.append('no worst frame measured')
+        elif r['worst'] > WORST: flags.append(f"worst frame {r['worst']} > {WORST}")
         if r['background'] > BUDGET['background']: flags.append(f"background {r['background']} > {BUDGET['background']}")
         if r['paint_rect'] > BUDGET['paint_rect']: flags.append(f"paint {r['paint_rect']} > {BUDGET['paint_rect']}")
         if r['paint_img'] > BUDGET['paint_img']: flags.append(f"stamps {r['paint_img']} > {BUDGET['paint_img']}")
         if r['fading_rect'] > BUDGET['fading_rect']: flags.append(f"fading {r['fading_rect']} > {BUDGET['fading_rect']}")
         mark = '  OVER: ' + '; '.join(flags) if flags else ''
         print(f"{r['moon']:7} {r['kind']:10} {r['background']:>6} (max {r['backgroundMax']:>4}) {r['paint_rect']:>6} (max {r['paintMax']:>4}) "
-              f"{r['paint_img']:>7} {r['fading_rect']:>6} (max {r['fadingMax']:>4}){mark}")
+              f"{r['paint_img']:>7} {r['fading_rect']:>6} (max {r['fadingMax']:>4}) {r.get('worst', '?'):>12}{mark}")
         if flags: over.append(r['moon'] + ' ' + r['kind'])
     print(f"\nbudgets (PERFORMANCE.md): background {BUDGET['background']} calls, paint {BUDGET['paint_rect']} rectangles and "
-          f"{BUDGET['paint_img']} stamps, fading {BUDGET['fading_rect']} rectangles")
+          f"{BUDGET['paint_img']} stamps, fading {BUDGET['fading_rect']} rectangles; worst frame {WORST} calls")
     for e in res['errors']: print('ERROR', e)
     want = res.get('expected', 12)
     if res['errors'] or over or len(res['rows']) < want:
         print('FAIL' + (': over budget: ' + ', '.join(over) if over else '') + (f" ({len(res['rows'])} of {want} measured)" if len(res['rows']) < want else ''))
         sys.exit(1)
-    print(f"OK: all {len(res['rows'])} Leviathans inside the budgets")
+    print(f"OK: all {len(res['rows'])} Leviathans inside the budgets (worst frame {max(r['worst'] for r in res['rows'])} of {WORST})")
 
 
 if __name__ == '__main__':

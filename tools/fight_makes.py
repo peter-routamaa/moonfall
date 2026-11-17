@@ -18,14 +18,13 @@ compare with another build: python3 tools/fight_makes.py /tmp/old.html. With --f
 (the run then uses a fixed clock and never pauses, so it repeats exactly; version 216)
 (the lists are written to tools/out/fight-fp-<moon>.json, to find where two builds part).
 """
-import json, os, re, subprocess, sys, tempfile
+import hashlib, json, os, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import same_pixels, test_pages
+import chrome, same_pixels, test_pages
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = chrome.ROOT
 BURST = 6   # canvases in one frame while he is moving (version 180 makes at most 5)
 WANT = 6    # each moon's Leviathans, all fought in the run: fewer means the driver broke, not that all is well
-CHROME = os.environ.get('CHROME', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
 
 HOOK = "window.__fm = { kinds() { return leviSet(); }, bossAt, get warm() { return typeof bossWarm === 'undefined' ? null : bossWarm; } };"
 
@@ -46,7 +45,7 @@ DRIVER = r"""<script>
     document.createElement = function (tag) {
       if (tag === 'canvas') {
         const names = new Error().stack.split('\n').slice(2).map(l => { const m = /at (?:Object\.|new )?([A-Za-z0-9_$.]+) \(/.exec(l); return m ? m[1] : ''; }).filter(Boolean);
-        made.push((names[0] || '?') + ' < ' + (names.slice(1).find(n => !/^(disc|ring|checks|sprite|mk|frame|step|run|render|update)$/.test(n)) || '?'));
+        made.push((names[0] || '?') + ' < ' + (names.slice(1).find(n => !/^(disc|ring|checks|sprite|mk|frame|step|run|render|update|continueCard)$/.test(n)) || '?'));
       }
       return mk(tag);
     };
@@ -54,12 +53,12 @@ DRIVER = r"""<script>
     const C = CanvasRenderingContext2D.prototype, fr = C.fillRect, di = C.drawImage, n = { rect: 0, img: 0, offRect: 0, offImg: 0 };
     C.fillRect = function (x, y, w, h) { if (this.canvas.id) n.rect++; else n.offRect++; fr.call(this, x, y, w, h); };
     C.drawImage = function (...a) { if (this.canvas.id) n.img++; else n.offImg++; return di.apply(this, a); };
-    const step = () => { t += 1000 / 60; if (document.getElementById('confirmDlg').open && !document.getElementById('confirmPic').hidden) document.getElementById('confirmYes').click(); M.frame(t); };   // Continue on a component's card, as a player would
+    const step = () => { t += 1000 / 60; __tools.continueCard(); M.frame(t); };   // Continue on a component's card, as a player would
     for (let i = 0; i < 60; i++) step();
     if (M.applyMoon) { M.applyMoon(moon); M.save.moon = moon; }
-    ($('splashSkip') || { click() { $('chooseBtn').click(); document.querySelector('.splash-moon[data-moon="' + moon + '"]').click(); $('splashBtn').click(); $('introSkip').click(); } }).click(); await wait(300);
+    __tools.skipSplash(moon, false); await wait(300);
     for (let i = 0; i < 120; i++) step();
-    $('startBtn').click(); if (document.getElementById('confirmDlg').open) document.getElementById('confirmYes').click(); await wait(100);
+    __tools.jumpIn(); await wait(100);
     const kinds = X.kinds(), fights = kinds.length;
     for (let i = 0; i < fights; i++) M.setLevi(2 * (2 * i + 1), kinds[i]);
     let cafeK = 1, atCafe = 0, fought = 0, cur = null, guard = 0, shaft = [], shaftFrames = 0, shaftMax = 0; const sc = { rect: 0, img: 0, offRect: 0, offImg: 0 };
@@ -98,23 +97,20 @@ DRIVER = r"""<script>
 
 
 def page(game):
-    anchor = 'requestAnimationFrame(t => { last = t; frame(t); });'
-    if game.count(anchor) != 1:
-        sys.exit('fight_makes: could not find the start line')
-    return test_pages.HEAD + same_pixels.SEEDED + game.replace(anchor, test_pages.HOOK + '\n' + HOOK + '\n' + anchor) + DRIVER + '</body></html>'
+    game = chrome.inject(game, test_pages.HOOK + '\n' + HOOK, 'fight_makes')
+    return test_pages.HEAD + same_pixels.SEEDED + chrome.HELPERS + game + DRIVER + '</body></html>'
 
 
 def run(src, moon, fp=0):
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, 'fight-makes.html')
         open(path, 'w', encoding='utf-8').write(page(open(src, encoding='utf-8').read()))
-        dom = subprocess.run([CHROME, '--headless=new', '--disable-gpu', '--no-first-run', '--user-data-dir=' + os.path.join(tmp, 'chrome'),
-                              '--allow-file-access-from-files', '--window-size=390,844', '--virtual-time-budget=900000', '--dump-dom',
-                              'file://' + path + '?moon=' + moon + ('&fp=' + str(fp) if fp else '')], capture_output=True, text=True, timeout=900).stdout
-    m = re.search(r'<pre id="out">(.*?)</pre>', dom, re.S)
-    if not m:
+        dom = chrome.dump_dom('file://' + path + '?moon=' + moon + ('&fp=' + str(fp) if fp else ''), os.path.join(tmp, 'chrome'),
+                              900000, 900, size='390,844')
+    res = chrome.result(dom)
+    if res is None:
         sys.exit('fight_makes: the page did not finish for ' + moon)
-    return json.loads(m.group(1).replace('&quot;', '"').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>'))
+    return res
 
 
 def main():
@@ -123,14 +119,12 @@ def main():
     args = [a for a in args if not a.startswith('--')]
     src = args.pop(0) if args and args[0].endswith('.html') else os.path.join(ROOT, 'src', 'moonfall.html')
     game = open(src, encoding='utf-8').read()
-    moons = args or re.findall(r"(\w+): ", re.search(r'const LEVI_SETS = \{(.*?)\};', game, re.S).group(1))
-    if not os.path.exists(CHROME):
-        print('fight_makes: Chrome not found at ' + CHROME + '; set CHROME to its path'); sys.exit(2)
+    moons = args or chrome.moons(game)
+    chrome.need_chrome('fight_makes')
     bad = burst = errs = short = 0
     for moon in moons:
         res = run(src, moon, fp)
         if fp:
-            import hashlib
             os.makedirs(os.path.join(ROOT, 'tools', 'out'), exist_ok=True)
             json.dump(res['fp'], open(os.path.join(ROOT, 'tools', 'out', 'fight-fp-' + moon + '.json'), 'w'))
             print(f"{moon}: picture fingerprint {hashlib.sha1(json.dumps(res['fp']).encode()).hexdigest()[:12]} over {len(res['fp'])} frames")

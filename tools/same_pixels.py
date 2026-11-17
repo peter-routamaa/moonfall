@@ -7,11 +7,11 @@ Both files are game sources like src/moonfall.html. Needs Google Chrome (set CHR
 The session covers the title, falling, mine hits, a café landing and shop, dying, the high score screen, the opening film
 and the launch.
 """
-import json, os, re, subprocess, sys, tempfile, http.server, threading, functools, html
+import os, sys, tempfile, http.server, threading, functools
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import chrome
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CHROME = os.environ.get('CHROME', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
-sys.path.insert(0, os.path.join(ROOT, 'tools'))
+ROOT = chrome.ROOT
 
 SEEDED = """<script>window.requestAnimationFrame = () => 0;  // the script steps frames itself
 // No sound: the synthesised voice uses random numbers and the recorded clips load in the background, so with sound on
@@ -29,12 +29,12 @@ DRIVER = r"""<script>
   const fp = name => { for (const id of ['cv', 'ov']) { const cv = document.getElementById(id), d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
     let h = 2166136261; for (let i = 0; i < d.length; i += 3) { h ^= d[i]; h = Math.imul(h, 16777619); } out.push(name + ':' + id + ':' + (h >>> 0).toString(16)); } };
   let t = performance.now() + 1000;
-  const run = (n, keep) => { for (let i = 0; i < n; i++) { t += 1000 / 60; if (keep) keep(); if (document.getElementById('confirmDlg').open && !document.getElementById('confirmPic').hidden) document.getElementById('confirmYes').click(); M.frame(t); } };   // Continue on a component's card, as a player would
+  const run = (n, keep) => { for (let i = 0; i < n; i++) { t += 1000 / 60; if (keep) keep(); __tools.continueCard(); M.frame(t); } };   // Continue on a component's card, as a player would
   const mine = () => M.rocks.push({ d: P.y + 14, x0: P.x, x: P.x, size: 1, rr: 9, amp: 0, ph: 0, sp: 1, hot: true, isMine: true, dead: false });
   if (document.fonts) await document.fonts.ready; await wait(300);
   run(30); fp('splash');
-  (document.getElementById('splashSkip') || { click() { const g = id => document.getElementById(id); g('chooseBtn').click(); document.querySelector('.splash-moon[data-moon="' + (window.__mf.moon || 'dust') + '"]').click(); g('splashBtn').click(); g('introSkip').click(); if (g('menuStart') && !new URLSearchParams(location.search).get('clean')) g('menuStart').click(); } }).click(); await wait(300); run(30); fp('title');
-  document.getElementById('startBtn').click(); if (document.getElementById('confirmDlg').open) document.getElementById('confirmYes').click(); await wait(100);
+  __tools.skipSplash(); await wait(300); run(30); fp('title');
+  __tools.jumpIn(); await wait(100);
   run(300, () => { P.inv = 1; }); fp('falling');
   M.rocks.length = 0; P.inv = 0; P.shield = 0; P.hp = 5; mine(); run(1); run(20); fp('mine');
   run(90 * 30, () => { P.inv = 1; P.hp = 5; }); out.push('depth:' + Math.round(P.y) + ':state:' + M.state); fp('later');
@@ -51,26 +51,25 @@ DRIVER = r"""<script>
 
 def page(src_path, hook):
     import test_pages
-    game = open(src_path).read()
-    anchor = 'requestAnimationFrame(t => { last = t; frame(t); });'
-    game = game.replace(anchor, hook + '\n' + anchor)
-    return test_pages.HEAD + SEEDED + game + DRIVER + '</body></html>'
+    game = chrome.inject(open(src_path).read(), hook, 'same_pixels')
+    return test_pages.HEAD + SEEDED + chrome.HELPERS + game + DRIVER + '</body></html>'
 
 def run(html_text, tmp, name, port):
     open(os.path.join(tmp, name), 'w').write(html_text)
-    r = subprocess.run([CHROME, '--headless=new', '--disable-gpu', '--no-first-run', '--user-data-dir=' + os.path.join(tmp, 'prof-' + name),   # its own profile: a shared one carried the first run's save (scores, best) into the second
-                        '--window-size=412,915', '--virtual-time-budget=60000', '--dump-dom', f'http://localhost:{port}/{name}'],
-                       capture_output=True, text=True, timeout=240)
-    m = re.search(r'<pre id="out">(.*?)</pre>', r.stdout, re.S)
-    return json.loads(html.unescape(m.group(1))) if m else ['NO RESULT']
+    # Each page gets its own profile: a shared one carried the first run's save (scores, best) into the second.
+    dom = chrome.dump_dom(f'http://localhost:{port}/{name}', os.path.join(tmp, 'prof-' + name), 60000, 240, size='412,915', files=False)
+    return chrome.result(dom) or ['NO RESULT']
 
 if __name__ == '__main__':
     import test_pages
     before = sys.argv[1]; after = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, 'src', 'moonfall.html')
     old_hook = os.environ.get('OLD_HOOK')   # the debug handle for the old names, if they differ
+    chrome.need_chrome('same_pixels')
     tmp = tempfile.mkdtemp()
-    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=tmp)
-    handler.log_message = lambda *a: None
+    class Quiet(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, *args):   # no line per request (the voice clips' 404s are expected: none are copied)
+            pass
+    handler = functools.partial(Quiet, directory=tmp)
     srv = http.server.ThreadingHTTPServer(('127.0.0.1', 0), handler); threading.Thread(target=srv.serve_forever, daemon=True).start()
     port = srv.server_address[1]
     a = run(page(before, old_hook or test_pages.HOOK), tmp, 'before.html', port)

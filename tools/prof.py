@@ -22,7 +22,7 @@ so the cost of sound isn't in it.
 """
 import os, re, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import same_pixels, test_pages
+import chrome, same_pixels, test_pages
 
 # The game's functions that get a timer (time inside them, including what they call).
 TIMED = """update render prepaint updateFace drawCinema cineCaps drawSky drawShaft drawProps drawFireworks dropList life motes
@@ -134,7 +134,7 @@ DRIVER = r"""<script>
     }
     PR.phase(name); const ph = PR.cur; for (const k in PR.frameFn) PR.frameFn[k] = 0;
     t += 1000 / 60;
-    if (document.getElementById('confirmDlg').open && !document.getElementById('confirmPic').hidden) document.getElementById('confirmYes').click();   // Continue on a component's card, as a player would
+    __tools.continueCard();   // Continue on a component's card, as a player would
     const a = performance.now(); M.frame(t); const ms = performance.now() - a;
     ph.n++; ph.times.push(ms); total++;
     if (SHOTS.has(total)) for (const id of ['cv', 'ov']) localStorage.setItem('shot:' + location.pathname + ':' + moon + ':' + total + ':' + id, $(id).toDataURL());
@@ -148,11 +148,10 @@ DRIVER = r"""<script>
     PR.phase('between');
   };
   const run = async (n, name, until) => { for (let i = 0; i < n && !(until && until()); i++) { await step(typeof name === 'function' ? name() : name); if (total % 240 === 0) { document.title = 'frame ' + total; if (!REAL) await wait(0); } } };
-  const skipSplash = () => ($('splashSkip') || { click() { $('chooseBtn').click(); document.querySelector('.splash-moon[data-moon="' + moon + '"]').click(); $('splashBtn').click(); $('introSkip').click(); } }).click();
 
   await run(120, 'splash');
   if (M.applyMoon) { M.applyMoon(moon); M.save.moon = moon; }
-  skipSplash(); await wait(300);
+  __tools.skipSplash(moon, false); await wait(300);
   await run(240, 'menu');
   // The intro film.
   if ($('introBtn')) $('introBtn').click(); else M.startOpening();   // the menu's Watch the intro button went in version 124
@@ -161,7 +160,7 @@ DRIVER = r"""<script>
   if (M.state === 'opening') { $('introSkip').click(); await wait(100); }
   await run(60, 'menu');
   // The fall.
-  $('startBtn').click(); if (document.getElementById('confirmDlg').open) document.getElementById('confirmYes').click(); await wait(100);
+  __tools.jumpIn(); await wait(100);
   const kinds = X.kinds(), fights = kinds.length, H = M.H;
   let cafeK = 1, atCafe = 0, fought = 0, lastBoss = null;
   for (let i = 0; i < fights; i++) M.setLevi(2 * (2 * i + 1), kinds[i]);   // cafe 1, 3, 5 ... each get the next kind
@@ -230,15 +229,13 @@ DRIVER = r"""<script>
 
 def page(src_path):
     game = open(src_path).read()
-    anchor = 'requestAnimationFrame(t => { last = t; frame(t); });'
-    assert game.count(anchor) == 1, 'start-up line not found'
-    body = game.replace(anchor, inside(game) + '\n' + test_pages.HOOK + '\n' + anchor)
+    body = chrome.inject(game, inside(game) + '\n' + test_pages.HOOK, 'prof')
     return (test_pages.HEAD + '<script>window.__raf0 = window.requestAnimationFrame.bind(window);</script>' + same_pixels.SEEDED + PROBE +
-            body + DRIVER + '</body></html>')
+            chrome.HELPERS + body + DRIVER + '</body></html>')
 
 if __name__ == '__main__':
-    src = sys.argv[1] if len(sys.argv) > 1 else os.path.join(same_pixels.ROOT, 'src', 'moonfall.html')
+    src = sys.argv[1] if len(sys.argv) > 1 else os.path.join(chrome.ROOT, 'src', 'moonfall.html')
     name = sys.argv[2] if len(sys.argv) > 2 else 'prof'
-    out = os.path.join(same_pixels.ROOT, 'tools', 'out', name + '.html')
+    out = os.path.join(chrome.ROOT, 'tools', 'out', name + '.html')
     open(out, 'w').write(page(src))
     print('wrote', out)
