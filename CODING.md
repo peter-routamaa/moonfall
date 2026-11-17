@@ -52,7 +52,10 @@ here.
     `blur` and when the page is hidden.
 11. **Sound follows the page.** Any state that plays music stops it when the page is hidden and picks it up again on
     return (see the `visibilitychange` handler). Noise longer than the 1 s noise buffer sets `loop = true`. The music
-    scheduler skips beats it missed; don't schedule from `setInterval` without that guard.
+    scheduler skips beats it missed; don't schedule from `setInterval` without that guard. Every oscillator and buffer
+    source is passed to `freeAfter` with the filters and gains only it uses, so the chain leaves the audio graph when it
+    ends (iPhones otherwise keep finished nodes until a garbage collection, and the sound breaks up after 15-20 minutes).
+    **[checked: tools/checks.py]**
 12. **Prove that a tidy-up changed nothing.** Moving or restructuring code: `tools/same_pixels.py <before.html>` must
     say SAME, and `tools/fight_makes.py --fp=3` must print the same fingerprints on both versions. Only comments
     changed: a careful diff. A refactor never mixes with a behaviour change in the same commit.
@@ -109,7 +112,8 @@ What the 2026-11-15 review found, by rule:
 8. A lost reply could put the same score on the board twice; a reply without a board left the table on "Loading…".
 9. No test of the game's logic at all.
 10. Kid mode sliders had no spoken names; reduced motion turned the low-health blink into a flicker.
-11. Launch music kept playing in the background; long noises stopped with a click.
+11. Launch music kept playing in the background; long noises stopped with a click. Later, on an iPhone, the sound
+    crackled and cut in and out after 15-20 minutes of play: no finished sound was ever disconnected.
 12. The pixel check said DIFFERENT on identical files, so nobody could trust it.
 13. A release check printed OK after running no fights at all.
 

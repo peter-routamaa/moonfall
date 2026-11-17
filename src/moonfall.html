@@ -4799,6 +4799,22 @@ const VOICE_CLIPS = ['death1.mp3', 'moonland.mp3', 'byebye1.mp3', 'woohoo1.mp3',
 const fetchClip = f => fetch('voices/' + f).then(r => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)));
 const clipBytes = {};
 for (const f of VOICE_CLIPS) { clipBytes[f] = fetchClip(f); clipBytes[f].catch(() => {}); }
+// Every sound and every note of the music is a short chain of nodes (its sources, filters and gains) that is started,
+// left to play out and then taken out of the audio graph here: once all its sources have ended, every node in it is
+// disconnected. Safari on iPhone keeps finished nodes in the graph until its garbage collector gets round to them, and
+// the game makes about 100 a second, so without this the audio thread has to walk an ever larger graph and after 15-20
+// minutes it falls behind: the sound crackles and cuts in and out. Shared nodes (master, the music's bus, muff, send,
+// grit) are never passed here. Call it after the sources' start() and stop().
+function freeAfter(sources, nodes) {
+  let left = sources.length;
+  const done = () => {
+    left--;
+    if (left > 0) return;
+    for (const n of sources) n.disconnect();
+    for (const n of nodes) n.disconnect();
+  };
+  for (const n of sources) n.addEventListener('ended', done, { once: true });
+}
 const Sfx = (() => {
   // Two outputs: master carries the sound effects and voices (Sound FX switch); musicOut carries the music (its own switch).
   let ctx = null, master = null, musicOut = null, noiseBuf = null, windGain = null, windF = null, thrGain = null;
@@ -4818,9 +4834,10 @@ const Sfx = (() => {
       loadClips();
       windF = ctx.createBiquadFilter(); windF.type = 'lowpass'; windF.frequency.value = 300;
       windGain = ctx.createGain(); windGain.gain.value = 0;
-      const src = ctx.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+      // The wind and the thrust hiss play for as long as the page is open, so they are never passed to freeAfter.
+      const src = ctx.createBufferSource(); src.buffer = noiseBuf; src.loop = true;   // kept: no freeAfter
       src.connect(windF); windF.connect(windGain); windGain.connect(master); src.start();
-      const hiss = ctx.createBufferSource(), hf = ctx.createBiquadFilter(); hiss.buffer = noiseBuf; hiss.loop = true;
+      const hiss = ctx.createBufferSource(), hf = ctx.createBiquadFilter(); hiss.buffer = noiseBuf; hiss.loop = true;   // kept: no freeAfter
       hf.type = 'bandpass'; hf.frequency.value = 1400; hf.Q.value = 0.9; thrGain = ctx.createGain(); thrGain.gain.value = 0;
       hiss.connect(hf); hf.connect(thrGain); thrGain.connect(master); hiss.start(0.37);
     } catch (e) { ctx = null; }
@@ -4830,7 +4847,7 @@ const Sfx = (() => {
     const t = ctx.currentTime + (delay || 0), o = ctx.createOscillator(), g = ctx.createGain();
     o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.03);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.03); freeAfter([o], [g]);
   }
   function noise(dur, type, freq, vol, delay) {
     if (!ctx) return;
@@ -4839,6 +4856,7 @@ const Sfx = (() => {
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     s.loop = true;   // the buffer is 1 s; without the loop anything longer stops with a click
     s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.03);
+    freeAfter([s], [f, g]);
   }
   let engineSrc = null, moonVoice = null;
   const introNodes = [];
@@ -4881,11 +4899,14 @@ const Sfx = (() => {
   const droneTone = (type, f0, f1, dur, vol, delay) => tone(type, f0, f1, dur, vol * DRONE_LEVEL, delay);
   let radioCurve = null;
   const bq = (type, f, q, gain) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; if (gain !== undefined) b.gain.value = gain; return b; };
+  // A burst of radio static into `out`; returns its source, so clip() knows when the last one has ended.
   function squelch(t, dur, level, out) {
     const s = ctx.createBufferSource(), g = ctx.createGain(), f = bq('bandpass', 2600, 0.8);
     s.buffer = noiseBuf; s.loop = true;
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(level, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(f); f.connect(g); g.connect(out); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
+    freeAfter([s], [f, g]);
+    return s;
   }
   function clip(name, delay, rate, gain) {
     const b = ctx && clipBufs[name];
@@ -4893,7 +4914,7 @@ const Sfx = (() => {
     const t = ctx.currentTime + (delay || 0), s = ctx.createBufferSource(), g = ctx.createGain();
     s.buffer = b; s.playbackRate.value = rate;
     const handle = { stop() { g.gain.setTargetAtTime(0, ctx.currentTime, 0.02); } };   // truthy, so callers can test it
-    if (!RADIO.on) { g.gain.value = (gain || 1.5) * VOICE_LEVEL; s.connect(g); g.connect(master); s.start(t); return handle; }
+    if (!RADIO.on) { g.gain.value = (gain || 1.5) * VOICE_LEVEL; s.connect(g); g.connect(master); s.start(t); freeAfter([s], [g]); return handle; }
     if (!radioCurve) {
       radioCurve = new Float32Array(1024);
       const k = Math.tanh(RADIO.drive);
@@ -4912,7 +4933,8 @@ const Sfx = (() => {
     const hiss = ctx.createBufferSource(), hg = ctx.createGain(), hf = bq('bandpass', 2200, 0.6);
     hiss.buffer = noiseBuf; hiss.loop = true; hg.gain.value = RADIO.hiss;
     hiss.connect(hf); hf.connect(hg); hg.connect(g); hiss.start(t, Math.random() * 0.5); hiss.stop(end + 0.05);
-    squelch(t, 0.07, 0.25, g); squelch(end - 0.02, 0.14, 0.3, g);
+    const clicks = [squelch(t, 0.07, 0.25, g), squelch(end - 0.02, 0.14, 0.3, g)];
+    freeAfter([s, hiss, ...clicks], [...chain, hf, hg]);   // the radio chain goes once the voice, static and squelches end
     return handle;
   }
   function boing(delay) {
@@ -4922,6 +4944,7 @@ const Sfx = (() => {
     lfo.frequency.value = 17; dep.gain.value = 45; lfo.connect(dep); dep.connect(o.frequency);
     g.gain.setValueAtTime(0.32, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.36);
     o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.4); lfo.start(t); lfo.stop(t + 0.4);
+    freeAfter([o, lfo], [g, dep]);
   }
   let lastThr = -1, lastWind = -1;
   return {
@@ -5008,14 +5031,14 @@ const Sfx = (() => {
         f.frequency.linearRampToValueAtTime(720, t + 1.2);
         f.frequency.linearRampToValueAtTime(200, t + 3);
         g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.24, t + 0.8); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
-        o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + 3.3);
+        o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + 3.3); freeAfter([o], [f, g]);
         tone('sine', 430, 300, 2.2, 0.03, 0.5);
       } else if (kind === 'elder') {
         for (const [fq, det] of [[55, -8], [77.8, 6], [110, 3]]) {
           const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
           o.type = 'sawtooth'; o.frequency.value = fq; o.detune.value = det; f.type = 'lowpass'; f.frequency.value = 380;
           g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.07, t + 1.5); g.gain.exponentialRampToValueAtTime(0.0001, t + 4.2);
-          o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + 4.3);
+          o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + 4.3); freeAfter([o], [f, g]);
         }
         noise(2.6, 'bandpass', 1800, 0.05, 0.7);
       } else {
@@ -5025,7 +5048,7 @@ const Sfx = (() => {
           o.type = type; o.frequency.setValueAtTime(f0, s); o.frequency.exponentialRampToValueAtTime(f1, s + dur);
           f.type = 'lowpass'; f.frequency.value = lp;
           g.gain.setValueAtTime(0.0001, s); g.gain.linearRampToValueAtTime(peak, s + rise); g.gain.exponentialRampToValueAtTime(0.0001, s + dur);
-          o.connect(f); f.connect(g); g.connect(master); o.start(s); o.stop(s + dur + 0.05);
+          o.connect(f); f.connect(g); g.connect(master); o.start(s); o.stop(s + dur + 0.05); freeAfter([o], [f, g]);
         };
         if (kind === 'jelly') {   // a glassy hum with a faint shimmer
           swell('sine', 196, 208, 3.2, 0.07, 1.2, 2000); swell('sine', 294, 300, 2.8, 0.04, 1.2, 2000, 0.3);
@@ -5104,7 +5127,7 @@ const Sfx = (() => {
       g.gain.linearRampToValueAtTime(0.1, t + 0.3);
       g.gain.setValueAtTime(0.1, t + d - 0.1);
       g.gain.exponentialRampToValueAtTime(0.0001, t + d);
-      o.connect(g); g.connect(master); o.start(t); o.stop(t + d + 0.05); introNodes.push(o);
+      o.connect(g); g.connect(master); o.start(t); o.stop(t + d + 0.05); freeAfter([o], [g]); introNodes.push(o);
     },
     crash() {
       noise(1.2, 'lowpass', 700, 1);
@@ -5183,7 +5206,7 @@ const Sfx = (() => {
       g.gain.linearRampToValueAtTime(0.9, t + 3);
       g.gain.linearRampToValueAtTime(0.6, t + 6);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 10.8);
-      s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + 11); engineSrc = s;
+      s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + 11); freeAfter([s], [f, g]); engineSrc = s;
       tone('sawtooth', 45, 90, 3, 0.15);
     },
     hurtVoice(kind) {
@@ -5250,6 +5273,7 @@ const Music = (() => {
     if (filt) { const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = filt; o.connect(fl); src = fl; }
     src.connect(g); g.connect(muff); if (echo) g.connect(send);
     o.start(t); o.stop(t + dur + 0.05);
+    freeAfter([o], [src, g]);
   }
   function pad(notes, t, dur, keep) {
     const { ctx } = A;
@@ -5261,7 +5285,8 @@ const Music = (() => {
       g.gain.linearRampToValueAtTime(0.02, t + 0.35);
       g.gain.setValueAtTime(0.02, t + dur - 0.05);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.45);
-      o.connect(fl); fl.connect(g); g.connect(muff); o.start(t); o.stop(t + dur + 0.5); if (keep) keep.push(g);
+      o.connect(fl); fl.connect(g); g.connect(muff); o.start(t); o.stop(t + dur + 0.5); freeAfter([o], [fl, g]);
+      if (keep) keep.push(g);
     }
   }
   function hit(t, dur, type, freq, vol) {
@@ -5269,18 +5294,19 @@ const Music = (() => {
     s.buffer = noiseBuf; s.loop = true; f.type = type; f.frequency.value = freq;   // looped: the buffer is 1 s (see noise)
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(f); f.connect(g); g.connect(muff); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05);
+    freeAfter([s], [f, g]);
   }
   function kick(t) {
     const { ctx } = A, o = ctx.createOscillator(), g = ctx.createGain();
     o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12);
     g.gain.setValueAtTime(0.55, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
-    o.connect(g); g.connect(muff); o.start(t); o.stop(t + 0.25);
+    o.connect(g); g.connect(muff); o.start(t); o.stop(t + 0.25); freeAfter([o], [g]);
   }
   function tom(t, f) {
     const { ctx } = A, o = ctx.createOscillator(), g = ctx.createGain();
     o.type = 'triangle'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 0.55, t + 0.18);
     g.gain.setValueAtTime(0.38, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
-    o.connect(g); g.connect(muff); o.start(t); o.stop(t + 0.25);
+    o.connect(g); g.connect(muff); o.start(t); o.stop(t + 0.25); freeAfter([o], [g]);
   }
   // One heartbeat thump, straight into bus: a low buzz through a dull filter (its overtones carry it on phone speakers,
   // which can't play the deep part) and a soft knock of noise.
@@ -5290,10 +5316,10 @@ const Music = (() => {
     o.type = 'sawtooth'; o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(50, t + 0.12);
     lp.type = 'lowpass'; lp.frequency.value = 450;
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
-    o.connect(lp); lp.connect(g); g.connect(bus); o.start(t); o.stop(t + 0.22);
+    o.connect(lp); lp.connect(g); g.connect(bus); o.start(t); o.stop(t + 0.22); freeAfter([o], [lp, g]);
     s.buffer = noiseBuf; f.type = 'lowpass'; f.frequency.value = 420;
     ng.gain.setValueAtTime(vol * 0.6, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
-    s.connect(f); f.connect(ng); ng.connect(bus); s.start(t, Math.random() * 0.5); s.stop(t + 0.09);
+    s.connect(f); f.connect(ng); ng.connect(bus); s.start(t, Math.random() * 0.5); s.stop(t + 0.09); freeAfter([s], [f, ng]);
   }
   function glock(m, t, vol) {
     vol = vol || 0.09;
@@ -5331,7 +5357,7 @@ const Music = (() => {
     const { ctx } = A, o = ctx.createOscillator(), g = ctx.createGain();
     o.type = 'sine'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 0.8, t + 0.12);
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
-    o.connect(g); g.connect(muff); o.start(t); o.stop(t + 0.18);
+    o.connect(g); g.connect(muff); o.start(t); o.stop(t + 0.18); freeAfter([o], [g]);
   }
   // The menu's Jungle shaker: a "shh", with a 6 ms fade in, a narrow band around 5.5 kHz and a 45 ms tail. A sharper
   // burst (full volume at once, everything above 7 kHz) is turned into ticks by a phone speaker, like it was clipping.
@@ -5339,7 +5365,7 @@ const Music = (() => {
     const { ctx, noiseBuf } = A, s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
     s.buffer = noiseBuf; f.type = 'bandpass'; f.frequency.value = 5500; f.Q.value = 1.2;
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.022, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
-    s.connect(f); f.connect(g); g.connect(muff); s.start(t, Math.random() * 0.5); s.stop(t + 0.07);
+    s.connect(f); f.connect(g); g.connect(muff); s.start(t, Math.random() * 0.5); s.stop(t + 0.07); freeAfter([s], [f, g]);
   }
   // Title loop: the same chords, softer and slower, with no drums.
   function titleStep(bar, i, s, t) {
@@ -5386,7 +5412,7 @@ const Music = (() => {
       const { ctx } = A, o = ctx.createOscillator(), g = ctx.createGain();   // sub bass, held for the bar
       o.type = 'triangle'; o.frequency.value = mtof(SPL_BASS[bar]);
       g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.07, t + 0.6); g.gain.setValueAtTime(0.07, t + 16 * sx - 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + 16 * sx + 0.3);
-      o.connect(g); g.connect(muff); o.start(t); o.stop(t + 16 * sx + 0.35); held.push(g);
+      o.connect(g); g.connect(muff); o.start(t); o.stop(t + 16 * sx + 0.35); freeAfter([o], [g]); held.push(g);
       if (sflash) {   // just picked: a cymbal swell and a quick run up the chord
         sflash = false; hit(t, 1.8, 'highpass', 4500, 0.07);
         ch.forEach((n, k) => pick === 'jungle' ? JLEADS[0](n + 12, t + k * 0.07) : pick === 'machine' ? MLEADS[0](n + 12, t + k * 0.07) : osc('sine', mtof(n + 24), t + k * 0.07, 0.8, 0.04, 0.003, 0, true));
@@ -5438,7 +5464,7 @@ const Music = (() => {
       const o = ctx.createOscillator(), g = ctx.createGain();
       o.type = 'sawtooth'; o.frequency.value = mtof(m); o.detune.value = det;
       g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      o.connect(g); g.connect(grit); o.start(t); o.stop(t + dur + 0.05);
+      o.connect(g); g.connect(grit); o.start(t); o.stop(t + dur + 0.05); freeAfter([o], [g]);
     }
   }
   // A big low drum: a deep falling thump, a dull burst of noise and a slap phone speakers can carry.
@@ -5446,7 +5472,7 @@ const Music = (() => {
     const { ctx } = A, o = ctx.createOscillator(), g = ctx.createGain();
     o.type = 'sine'; o.frequency.setValueAtTime(115, t); o.frequency.exponentialRampToValueAtTime(46, t + 0.25);
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
-    o.connect(g); g.connect(muff); o.start(t); o.stop(t + 0.55);
+    o.connect(g); g.connect(muff); o.start(t); o.stop(t + 0.55); freeAfter([o], [g]);
     hit(t, 0.12, 'lowpass', 600, vol * 0.6);
     osc('triangle', 175, t, 0.09, vol * 0.3, 0.002, 0, false);
   }
@@ -5465,7 +5491,7 @@ const Music = (() => {
       o.type = 'sawtooth'; o.frequency.value = mtof(n); o.detune.value = det;
       f.type = 'lowpass'; f.frequency.setValueAtTime(250, t); f.frequency.linearRampToValueAtTime(1700, t + a); f.frequency.exponentialRampToValueAtTime(400, t + dur);
       g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.1);
-      o.connect(f); f.connect(g); g.connect(muff); o.start(t); o.stop(t + dur + 0.15);
+      o.connect(f); f.connect(g); g.connect(muff); o.start(t); o.stop(t + dur + 0.15); freeAfter([o], [f, g]);
     }
   }
   // Horror strings: one 16th of a high tremolo on two notes a semitone apart.
@@ -5478,7 +5504,7 @@ const Music = (() => {
       o.type = 'sawtooth'; o.detune.value = det; o.frequency.setValueAtTime(mtof(m), t); o.frequency.exponentialRampToValueAtTime(mtof(m - 7), t + dur);
       f.type = 'bandpass'; f.frequency.value = 2200; f.Q.value = 1.2;
       g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.04); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      o.connect(f); f.connect(g); g.connect(muff); g.connect(send); o.start(t); o.stop(t + dur + 0.05);
+      o.connect(f); f.connect(g); g.connect(muff); g.connect(send); o.start(t); o.stop(t + dur + 0.05); freeAfter([o], [f, g]);
     }
   }
   // A riser: noise sweeping up into the next downbeat, with a saw climbing an octave under it.
@@ -5487,12 +5513,12 @@ const Music = (() => {
     s.buffer = noiseBuf; s.loop = true; f.type = 'bandpass'; f.Q.value = 2;
     f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(6000, t + dur);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + dur);
-    s.connect(f); f.connect(g); g.connect(muff); s.start(t); s.stop(t + dur);
+    s.connect(f); f.connect(g); g.connect(muff); s.start(t); s.stop(t + dur); freeAfter([s], [f, g]);
     const o = ctx.createOscillator(), og = ctx.createGain(), of = ctx.createBiquadFilter();
     o.type = 'sawtooth'; o.frequency.setValueAtTime(mtof(m), t); o.frequency.exponentialRampToValueAtTime(mtof(m + 12), t + dur);
     of.type = 'lowpass'; of.frequency.value = 1800;
     og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(vol * 0.3, t + dur);
-    o.connect(of); of.connect(og); og.connect(muff); o.start(t); o.stop(t + dur);
+    o.connect(of); of.connect(og); og.connect(muff); o.start(t); o.stop(t + dur); freeAfter([o], [of, og]);
   }
   // A funeral bell: a low hum, the strike tone and out-of-tune partials (the minor third makes it gloomy).
   function toll(m, t, vol) {
@@ -5506,7 +5532,7 @@ const Music = (() => {
       o.type = 'sawtooth'; o.frequency.value = mtof(n); o.detune.value = det;
       f.type = 'lowpass'; f.frequency.setValueAtTime(220, t); f.frequency.linearRampToValueAtTime(560, t + dur / 2); f.frequency.linearRampToValueAtTime(220, t + dur);
       g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.3); g.gain.setValueAtTime(vol, t + dur - 0.1); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.4);
-      o.connect(f); f.connect(g); g.connect(muff); o.start(t); o.stop(t + dur + 0.45);
+      o.connect(f); f.connect(g); g.connect(muff); o.start(t); o.stop(t + dur + 0.45); freeAfter([o], [f, g]);
     }
   }
   function bossStep(s, t) {
@@ -5638,16 +5664,17 @@ const Music = (() => {
     bus.gain.setTargetAtTime(on && save.mus ? LEVEL : 0, A.ctx.currentTime, tc);
   }
   // The creature drone: A against B flat (slowly beating) and the A above, dark and low, swelling in over two seconds.
+  // It plays until creature(false) stops it, which also frees it (freeAfter).
   function startDrone(t) {
     const { ctx } = A, g = ctx.createGain(), f = ctx.createBiquadFilter(), oscs = [];
     f.type = 'lowpass'; f.frequency.value = 420;
     g.gain.value = 0; g.gain.setTargetAtTime(0.04, t, 0.7);
     for (const [m, det] of [[33, -6], [34, 5], [45, 0]]) {
-      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(m); o.detune.value = det;
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(m); o.detune.value = det;   // freeAfter in creature()
       o.connect(f); o.start(t); oscs.push(o);
     }
     f.connect(g); g.connect(bus);
-    return { g, oscs };
+    return { g, f, oscs };
   }
   // A deep creature in view: the music sinks to near-silence under the drone, and comes back once it has gone.
   function creature(on) {
@@ -5660,6 +5687,7 @@ const Music = (() => {
     else if (drone) {
       drone.g.gain.setTargetAtTime(0, t, 0.6);
       for (const o of drone.oscs) o.stop(t + 3);
+      freeAfter(drone.oscs, [drone.f, drone.g]);
       drone = null;
     }
   }
