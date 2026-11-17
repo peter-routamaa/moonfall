@@ -1099,7 +1099,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 
 // Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
 // published version.
-const VERSION = 266;
+const VERSION = 267;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -8345,6 +8345,25 @@ function drawPortal(x, y, open, cols) {
 // once as it comes into view, as theirs do. It's clipped to the open cave above the floor: the rock under the floor is
 // drawn before the cave, so legs reaching lower would show in front of it.
 const CAVE_LEVI_K = 2 * CAVE_J + 1;
+// The fireworks launcher (FW_SHOWS.cave): a little mortar on the floor in the corner furthest from the chest, between
+// the wall and the floor's hole, tilted toward the middle; muzzle (x, y) is where its rockets leave, in world pixels.
+const CAVE_LAUNCHER = { x: 0, y: 0, dir: 1 };
+function caveLauncher(cave) {
+  CAVE_LAUNCHER.dir = cave.side;   // it leans the way the chest is, toward the middle
+  CAVE_LAUNCHER.x = cave.side > 0 ? 22 : W - 22; CAVE_LAUNCHER.y = cave.F - 13;
+  return CAVE_LAUNCHER;
+}
+// About 10 rectangles: a dark base, a red tube leaning toward the middle, a flash at its mouth just after a rocket goes.
+function drawCaveLauncher(cave, cam) {
+  const m = caveLauncher(cave), x = m.x, y = Math.round(cave.F - cam), d = m.dir;
+  c.fillStyle = P.ink; c.fillRect(x - 5, y - 4, 11, 4);
+  c.fillStyle = '#7D8794'; c.fillRect(x - 4, y - 3, 9, 2);
+  for (let i = 0; i < 4; i++) {   // the tube, stepping toward the middle as it rises
+    c.fillStyle = P.ink; c.fillRect(x - 2 + d * i, y - 7 - i * 2, 5, 3);
+    c.fillStyle = i === 3 ? '#F2C14E' : P.lava; c.fillRect(x - 1 + d * i, y - 7 - i * 2, 3, 2);
+  }
+  if (state === 'cave' && clock - fwFiredAt < 0.12) { c.fillStyle = '#FFFFFF'; c.fillRect(x + d * 3 - 1, y - 16, 3, 3); }
+}
 function caveLeviathan(cave, cam) {
   const kind = leviKind(CAVE_LEVI_K), dir = hash(CAVE_LEVI_K * 4.3 + SEED) < 0.5 ? 1 : -1;
   const sx = W / 2 + Math.sin(clock * 0.25) * 28, sy = cave.T + CAVE_ROOF_H + (CAVE_H - CAVE_ROOF_H - CAVE_FLOOR_H) / 2 - cam;
@@ -8366,6 +8385,7 @@ function drawCave(cam) {
   if (fireworks.length && fwShow.world) drawFireworks(cam);   // far off, behind the roof's art and everything on the floor
   c.drawImage(caveArt.roof, 0, Math.round(top));
   c.drawImage(caveArt.floor, 0, Math.round(floorY - CAVE_FLOOR_H));
+  drawCaveLauncher(cave, cam);
   // Two little creatures from the surface, hopping on the floor.
   for (const [i, bx] of [[0, Math.round(W / 2 - cave.side * 58)], [1, Math.round(W / 2 + cave.side * 98)]]) {
     const ph = (clock * 0.7 + i * 0.45) % 1;
@@ -8997,7 +9017,8 @@ function drawIntroSpace(t, sx, sy) {
 //   state     the show stops (and its sparks go) when the game leaves this state
 //   secs      how long new bursts keep coming (Infinity: for as long as the state lasts)
 //   gap       s between bursts: [least, plus up to]
-//   at()      where the next one goes: x, the ground it rises from (y), and the height it bursts at (top)
+//   at()      where the next one goes: x, the ground it rises from (y), and the height it bursts at (top); with tx, a
+//             rocket flies across to burst at x = tx (from a launcher)
 //   rise      a rocket climbs from the ground first (false: the burst just appears, as if too far off to see the rocket)
 //   world     at() and the drawing are in world pixels (drawn with the camera), not screen pixels
 //   sparks, speed   per burst: [least, plus up to]; size: a spark's pixels when new; alpha: how bright; sound: a bang each
@@ -9017,12 +9038,18 @@ const FW_SHOWS = {
   // The congratulations (celebrate): after the dive that finished the ship, and on landing at a cafe ready to fly home.
   repaired: fwParty('over'),
   cafe: fwParty('cafe'),
-  // Owner: "The background is quite bland. How about fireworks in the distance?" Small, dim and quiet, on the cave's
-  // back wall between the roof's art and the floor, while he's there.
-  cave: { state: 'cave', secs: Infinity, gap: [0.12, 0.16], rise: false, world: true, sparks: [28, 12], speed: [40, 24], size: 2, alpha: 0.85, sound: false,
-    at: () => { const cave = caveInfo(), top = cave.T + CAVE_ROOF_H * 0.6 + Math.random() * 60; return { x: 24 + Math.random() * (W - 48), y: top, top }; } },
+  // In the deep cave while he's there (owner: "fireworks ... a little bit more prominent, similar to how they are in the
+  // other endings ... all being launched from a fireworks launcher ... furthest away from the chest"): bright, with a
+  // bang each, every rocket fired from the launcher on the floor (caveLauncher) across to burst over the cave.
+  cave: { state: 'cave', secs: Infinity, gap: [0.16, 0.14], rise: true, world: true, sparks: [34, 14], speed: [55, 40], size: 3, alpha: 1,
+    sound: true, cols: FW_PARTY_COLS,
+    at: () => {
+      const cave = caveInfo(), m = caveLauncher(cave);
+      const top = cave.T + CAVE_ROOF_H * 0.55 + Math.random() * (CAVE_H - CAVE_ROOF_H * 0.55 - 90);
+      return { x: m.x + m.dir * 3, y: m.y - 2, tx: 40 + Math.random() * (W - 80), top };
+    } },
 };
-let fireworks = [], fwTime = 0, fwNext = 0, fwShow = FW_SHOWS.title;
+let fireworks = [], fwTime = 0, fwNext = 0, fwShow = FW_SHOWS.title, fwFiredAt = -9;   // fwFiredAt: clock at the last rocket
 function startFireworks(kind) {
   fwShow = FW_SHOWS[kind] || FW_SHOWS.title; fwTime = fwShow.secs; fwNext = fwShow.first ?? 0.4; fireworks = [];
 }
@@ -9035,14 +9062,18 @@ function updateFireworks(dt) {
     if (fwNext <= 0) {
       fwNext = fwShow.gap[0] + Math.random() * fwShow.gap[1];
       const at = fwShow.at(), cols = fwShow.cols || FW_COLS, col = cols[Math.floor(Math.random() * cols.length)];
-      if (fwShow.rise) fireworks.push({ rocket: 1, x: at.x, y: at.y, vy: -(190 + Math.random() * 60), top: at.top, col, t: 0 });
+      if (fwShow.rise) {
+        const vy = -(190 + Math.random() * 60), vx = at.tx === undefined ? 0 : (at.tx - at.x) / ((at.y - at.top) / -vy);
+        fireworks.push({ rocket: 1, x: at.x, y: at.y, vx, vy, top: at.top, col, t: 0 });
+        fwFiredAt = clock;
+      }
       else burstFirework(at.x, at.top, col);
     }
   }
   for (const f of fireworks) {
     f.t += dt;
     if (f.rocket) {
-      f.y += f.vy * dt;
+      f.x += f.vx * dt; f.y += f.vy * dt;
       if (f.y <= f.top) { f.dead = true; burstFirework(f.x, f.y, f.col); }
     } else {
       f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 70 * dt; f.vx *= 1 - dt;
