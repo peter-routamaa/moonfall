@@ -1099,7 +1099,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 
 // Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
 // published version.
-const VERSION = 268;
+const VERSION = 269;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -6559,8 +6559,14 @@ function flipMenuAway(away) {
 // The congratulations when the ship can fly home (askRepaired after a dive, askLaunch and askComps on landing at a cafe):
 // a fanfare and fireworks all over the screen (owner: "make a fanfare out of it"), with no dimming on the screen or
 // behind the card while it's up. confirmParty is set by the pop-up that wants it, for the next popConfirm only.
-let confirmParty = false;
-function celebrate(show) { confirmParty = true; startFireworks(show); Music.fanfare(); Sfx.cheer(); }
+// The music then fades out and the deep cave's song fades in (owner: "fade the regular music out and then fade in the
+// music that would play in the deep cave"), and plays on into the ending if he flies home (partySong, launchSong).
+let confirmParty = false, partySong = false;
+function celebrate(show) {
+  confirmParty = true; startFireworks(show); Music.fanfare(); Sfx.cheer();
+  Music.victory(CELEBRATE_OUT, CELEBRATE_IN); partySong = true;
+}
+const CELEBRATE_OUT = 1.2, CELEBRATE_IN = 2.5;   // s for the music to fade out, then for the cave's song to fade in
 // The main menu's card: Settings and Instructions on the back.
 let kidFromNews = false;   // the Kid mode card was opened from New features: its Done goes back there
 let unlocksFromNews = false;   // the Unlocks card was opened from New features: its Done goes back there
@@ -7093,7 +7099,8 @@ function endRun(how) {
 
 // ---------- flow ----------
 function resetRun() {
-  crashNote = null; repairedLater = false; launchOffered = false;   // words still waiting from the last dive are dropped (what they announce is saved)
+  // Words still waiting from the last dive are dropped (what they announce is saved), and its congratulations are over.
+  crashNote = null; repairedLater = false; launchOffered = false; partySong = false;
   newSeed(); sayEl.style.visibility = ''; sq.q = sq.v = 0;
   rocks = []; items = []; particles = []; hazards = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; lastHazD = -9999; steerAcc = 0;
   for (const k in runParts) runParts[k] = 0;
@@ -7161,7 +7168,7 @@ function resume() {
   if (state !== 'paused') return;
   setState(prevState); showScreen(null); sayEl.style.visibility = ''; last = performance.now(); armBack();
   releaseShop();   // a cafe card answered while paused
-  if (caveSong) Music.victory();
+  if (caveSong || (partySong && state === 'cafe')) Music.victory();   // the cave's song, or a cafe's congratulations
   else if (state === 'landing' || state === 'cafe' || state === 'cafeJump' || state === 'cave') Music.title();
   else if (bossTuneOn) Music.boss(bossTrack);
   else if (state === 'play' || introT >= 1.3) Music.start();
@@ -7185,7 +7192,7 @@ function toTitle() {
   placeHorizon();
   Sfx.wind(0);
   Sfx.thrust(0);
-  if (launchPortal) Music.victory(); else Music.title();   // on the way home through the cave's portal its song plays on
+  if (launchSong) Music.victory(); else Music.title();   // on the way home the cave's song plays on (flyHome)
   if (repairedThisRun) startFireworks('title');
 }
 function die() {
@@ -7241,7 +7248,10 @@ function endDiveAndFlyHome(viaPortal) {
   if (counts && qualifies(m)) { showScores(m, 'launch'); return; }
   flyHome();
 }
-function flyHome() { toTitle(); startLaunch(); }
+// The cave's song plays on through the ending when he comes home through its portal, or after the congratulations
+// (celebrate); otherwise the launch has its own music.
+let launchSong = false;
+function flyHome() { launchSong = launchPortal || partySong; toTitle(); startLaunch(); }
 
 // ---------- menu buttons ----------
 let armTimer = 0;
@@ -9032,7 +9042,7 @@ const FW_COLS = ['#E0483A', '#2F6FD6', '#9B6BE8', '#2E9E57', '#E8922E'];   // st
 // Bright colours (FW_PARTY_COLS), big sparks and wide bursts, as these go off over the dark shaft as well as the sky.
 const FW_PARTY_COLS = ['#F2C14E', '#FFFFFF', '#FF6FB5', '#5EE6F0', '#9CF06A', '#FF8A3D'];
 const fwParty = st => ({ state: st, secs: Infinity, gap: [0.04, 0.06], rise: true, world: false, sparks: [40, 16], speed: [80, 60], size: 4,
-  alpha: 1, sound: 1, cols: FW_PARTY_COLS, first: 0,
+  alpha: 1, sound: 0.75, cols: FW_PARTY_COLS, first: 0,   // bangs a quarter quieter (owner)
   at: () => ({ x: 20 + Math.random() * (W - 40), y: H, top: H * (0.08 + Math.random() * 0.72) }) });
 const FW_SHOWS = {
   // In the sky between the ship repair panel and the title card, for 9 s (the title camera doesn't move).
@@ -9313,7 +9323,7 @@ function startLaunch() {
   launchDrone = true; drone.ox = 0; drone.oy = 0;   // it comes out with him
   fitComps = COMPONENTS.filter(cp => (LEVI_SETS[moon] || []).includes(cp.levi)).slice(0, DRONE_FIT.spots.length);
   showScreen(null); hud.classList.add('off'); Sfx.wind(0);
-  if (launchPortal) Music.victory(); else Music.stop(0.2);   // home through the cave's portal: its song plays on
+  if (launchSong) Music.victory(); else Music.stop(0.2);   // the cave's song plays on (flyHome)
 }
 function skipLaunch() {
   Sfx.stopEngine(); Sfx.thrust(0); Music.stop(0.3); shake = 0; launchT = LAUNCH.end; showEnd();
@@ -9349,8 +9359,8 @@ function updateLaunch(dt) {
   if (crossed(L.aboard)) { sparks(52, -14, [P.dust, P.strata, P.shade], 10); Sfx.hatch(); }
   if (crossed(L.rumble)) { Sfx.engine(); Buzz.launch(); }
   if (crossed(L.lift)) { Music.fanfare(); Sfx.cheer(); Sfx.boom(0.6); }
-  if (crossed(L.groove) && !launchPortal) { Music.setZone(0, true); Music.setDepth(900); Music.start(); }
-  if (crossed(L.space) && !launchPortal) { Music.stop(0.1); Music.space(); }
+  if (crossed(L.groove) && !launchSong) { Music.setZone(0, true); Music.setDepth(900); Music.start(); }
+  if (crossed(L.space) && !launchSong) { Music.stop(0.1); Music.space(); }
   // The ship rumbles, tips upright, then climbs.
   if (t < L.rumble) launchShip = null;
   else if (t < L.lift) {
@@ -9386,7 +9396,7 @@ function updateLaunch(dt) {
   if (t >= L.end) showEnd();
 }
 function showEnd() {
-  setState('ended'); launchPortal = false;
+  setState('ended'); launchPortal = false; launchSong = false;
   // A finished mission counts once (relaunching the same repaired ship doesn't): it unlocks a suit, and Hard Dive.
   const before = suitsOpen();
   if (!save.missionDone) { save.missionsDone = missionsDone() + 1; save.missionDone = true; }
@@ -9516,7 +9526,7 @@ document.addEventListener('visibilitychange', () => {
   else if (state === 'title') Music.title();
   else if ((state === 'over' || state === 'ended') && songHidden) { Music.begin(songHidden); songHidden = ''; }
   // The launch stands still while hidden, so its music stops too; back during the groove (or the cave's song), it starts again.
-  else if (state === 'launch' && launchPortal) Music.victory();
+  else if (state === 'launch' && launchSong) Music.victory();
   else if (state === 'launch' && launchT >= LAUNCH.groove && launchT < LAUNCH.space) { Music.setZone(0, true); Music.setDepth(900); Music.start(); }
   else if (state === 'splash' && Sfx.audio()) Music.splash(splashPicked ? moon : '');
 });
