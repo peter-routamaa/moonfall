@@ -14,21 +14,26 @@ writeFileSync(root + 'tools/out/function.mjs', src.replace(/const BOARD_FROM = '
 // Fake Deno (env and serve) and a fake PostgREST for the `scores` and `plays` tables: just enough of GET with filters,
 // POST, PATCH and count=exact for what the function uses.
 let handler; const db = { scores: [], plays: [] }; let nextId = 1;
+let failNext = '';   // 'count': the first count after the next score insert fails, as a database error then would
 globalThis.Deno = { env: { get: k => ({ SUPABASE_URL: 'https://x.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'eyJfake' })[k] }, serve: f => { handler = f; } };
 globalThis.fetch = async (url, init = {}) => {
   const u = new URL(url), q = u.searchParams, h = init.headers || {}, table = u.pathname.split('/').pop();
   if (h.apikey !== 'eyJfake') return new Response('no auth', { status: 401 });
   if (!db[table]) return new Response('no table ' + table, { status: 404 });
+  if (failNext === 'armed' && h.Prefer === 'count=exact') { failNext = ''; return new Response('database down', { status: 503 }); }
+  if (failNext === 'count' && init.method === 'POST' && table === 'scores') failNext = 'armed';
+  if ((init.method || 'GET') === 'POST' && table === 'scores' && JSON.parse(init.body).run && db.scores.some(x => x.run === JSON.parse(init.body).run)) return new Response('duplicate key', { status: 409 });
   if ((init.method || 'GET') === 'POST') { const b = JSON.parse(init.body); const row = { id: nextId++, ...b, created_at: new Date().toISOString() }; db[table].push(row); return new Response(h.Prefer === 'return=minimal' ? '' : JSON.stringify([row]), { status: 201 }); }
   if (init.method === 'PATCH') { const b = JSON.parse(init.body); const hit = db[table].filter(x => x.player === q.get('player').slice(3) && x.run === q.get('run').slice(3)); hit.forEach(x => Object.assign(x, b)); return new Response(JSON.stringify(hit), { status: 200 }); }
   let r = db[table].slice();
-  for (const col of ['who', 'player']) if (q.get(col)) r = r.filter(x => x[col] === q.get(col).slice(3));
+  for (const col of ['who', 'player', 'run']) if (q.get(col)) r = r.filter(x => x[col] === q.get(col).slice(3));
   if (table === 'scores' && q.get('kid')) r = r.filter(x => !!x.kid === (q.get('kid') === 'eq.true'));   // version 197
   for (const c of q.getAll('created_at')) r = r.filter(x => x.created_at > c.slice(3));   // gt. only; the board's season and the spam check
   if (q.get('or')) { const m = q.get('or').match(/depth\.gt\.(\d+),and\(depth\.eq\.(\d+),id\.lt\.(\d+)\)/); r = r.filter(x => x.depth > +m[1] || (x.depth === +m[2] && x.id < +m[3])); }
   if (h.Prefer === 'count=exact') return new Response('[]', { headers: { 'content-range': r.length ? `0-0/${r.length}` : `*/0` } });
   r.sort((a, b) => b.depth - a.depth || a.id - b.id);
-  return new Response(JSON.stringify(r.slice(0, +q.get('limit')).map(({ id, initials, depth, escaped, moon }) => ({ id, initials, depth, escaped, moon }))));
+  const cols = (q.get('select') || 'id,initials,depth,escaped,moon').split(',');
+  return new Response(JSON.stringify(r.slice(0, +q.get('limit')).map(x => Object.fromEntries(cols.map(c => [c, x[c] ?? null])))));
 };
 await import(root + 'tools/out/function.mjs');
 
@@ -117,6 +122,41 @@ check('old kid score not on the kid board', !(await kidGet()).top.some(t => t.in
 const f1 = await call('POST', { initials: 'NEW', depth: 98000 }, '9.9.9.4');
 check('rank ignores old scores', f1[0] === 200 && f1[1].rank === 1 && f1[1].top[0].initials === 'NEW', f1);
 check('old rows kept', db.scores.some(x => x.initials === 'OLD') && db.scores.some(x => x.initials === 'OLK'), null);
+
+// Each score tied to its run: one row per run, checked against the run's play ping (checkRun).
+const RP = 'abcabcabcabcabc0', R1 = '1234123412341234';
+await call('POST', { event: 'play', player: RP, run: R1 }, '7.7.7.1');
+const fast = await call('POST', { initials: 'RUN', depth: 5000, player: RP, run: R1 }, '7.7.7.1');
+check('score deeper than the time since its run started refused', fast[0] === 400 && /too deep/.test(fast[1].error), fast);
+db.plays.find(x => x.run === R1).created_at = new Date(Date.now() - 10 * 60_000).toISOString();
+const ok1 = await call('POST', { initials: 'RUN', depth: 5000, player: RP, run: R1 }, '7.7.7.1');
+check('score with its run saved', ok1[0] === 200 && db.scores.filter(x => x.run === R1).length === 1 && db.scores.find(x => x.run === R1).player === RP, ok1);
+const again = await call('POST', { initials: 'RUN', depth: 5000, player: RP, run: R1 }, '7.7.7.2');
+check('the same run sent again: same answer, no second row', again[0] === 200 && again[1].id === ok1[1].id && again[1].rank === ok1[1].rank && db.scores.filter(x => x.run === R1).length === 1, again);
+check('a run nobody started refused', (await call('POST', { initials: 'RUN', depth: 50, player: RP, run: 'ffff0000ffff0000' }, '7.7.7.3'))[0] === 400, null);
+const R2 = '2222000022220000';
+db.plays.push({ id: nextId++, player: RP, run: R2, created_at: new Date(Date.now() - 3600_000).toISOString(), depth: 800, how: 'mine' });
+check('score deeper than its run ended refused', (await call('POST', { initials: 'RUN', depth: 900, player: RP, run: R2 }, '7.7.7.4'))[0] === 400, null);
+db.plays.find(x => x.run === R2).how = 'left';
+check('a run last seen hidden mid-run may have gone deeper', (await call('POST', { initials: 'RUN', depth: 900, player: RP, run: R2 }, '7.7.7.4'))[0] === 200, null);
+// The case behind duplicate scores: the row is saved, then the database fails before the answer, so the phone keeps the
+// score in its outbox and sends it again.
+const R3 = '3333000033330000';
+db.plays.push({ id: nextId++, player: RP, run: R3, created_at: new Date(Date.now() - 3600_000).toISOString(), depth: null, how: null });
+failNext = 'count';
+const lost = await call('POST', { initials: 'LST', depth: 700, player: RP, run: R3 }, '7.7.7.5');
+check('database failure after the insert answers 500', lost[0] === 500 && db.scores.filter(x => x.run === R3).length === 1, lost);
+const retry = await call('POST', { initials: 'LST', depth: 700, player: RP, run: R3 }, '7.7.7.5');
+check('the retry finds the saved row instead of adding one', retry[0] === 200 && db.scores.filter(x => x.run === R3).length === 1, retry);
+// The connection is the last x-forwarded-for entry (the platform's); anything in front of it is the caller's to set.
+const spoof = []; for (let k = 0; k < 7; k++) spoof.push((await call('POST', { initials: 'SPF', depth: 5 }, `${k}.0.0.${k}, 8.8.8.8`))[0]);
+check('a made-up first hop doesn\'t escape the score limit', spoof.join(',') === '200,200,200,200,200,200,429', spoof);
+// Play pings: 30 new runs a minute per connection.
+const pings = []; for (let k = 0; k < 32; k++) pings.push((await call('POST', { event: 'play', player: (1e15 + k).toString(16).padStart(16, '0'), run: R1 }, '6.6.6.6'))[0]);
+check('30 new runs a minute per connection, then 429', pings.filter(x => x === 200).length === 30 && pings.at(-1) === 429, pings.join());
+const endOnly = []; for (let k = 0; k < 2; k++) endOnly.push((await call('POST', { ...end, run: (5e15 + k).toString(16).padStart(16, '0') }, '6.6.6.6'))[0]);
+check('an end ping that makes a new row counts too', endOnly.join() === '429,429', endOnly);
+check('a launch and the cave are endings', (await call('POST', { ...end, how: 'launch' }, '5.5.5.5'))[0] === 200 && (await call('POST', { ...end, how: 'cave' }, '5.5.5.5'))[0] === 200, null);
 
 console.log(failed ? `${failed} failed, ${passed} passed` : `all ${passed} checks passed`);
 process.exit(failed ? 1 : 0);

@@ -25,6 +25,9 @@
   color-scheme: dark;
 }
 *, *::before, *::after { box-sizing: border-box; }
+/* The page that holds the game pads the root by the phone's top and bottom safe areas (the claude.ai page, and
+   tools/build_site.py for the website), so everything inside #game is already clear of the notch and the home bar and
+   adds only the side insets; a dialog (top layer, outside that padding) adds its own. */
 html, body { height: 100%; }
 body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(--body); overflow: hidden; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
 #game { position: relative; height: 100%; width: 100%; max-width: 480px; margin: 0 auto; overflow: hidden; background: var(--dust); touch-action: none; }
@@ -205,7 +208,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
    opens clear, just the logo, the tagline and one START over the art; START brings the ship repair panel down and the
    menu card up. It stays in the layout while hidden, so the horizon (placeHorizon) doesn't move when it arrives. */
 #menuStart { display: none; position: absolute; left: 0; right: 0; margin-inline: auto; width: max-content; min-width: 190px;
-  bottom: calc(20% + env(safe-area-inset-bottom, 0px)); z-index: 3; font-size: 24px; padding: 16px 30px 14px; }
+  bottom: 20%; z-index: 3; font-size: 24px; padding: 16px 30px 14px; }
 #titleScreen.clean #menuStart { display: block; }
 #titleScreen.clean .repair, #titleScreen.clean .flip { visibility: hidden; }
 #titleScreen.clean .news { display: none; }
@@ -521,7 +524,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .btn:disabled { background: var(--ink-soft); color: var(--dust-dim); box-shadow: 4px 4px 0 var(--ink); cursor: default; }
 .btn:disabled:active { transform: none; box-shadow: 4px 4px 0 var(--ink); }
 /* Skip intro stays in the top right corner all through the intro film; the moon's name shows as it swells. */
-.intro-skip { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); z-index: 6;
+.intro-skip { position: absolute; top: 10px; right: max(12px, env(safe-area-inset-right, 0px)); z-index: 6;
   font: 700 12px/1 var(--display); letter-spacing: .04em; background: var(--ink); color: var(--dust); border: 0; padding: 9px 11px 8px;
   box-shadow: inset 0 0 0 2px var(--dust-dim), 4px 4px 0 var(--blue); cursor: pointer; }
 .intro-skip:active { transform: translate(2px, 2px); box-shadow: inset 0 0 0 2px var(--dust-dim), 2px 2px 0 var(--blue); }
@@ -615,7 +618,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 @keyframes runfade { 0% { opacity: 0; } 10%, 85% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes runbanner { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); } 10% { opacity: 1; transform: translate(-50%, -50%); } 85% { opacity: 1; } 100% { opacity: 0; } }
 /* The tag is a sash across the bottom-left corner, at 45 degrees, its words clear of a phone's rounded corner. */
-.run-tag { position: absolute; left: -30px; bottom: calc(46px + env(safe-area-inset-bottom, 0px)); width: 170px; transform: rotate(45deg);
+.run-tag { position: absolute; left: -30px; bottom: 46px; width: 170px; transform: rotate(45deg);
   padding: 5px 0 4px; background: var(--gold); color: var(--ink); text-align: center; border-block: 2px solid var(--ink);
   font: 700 9px/1 var(--display); letter-spacing: .08em; box-shadow: 0 3px 0 var(--ink); pointer-events: none; }
 @keyframes speedflash { 0% { opacity: 0; transform: scale(1.7); } 12% { opacity: 1; transform: none; } 78% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-26px); } }
@@ -637,7 +640,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .pop.close { background: var(--blue); color: var(--dust); }
 .pop.pass { background: var(--gold); color: var(--ink); }
 /* Cafe menu: pinned to the bottom, so the man drinking his coffee stays in view above it. */
-.cafe-ui { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; padding: 0 max(12px, env(safe-area-inset-left, 0px)) calc(14px + env(safe-area-inset-bottom, 0px)); }
+.cafe-ui { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; padding: 0 max(12px, env(safe-area-inset-left, 0px)) 14px; }
 .cafe-ui .flip { max-width: 360px; }
 .cave-card { width: 100%; max-width: 360px; }
 .cave-card h2 { color: var(--gold); }
@@ -1100,7 +1103,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 257;
+const VERSION = 258;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -4677,7 +4680,7 @@ function speedAt(d) {
 //   snd, mus, vib     sound, music, vibration on or off (defaults here)
 //   fps, cap, inv     frame counter shown, the 60 FPS cap, inverted thrusters (Settings; defaults here, inv unset)
 //   moon              the moon picked; applyMoon falls back to 'dust' for an unknown one
-//   parts             ship parts collected, by part id; repaired just below
+//   parts             ship parts collected, by part id; repaired just below, as are the plain counts and switches
 //   compsGot          ids of the ship components won from Leviathans this mission (COMPONENTS); repaired just below
 //   compsNew          ids of components won since the last cafe, for its card (askComps)
 //   partsGift         the last component filled the missing parts (winComponent); said on the cafe card, then cleared
@@ -4700,9 +4703,31 @@ function speedAt(d) {
 //                     repaired just below
 //   leviBeaten        Leviathan kind: times escaped (boss fights); made when first used
 //   cafeVisits, cafeTips   cafes visited ever, and the TIPS card seen (coffee stop)
-const save = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false, cap: true, hints: {} };   // cap: the 60 FPS cap, on unless switched off
-try { Object.assign(save, JSON.parse(localStorage.getItem('moonfall.v1') || '{}')); } catch (e) {}
+const SAVE_DEFAULTS = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false, cap: true, hints: {} };   // cap: the 60 FPS cap
+const save = { ...SAVE_DEFAULTS, parts: {}, hints: {} };
+// A save that can't be read (not JSON, or not an object) is copied aside to 'moonfall.v1.unreadable', once, before the
+// next persist() writes over it, and the game starts from the defaults.
+try {
+  const raw = localStorage.getItem('moonfall.v1'), got = raw ? JSON.parse(raw) : {};
+  if (!got || typeof got !== 'object' || Array.isArray(got)) throw new Error('save is not an object');
+  Object.assign(save, got);
+} catch (e) {
+  try {
+    const raw = localStorage.getItem('moonfall.v1');
+    if (raw && !localStorage.getItem('moonfall.v1.unreadable')) localStorage.setItem('moonfall.v1.unreadable', raw);
+  } catch (e2) {}
+}
+// Plain fields of the wrong type go back to their default (or unset): counts must be whole numbers 0 or more, switches
+// true or false. The fields with more to them are repaired where the list above says.
+for (const k of ['best', 'kidBest', 'dives', 'launches', 'missionsDone', 'cafeVisits']) {
+  if (k in save && !(Number.isFinite(save[k]) && save[k] >= 0)) { if (k in SAVE_DEFAULTS) save[k] = SAVE_DEFAULTS[k]; else delete save[k]; }
+}
+for (const k of ['snd', 'mus', 'vib', 'fps', 'cap', 'inv', 'hard', 'drone', 'droneOpen', 'droneNew', 'missionDone', 'partsGift', 'cafeTips']) {
+  if (k in save && typeof save[k] !== 'boolean') { if (k in SAVE_DEFAULTS) save[k] = SAVE_DEFAULTS[k]; else delete save[k]; }
+}
+if (!save.parts || typeof save.parts !== 'object') save.parts = {};
 save.parts = Object.assign({ plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 }, save.parts);
+for (const id of Object.keys(save.parts)) if (!Number.isFinite(save.parts[id]) || save.parts[id] < 0) save.parts[id] = 0;
 // Fields read every frame are put right here if a damaged save has them as the wrong type (they'd throw each frame).
 if (!save.hints || typeof save.hints !== 'object') save.hints = {};
 for (const k of ['leviMet', 'leviLast']) if (!save[k] || typeof save[k] !== 'object' || Array.isArray(save[k])) delete save[k];
@@ -5823,15 +5848,22 @@ const Music = (() => {
 
 // ---------- haptics ----------
 // Android browsers use the Vibration API (allowed in this frame once the player has tapped it).
-// iPhone Safari has no Vibration API; on iOS 18 and later, toggling a hidden switch control gives a short system tap.
+// iPhone Safari has no Vibration API; on iOS 18 and later, toggling a hidden switch control gives a short system tap,
+// probably only shortly after a real tap on the screen (to be confirmed on an iPhone). One hidden switch is made once
+// and reused, so a buzz adds nothing to the page.
 const Buzz = (() => {
   const canVibrate = typeof navigator.vibrate === 'function';
+  let iosSwitch = null;
   function iosTap() {
     try {
-      const label = document.createElement('label'), input = document.createElement('input');
-      label.setAttribute('aria-hidden', 'true'); label.style.display = 'none';
-      input.type = 'checkbox'; input.setAttribute('switch', ''); input.tabIndex = -1;
-      label.appendChild(input); document.head.appendChild(label); label.click(); label.remove();
+      if (!iosSwitch) {
+        const input = document.createElement('input');
+        iosSwitch = document.createElement('label');
+        iosSwitch.setAttribute('aria-hidden', 'true'); iosSwitch.style.display = 'none';
+        input.type = 'checkbox'; input.setAttribute('switch', ''); input.tabIndex = -1;
+        iosSwitch.appendChild(input); document.head.appendChild(iosSwitch);
+      }
+      iosSwitch.click();
     } catch (e) {}
   }
   function fire(pattern, taps) {
@@ -6749,8 +6781,9 @@ function countPlay() {
   if (!introDone) { introDone = true; introRun = runId; }
   statPing({ event: 'play', player: save.playerId, run: runId, ver: VERSION, moon, ...runFlags() });
 }
-// how: wall, rock, mine or lava (what took the last health), quit (Main menu from pause) or left (the game was hidden
-// mid-run; sent again with the real ending if they come back).
+// how: wall, rock, mine or lava (what took the last health), quit (Main menu from pause), launch or cave (flown home
+// from a cafe, or through the deep cave's portal) or left (the game was hidden mid-run; sent again with the real ending
+// if they come back).
 // The last ended run's report, kept so it can be sent again with the initials typed on the high score entry (the run
 // ends before the entry opens, so its report has the old initials, or none on a first high score).
 let lastEnd = null;
@@ -7009,6 +7042,8 @@ if (!(save.season >= BOARD_SEASON)) {
 }
 let scoreOpen = false, hsPending = 0, hsSlot = 0, hsNew = -1, hsHold = 0, hsFrom = 'over';
 let hsTab = 'local', hsOnline = null, hsBusy = false, hsErr = '', hsKid = false, hsNewKid = false;   // hsKid: the Kid mode board is showing
+let hsAgain = false;   // a score was saved (or the board asked for) while a sync was out: sync once more after it
+const HEX16 = /^[0-9a-f]{16}$/;
 const hsScores = () => hsKid ? save.kidScores : save.scores;
 const hsInit = (typeof save.initials === 'string' && /^[A-Z]{3}$/.test(save.initials) ? save.initials : 'AAA').split('');
 const hsSlots = [...document.querySelectorAll('#initials .slot')];
@@ -7052,8 +7087,11 @@ function saveScore() {
   const list = hsScores();
   list.splice(hsRankOf(entry.m) - 1, 0, entry); list.length = Math.min(list.length, HS_MAX);
   hsNew = list.indexOf(entry); hsNewKid = hsKid;
-  if (SCORES_URL) { save.outbox.push(Object.assign({ i: entry.i, m: entry.m, e: entry.e, o: entry.o }, hsKid ? { k: true } : {})); hsOnline = null; }
-  if (lastEnd && lastEnd.depth === entry.m) { lastEnd.initials = entry.i; statPing(lastEnd); }   // this run's stats row gets these initials
+  // The outbox entry names its run (p: player id, r: run id, from the run's last report), so the server can check the
+  // score against the run and keep one row per run however often it's sent.
+  const ran = lastEnd && lastEnd.depth === entry.m ? { p: lastEnd.player, r: lastEnd.run } : {};
+  if (SCORES_URL) { save.outbox.push(Object.assign({ i: entry.i, m: entry.m, e: entry.e, o: entry.o }, ran, hsKid ? { k: true } : {})); hsOnline = null; }
+  if (ran.r) { lastEnd.initials = entry.i; statPing(lastEnd); }   // this run's stats row gets these initials
   lastEnd = null;
   persist(); Sfx.orb();
   $('hsEntry').hidden = true; openTable();
@@ -7133,14 +7171,14 @@ async function scoresFetch(init, kid) {
 }
 // Sends any runs waiting in the outbox (oldest first), then shows the board. Runs stay queued if the network fails.
 async function syncOnline() {
-  if (hsBusy) return;
+  if (hsBusy) { hsAgain = true; return; }
   hsBusy = true;
   try {
     let got = null;
     while (save.outbox.length) {
       const s = save.outbox[0];
       try {
-        got = await scoresFetch({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initials: s.i, depth: s.m, escaped: typeof s.e === 'boolean' ? s.e : null, moon: MOON_NAMES[s.o] ? s.o : null, kid: !!s.k }) });
+        got = await scoresFetch({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initials: s.i, depth: s.m, escaped: typeof s.e === 'boolean' ? s.e : null, moon: MOON_NAMES[s.o] ? s.o : null, kid: !!s.k, ...(HEX16.test(s.p) && HEX16.test(s.r) ? { player: s.p, run: s.r } : {}) }) });
         got.me = s;
       }
       catch (e) { if (e.status !== 400) throw e; got = null; }
@@ -7159,6 +7197,7 @@ async function syncOnline() {
     if (scoreOpen && hsTab === 'online') hsTab = 'local';
   }
   hsBusy = false;
+  if (hsAgain) { hsAgain = false; syncOnline(); return; }
   if (scoreOpen) renderTable();
 }
 function closeScores() {
@@ -7581,7 +7620,7 @@ function endDiveAndFlyHome(viaPortal) {
   const m = depthM(), kb = kidRun.on, counts = !previewSave;   // a Kid mode run has its own best and board; a preview has none
   if (counts && m > bestNow()) { if (kb) save.kidBest = m; else save.best = m; persist(); }
   hsKid = kb; launchPortal = !!viaPortal;
-  setState('over'); hud.classList.add('off'); endRun('quit');
+  setState('over'); hud.classList.add('off'); endRun(viaPortal ? 'cave' : 'launch');
   if (counts && qualifies(m)) { showScores(m, 'launch'); return; }
   flyHome();
 }

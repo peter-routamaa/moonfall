@@ -1,9 +1,10 @@
 // MoonFall online high scores and play counter.
 //   GET  -> { top }                 the 10 deepest runs (GET ?kid=1: the Kid mode board's, version 197)
-//   POST -> { top, rank, id }       body { initials: "ABC", depth: 812, escaped: true, moon: "jungle", kid: true }; saves the run
-//                                   (escaped: the player had repaired the ship; moon: dust, jungle or machine; both optional, null if missing;
-//                                   kid: a Kid mode run, on its own board, version 197; optional, false if missing). top and rank are
-//                                   that run's board.
+//   POST -> { top, rank, id }       body { initials: "ABC", depth: 812, escaped: true, moon: "jungle", kid: true,
+//                                   player: "<16 hex>", run: "<16 hex>" }; saves the run (escaped: the player had repaired the ship;
+//                                   moon: dust, jungle or machine; both optional, null if missing; kid: a Kid mode run, on its own
+//                                   board; optional, false if missing). top and rank are that run's board. player and run name the
+//                                   run the score came from (see checkRun); the same run sent again gets its first answer back.
 //   POST -> { ok }                  body { event: "play", player: "<16 hex>", run: "<16 hex>", ver }; a run started (owner's stats)
 //   POST -> { ok }                  body { event: "end", player, run, depth, secs, how, orbs, parts, cafes, initials,
 //                                         fps, worst, device, os, screen, treats, streak, sound, music, repair, intro, ver }; how it went
@@ -32,8 +33,15 @@ const REST = `${BASE}/rest/v1`;
 // go-live time when deploying a new season (the game's BOARD_SEASON starts each phone's own board fresh at the same release).
 const BOARD_FROM = '2026-11-14T11:23:00Z';
 const SEASON = `created_at=gt.${encodeURIComponent(BOARD_FROM)}`;
-const TOP = 10, MAX_DEPTH = 100000, PER_MINUTE = 6, PLAY_GAP_MS = 5000;
-const HEX16 = /^[0-9a-f]{16}$/, HOW = new Set(['wall', 'rock', 'mine', 'lava', 'quit', 'left']);
+const TOP = 10, MAX_DEPTH = 100000, PER_MINUTE = 6, PLAY_GAP_MS = 5000, PINGS_PER_MINUTE = 30;
+const HEX16 = /^[0-9a-f]{16}$/, HOW = new Set(['wall', 'rock', 'mine', 'lava', 'quit', 'left', 'launch', 'cave']);
+// The fastest a run can go down, in metres a second: the game's fastest fall is about 50 (250 px/s at 8 px a metre,
+// +40% from cafes, +15% in Terminal Velocity), so a score deeper than this allows for the time since its run started
+// can't be real.
+const MAX_MPS = 75;
+// Scores must name their run (player and run). False while copies of the game from before they were sent are still
+// open; set to true once the game that sends them is live and has had a day to reach every open tab.
+const REQUIRE_RUN = false;
 const DEVICE = new Set(['phone', 'tablet', 'desktop']), OS = new Set(['android', 'ios', 'windows', 'mac', 'chromeos', 'linux', 'other']);
 
 // Initials that aren't allowed, since kids play: refused when sent, and shown as ??? if any are already stored.
@@ -66,12 +74,22 @@ async function count(table: string, filter: string) {
   return Number((r.headers.get('content-range') ?? '*/0').split('/')[1]) || 0;
 }
 
+// Rows matching a PostgREST query (filters and select).
+async function rows(table: string, query: string) {
+  const r = await fetch(`${REST}/${table}?${query}`, { headers: auth });
+  if (!r.ok) throw new Error(`rows ${table}: ${r.status} ${await r.text()}`);
+  return await r.json();
+}
+
+// A unique key already taken (a score's run sent twice at the same moment): PostgREST answers 409.
+class Taken extends Error {}
 async function insert(table: string, row: unknown, want: boolean) {
   const r = await fetch(`${REST}/${table}`, {
     method: 'POST',
     headers: { ...auth, 'Content-Type': 'application/json', Prefer: want ? 'return=representation' : 'return=minimal' },
     body: JSON.stringify(row),
   });
+  if (r.status === 409) throw new Taken(`insert ${table}: ${await r.text()}`);
   if (!r.ok) throw new Error(`insert ${table}: ${r.status} ${await r.text()}`);
   return want ? (await r.json())[0] : null;
 }
@@ -133,6 +151,40 @@ async function hash(text: string) {
   return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
 }
 
+// The connection a request came from, hashed with the secret key (so the stored value can't be turned back into an
+// address), or null. CLIENT_HOP picks the entry of x-forwarded-for that the platform adds itself: a caller can put
+// anything in front of it, so the first entry can't be trusted.
+const CLIENT_HOP = 'last';
+async function connection(req: Request) {
+  const hops = (req.headers.get('x-forwarded-for') ?? '').split(',').map(h => h.trim()).filter(Boolean);
+  const ip = CLIENT_HOP === 'last' ? hops.at(-1) : hops[0];
+  return ip ? await hash(ip + KEY) : null;
+}
+
+// Too many new rows from one connection in the last minute.
+async function tooMany(table: string, who: string | null, limit: number) {
+  if (!who) return false;
+  const since = new Date(Date.now() - 60_000).toISOString();
+  return await count(table, `who=eq.${who}&created_at=gt.${encodeURIComponent(since)}`) >= limit;
+}
+
+// A score's run must be one the game reported starting (its play ping), long enough ago for the depth at the fastest
+// fall, and not deeper than the run's own ending said (unless that ending was only 'left', the app hidden mid-run).
+// Returns the reason it can't be real, or ''.
+async function checkRun(player: string, run: string, depth: number) {
+  const [play] = await rows('plays', `player=eq.${player}&run=eq.${run}&select=created_at,depth,how&limit=1`);
+  if (!play) return 'no such run';
+  if ((Date.now() - Date.parse(play.created_at)) / 1000 < depth / MAX_MPS) return 'too deep for the time';
+  if (typeof play.depth === 'number' && play.how !== 'left' && play.depth < depth) return 'deeper than the run went';
+  return '';
+}
+
+// The answer for a saved score: its board and its rank there (deeper first, earlier run first on a tie, as the table).
+async function placed(row: { id: number, depth: number, kid: boolean }) {
+  const above = await count('scores', `kid=eq.${row.kid}&${SEASON}&or=(depth.gt.${row.depth},and(depth.eq.${row.depth},id.lt.${row.id}))`);
+  return reply({ top: await top(row.kid), rank: above + 1, id: row.id });
+}
+
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
   try {
@@ -147,7 +199,10 @@ Deno.serve(async req => {
       if (!HEX16.test(player)) return reply({ error: 'bad player id' }, 400);
       const run = typeof body.run === 'string' && HEX16.test(body.run) ? body.run : null;
       const since = new Date(Date.now() - PLAY_GAP_MS).toISOString();
-      if (await count('plays', `player=eq.${player}&created_at=gt.${encodeURIComponent(since)}`) === 0) await insert('plays', { player, run, ver: version(body.ver), moon: moonOf(body.moon), ...flags(body) }, false);
+      if (await count('plays', `player=eq.${player}&created_at=gt.${encodeURIComponent(since)}`) > 0) return reply({ ok: true });
+      const who = await connection(req);
+      if (await tooMany('plays', who, PINGS_PER_MINUTE)) return reply({ error: 'too many runs, try again in a minute' }, 429);
+      await insert('plays', { player, run, who, ver: version(body.ver), moon: moonOf(body.moon), ...flags(body) }, false);
       return reply({ ok: true });
     }
 
@@ -161,7 +216,10 @@ Deno.serve(async req => {
       }
       const initials = typeof body.initials === 'string' && /^[A-Z]{3}$/.test(body.initials) && !BAD.has(body.initials) ? body.initials : null;
       const row = { depth, secs, how, orbs, parts, cafes, initials, ...extras(body), ended_at: new Date().toISOString() };
-      if (await update('plays', `player=eq.${player}&run=eq.${run}`, row) === 0) await insert('plays', { player, run, ...row }, false);
+      if (await update('plays', `player=eq.${player}&run=eq.${run}`, row) > 0) return reply({ ok: true });
+      const who = await connection(req);
+      if (await tooMany('plays', who, PINGS_PER_MINUTE)) return reply({ error: 'too many runs, try again in a minute' }, 429);
+      await insert('plays', { player, run, who, ...row }, false);
       return reply({ ok: true });
     }
 
@@ -172,22 +230,29 @@ Deno.serve(async req => {
     }
     if (BAD.has(initials)) return reply({ error: 'those initials are not allowed' }, 400);
 
+    // The run it came from: sent again (a lost reply, the phone's outbox), it gets the same answer, not a second row.
+    const player = typeof body?.player === 'string' && HEX16.test(body.player) ? body.player : null;
+    const run = typeof body?.run === 'string' && HEX16.test(body.run) ? body.run : null;
+    const sameRun = async () => (await rows('scores', `run=eq.${run}&select=id,depth,kid&limit=1`))[0];
+    if (player && run) {
+      const first = await sameRun();
+      if (first) return await placed(first);
+      const why = await checkRun(player, run, depth);
+      if (why) return reply({ error: `score refused: ${why}` }, 400);
+    } else if (REQUIRE_RUN) return reply({ error: 'a score needs its player and run' }, 400);
+
     // A few runs a minute per connection is plenty; more than that is someone spamming the board.
-    const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim();
-    const who = ip ? await hash(ip + BASE) : null;
-    if (who) {
-      const since = new Date(Date.now() - 60_000).toISOString();
-      if (await count('scores', `who=eq.${who}&created_at=gt.${encodeURIComponent(since)}`) >= PER_MINUTE) {
-        return reply({ error: 'too many scores, try again in a minute' }, 429);
-      }
-    }
+    const who = await connection(req);
+    if (await tooMany('scores', who, PER_MINUTE)) return reply({ error: 'too many scores, try again in a minute' }, 429);
 
     const escaped = typeof body?.escaped === 'boolean' ? body.escaped : null;
     const kid = body?.kid === true;
-    const row = await insert('scores', { initials, depth, who, escaped, moon: moonOf(body?.moon), kid }, true);
-    // Rank on its own board, in the same order as the table: deeper first, earlier run first on a tie.
-    const above = await count('scores', `kid=eq.${kid}&${SEASON}&or=(depth.gt.${depth},and(depth.eq.${depth},id.lt.${row.id}))`);
-    return reply({ top: await top(kid), rank: above + 1, id: row.id });
+    try {
+      return await placed(await insert('scores', { initials, depth, who, escaped, moon: moonOf(body?.moon), kid, player, run }, true));
+    } catch (e) {
+      if (e instanceof Taken && run) return await placed(await sameRun());   // the same run, saved a moment ago
+      throw e;
+    }
   } catch (e) {
     console.error(e);
     return reply({ error: 'scoreboard error' }, 500);
