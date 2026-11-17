@@ -19,7 +19,8 @@ It refuses to build a game that should not go live, so a release cannot skip the
   - tools/levi_budget.py must say OK (every Leviathan inside the drawing budgets in PERFORMANCE.md);
   - tools/fight_makes.py must say OK (no canvas made in the middle of a Leviathan fight, and no burst of them in a
     frame while he is moving; it plays all the fights, about a minute).
-  - tools/checks.py must say OK (quick source checks: the rude initials list is the same in the game and the server);
+  - tools/checks.py must say OK (quick source checks from CODING.md: rude initials in step, code map, no history in
+    comments, no hidden names, long lines and deep ternaries within their ratchets, every sound freed);
   - tools/smoke.py must say OK (every screen and state played on every moon with no error; about 20 seconds);
   - node tools/test_function.mjs must pass (the scores function against a pretend database; needs Node 22.13+).
 Each stops the build (exit 1) before anything in docs/ is touched.
