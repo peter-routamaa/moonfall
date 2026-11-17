@@ -83,7 +83,7 @@ def check(name, page):
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, 'd.html')
         body = chrome.inject(page, test_pages.HOOK, 'demo_pages')
-        open(path, 'w', encoding='utf-8').write(test_pages.HEAD + same_pixels.SEEDED + chrome.HELPERS + body
+        open(path, 'w', encoding='utf-8').write(test_pages.MUTE + test_pages.HEAD + same_pixels.SEEDED + chrome.HELPERS + body
                                                 + CHECK.replace('NAME', repr(name)) + '</body></html>')
         res = chrome.result(chrome.dump_dom('file://' + path, os.path.join(tmp, 'chrome'), 120000, 300, size='390,844'))
     res = res or {'err': 'no result'}

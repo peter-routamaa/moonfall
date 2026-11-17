@@ -384,6 +384,8 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .tog { white-space: nowrap; font: 400 11px/1 var(--display); color: var(--dust); background: transparent; border: 2px solid var(--dust-dim); padding: 7px 8px 6px; cursor: pointer; letter-spacing: .04em; }
 .tog[aria-pressed="false"] { color: var(--dust-dim); border-color: var(--ink-soft); text-decoration: line-through; }
 .card h2 { margin: 0; font: 700 24px/1.1 var(--display); letter-spacing: .03em; }
+/* A pop-up's title is one line on the narrowest phone: "Congratulations!" is 16 letters wide. */
+.confirm h2 { font-size: min(24px, 5.6vw); }
 .card h2.bad { color: var(--lava); }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; }
 .stats div { background: color-mix(in srgb, var(--dust) 7%, var(--ink)); padding: 9px 8px 8px; }
@@ -484,6 +486,9 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 /* Low on the screen, clear of the pilot on the menu: the escape preview's pop-up, opened by tapping him (askPreview). */
 .confirm.low { margin: auto auto max(16px, env(safe-area-inset-bottom, 0px)); }
 .confirm::backdrop { background: color-mix(in srgb, var(--ink) 72%, transparent); }
+/* The congratulations' party (PARTY_KINDS): nothing dims the fireworks around the card. */
+.confirm.party::backdrop { background: transparent; }
+body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 .confirm.danger { box-shadow: 6px 6px 0 var(--lava); }
 .confirm.danger h2 { color: var(--lava); }
 .confirm .btn { font-size: 16px; }
@@ -508,14 +513,15 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .splash-moon .moon-ico { width: 42px; height: 42px; }
 .btn:disabled { background: var(--ink-soft); color: var(--dust-dim); box-shadow: 4px 4px 0 var(--ink); cursor: default; }
 .btn:disabled:active { transform: none; box-shadow: 4px 4px 0 var(--ink); }
-/* Skip intro stays in the top right corner all through the intro film; the moon's name shows as it swells. */
+/* Skip cinematic stays in the top right corner all through the intro film and the ending (the launch); in the intro the
+   moon's name shows as it swells. Taps elsewhere don't skip either film. */
 .intro-skip { position: absolute; top: 10px; right: max(12px, env(safe-area-inset-right, 0px)); z-index: 6;
   font: 700 12px/1 var(--display); letter-spacing: .04em; background: var(--ink); color: var(--dust); border: 0; padding: 9px 11px 8px;
   box-shadow: inset 0 0 0 2px var(--dust-dim), 4px 4px 0 var(--blue); cursor: pointer; }
 .intro-skip:active { transform: translate(2px, 2px); box-shadow: inset 0 0 0 2px var(--dust-dim), 2px 2px 0 var(--blue); }
 .intro-skip:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
-#game:not([data-state="opening"]) .intro-skip { display: none; }
-/* Skip intro bobs too: a small, slow bob, half the height of the Choose Moon / START bob. */
+#game:not([data-state="opening"]):not([data-state="launch"]) .intro-skip { display: none; }
+/* Skip cinematic bobs too: a small, slow bob, half the height of the Choose Moon / START bob. */
 .intro-skip { animation: bobSmall 1.4s ease-in-out infinite; }
 @keyframes bobSmall { 0%, 100% { translate: 0 0; } 50% { translate: 0 -3px; } }
 /* The cinematics' captions are typed into the bottom letterbox bar (--bar is its height, set in resize). */
@@ -759,7 +765,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
    </div>
   </div>
   <div class="coach gone" id="coach">TAP A SIDE, OR DRAG</div>
-  <button class="intro-skip" id="introSkip" type="button">Skip intro</button>
+  <button class="intro-skip" id="introSkip" type="button">Skip cinematic</button>
   <div class="intro-cap" id="introCap" aria-hidden="true"></div>
   <div class="streak-flash" id="streakFlash" aria-hidden="true"></div>
   <div class="speed-flash" id="speedFlash" role="status"><b></b><small></small></div>
@@ -1653,7 +1659,7 @@ function winComponent(kind) {
 }
 // The moment the ship is ready to fly (the last part caught, or the last component won). During a Leviathan's crash the
 // screen shows only health, so the words wait until the crash is over (repairedLater, read where the boss is let go).
-const REPAIRED_LINE = 'SHIP REPAIRED! LAUNCH IT FROM THE MAIN MENU';
+const REPAIRED_LINE = 'ALL SHIP COMPONENTS ACQUIRED! FLY HOME FROM THE MENU';
 let repairedLater = false;
 function shipRepaired() {
   if (boss) repairedLater = true; else showCoach(REPAIRED_LINE, 3500);
@@ -6519,17 +6525,27 @@ function syncAside(instant) {
 addEventListener('resize', () => { syncAside(true); if (cardSide) placeNews(cardSide, true); });
 // Owner: while Jump in's card is open, the menu behind it (the ship repair panel, the New features sticker and the menu
 // card) flips up and away, one after another in the same stepped flip, and back down when the card closes on the menu.
+// The same for the game over card behind the congratulations (askRepaired) and the end card behind the drone's card
+// (tellDroneEnd): owner, "The background cards are always distracting".
 // Nothing folds, so the layout stays put. A dive started from the card just drops the flips.
 const MENU_AWAY_STEP = 80;   // ms between one section and the next
-let menuAway = false;
+let menuAway = false, awayEls = [], awayState = '';
+// What flips away in this state: the game over or end screen's card, or the menu's three sections.
+function awayFrom() {
+  if (state === 'over') return [$('overScreen').querySelector('.card')];
+  if (state === 'ended') return [$('endScreen').querySelector('.card')];
+  const ts = $('titleScreen');
+  return [ts.querySelector('.repair'), $('newsTag'), $('titleFlip')];
+}
 function flipMenuAway(away) {
   if (away === menuAway) return;
   menuAway = away;
-  const ts = $('titleScreen'), els = [ts.querySelector('.repair'), $('newsTag'), $('titleFlip')];
+  if (away) { awayEls = awayFrom(); awayState = state; }
+  const els = awayEls;
   els.forEach((el, i) => {
     if (el._away) { for (const a of el._away) a.cancel(); el._away = null; }
     if (!away) el.style.visibility = '';
-    if (!away && state !== 'title') return;
+    if (!away && state !== awayState) return;
     if (reduceMotion || el.classList.contains('aside') || getComputedStyle(el).display === 'none') {
       el.style.visibility = away ? 'hidden' : ''; return;
     }
@@ -6538,6 +6554,11 @@ function flipMenuAway(away) {
     if (!away) a.onfinish = () => { if (el._away && el._away[0] === a) { a.cancel(); el._away = null; } };
   });
 }
+// The congratulations when the ship can fly home (askRepaired after a dive, askLaunch and askComps on landing at a cafe):
+// a fanfare and fireworks all over the screen (owner: "make a fanfare out of it"), with no dimming on the screen or
+// behind the card while it's up. confirmParty is set by the pop-up that wants it, for the next popConfirm only.
+let confirmParty = false;
+function celebrate(show) { confirmParty = true; startFireworks(show); Music.fanfare(); Sfx.cheer(); }
 // The main menu's card: Settings and Instructions on the back.
 let kidFromNews = false;   // the Kid mode card was opened from New features: its Done goes back there
 let unlocksFromNews = false;   // the Unlocks card was opened from New features: its Done goes back there
@@ -6753,6 +6774,7 @@ function popConfirm() {
   $('confirmPic').hidden = confirmKind !== 'comps';
   $('confirmMoons').hidden = confirmKind !== 'jump';
   confirmDlg.classList.toggle('low', confirmKind === 'preview');
+  confirmDlg.classList.toggle('party', confirmParty); confirmParty = false;
   confirmDlg.classList.remove('pop-in'); void confirmDlg.offsetWidth; confirmDlg.classList.add('pop-in');
   if (!confirmDlg.open) confirmDlg.showModal();
   const yesFirst = ['droneEnd', 'jump'].includes(confirmKind) || (confirmKind === 'comps' && !canLaunch());   // a launch waits for a choice
@@ -6846,10 +6868,10 @@ function askRepaired() {
   confirmKind = 'repaired'; confirmFrom = 'againBtn'; confirmStep = 0;
   confirmDlg.classList.remove('danger');
   $('confirmTitle').textContent = 'Congratulations!';
-  $('confirmText').textContent = 'You repaired the ship and fitted every component. It\'s ready to fly you home!';
+  $('confirmText').textContent = 'All ship components acquired! Fly home to repair the ship and escape the moon.';
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Fly home!';
   $('confirmNo').textContent = 'Later';
-  popConfirm();
+  celebrate('repaired'); popConfirm(); flipMenuAway(true);
 }
 // Owner: after the standard ending (the ship flown home from the menu, game over or a cafe), the helper drone is unlocked
 // for the next dive, with a pop-up saying so. (The deep cave's chest gives it there and then: caveGift.)
@@ -6860,7 +6882,7 @@ function tellDroneEnd() {
   $('confirmText').textContent = 'You flew the ship home, and the helper drone is yours. It will fly with you the next time you dive, catching '
     + shareWord(DRONE_CHANCE) + ' of the ship parts and crystals you miss. (Unlocks)';
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Great!';
-  popConfirm();
+  popConfirm(); flipMenuAway(true);
 }
 // The escape preview (five taps on the pilot) says what it is before the dive starts (see the escape preview).
 let previewAsks = 0;
@@ -6909,30 +6931,35 @@ function askComps() {
   $('confirmText').textContent = list + ' fitted to the ship. Components: ' + compsCount() + ' of ' + COMPONENTS.length + '\n\n'
     + perMoon + '\n\n'
     + (gift ? 'The last Leviathan also gave you every ship part you were missing. ' : '')
-    + (canLaunch() ? 'The ship is repaired! Fly home now? ' + diveEndsHere()
+    + (canLaunch() ? 'You\'ve acquired all the parts to repair the ship! Fly home now? ' + diveEndsHere()
       : left ? 'Each moon\'s ' + numberWord(LEVI_SETS.dust.length) + ' Leviathans guard components: travel to all three moons to collect them all.'
         : 'Every component fitted! Now finish collecting the ship parts.');
   $('confirmYes').hidden = false; $('confirmYes').textContent = canLaunch() ? 'Fly home!' : 'Great!';
   $('confirmNo').textContent = 'Not yet';   // shown only when the ship can fly (popConfirm)
+  if (canLaunch()) { launchOffered = true; celebrate('cafe'); }
   popConfirm();
 }
 // What flying home from a cafe means for the dive (askComps and askLaunch).
 const diveEndsHere = () => 'Your dive ends here at ' + depthM().toLocaleString('en-GB') + '\u00a0m and counts on the high scores.';
-// The cafe's launch: the dive ends there, so it asks first.
-function askLaunch() {
+// The cafe's launch: the dive ends there, so it asks first. From the cafe's launch button, or by itself (landed) on the
+// first cafe of a dive where the ship can fly (owner: "as soon as they land at the cafe, give them the pop-up ... and do
+// the fireworks"), unless the components card already offered it (launchOffered, once a dive).
+let launchOffered = false;
+function askLaunch(landed) {
   if (state !== 'cafe' || !canLaunch()) return;
-  confirmKind = 'launch'; confirmFrom = 'cafeLaunchBtn'; confirmStep = 0;
+  confirmKind = 'launch'; confirmFrom = landed ? 'shopBtn' : 'cafeLaunchBtn'; confirmStep = 0;
   confirmDlg.classList.remove('danger');
   $('confirmTitle').textContent = 'Congratulations!';
-  $('confirmText').textContent = 'The ship is repaired and every component fitted. Fly home now? ' + diveEndsHere();
+  $('confirmText').textContent = 'You\'ve acquired all the parts to repair the ship. Fly home now? ' + diveEndsHere();
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Fly home!';
   $('confirmNo').textContent = 'Not yet';
+  if (landed) { launchOffered = true; celebrate('cafe'); }
   popConfirm();
 }
 $('confirmNo').addEventListener('click', () => {
   const kind = confirmKind;
   if (kind === 'drone') answerDrone(false); else confirmDlg.close();
-  if (kind === 'comps') releaseShop();   // Not yet: on to the cafe menu
+  if (kind === 'comps' || kind === 'launch') releaseShop();   // Not yet: on to the cafe menu
 });
 $('confirmYes').addEventListener('click', () => {
   if (confirmKind === 'launch') { confirmDlg.close(); cafeFromPause(); launchFromCafe(); return; }
@@ -6961,7 +6988,7 @@ confirmDlg.addEventListener('close', () => {
   const kind = confirmKind;
   $('confirmYes').disabled = $('confirmNo').disabled = false;   // the escape preview's wait, if it was closed during it
   $(confirmFrom).focus({ preventScroll: true }); confirmKind = 'reset'; flipMenuAway(false);
-  if (kind === 'comps') releaseShop();
+  if (kind === 'comps' || kind === 'launch') releaseShop();
 });
 
 // ---------- run stats (sent to the private play stats) ----------
@@ -7062,7 +7089,7 @@ function endRun(how) {
 
 // ---------- flow ----------
 function resetRun() {
-  crashNote = null; repairedLater = false;   // words still waiting from the last dive are dropped (what they announce is saved)
+  crashNote = null; repairedLater = false; launchOffered = false;   // words still waiting from the last dive are dropped (what they announce is saved)
   newSeed(); sayEl.style.visibility = ''; sq.q = sq.v = 0;
   rocks = []; items = []; particles = []; hazards = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; lastHazD = -9999; steerAcc = 0;
   for (const k in runParts) runParts[k] = 0;
@@ -7250,7 +7277,8 @@ $('splashBtn').addEventListener('click', () => { if (splashPicked) startOpening(
 const splashMusic = () => { if (state === 'splash') { Sfx.init(); Music.splash(splashPicked ? moon : ''); } };
 document.addEventListener('click', splashMusic, true);
 document.addEventListener('keydown', splashMusic, true);
-$('introSkip').addEventListener('click', () => { if (state === 'opening') endOpening('skipped'); });
+// Skip cinematic: the intro film, or the ending (owner: no tap anywhere skips the ending, only this button, as in the intro).
+$('introSkip').addEventListener('click', () => { if (state === 'opening') endOpening('skipped'); else if (state === 'launch') skipLaunch(); });
 $('againBtn').addEventListener('click', () => { if (!askDrone(true)) startRun(true); });
 $('menuBtn').addEventListener('click', toTitle);
 $('pauseBtn').addEventListener('click', pause);
@@ -7747,7 +7775,7 @@ function updateCafe(dt) {
       player.pose = C.side < 0 ? 'runL' : 'run';
     }
     else { player.x = C.counterX; player.y = standY; player.pose = C.side < 0 ? 'standL' : 'stand'; }
-    if (crossed(COMPS_SHOW_AFTER)) askComps();
+    if (crossed(COMPS_SHOW_AFTER)) { askComps(); if (!confirmDlg.open && !launchOffered) askLaunch(true); }
     if (crossed(1.55)) Sfx.mug();
     if (crossed(1.4)) {
       if (player.hp < player.max) {
@@ -7851,7 +7879,7 @@ $('shopDone').addEventListener('click', () => cafeCard(null));
 $('tipsDone').addEventListener('click', () => cafeCard(null));
 $('cafeRepairBtn').addEventListener('click', () => cafeCard('repair'));
 $('cafeRepairDone').addEventListener('click', () => cafeCard(null));
-$('cafeLaunchBtn').addEventListener('click', askLaunch);
+$('cafeLaunchBtn').addEventListener('click', () => askLaunch(false));
 // Launching from the cafe ends the dive where it is and flies the ship home. Only offered once the ship is repaired and
 // every component fitted. The dive counts like any other (owner: "that should still count in the high scores"): a
 // new best is kept, and a top 10 depth asks for initials first; the launch starts when the high scores close.
@@ -8942,7 +8970,7 @@ function drawIntroSpace(t, sx, sy) {
   }
   c.setTransform(1, 0, 0, 1, 0, 0);
 }
-// ---------- fireworks: over the main menu after the run that finishes the ship's repair, and far off in the deep cave ----------
+// ---------- fireworks: around the congratulations and over the main menu when a run finishes the ship, and far off in the deep cave ----------
 // Bursts of sparks that fall and fade. Each show is one entry in FW_SHOWS:
 //   state     the show stops (and its sparks go) when the game leaves this state
 //   secs      how long new bursts keep coming (Infinity: for as long as the state lasts)
@@ -8951,25 +8979,38 @@ function drawIntroSpace(t, sx, sy) {
 //   rise      a rocket climbs from the ground first (false: the burst just appears, as if too far off to see the rocket)
 //   world     at() and the drawing are in world pixels (drawn with the camera), not screen pixels
 //   sparks, speed   per burst: [least, plus up to]; size: a spark's pixels when new; alpha: how bright; sound: a bang each
+//   cols      the colours to pick from (FW_COLS if not given); first: s before the first burst (0.4 if not given)
 const FW_COLS = ['#E0483A', '#2F6FD6', '#9B6BE8', '#2E9E57', '#E8922E'];   // strong colours: the menu's sky is pale
+// A party: bursts all over the screen around a card for 8 s, rising from the bottom edge to anywhere from near the top to
+// near the bottom.
+// Bright colours (FW_PARTY_COLS), big sparks and wide bursts, as these go off over the dark shaft as well as the sky.
+const FW_PARTY_COLS = ['#F2C14E', '#FFFFFF', '#FF6FB5', '#5EE6F0', '#9CF06A', '#FF8A3D'];
+const fwParty = st => ({ state: st, secs: 8, gap: [0.07, 0.1], rise: true, world: false, sparks: [40, 16], speed: [80, 60], size: 4,
+  alpha: 1, sound: true, cols: FW_PARTY_COLS, first: 0,
+  at: () => ({ x: 20 + Math.random() * (W - 40), y: H, top: H * (0.08 + Math.random() * 0.72) }) });
 const FW_SHOWS = {
   // In the sky between the ship repair panel and the title card, for 9 s (the title camera doesn't move).
   title: { state: 'title', secs: 9, gap: [0.25, 0.3], rise: true, world: false, sparks: [26, 10], speed: [60, 40], size: 3, alpha: 1, sound: true,
     at: () => ({ x: 40 + Math.random() * (W - 80), y: H * 0.56, top: H * (0.36 + Math.random() * 0.1) }) },
+  // The congratulations (celebrate): after the dive that finished the ship, and on landing at a cafe ready to fly home.
+  repaired: fwParty('over'),
+  cafe: fwParty('cafe'),
   // Owner: "The background is quite bland. How about fireworks in the distance?" Small, dim and quiet, on the cave's
   // back wall between the roof's art and the floor, while he's there.
   cave: { state: 'cave', secs: Infinity, gap: [0.35, 0.4], rise: false, world: true, sparks: [22, 10], speed: [36, 20], size: 2, alpha: 0.85, sound: false,
     at: () => { const cave = caveInfo(), top = cave.T + CAVE_ROOF_H * 0.6 + Math.random() * 60; return { x: 24 + Math.random() * (W - 48), y: top, top }; } },
 };
 let fireworks = [], fwTime = 0, fwNext = 0, fwShow = FW_SHOWS.title;
-function startFireworks(kind) { fwShow = FW_SHOWS[kind] || FW_SHOWS.title; fwTime = fwShow.secs; fwNext = 0.4; fireworks = []; }
+function startFireworks(kind) {
+  fwShow = FW_SHOWS[kind] || FW_SHOWS.title; fwTime = fwShow.secs; fwNext = fwShow.first ?? 0.4; fireworks = [];
+}
 function updateFireworks(dt) {
   if (state !== fwShow.state) { fireworks.length = 0; fwTime = 0; return; }
   if (fwTime > 0) {
     fwTime -= dt; fwNext -= dt;
     if (fwNext <= 0) {
       fwNext = fwShow.gap[0] + Math.random() * fwShow.gap[1];
-      const at = fwShow.at(), col = FW_COLS[Math.floor(Math.random() * FW_COLS.length)];
+      const at = fwShow.at(), cols = fwShow.cols || FW_COLS, col = cols[Math.floor(Math.random() * cols.length)];
       if (fwShow.rise) fireworks.push({ rocket: 1, x: at.x, y: at.y, vy: -(190 + Math.random() * 60), top: at.top, col, t: 0 });
       else burstFirework(at.x, at.top, col);
     }
@@ -9147,7 +9188,6 @@ function startLaunch() {
   launchDrone = !!save.drone && droneOpen(); drone.ox = 0; drone.oy = 0;   // it comes out with him
   showScreen(null); hud.classList.add('off'); Sfx.wind(0);
   if (launchPortal) Music.victory(); else Music.stop(0.2);   // home through the cave's portal: its song plays on
-  showCoach('TAP TO SKIP', 1800);
 }
 function skipLaunch() {
   Sfx.stopEngine(); Sfx.thrust(0); Music.stop(0.3); shake = 0; launchT = LAUNCH.end; showEnd();
@@ -9358,8 +9398,7 @@ document.addEventListener('visibilitychange', () => {
 const presses = new Map(), tapBurst = { l: 0, r: 0 };
 const SENS = 1.15, DRAG_START = 12;
 game.addEventListener('pointerdown', e => {
-  if (state === 'launch') { if (launchT > 0.6) skipLaunch(); return; }
-  if (state === 'opening') return;   // only the Skip intro button (or Esc) skips the film
+  if (state === 'launch' || state === 'opening') return;   // only Skip cinematic (or Esc) skips a film
   if (e.target.closest('button, .screen, .cafe-ui')) return;
   if (state === 'cafe') return;
   const r = game.getBoundingClientRect();
