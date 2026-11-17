@@ -9,7 +9,12 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const src = stripTypeScriptTypes(readFileSync(process.argv[2] || root + 'supabase/functions/scores/index.ts', 'utf8'));
 mkdirSync(root + 'tools/out', { recursive: true });
 // The board's start time (BOARD_FROM) is set to a fixed past moment here, so scores saved during the test are on the board.
-writeFileSync(root + 'tools/out/function.mjs', src.replace(/const BOARD_FROM = '[^']*'/, "const BOARD_FROM = '2026-11-05T00:00:00Z'"));
+// Most checks below send scores without a run, as older copies of the game did, so they run against a copy that lets
+// those through (REQUIRE_RUN false); the end of the file checks the function as written, which refuses them.
+const fixedSeason = src.replace(/const BOARD_FROM = '[^']*'/, "const BOARD_FROM = '2026-11-05T00:00:00Z'");
+if (!/const REQUIRE_RUN = (true|false);/.test(fixedSeason)) { console.log('FAIL no REQUIRE_RUN in the function'); process.exit(1); }
+writeFileSync(root + 'tools/out/function.mjs', fixedSeason.replace(/const REQUIRE_RUN = (true|false);/, 'const REQUIRE_RUN = false;'));
+writeFileSync(root + 'tools/out/function_as_written.mjs', fixedSeason);
 
 // Fake Deno (env and serve) and a fake PostgREST for the `scores` and `plays` tables: just enough of GET with filters,
 // POST, PATCH and count=exact for what the function uses.
@@ -157,6 +162,16 @@ check('30 new runs a minute per connection, then 429', pings.filter(x => x === 2
 const endOnly = []; for (let k = 0; k < 2; k++) endOnly.push((await call('POST', { ...end, run: (5e15 + k).toString(16).padStart(16, '0') }, '6.6.6.6'))[0]);
 check('an end ping that makes a new row counts too', endOnly.join() === '429,429', endOnly);
 check('a launch and the cave are endings', (await call('POST', { ...end, how: 'launch' }, '5.5.5.5'))[0] === 200 && (await call('POST', { ...end, how: 'cave' }, '5.5.5.5'))[0] === 200, null);
+
+// The function as written: with REQUIRE_RUN on, a score without its run is refused; one with a real run is saved.
+await import(root + 'tools/out/function_as_written.mjs');
+const strict = /const REQUIRE_RUN = true;/.test(src);
+const bare = await call('POST', { initials: 'OLD', depth: 10 }, '4.4.4.1');
+check('as written: a score without its run ' + (strict ? 'refused' : 'saved (REQUIRE_RUN is off)'), strict ? bare[0] === 400 : bare[0] === 200, bare);
+const R4 = '4444000044440000';
+db.plays.push({ id: nextId++, player: RP, run: R4, created_at: new Date(Date.now() - 3600_000).toISOString(), depth: null, how: null });
+const withRun = await call('POST', { initials: 'NEW', depth: 10, player: RP, run: R4 }, '4.4.4.2');
+check('as written: a score with its run saved', withRun[0] === 200 && db.scores.some(x => x.run === R4), withRun);
 
 console.log(failed ? `${failed} failed, ${passed} passed` : `all ${passed} checks passed`);
 process.exit(failed ? 1 : 0);

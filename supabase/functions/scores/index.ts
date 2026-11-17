@@ -39,9 +39,9 @@ const HEX16 = /^[0-9a-f]{16}$/, HOW = new Set(['wall', 'rock', 'mine', 'lava', '
 // +40% from cafes, +15% in Terminal Velocity), so a score deeper than this allows for the time since its run started
 // can't be real.
 const MAX_MPS = 75;
-// Scores must name their run (player and run). False while copies of the game from before they were sent are still
-// open; set to true once the game that sends them is live and has had a day to reach every open tab.
-const REQUIRE_RUN = false;
+// Scores must name their run (player and run), so every score is checked against a run (checkRun). The game sends
+// them with every score; false only lets through scores from copies of the game too old to send them.
+const REQUIRE_RUN = true;
 const DEVICE = new Set(['phone', 'tablet', 'desktop']), OS = new Set(['android', 'ios', 'windows', 'mac', 'chromeos', 'linux', 'other']);
 
 // Initials that aren't allowed, since kids play: refused when sent, and shown as ??? if any are already stored.
