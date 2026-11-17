@@ -37,27 +37,13 @@ PROTECTED = ['S', 'P', 'W', 'H', 'sc', 'cv', 'c', 'clock', 'moon', 'state', 'sav
 MAX_LINE = 160
 # Ratchets (CODING.md rule 6): today's counts. The check fails above them; when a tidy-up brings a count down, lower the
 # constant to match so it can't creep back up.
-LONG_LINES_MAX = 243
-DEEP_TERNARIES_MAX = 13
+LONG_LINES_MAX = 221
+DEEP_TERNARIES_MAX = 0
 
-# Found when these checks were made stricter, and left for the code tidy-up to fix: exactly these lines (their text,
-# stripped) are let through for now. The tidy-up removes each entry as it fixes the line; never add one.
-HIDDEN_ALLOWED = {
-    ('cv', "if (wallArts.length < 18) { const cv = mk(); old = { Q: null, cv, g: cv.getContext('2d'), used: 0 }; wallArts.push(old); }"),
-    ('cv', 'grit = ctx.createWaveShaper(); const cv = new Float32Array(1024);'),
-    ('c', 'const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), c = compsCount();'),
-    ('c', 'const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), c = compsCount(), any = n + c > 0;'),
-    ('cv', "const cv = document.createElement('canvas'); cv.width = cv.height = 2;"),
-    ('cv', 'const cv = mk(), rim = mk();'),
-    ('c', 'const g = [], c = [], took = [0, 0, 0, 0];'),
-    ('sc', 'const sum = a => a.reduce((x, y) => x + y, 0), sg = sum(g), sc = sum(c), cs = c.slice().sort((a, b) => a - b);'),
-}
-HISTORY_ALLOWED = {
-    '// Shown on the title card as v0. and the number (v0.215); add one with every published version.',
-    '// deep cave (save.droneOpen; owner: no longer locked behind Terminal Velocity), and switched on the Unlocks card',
-    "//                     them whenever they're read (v197-200 saves too)",
-    'if (save.kid && save.kid.drops == null && (save.kid.parts || save.kid.health)) k.drops = Math.max(+save.kid.parts || 100, +save.kid.health || 100);   // v197-200 saves',
-}
+# Exactly these lines (their text, stripped) would be let through. Both are empty: the code tidy-up fixed every line
+# found when the checks were made stricter. Never add one; fix the line instead.
+HIDDEN_ALLOWED = set()
+HISTORY_ALLOWED = set()
 
 HISTORY = re.compile(r"\bversion\s+\d|(?<![\w.'\"-])v\d+(?:\.\d+)*(?:\s*[-–]\s*v?\d+(?:\.\d+)*)?\b"
                      r"|\bno longer\b|\bused to\b|\bwas replaced\b|\bpreviously\b", re.I)
