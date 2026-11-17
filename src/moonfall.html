@@ -1099,7 +1099,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 
 // Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
 // published version.
-const VERSION = 261;
+const VERSION = 262;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -6817,9 +6817,10 @@ function askReset(step) {
 $('resetBtn').addEventListener('click', () => askReset(1));
 // Owner: Jump in shows a card first, explaining that the ship needs the six Leviathans' components from each of the
 // three moons, with the moons (each one's components won) to change the moon before the dive. Dive! goes on (the
-// drone's question, if due, then the dive); Back or closing it stays on the menu. Not shown once every component is won.
+// drone's question, if due, then the dive); Back or closing it stays on the menu. Shown on every Jump in, however far
+// the repair has come (owner: "should always show after the jump-in button, regardless of the status of repair").
 function askJump() {
-  if (offRecord() || compsCount() >= COMPONENTS.length) return false;
+  if (offRecord()) return false;
   confirmKind = 'jump'; confirmFrom = 'startBtn'; confirmStep = 0;
   confirmDlg.classList.remove('danger');
   const per = LEVI_SETS.dust.length;
