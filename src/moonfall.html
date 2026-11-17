@@ -1100,7 +1100,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 // ======================================================================================================================
 
 // Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 253;
+const VERSION = 254;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -7998,11 +7998,12 @@ screens.title.addEventListener('pointerdown', e => {
 });
 
 // ---------- badges: saved on the phone in save.badges (id: when earned) ----------
+const STREAK_BADGE = 10;   // skims in a row for the Streak badge (nearMiss)
 const BADGES = [
   ['cafe', 'First cafe', 'Land at a cafe'],
   ['clean', 'Not a scratch', 'Reach a cafe without a hit'],
   ['deep', '3,000 m', 'Fall 3,000 m in one run'],
-  ['streak', 'Streak 24', 'Skim 24 rocks or mines in a row'],
+  ['streak', 'Streak ' + STREAK_BADGE, 'Skim ' + STREAK_BADGE + ' rocks or mines in a row'],
   // Leviathans are escaped, not beaten, in every line the player reads.
   ['levi', 'Monster down', 'Escape a Leviathan'],
   ['all6', 'Dust hunter', 'Escape all six Dust Leviathans'],   // the Dust six only (LEVI_KINDS)
@@ -9719,7 +9720,7 @@ function nearMiss(k) {
   player.streak++; player.bestStreak = Math.max(player.bestStreak, player.streak);
   const gap = Math.max(0, Math.round((k.minN - 1) * (k.rr + HIT_HALF_W)));
   if (gap < player.closest) { player.closest = gap; player.closestMine = !!k.isMine; }
-  if (player.streak >= 24) award('streak');
+  if (player.streak >= STREAK_BADGE) award('streak');
   Sfx.close(player.streak);
   pop('CLOSE!', k.x, k.d - k.rr - 8, 'close');
   if (player.streak % 24 === 0) { giveShield(5); Sfx.streak(); Buzz.shield(); pop('STREAK SHIELD', player.x, player.y - 18, 'shield'); }
