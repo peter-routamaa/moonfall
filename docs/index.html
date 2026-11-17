@@ -1113,7 +1113,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
 // published version.
-const VERSION = 259;
+const VERSION = 260;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -10261,8 +10261,10 @@ function drawDrone(my) {
 const SIG_CHANCE = 0.35;
 // Patterns that close off part of the cavern: two of them at once (enraged) could leave nowhere to go, so never paired.
 // sonar and scales are walls with one gap, like curtain: two such walls would put two gaps in different places.
+// wave and cogs count too: a spore snake crosses his row as a stream for most of a second, and a cog bounces in the
+// wall corners, so either can sit in a wall's only gap (the dodge check found such pairs no move could escape).
 const BOSS_ZONE = { curtain: true, beam: true, lure: true, sweep: true, shriek: true, snap: true, pincer: true, web: true, slag: true, mortar: true,
-  sonar: true, scales: true };
+  sonar: true, scales: true, wave: true, cogs: true };
 const BOSS_AMMO = 1.25;   // volleys per attack, against the patterns' own counts (fireMore)
 const BOSS_PAUSE = 0.6;   // the pause between attacks, against their own rests (so the shots a second go up with the volleys)
 const BOSS_ENTER = 1.8, BOSS_LIFT = 1.6;   // s to come forward (and turn to dive); s of fall before the funnel when it stops firing
