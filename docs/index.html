@@ -198,7 +198,6 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 .kid-sl input:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 .kid-togs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .kid-togs .set-tog { font-size: 11px; padding: 10px 7px 10px 9px; }
-#titleScreen.reading.kid .repair { --aside: 1; }
 @media (max-width: 360px) { #kidReset { font-size: 11px; letter-spacing: .02em; padding-inline: 6px; } }   /* one line at 320 px */
 #kidReset:disabled { background: transparent; opacity: .45; box-shadow: inset 0 0 0 2px var(--ink-soft); }
 @media (max-height: 700px) {
@@ -213,7 +212,7 @@ body { margin: 0; background: var(--ink); color: var(--dust); font-family: var(-
 #badgesBtn small { font: inherit; font-size: 11px; color: color-mix(in srgb, var(--dust) 75%, var(--blue)); }
 @media (max-width: 360px) { #titleFront .card-nav { column-gap: 8px; } #titleFront .card-nav .btn.settings { font-size: 11px; gap: 4px; padding-inline: 3px; letter-spacing: 0; } #titleFront .card-nav .btn.settings > svg { width: 12px; height: 12px; } }
 .best.best-big b { font-size: 22px; color: var(--gold); letter-spacing: .03em; }
-/* The drawn m, since the pixel font's m was hard to read: two-pixel stems, as tall as the digits, in the text's
+/* The drawn m, since the pixel font's m is hard to read: two-pixel stems, as tall as the digits, in the text's
    colour. */
 .unit-m { display: inline-block; width: .99em; height: .62em; margin-left: .14em; vertical-align: baseline; }
 #bestTitle .unit-m { margin-left: .02em; }
@@ -361,17 +360,9 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
    flips the panel up and away (folding its height) and back down when the card closes, instead of it vanishing; .aside
    is where it rests while away. */
 #titleScreen .repair.aside, #titleScreen .news.aside { display: none; }
-#titleScreen.reading .repair { --aside: 1; }   /* every card, every phone; the per-card rules below are older and now covered by it */
-/* The Leviathans card is taller: the panel steps aside for it on phones up to 760 px tall. */
-@media (max-height: 760px) { #titleScreen.reading.levi .repair { --aside: 1; } }
-/* And for the moons card up to 800 px tall. */
-@media (max-height: 800px) { #titleScreen.reading.moons .repair { --aside: 1; } }
-/* And for Instructions on phones up to 680 px tall (its Done button ran 8 px off a 627 px screen). */
-@media (max-height: 680px) { #titleScreen.reading.how .repair { --aside: 1; } }
-/* Settings (owner: "make the settings popup take more screenspace so everything isn't as cramped"): the panel steps
-   aside on every phone, and on phones 700 px tall or more the card spreads out into the room: bigger tiles and labels,
-   more space between them. */
-#titleScreen.reading.settings .repair { --aside: 1; }
+#titleScreen.reading .repair { --aside: 1; }   /* for every card, on every phone */
+/* Settings (owner: "make the settings popup take more screenspace so everything isn't as cramped"): on phones 700 px
+   tall or more the card spreads out into the room the panel leaves: bigger tiles and labels, more space between them. */
 @media (min-height: 700px) {   /* not on a 640 px phone, so Done can sit 50 px up there */
   #titleBack { gap: 16px; padding: 18px 16px; }
   #titleBack .set-list { gap: 10px; }
@@ -383,11 +374,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   #titleBack .moon-row .moon-ico { width: 16px; height: 16px; }
   #titleBack #resetBtn { font-size: 14px; padding: 13px 14px 11px; }
 }
-/* And for Badges (ten rows) up to 700 px tall (its Done sat on the bottom edge of a 640 px screen). */
-@media (max-height: 700px) { #titleScreen.reading.badges .repair { --aside: 1; } }
-/* And for Unlocks (the suits, Hard Dive and the helper drone) on every phone: with three boxes it filled
-   an 844 px screen beside the panel. On short phones the card tightens up. */
-#titleScreen.reading.unlocks .repair { --aside: 1; }
+/* Unlocks (the suits, Hard Dive and the helper drone) tightens up on short phones, and Badges too on the shortest. */
 @media (max-height: 700px) {   /* so Done sits 50 px up at 667 */
   #unlocksBack { gap: 7px; padding: 10px 12px; }
   #unlocksBack .suit-box { padding: 7px 10px 8px; gap: 4px; }
@@ -406,8 +393,6 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
   .badge-list { gap: 4px; }
   .badge-how { font-size: 16px; }
 }
-/* And for New features on every phone, whose card then slides up to the middle (placeNews). */
-#titleScreen.reading.newsopen .repair { --aside: 1; }
 #titleFlip { transition: transform .45s cubic-bezier(.3, .7, .2, 1); }
 #titleFlip.lift-instant { transition: none; }
 .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -506,7 +491,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .btn.danger { background: var(--lava); color: var(--dust); box-shadow: 4px 4px 0 var(--dust-dim); }
 .btn.danger:active { box-shadow: 2px 2px 0 var(--dust-dim); }
 .confirm { margin: auto; border: 0; width: min(320px, calc(100vw - 32px)); }
-.confirm-pic { display: block; width: 56px; height: 56px; margin: 0 auto 4px; image-rendering: pixelated; }   /* a component won (askComp) */
+.confirm-pic { display: block; width: 56px; height: 56px; margin: 0 auto 4px; image-rendering: pixelated; }   /* a component won (askComps) */
 .confirm-pic[hidden] { display: none; }
 #confirmText { white-space: pre-line; }   /* a blank line (\n\n) in a card's text starts a new paragraph */
 /* Jump in's card (askJump): the three moons, each with its components won, to pick the one to dive on. */
@@ -767,7 +752,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <li>Spend spare crystals in the shop: one treat per cafe, lasting until the next cafe.</li>
         <li>Skim past rocks and mines for a streak: every 8 pays a crystal.</li>
         <li>Tombstones on the shaft walls mark where players died: pass them to beat their high scores.</li>
-        <li>The fall gets 5% faster after every cafe, whether you stop or not, up to 40%.</li>
+        <li>The fall gets <span data-fact="cafeStep"></span> faster after every cafe, whether you stop or not, up to <span data-fact="cafeMax"></span>.</li>
       </ul>
       <button class="btn" id="tipsDone" type="button">Done</button>
      </div>
@@ -887,8 +872,8 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <li><span class="ico"><canvas id="icoOrb" width="14" height="14"></canvas></span>Crystal: +1 health</li>
         <li><span class="ico"><canvas id="icoShield" width="28" height="28"></canvas></span>Bubble: 8s shield, hits wear it down</li>
         <li><span class="ico"><canvas id="icoPart" class="wide" width="30" height="30"></canvas></span>Gold ring: ship part, collect&nbsp;these</li>
-        <li><span class="ico"><canvas id="icoComp" width="14" height="14"></canvas></span>Escape a Leviathan: its ship component (six on each moon)</li>
-        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Stop at a cafe for +1 health and to visit the shop. The fall gets 5% faster after each cafe, up to +40%</li>
+        <li><span class="ico"><canvas id="icoComp" width="14" height="14"></canvas></span>Escape a Leviathan: its ship component (<span data-fact="perMoon"></span> on each moon)</li>
+        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Stop at a cafe for +1 health and to visit the shop. The fall gets <span data-fact="cafeStep"></span> faster after each cafe, up to +<span data-fact="cafeMax"></span></li>
       </ul>
       <button class="btn" id="howDone" type="button">Done</button>
      </div>
@@ -902,12 +887,12 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <p class="suit-note" id="suitNote"></p>
       <div class="suit-box hard-box">
         <button class="set-tog" id="hardT" type="button" aria-pressed="false" aria-label="Terminal Velocity"><span>Terminal<br>Velocity</span></button>
-        <p class="hard-how">Start with 4 health and fall 15% faster. Leviathans rage from the start.</p>
+        <p class="hard-how">Start with <span data-fact="hardHp"></span> health and fall <span data-fact="hardFaster"></span> faster. Leviathans rage from the start.</p>
       </div>
       <p class="suit-note" id="hardNote"></p>
       <div class="suit-box hard-box">
         <button class="set-tog" id="droneT" type="button" aria-pressed="false" aria-label="Helper drone"><span>Helper drone</span></button>
-        <p class="hard-how">Falls with you and catches half of the ship parts and crystals you miss.</p>
+        <p class="hard-how">Falls with you and catches <span data-fact="droneShare"></span> of the ship parts and crystals you miss.</p>
       </div>
       <p class="suit-note" id="droneNote"></p>
       <button class="btn" id="unlocksDone" type="button">Done</button>
@@ -936,7 +921,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
      </div>
      <div class="card face back" id="moonsBack" hidden inert aria-hidden="true">
       <h2>The moons</h2>
-      <p class="hint">Each has its own hazards and six Leviathans.</p>
+      <p class="hint">Each has its own hazards and <span data-fact="perMoon"></span> Leviathans.</p>
       <ul class="moons-list">
         <li><span class="moons-ico"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg></span><span class="news-name">Dust moon</span><span class="news-how">The original: rock, lava and mines. Glazed ice bounces you, ledges crumble into boulders and ash vents blow you sideways.</span></li>
         <li><span class="moons-ico"><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg></span><span class="news-name">Jungle moon</span><span class="news-how">Overgrown and alive. Vines tangle your steering, thorns grow from the walls and spore pods burst.</span></li>
@@ -1092,7 +1077,11 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 //   splash (start screen) -> opening (the intro film, can be skipped) -> title (main menu)
 //   -> intro (run-up and leap) -> play (falling) -> dying -> over (game over and high scores) -> title ...
 //   During a run: play -> landing -> cafe -> cafeJump -> play (a coffee stop), and paused from most states.
-//   From the title once the ship is repaired: launch -> ended.
+//   About 20 km down: play -> cave (the deep cave, the end of the dive) -> the ending through its portal, or back to
+//   play down the floor's hole.
+//   The ending, launch -> ended, once the ship is repaired: from the title's launch button, or from the game over card,
+//   the high scores after it, a cafe or the deep cave's portal, which all end the dive with flyHome (over -> title ->
+//   launch in one step).
 //   frame() runs once per screen refresh and calls update(dt), which moves things on for the current state, then render().
 //
 // A RUN: startRun -> resetRun -> intro -> beginPlay -> play ... collide -> hurt -> die -> gameOver -> showScores.
@@ -1109,9 +1098,9 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 //   ship parts, the shaft, Leviathans (one entry per kind in LEVIATHANS: its numbers, colours, attacks, background shape
 //   and fight art together), alien life on the walls and in the shaft, the moon surface, game state, saved settings (and
 //   what a save holds), sound (and his voice), music, haptics, DOM (elements and the HUD), settings and Kid mode, the
-//   title card and its faces, confirm dialogs, run stats, flow, menu buttons, high scores, coffee stop (cafes: drawing,
-//   landing, the counter, the shop, the signs), the deep cave (the end of the dive), badges, board flags, the opening film, fireworks, the launch, phones,
-//   updates, input, hazards (one entry per hazard in HAZARDS), level generation, effects, damage and pickups, the helper
+//   title card and its faces, confirm dialogs (every pop-up), run stats, flow, menu buttons, high scores, coffee stop
+//   (cafes: drawing, landing, the counter, the shop, the signs), the deep cave (the end of the dive), the escape preview,
+//   badges, board flags, the opening film, fireworks, the launch, phones, updates, input, hazards (one entry per hazard in HAZARDS), level generation, effects, damage and pickups, the helper
 //   drone, boss fights (the attacks in BOSS_ATTACKS, their shots in SHOT_TYPES), update, render, cinematic touches,
 //   sizing and loop, the performance self-test.
 // TABLES THAT ARE CHECKED: checkHazards and checkLeviathans run once at load and report a missing or wrong field
@@ -1122,8 +1111,9 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 //   as save.moon.
 // ======================================================================================================================
 
-// Shown on the title card as v0. and the number (v0.215); add one with every published version.
-const VERSION = 258;
+// Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
+// published version.
+const VERSION = 259;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -1302,7 +1292,7 @@ function ring(x, y, r, col, th, g) {
 // quadratic bezier point, tapering limbs, and the fight art's pixels and lines.
 // The polygon through the first n of pts (all of them if n is left out), a row at a time. A row's crossings go into
 // one reused list, sorted in place: the background Leviathans fill thousands of rows a frame, and an array per row
-// was that many arrays for the phone to clear up (PERFORMANCE.md section 5).
+// would be that many arrays for the phone to clear up (PERFORMANCE.md section 5).
 let polyXs = new Float64Array(64);
 function fillPoly(g, pts, col, n) {
   if (n === undefined) n = pts.length;
@@ -1525,8 +1515,13 @@ function missionsDone() {
 const suitsOpen = () => missionsDone() > 0 ? SUITS.length : 1;
 const suitMap = () => suitMaps[Math.min(save.suit || 0, suitsOpen() - 1)] || MAP;
 function drawMan(x, y, pose, t, thr) {
-  const f = Math.floor(t * 6) % 2,
-    rows = pose === 'stand' ? RUN[1] : pose === 'standL' ? RUNL[1] : pose === 'run' ? RUN[f] : pose === 'runL' ? RUNL[f] : pose === 'wave' ? WAVE[Math.floor(t * 4) % 2] : FALL[f];
+  const f = Math.floor(t * 6) % 2;
+  let rows = FALL[f];   // falling, and any pose not named below
+  if (pose === 'stand') rows = RUN[1];
+  else if (pose === 'standL') rows = RUNL[1];
+  else if (pose === 'run') rows = RUN[f];
+  else if (pose === 'runL') rows = RUNL[f];
+  else if (pose === 'wave') rows = WAVE[Math.floor(t * 4) % 2];
   const x0 = Math.round(x - rows[0].length / 2), y0 = Math.round(y);
   drawPack(pose === 'wave' ? x0 + 2 : x0, y0, pose === 'wave' ? 'fall' : pose);
   sprite(c, rows, x0, y0, suitMap());
@@ -2032,7 +2027,11 @@ function machineRow(g, d, y, Q) {
   if (pv === 0) { g.fillStyle = Q.ink; g.fillRect(0, y, W, 1); return; }
   if (pv === 1) { g.fillStyle = Q.shade; g.fillRect(0, y, W, 1); return; }
   if (z === 2 && hash(pr * 5.3 + 2) < 0.45 && pv >= 12 && pv <= 19) {   // a pipe across the panel
-    g.fillStyle = pv === 12 || pv === 19 ? Q.ink : pv === 13 ? Q.cryL : pv === 18 ? Q.shade : Q.cryD; g.fillRect(0, y, W, 1);
+    if (pv === 12 || pv === 19) g.fillStyle = Q.ink;   // dark edges, a lit line under the top one, a shaded one over the bottom
+    else if (pv === 13) g.fillStyle = Q.cryL;
+    else if (pv === 18) g.fillStyle = Q.shade;
+    else g.fillStyle = Q.cryD;
+    g.fillRect(0, y, W, 1);
     if (pv > 12 && pv < 19) { g.fillStyle = Q.ink; for (let x = off + 22; x < W; x += 60) g.fillRect(x, y, 3, 1); }   // its collars
     return;
   }
@@ -2366,7 +2365,7 @@ function wallArt(Q) {
     wallMask = mk(); const g = wallMask.getContext('2d'); g.fillStyle = '#fff';
     for (const side of [-1, 1]) { for (let s = 0; s < 16; s++) wedgeRows(g, side, s, wedgeY(side, s)); for (let s = 0; s < 8; s++) spurRows(g, side, s, spurY(side, s)); }
   }
-  if (wallArts.length < 18) { const cv = mk(); old = { Q: null, cv, g: cv.getContext('2d'), used: 0 }; wallArts.push(old); }
+  if (wallArts.length < 18) { const sheet = mk(); old = { Q: null, cv: sheet, g: sheet.getContext('2d'), used: 0 }; wallArts.push(old); }
   const g = old.g;
   g.globalCompositeOperation = 'copy'; g.drawImage(wallMask, 0, 0);
   g.globalCompositeOperation = 'source-atop';
@@ -2475,7 +2474,8 @@ function drawShaft(cam) {
 //                                 right after draw's shape, so the shading, the rim light and the portrait take it in
 //   art(x, y, dir, k, p, step)    the fight's colour regions (step 0) and features (step 1: eyes, teeth, scars with
 //                                 bossEye, bscar), in the palette p that bossStage hands in
-// and if it needs them: soft (true when its shape has half-covered pixels: shaded the older, slower way, see bossBand)
+// and if it needs them: soft (true when its shape has half-covered pixels: shaded in four compositing steps, which keep
+// them soft, see bossBand)
 // and cardTop (how far above its middle the Leviathans card's portrait starts, for a long stalk or thread). Give it a
 // groan in Sfx.groan (or it gets the nautilus's chord). checkLeviathans() checks every entry at load (tools/smoke.py
 // fails on what it finds); then follow PERFORMANCE.md and run tools/levi_budget.py, which must say OK.
@@ -2490,7 +2490,7 @@ const LEVIATHANS = {};
 // A glowing eye whose pupil looks straight at him, not just the way the creature faces; brighter
 // once the boss is enraged. bossLook is the way to him in the drawing's own frame, set for each paint (bossStage).
 let bossLook = [1, 0];
-function bossEye(x, y, r, p, look) {
+function bossEye(x, y, r, p) {
   const glow = (boss && boss.rage ? 0.55 : 0.3) * (0.6 + 0.4 * Math.sin(clock * 6)), m = Math.max(1, r - 2);
   c.globalAlpha = glow; disc(x, y, r + 3, p.eye); c.globalAlpha = 1;
   disc(x, y, r + 1, p.deep); disc(x, y, r, p.eye);
@@ -2601,7 +2601,7 @@ LEVIATHANS.whale = {
       for (let j = 1; j < 10; j++) bpx(sx - dir * Math.sin(clock * 2 + j * 0.5) * j * 0.35, sy + j, 1, 1, p.light); }
     for (let i = 0; i < 17; i++) { const [bx, by] = whaleAt(x, y, dir, k, 0.13 + i * 0.045); if ((Math.floor(clock * 4) + i) % 5) bpx(bx, by + 2, 2, 1, p.eye); }   // glowing side line, red
     const [ex, ey, er] = whaleAt(x, y, dir, k, 0.065);
-    bossEye(ex, ey - er * 0.3, 3, p, dir);
+    bossEye(ex, ey - er * 0.3, 3, p);
   },
 };
 // -- Vespergaunt, the elder thing (Dust moon) --
@@ -2738,7 +2738,7 @@ LEVIATHANS.jelly = {
   shot: ['#2A1030', '#E0489A', '#F7B3D8'],
   palette: { base: '#4A2347', dark: '#2A1029', deep: '#130615', light: '#763A70', hi: '#B97CB0', belly: '#5C2B58', mark: '#A6FF3C', eye: '#A6FF3C' },
   box: [-66, -104, 66, 100],
-  soft: true,   // its threads sit on half pixels (soft edges): shaded the older four-step way (bossBand)
+  soft: true,   // its threads sit on half pixels (soft edges): shaded in four steps that keep them (bossBand)
   // Drawn at scale S (as big as the elder thing, about 220 px across or 150 tall), centred on (x, y) so it sits in the
   // middle of the gap at a cafe.
   // A jellyfish: a pulsing bell with a scalloped rim, four frilled arms and six long trailing threads.
@@ -2856,7 +2856,7 @@ LEVIATHANS.angler = {
       const v = 14 + i * 6, r = (v + 4) / 40, h = 8 - (i % 2) * 3, top = Math.round(Y(-14 + 30 * Math.sqrt(1 - r * r)));
       bpx(X(v) - 1, top, 3, h, p.mark); bpx(X(v), top + h - 1, 1, 1, p.deep);
     }
-    bossEye(X(20), Y(-20), 4, p, dir);
+    bossEye(X(20), Y(-20), 4, p);
     const lx = X(48), ly = Y(-44) + bob, pulse = 0.5 + 0.5 * Math.sin(clock * 5);   // the lure, glowing
     c.globalAlpha = 0.18 + 0.2 * pulse; disc(lx, ly, 12 + Math.round(pulse * 3), p.eye); c.globalAlpha = 0.35; disc(lx, ly, 7, p.eye); c.globalAlpha = 1;
     disc(lx, ly, 3, p.eye); bpx(lx - 1, ly - 1, 2, 2, P.dust);
@@ -2923,7 +2923,7 @@ LEVIATHANS.manta = {
     for (let i = 0; i < 10; i++) bpx(X(-18 + hash(i * 3.3 + k) * 24), y + (hash(i * 7.1 + k) - 0.5) * 24 * sk, 2, 2, p.mark);   // belly spots
     for (let i = 0; i < 3; i++) bscar(X(10 - i * 6), y - 26 * sk, X(4 - i * 6), y - 46 * sk, p, i * 7 + 2);   // three claw scars across the left wing
     bscar(X(-6), y + 30 * sk, X(-14), y + 44 * sk, p, 23, mix(p.eye, p.deep, 0.4));   // a fresh cut near the bite
-    for (const s of [-1, 1]) { bline(X(24), y + s * 22 * sk, x - dir * lag, y + s * span, p.light, 1); bossEye(X(25), y + s * 18 * sk, 2, p, dir); }   // leading edges and eyes
+    for (const s of [-1, 1]) { bline(X(24), y + s * 22 * sk, x - dir * lag, y + s * span, p.light, 1); bossEye(X(25), y + s * 18 * sk, 2, p); }   // leading edges and eyes
   },
 };
 // -- Coilheart, the nautilus (Dust moon) --
@@ -2986,7 +2986,7 @@ LEVIATHANS.nautilus = {
       for (let i = 1; i <= 5; i++) { const [nx, ny] = pt(-0.07 + (hash(i * 3.7) - 0.5) * 0.18, R0 - 11 - i * 7); bline(px, py, nx, ny, p.deep, 3); bline(px + 1, py, nx + 1, ny, glow, 1); px = nx; py = ny; }
       for (let i = 0; i < 7; i++) { const [bx, by] = pt(0.9 + hash(i * 5.3) * 0.7, R0 * (0.6 + hash(i * 2.2) * 0.3)); bpx(bx, by, 2, 2, p.light); bpx(bx + 1, by + 1, 1, 1, p.deep); } }   // barnacles
     bscar(X(14), Y(-30), X(30), Y(-20), p, 13);   // a scar across the hood
-    bossEye(X(22), Y(-10), 4, p, dir);
+    bossEye(X(22), Y(-10), 4, p);
     for (let i = 0; i < 12; i++) {   // pale tentacle tips
       const bx = X(28), by = Y(-8 + i * 2.6), j = 13, a = 0.1 + i * 0.1 + Math.sin(clock * 1.2 + i * 0.8 + j * 0.3) * 0.25 + j * 0.035;
       bpx(bx + dir * j * 2.6 * sk * 0.85 * Math.cos(a) - 1, by + j * 2.6 * sk * 0.85 * Math.sin(a) - 1, 2, 2, p.hi);
@@ -3107,7 +3107,7 @@ function trapLobe(x, hy, s, a, n) {
 }
 // The jaws' teeth: points along each jaw's inner rim, with the way each tooth points.
 function trapTeeth(x, hy, s, a) {
-  for (let i = 0; i < 7; i++) {   // 7 along the same stretch of rim (9 cost about 50 more rectangles a frame)
+  for (let i = 0; i < 7; i++) {   // 7 along the same stretch of rim: each tooth is about 25 rectangles a frame
     const ph = -0.25 + i * 0.293, L = i % 2 ? 9 : 13;
     trapPtTo(TRAP_TEETH[i][0], x, hy, s, a, -s * 24 * Math.cos(ph), 38 + 40 * Math.sin(ph));
     trapPtTo(TRAP_TEETH[i][1], x, hy, s, a, -s * 24 * Math.cos(ph) - s * L * 0.8, 38 + 40 * Math.sin(ph) + L * 0.6);
@@ -3160,7 +3160,7 @@ function drawTrapBuds(x, hy, sw, k, col) {
       const pts = cornerList(drawTrapBuds, 16);
       for (let i = 0; i < 16; i++) { const t = i / 16 * Math.PI * 2; budPtTo(pts[i], b, s, 24 * Math.cos(t), 38 + 40 * Math.sin(t)); }
       fillPoly(c, pts, col);
-      for (let i = 0; i < 2; i++) {   // two teeth along the inner rim (five would be 30 tiny triangles a frame)
+      for (let i = 0; i < 2; i++) {   // two teeth along the inner rim: each is several tiny triangles a frame
         const ph = 0.15 + i * 0.75, bu = -s * 24 * Math.cos(ph), bv = 38 + 40 * Math.sin(ph), L = i ? 14 : 19;
         const p0 = budPtTo(BUD_ROOT, b, s, bu, bv), t = budPtTo(BUD_TIP, b, s, bu - s * L * 0.8, bv + L * 0.6);
         tri(c, p0[0] - 1, p0[1] - 1, p0[0] + 1, p0[1] + 1, t[0], t[1], col);
@@ -4109,8 +4109,8 @@ function critters(cam) {
 }
 // Fourteen specks in the air that he falls past, drifting a little, one kind per rock layer: snow in the ice, sand,
 // ash, flickering embers in the magma, and glints in the amethyst that flash now and then. They move up a touch faster
-// than the walls, so none of them falls with him. (Nothing drifts down beside him: rain streaks and falling debris were
-// tried, and the owner found them distracting.)
+// than the walls, so none of them falls with him. (Nothing drifts down beside him: the owner finds rain streaks and
+// falling debris distracting.)
 function motes(cam) {
   for (let k = 0; k < 14; k++) {
     const y = H + 20 - ((((cam * 1.05 + k * 71 + hash(k + 200) * 500) % (H + 40)) + H + 40) % (H + 40)), d = cam + y;
@@ -4786,8 +4786,10 @@ let state = 'title', prevState = 'play', clock = 0, introT = 0, dieT = 0, camY =
 const runParts = { plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 };
 // A fresh pilot for every run (resetRun). `touch` (a finger is on the screen) carries over between runs.
 let hardRun = false;   // this run is a Hard Dive (see startRun)
+const PILOT_HP = 5, HARD_HP = 4;   // his health as a run starts, standard and on Terminal Velocity
 const playerStart = () => ({
-  x: 84, y: -30, v: 0, vx: 0, hp: hardRun ? 4 : 5, max: hardRun ? 4 : 5, inv: 0, blockT: 0, shield: 0, shieldMax: 8, orbs: 0, spare: 0, streak: 0,
+  x: 84, y: -30, v: 0, vx: 0, hp: hardRun ? HARD_HP : PILOT_HP, max: hardRun ? HARD_HP : PILOT_HP,
+  inv: 0, blockT: 0, shield: 0, shieldMax: 8, orbs: 0, spare: 0, streak: 0,
   bestStreak: 0, perks: {}, perkCafe: 0, toughN: 0, bought: [], slowUntil: 0, magnetUntil: 0,
   flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false,
   fallRamp: 1, tangle: 0,
@@ -4795,21 +4797,6 @@ const playerStart = () => ({
   leviFought: []   // the Leviathans whose fight started this run (run stats)
 });
 const player = { touch: false, ...playerStart() };
-// The helper drone, unlocked by flying the repaired ship home (after the standard ending: tellDroneEnd; for saves that
-// finished a mission before that, offered as the next dive starts: askDrone) or found in the chest at the end of the
-// deep cave (save.droneOpen; owner: no longer locked behind Terminal Velocity), and switched on the Unlocks card
-// (save.drone). It hovers beside the pilot and catches ship parts and crystals that go past him. Its place is kept
-// relative to the pilot's middle (ox, oy) so it falls with him. It picks its target ahead of time, so the player can
-// see what it's going for: as a part or crystal comes up within DRONE_AHEAD px below him it rolls once (1 in 2) and, if
-// it's free, locks on, with a dotted cyan sight to it. If he takes it himself the lock just ends; if it goes past him,
-// the drone dashes along the sight and catches it. One lock at a time; an item that passes while it was busy gets its
-// roll then. It reaches across the whole shaft; the only limit is catching it before it leaves the top of the screen.
-let droneRun = false;
-const drone = { ox: 24, oy: -20, mode: 'follow', it: null, lock: null, caught: 0 };
-const DRONE_CHANCE = 0.5, DRONE_SPEED = 720, DRONE_AHEAD = 220;   // share it goes for; dash px/s; lock range below him
-const droneOpen = () => !!save.droneOpen;
-// A mission finished (the ship flown home) before the drone came with the ending: the drone is his to take (askDrone).
-const droneEarned = () => missionsDone() > 0;
 let rocks = [], items = [], particles = [], nextSeg = 0, lastRockD = -999, lastShieldD = -9999, steerAcc = 0;
 // The shaft is generated SEG_LEN pixels at a time; the pilot's hitbox is HIT_HALF_W pixels either side of his middle.
 const SEG_LEN = 110, HIT_HALF_W = 8;
@@ -4845,16 +4832,17 @@ function speedAt(d) {
 //   moon              the moon picked; applyMoon falls back to 'dust' for an unknown one
 //   parts             ship parts collected, by part id; repaired just below, as are the plain counts and switches
 //   compsGot          ids of the ship components won from Leviathans this mission (COMPONENTS); repaired just below
-//   compsNew          ids of components won since the last cafe, for its card (askComps)
+//   compsNew          ids of components won since the last cafe, for its card (askComps); repaired just below
 //   partsGift         the last component filled the missing parts (winComponent); said on the cafe card, then cleared
 //   dives, launches   runs this mission (cleared with the repair) and ship launches ever
 //   missionsDone, missionDone   finished missions, and whether this repair was already counted; missionsDone() in
 //                     sprites fills them in from launches on an old save
 //   suit              the suit colour picked (Unlocks); clamped to the unlocked ones where it's read (suitMap)
 //   hard              Terminal Velocity switched on (Unlocks)
-//   droneOpen, drone, droneNew   the helper drone unlocked, switched on, and not yet announced (set in askDrone and caveGift)
+//   droneOpen, drone, droneNew   the helper drone unlocked, switched on, and not yet announced (set in answerDrone,
+//                     caveGift and showEnd)
 //   kid               Kid mode's settings (sliders, cafe speed-up, helper drone); kidSettings() below repairs
-//                     them whenever they're read (v197-200 saves too)
+//                     them whenever they're read, including separate parts and health sliders (now one, drops)
 //   hints             which one-time hints were shown (the void and each hazard kind); default here
 //   badges            badge id: when earned; repaired in badges
 //   scores, kidScores, outbox   this device's top 10s and the scores waiting to be sent; repaired in high scores
@@ -4911,6 +4899,7 @@ if (!Array.isArray(save.compsGot)) {
 if (!Array.isArray(save.compsNew)) save.compsNew = [];
 const compWon = cp => save.compsGot.includes(cp.id);
 const compsCount = () => COMPONENTS.filter(compWon).length;
+const compsOnMoon = m => COMPONENTS.filter(cp => LEVI_SETS[m].includes(cp.levi) && compWon(cp)).length;   // won from moon m's Leviathans
 const partsDone = () => PARTS.every(pt => save.parts[pt.id] >= pt.need);
 const fillParts = () => { for (const pt of PARTS) save.parts[pt.id] = Math.max(save.parts[pt.id], pt.need); };   // every part to its need
 const compsDone = () => compsCount() >= COMPONENTS.length;
@@ -4920,7 +4909,7 @@ const repairFrac = () => PARTS.reduce((sum, pt) => sum + Math.min(1, save.parts[
   + compsCount() / COMPONENTS.length / 2;
 const canLaunch = () => repairFrac() >= 1;
 // Kid mode: mines and Leviathan shots 0-100%; ship parts and health crystals 100-200% on one slider (drops); Health,
-// 100-200% of the pilot's health (5, or 4 on Terminal Velocity), rounded: 5, 6, 8, 9, 10; fall speed 50-100% (owner:
+// 100-200% of the pilot's health (PILOT_HP 5, or HARD_HP 4 on Terminal Velocity), rounded: 5, 6, 8, 9, 10; fall speed 50-100% (owner:
 // "a slider to slow fall speed"), the whole fall, cafe speed-ups and fights included. All in 25% steps, and the cafe
 // speed-up on or off, and the helper drone on or off (it flies even before it's earned). Saved as save.kid; fixed
 // for the whole run at its start (kidRun), like Terminal Velocity.
@@ -4928,7 +4917,9 @@ const KID_NORMAL = { mines: 100, drops: 100, hp: 100, fall: 100, shots: 100, spe
 const KID_RANGE = { mines: [0, 100], drops: [100, 200], hp: [100, 200], fall: [50, 100], shots: [0, 100] };
 function kidSettings() {
   const k = Object.assign({}, KID_NORMAL, save.kid);
-  if (save.kid && save.kid.drops == null && (save.kid.parts || save.kid.health)) k.drops = Math.max(+save.kid.parts || 100, +save.kid.health || 100);   // v197-200 saves
+  if (save.kid && save.kid.drops == null && (save.kid.parts || save.kid.health)) {   // separate parts and health sliders become drops
+    k.drops = Math.max(+save.kid.parts || 100, +save.kid.health || 100);
+  }
   for (const key in KID_RANGE) { const [lo, hi] = KID_RANGE[key], v = Math.round(+k[key] / 25) * 25; k[key] = Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : KID_NORMAL[key]; }
   k.speed = k.speed !== false;
   k.drone = k.drone === true;
@@ -5346,8 +5337,7 @@ const Sfx = (() => {
     ashRumble() { noise(0.42, 'lowpass', 220, 0.22); tone('sine', 58, 46, 0.42, 0.14); },
     ashGust() { noise(0.55, 'lowpass', 520, 0.4); noise(0.4, 'bandpass', 1700, 0.08, 0.04); tone('sine', 72, 44, 0.35, 0.16); },
     // The helper drone's voice (owner: "add a little bit of personality ... beeps and boops"): little square
-    // and sine chirps, quiet, under the game's own sounds.
-    // The helper drone's beeps, all DRONE_LEVEL louder than written.
+    // and sine chirps, all DRONE_LEVEL louder than written, so they're as loud as a pickup.
     droneLock() { droneTone('sine', 1400, 1400, 0.04, 0.02); droneTone('sine', 1870, 1870, 0.05, 0.02, 0.05); },   // locking on: "bip-bip"
     droneGo() { droneTone('square', 900, 1500, 0.07, 0.035); droneTone('sine', 1800, 2400, 0.06, 0.03, 0.05); },          // darting off: "bip-weee"
     droneGot() {   // caught it: "boop-beep-bing"
@@ -5443,9 +5433,9 @@ const Music = (() => {
     duck = ctx.createGain(); duck.connect(bus);
     muff = ctx.createBiquadFilter(); muff.type = 'lowpass'; muff.frequency.value = OPEN_HZ; muff.connect(duck);
     // The boss tracks' distortion: a soft clipper, then a low-pass to take the fizz off.
-    grit = ctx.createWaveShaper(); const cv = new Float32Array(1024);
-    for (let i = 0; i < 1024; i++) cv[i] = Math.tanh(4 * (i / 511.5 - 1));
-    grit.curve = cv; grit.oversample = '2x';
+    grit = ctx.createWaveShaper(); const curve = new Float32Array(1024);
+    for (let i = 0; i < 1024; i++) curve[i] = Math.tanh(4 * (i / 511.5 - 1));
+    grit.curve = curve; grit.oversample = '2x';
     const gf = ctx.createBiquadFilter(), gg = ctx.createGain(); gf.type = 'lowpass'; gf.frequency.value = 1500; gg.gain.value = 0.16;
     grit.connect(gf); gf.connect(gg); gg.connect(muff);
     const dl = ctx.createDelay(1), fb = ctx.createGain(), wet = ctx.createGain();
@@ -6106,7 +6096,9 @@ function buildRepairView(root) {
   const list = root.querySelector('.parts');
   for (let i = 0; i < 20; i++) view.bar.appendChild(document.createElement('i'));
   // The components, won from Leviathans, sit after the parts with the same look (the first one's picture).
-  const compRow = { id: 'comps', name: 'COMPONENTS', full: 'Ship components: one for each Leviathan you escape, six on each moon', spr: COMPONENTS[0].spr };
+  const compRow = { id: 'comps', name: 'COMPONENTS',
+    full: 'Ship components: one for each Leviathan you escape, ' + numberWord(LEVI_SETS.dust.length) + ' on each moon',
+    spr: COMPONENTS[0].spr };
   for (const pt of [...PARTS, compRow]) {
     const li = document.createElement('li'),
       name = document.createElement('span'),
@@ -6222,6 +6214,31 @@ function pctify(el) {
 }
 // The cards whose text never changes.
 for (const id of ['cafeTips', 'howBack', 'unlocksBack', 'newsBack']) pctify($(id));
+// Numbers in words, for text a player reads: numberWord(6) is 'six'; shareWord(0.5) is 'half' (a share with no word
+// is a percentage, so the text it goes into needs pctify).
+const NUMBER_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+const numberWord = n => NUMBER_WORDS[n] || String(n);
+const SHARE_WORDS = { 0.25: 'a quarter', 0.5: 'half', 0.75: 'three quarters', 1: 'all' };
+const shareWord = f => SHARE_WORDS[f] || Math.round(f * 100) + '%';
+// Card text that states a game number holds a <span data-fact="name"> that is replaced here by the number, from its
+// constant, so the card and the game can't disagree. Called once by start(), when every constant is defined.
+function fillFacts() {
+  const pct = f => Math.round(f * 100) + '%';
+  const facts = {
+    cafeStep: pct(CAFE_SPEEDUP), cafeMax: pct(CAFE_SPEED_MAX),   // the fall's speed-up per cafe, and its most
+    hardHp: HARD_HP, hardFaster: pct(HARD_SPEED - 1),   // Terminal Velocity
+    droneShare: shareWord(DRONE_CHANCE),   // the share of missed parts and crystals the drone goes for
+    perMoon: numberWord(LEVI_SETS.dust.length),   // Leviathans (and so components) on each moon
+  };
+  const filled = new Set();
+  for (const el of [...document.querySelectorAll('[data-fact]')]) {
+    if (!(el.dataset.fact in facts)) { console.error('MoonFall: no fact named', el.dataset.fact); continue; }
+    filled.add(el.parentNode);
+    el.replaceWith(String(facts[el.dataset.fact]));
+  }
+  // Each text is one run again, as if written out in full: kept in a span, it's laid out a fraction of a pixel apart.
+  for (const el of filled) { el.normalize(); pctify(el); }
+}
 let speedRush = 0;
 // The banner as he leaves a cafe ledge: 'up' (another 5%), 'top' (the cafe that reaches the cap) or 'max' (every cafe
 // after it: the speed is already at its cap, so no rush or whoosh, only the banner).
@@ -6308,7 +6325,11 @@ const faceCv = $('face');
 let faceShown = '', faceHit = -9, faceJoy = -9;
 function updateFace() {
   const hp = player.hp, red = hp <= 1 && Math.floor(clock * 2) % 2 === 1;
-  let key = clock - faceHit < 0.5 ? 'hurt' : clock - faceJoy < 0.6 && hp > 1 ? 'happy' : hp <= 1 ? 'scared' : hp <= 3 ? 'worried' : 'calm';
+  let key = 'calm';
+  if (clock - faceHit < 0.5) key = 'hurt';
+  else if (clock - faceJoy < 0.6 && hp > 1) key = 'happy';
+  else if (hp <= 1) key = 'scared';
+  else if (hp <= 3) key = 'worried';
   if (key === 'calm' && clock % 3.7 < 0.12) key = 'blink';
   if (key + red === faceShown) return;
   faceShown = key + red;
@@ -6449,17 +6470,18 @@ syncKid();
 // Title card flips over to show settings or instructions on its back.
 let cardSide = null, readTimer = 0;
 // Both flip cards (the main menu's and the cafe's) turn the same way: a front face and named back faces share one grid cell
-// pinned to the bottom, so the card grows or shrinks upward as it turns over in 0.45 s. `prepare` runs once the new face
+// pinned to the bottom, so the card grows or shrinks upward as it turns over in 0.45 s (.flip-inner's transition).
+// CARD_FOCUS_MS: how long after a turn starts keyboard focus moves to the new face, once it's nearly round. `prepare` runs once the new face
 // is chosen but before its height is measured.
-const flipTimers = new Map();
+const flipTimers = new Map(), CARD_FOCUS_MS = 460;
 function turnCard(flip, front, backs, was, side, instant, prepare) {
   const faces = [front, ...Object.values(backs)];
   if (side) for (const k in backs) backs[k].hidden = k !== side;
   if (prepare) prepare();
   flip.classList.toggle('instant', instant);
   clearTimeout(flipTimers.get(flip));
-  // Once it's back on its front, the back faces are hidden again: left showing, the tallest one kept the
-  // card that tall, which pushed the main menu's buttons off short screens after the Leviathans card had been open.
+  // Once it's back on its front, the back faces are hidden again: left showing, the tallest one would keep the card
+  // that tall and push the main menu's buttons off short screens.
   const settle = () => { faces.forEach(f => (f.style.height = '')); if (!side) for (const k in backs) backs[k].hidden = true; };
   if (instant) settle();
   else {
@@ -6478,7 +6500,15 @@ function turnCard(flip, front, backs, was, side, instant, prepare) {
 // The ship repair panel and the New features sticker step aside for a card by flipping up and away, in the menu's stepped
 // flip (as they flip in after START), the panel folding its height at the same time so the card can grow into the room;
 // they flip back down when the card closes. The CSS rules above say when (--aside); this does the moving.
-const ASIDE_MS = 340;
+const ASIDE_MS = 340;   // the CSS flipDown's .34s (the menu flipping in after START), in the same seven steps
+// The stepped flip of one menu section, up and away (away) or back down, from `delay` ms on: el.animate's Animation.
+// The New features sticker keeps its tilt (--tilt) as it turns, as in flipDownTilt.
+function flipSection(el, away, delay) {
+  const tilt = el.id === 'newsTag' ? 'rotate(' + (getComputedStyle(el).getPropertyValue('--tilt').trim() || '0deg') + ') ' : '';
+  const flat = { transform: tilt + 'perspective(520px) rotateX(0)', opacity: 1 };
+  const up = { transform: tilt + 'perspective(520px) rotateX(-92deg)', opacity: 0 };
+  return el.animate(away ? [flat, up] : [up, flat], { duration: ASIDE_MS, delay, easing: 'steps(7)', fill: 'both' });
+}
 function syncAside(instant) {
   const ts = $('titleScreen');
   for (const el of [ts.querySelector('.repair'), $('newsTag')]) {
@@ -6486,11 +6516,10 @@ function syncAside(instant) {
     if (el._aside) { for (const a of el._aside) a.cancel(); el._aside = null; el.style.overflow = ''; }
     if (want === is) continue;
     if (instant || reduceMotion || ts.classList.contains('clean') || state !== 'title') { el.classList.toggle('aside', want); continue; }
-    const news = el.id === 'newsTag', tilt = news ? 'rotate(' + (getComputedStyle(el).getPropertyValue('--tilt').trim() || '0deg') + ') ' : '';
+    const news = el.id === 'newsTag';
     if (!want) el.classList.remove('aside');
     if (!news && getComputedStyle(el).display === 'none') { el.classList.toggle('aside', want); continue; }
-    const flat = { transform: tilt + 'perspective(520px) rotateX(0)', opacity: 1 }, up = { transform: tilt + 'perspective(520px) rotateX(-92deg)', opacity: 0 };
-    const anims = [el.animate(want ? [flat, up] : [up, flat], { duration: ASIDE_MS, easing: 'steps(7)', fill: 'both' })];
+    const anims = [flipSection(el, want, 0)];
     if (!news) {   // fold its height (and the gap after it) so nothing jumps when it's gone
       const cs = getComputedStyle(el), h = el.offsetHeight, gap = parseFloat(getComputedStyle(ts).rowGap) || 0;
       const open = { height: h + 'px', marginBottom: '0px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom };
@@ -6524,9 +6553,7 @@ function flipMenuAway(away) {
     if (reduceMotion || el.classList.contains('aside') || getComputedStyle(el).display === 'none') {
       el.style.visibility = away ? 'hidden' : ''; return;
     }
-    const tilt = el.id === 'newsTag' ? 'rotate(' + (getComputedStyle(el).getPropertyValue('--tilt').trim() || '0deg') + ') ' : '';
-    const flat = { transform: tilt + 'perspective(520px) rotateX(0)', opacity: 1 }, up = { transform: tilt + 'perspective(520px) rotateX(-92deg)', opacity: 0 };
-    const k = away ? i : els.length - 1 - i, a = el.animate(away ? [flat, up] : [up, flat], { duration: ASIDE_MS, delay: k * MENU_AWAY_STEP, easing: 'steps(7)', fill: 'both' });
+    const k = away ? i : els.length - 1 - i, a = flipSection(el, away, k * MENU_AWAY_STEP);
     el._away = [a];
     if (!away) a.onfinish = () => { if (el._away && el._away[0] === a) { a.cancel(); el._away = null; } };
   });
@@ -6541,6 +6568,17 @@ let unlocksFromNews = false;   // the Unlocks card was opened from New features:
 // not from boxes caught mid-turn.
 const DONE_FROM_BOTTOM = 50;
 const CARD_FACE = { settings: 'titleBack', how: 'howBack', levi: 'leviBack', badges: 'badgeBack', news: 'newsBack', unlocks: 'unlocksBack', moons: 'moonsBack', kid: 'kidBack' };
+// Where keyboard focus goes once the card has turned: on each face, by the face it came from (was) where that matters;
+// back on the front, the button that opened the face it left (Start for the cards opened from New features).
+const CARD_FACE_FOCUS = {
+  settings: was => (was === 'kid' ? 'kidBtn' : 'sndT'),
+  news: was => ({ moons: 'newsMoons', unlocks: 'newsHard', kid: 'newsKid' })[was] || 'newsLevi',
+  kid: () => 'kidMines', how: () => 'howDone', unlocks: () => 'unlocksDone', levi: () => 'leviDone', moons: () => 'moonsDone',
+  badges: () => 'badgeDone',
+};
+const CARD_FRONT_FOCUS = { how: 'howBtn', badges: 'badgesBtn', unlocks: 'unlocksBtn', levi: 'startBtn', news: 'startBtn', moons: 'startBtn' };
+// The title card's classes for the face that's open (the New features card's is newsopen: .news is the sticker's own).
+const CARD_CLASS = { levi: 'levi', how: 'how', settings: 'settings', badges: 'badges', moons: 'moons', unlocks: 'unlocks', kid: 'kid', news: 'newsopen' };
 function placeNews(side, instant) {
   const fl = $('titleFlip'), ts = $('titleScreen');
   let lift = 0;
@@ -6566,15 +6604,20 @@ function setCard(side, instant) {
   if (side === 'badges') fillBadges();
   if (side === 'unlocks') syncToggles();   // Hard Dive's lock is shown from the save as it is now
   if (side === 'kid') syncKid();
-  turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack'), levi: $('leviBack'), badges: $('badgeBack'), news: $('newsBack'), unlocks: $('unlocksBack'), moons: $('moonsBack'), kid: $('kidBack') }, was, side, instant, () => {
+  const backs = {};
+  for (const k in CARD_FACE) backs[k] = $(CARD_FACE[k]);
+  turnCard($('titleFlip'), $('titleFront'), backs, was, side, instant, () => {
     const ts = $('titleScreen');
     clearTimeout(readTimer);
-    if (side) { ts.classList.toggle('levi', side === 'levi'); ts.classList.toggle('how', side === 'how'); ts.classList.toggle('settings', side === 'settings'); ts.classList.toggle('badges', side === 'badges'); ts.classList.toggle('moons', side === 'moons'); ts.classList.toggle('unlocks', side === 'unlocks'); ts.classList.toggle('kid', side === 'kid'); ts.classList.toggle('newsopen', side === 'news'); }   // not 'news': that's the sticker's own class
+    if (side) for (const k in CARD_CLASS) ts.classList.toggle(CARD_CLASS[k], side === k);
     placeNews(side, instant);
     if (side || instant) { ts.classList.toggle('reading', !!side); syncAside(instant); }
     else readTimer = setTimeout(() => { ts.classList.remove('reading'); syncAside(); }, 480);
   });
-  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $(was === 'kid' ? 'kidBtn' : 'sndT') : side === 'kid' ? $('kidMines') : side === 'how' ? $('howDone') : side === 'news' ? $(was === 'moons' ? 'newsMoons' : was === 'unlocks' ? 'newsHard' : was === 'kid' ? 'newsKid' : 'newsLevi') : side === 'unlocks' ? $('unlocksDone') : side === 'levi' ? $('leviDone') : side === 'moons' ? $('moonsDone') : side === 'badges' ? $('badgeDone') : $(was === 'how' ? 'howBtn' : was === 'badges' ? 'badgesBtn' : was === 'unlocks' ? 'unlocksBtn' : was === 'levi' || was === 'news' || was === 'moons' ? 'startBtn' : 'settingsBtn')), 460);
+  if (!instant) {
+    const focus = side ? CARD_FACE_FOCUS[side](was) : CARD_FRONT_FOCUS[was] || 'settingsBtn';
+    setTimeout(() => kbFocus($(focus)), CARD_FOCUS_MS);
+  }
 }
 // -- the Leviathans card: New features' Leviathan chases row opens it. Each creature's name, its signature attack in a line
 // (its entry's name and line; LEVI_INFO lists them), and a portrait painted with its fight art (bossStage), facing
@@ -6705,13 +6748,17 @@ $('howDone').addEventListener('click', () => setCard(null));
 $('settingsDone').addEventListener('click', () => setCard(null));
 
 // ---------- confirm dialogs ----------
-// Reset ship repair (Settings): two confirmations, the second sterner, before the parts are cleared.
+// One pop-up (#confirmDlg) asks every question: each kind (confirmKind, below) has its own function that sets the
+// title, words and buttons (askReset, askHard, askJump, askDrone, askRepaired, tellDroneEnd, askPreview, askComps,
+// askLaunch), popConfirm shows it, and the Yes and No handlers at the end act on the kind that's open.
 const confirmDlg = $('confirmDlg');
 // confirmKind: which question is open: 'reset' (two steps), 'hard' (Terminal Velocity), 'launch' (from the cafe),
 // 'repaired' (after the dive that finished the ship), 'drone' (the helper drone, offered as a dive starts),
-// 'droneEnd' (the helper drone, after the standard ending: one button), 'preview' (the escape preview, before it starts)
-// 'comps' (the components unlocked since the last cafe, as he lands at one: one button, two once the ship can fly) or 'jump' (Jump in's card: the
-// components needed and the moon to dive on).
+// 'droneEnd' (the helper drone, after the standard ending: one button), 'preview' (the escape preview, before it
+// starts), 'comps' (the components unlocked since the last cafe, as he lands at one: one button, two once the ship can
+// fly) or 'jump' (Jump in's card: the components needed and the moon to dive on).
+// confirmStep: the reset's step (1, then 2: the second sterner, before the parts are cleared); confirmFrom: the button
+// that gets focus back when it closes.
 let confirmStep = 0, resetTimer = 0, confirmKind = 'reset', confirmFrom = 'resetBtn';
 function clearRepair() {
   for (const pt of PARTS) save.parts[pt.id] = 0;
@@ -6734,13 +6781,16 @@ function popConfirm() {
 // Hard Dive's pop-up: one question, red like the reset's second step. With nothing to lose (no parts, no
 // components) it just switches on.
 function askHard() {
-  const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), c = compsCount();
-  if (!n && !c) { save.hard = true; persist(); syncToggles(); return; }
+  const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), comps = compsCount();
+  if (!n && !comps) { save.hard = true; persist(); syncToggles(); return; }
   confirmKind = 'hard'; confirmFrom = 'hardT'; confirmStep = 0;
   confirmDlg.classList.add('danger');
   $('confirmTitle').textContent = 'Go Terminal Velocity?';
-  const lost = [n ? `your ${n} ship part${n === 1 ? '' : 's'}` : '', c ? `your ${c} component${c === 1 ? '' : 's'}` : ''].filter(Boolean).join(' and ');
-  $('confirmText').textContent = `Terminal Velocity starts your mission over: ${lost} go${n + c === 1 && !(n && c) ? 'es' : ''} back to zero, and the ship repair to 0%. Your best depth, badges, suits and unlocks are kept.`;
+  const lost = [n ? `your ${n} ship part${n === 1 ? '' : 's'}` : '', comps ? `your ${comps} component${comps === 1 ? '' : 's'}` : '']
+    .filter(Boolean).join(' and ');
+  const goes = n + comps === 1 && !(n && comps) ? 'goes' : 'go';
+  $('confirmText').textContent = `Terminal Velocity starts your mission over: ${lost} ${goes} back to zero, and the ship repair to 0%. `
+    + 'Your best depth, badges, suits and unlocks are kept.';
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Reset and go hard';
   $('confirmNo').textContent = 'Cancel';
   popConfirm();
@@ -6748,8 +6798,9 @@ function askHard() {
 function askReset(step) {
   confirmKind = 'reset'; confirmFrom = 'resetBtn';
   // Components won from Leviathans count as something to reset too, as in askHard.
-  const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), c = compsCount(), any = n + c > 0;
-  const what = [n ? `the ${n} ship part${n === 1 ? '' : 's'} you have collected` : '', c ? `the ${c} component${c === 1 ? '' : 's'} you have won` : ''].filter(Boolean).join(' and ');
+  const n = PARTS.reduce((sum, pt) => sum + save.parts[pt.id], 0), comps = compsCount(), any = n + comps > 0;
+  const what = [n ? `the ${n} ship part${n === 1 ? '' : 's'} you have collected` : '',
+    comps ? `the ${comps} component${comps === 1 ? '' : 's'} you have won` : ''].filter(Boolean).join(' and ');
   confirmStep = any ? step : 0;
   confirmDlg.classList.toggle('danger', step === 2);
   $('confirmTitle').textContent = step === 1 ? 'Reset ship repair?' : 'Are you sure?';
@@ -6771,7 +6822,7 @@ function askJump() {
   confirmDlg.classList.remove('danger');
   const per = LEVI_SETS.dust.length;
   for (const el of document.querySelectorAll('#confirmMoons [data-count]')) {
-    const m = el.dataset.count, n = COMPONENTS.filter(cp => LEVI_SETS[m].includes(cp.levi) && compWon(cp)).length;
+    const m = el.dataset.count, n = compsOnMoon(m);
     el.textContent = n + '/' + LEVI_SETS[m].length;
     el.parentElement.setAttribute('aria-label', MOON_NAMES[m] + ', ' + n + ' of ' + LEVI_SETS[m].length + ' components');
   }
@@ -6786,16 +6837,18 @@ function askJump() {
 }
 // Jump in (the button, or Space or Enter on the menu): the card above, then the drone's question, then the dive.
 function jumpIn() { if (!askJump() && !askDrone(false)) startRun(false); }
-// Owner: the next Jump In (or Fall again) says the helper drone is unlocked and asks whether to take it; now only for
-// saves that flew a ship home before the drone came with the ending (droneEarned). Either answer unlocks it (Not now leaves it switched off, for the Unlocks card) and starts the dive;
-// closing the pop-up any other way does neither, so it asks again next time. Returns true when it asked.
+// Owner: the next Jump In (or Fall again) says the helper drone is unlocked and asks whether to take it, for a save
+// that has flown a ship home but hasn't got the drone (droneEarned and not droneOpen). Either answer unlocks it (Not now
+// leaves it switched off, for the Unlocks card) and starts the dive; closing the pop-up any other way does neither, so it
+// asks again next time. Returns true when it asked.
 let droneQuick = false;   // the dive to start after the answer: a quick restart (Fall again) or from the menu
 function askDrone(quick) {
   if (offRecord() || droneOpen() || !droneEarned()) return false;
   confirmKind = 'drone'; confirmFrom = quick ? 'againBtn' : 'startBtn'; confirmStep = 0; droneQuick = quick;
   confirmDlg.classList.remove('danger');
   $('confirmTitle').textContent = 'Helper drone unlocked!';
-  $('confirmText').textContent = 'You flew the ship home, so the helper drone is yours. It falls with you and catches half of the ship parts and crystals you miss. Take it along?';
+  $('confirmText').textContent = 'You flew the ship home, so the helper drone is yours. It falls with you and catches ' + shareWord(DRONE_CHANCE)
+    + ' of the ship parts and crystals you miss. Take it along?';
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Yes, bring it';
   $('confirmNo').textContent = 'Not now';
   popConfirm();
@@ -6824,7 +6877,8 @@ function tellDroneEnd() {
   confirmKind = 'droneEnd'; confirmFrom = 'endTitleBtn'; confirmStep = 0;
   confirmDlg.classList.remove('danger');
   $('confirmTitle').textContent = 'Helper drone unlocked!';
-  $('confirmText').textContent = 'You flew the ship home, and the helper drone is yours. It will fly with you the next time you dive, catching half of the ship parts and crystals you miss. (Unlocks)';
+  $('confirmText').textContent = 'You flew the ship home, and the helper drone is yours. It will fly with you the next time you dive, catching '
+    + shareWord(DRONE_CHANCE) + ' of the ship parts and crystals you miss. (Unlocks)';
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Great!';
   popConfirm();
 }
@@ -6870,28 +6924,27 @@ function askComps() {
   got.forEach((cp, i) => sprite(g, cp.spr, i * 16, 0, PMAP));
   const names = got.map(cp => cp.name), list = n > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[n - 1] : names[0];
   const left = COMPONENTS.length - compsCount();
-  const onMoon = m => COMPONENTS.filter(cp => LEVI_SETS[m].includes(cp.levi) && save.compsGot.includes(cp.id)).length;
-  const perMoon = Object.keys(LEVI_SETS).map(m => MOON_NAMES[m] + ': ' + onMoon(m) + '/' + LEVI_SETS[m].length).join('\n');
+  const perMoon = Object.keys(LEVI_SETS).map(m => MOON_NAMES[m] + ': ' + compsOnMoon(m) + '/' + LEVI_SETS[m].length).join('\n');
   $('confirmTitle').textContent = n > 1 ? 'Components unlocked!' : 'Component unlocked!';
   $('confirmText').textContent = list + ' fitted to the ship. Components: ' + compsCount() + ' of ' + COMPONENTS.length + '\n\n'
     + perMoon + '\n\n'
     + (gift ? 'The last Leviathan also gave you every ship part you were missing. ' : '')
-    + (canLaunch() ? 'The ship is repaired! Fly home now? Your dive ends here at ' + depthM().toLocaleString('en-GB')
-      + '\u00a0m and counts on the high scores.'
-      : left ? 'Each moon\'s six Leviathans guard components: travel to all three moons to collect them all.'
+    + (canLaunch() ? 'The ship is repaired! Fly home now? ' + diveEndsHere()
+      : left ? 'Each moon\'s ' + numberWord(LEVI_SETS.dust.length) + ' Leviathans guard components: travel to all three moons to collect them all.'
         : 'Every component fitted! Now finish collecting the ship parts.');
   $('confirmYes').hidden = false; $('confirmYes').textContent = canLaunch() ? 'Fly home!' : 'Great!';
   $('confirmNo').textContent = 'Not yet';   // shown only when the ship can fly (popConfirm)
   popConfirm();
 }
+// What flying home from a cafe means for the dive (askComps and askLaunch).
+const diveEndsHere = () => 'Your dive ends here at ' + depthM().toLocaleString('en-GB') + '\u00a0m and counts on the high scores.';
 // The cafe's launch: the dive ends there, so it asks first.
 function askLaunch() {
   if (state !== 'cafe' || !canLaunch()) return;
   confirmKind = 'launch'; confirmFrom = 'cafeLaunchBtn'; confirmStep = 0;
   confirmDlg.classList.remove('danger');
   $('confirmTitle').textContent = 'Congratulations!';
-  $('confirmText').textContent = 'The ship is repaired and every component fitted. Fly home now? Your dive ends here at '
-    + depthM().toLocaleString('en-GB') + '\u00a0m and counts on the high scores.';
+  $('confirmText').textContent = 'The ship is repaired and every component fitted. Fly home now? ' + diveEndsHere();
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Fly home!';
   $('confirmNo').textContent = 'Not yet';
   popConfirm();
@@ -6966,9 +7019,13 @@ function runSmooth() {
 // The opening on this page load: watched to the end or skipped. Sent with the first run only, so each launch counts once.
 let introHow = '', introRun = '', introDone = false;
 const UA = navigator.userAgent, TOUCH_MAC = /Macintosh/.test(UA) && navigator.maxTouchPoints > 1;
-const DEVICE = /iPad|Tablet/.test(UA) || TOUCH_MAC || (/Android/.test(UA) && !/Mobile/.test(UA)) ? 'tablet' : /Mobi|iPhone|Android/.test(UA) ? 'phone' : 'desktop';
-const OS = /Android/.test(UA) ? 'android' : /iPhone|iPad|iPod/.test(UA) || TOUCH_MAC ? 'ios' : /Windows/.test(UA) ? 'windows' : /CrOS/.test(UA) ? 'chromeos'
-  : /Mac OS X|Macintosh/.test(UA) ? 'mac' : /Linux/.test(UA) ? 'linux' : 'other';
+// The first name in a list of [pattern, name] whose pattern the user agent matches, or 'other'.
+const uaName = list => (list.find(([re]) => re.test(UA)) || [null, 'other'])[1];
+const DEVICE = /iPad|Tablet/.test(UA) || TOUCH_MAC || (/Android/.test(UA) && !/Mobile/.test(UA)) ? 'tablet'
+  : /Mobi|iPhone|Android/.test(UA) ? 'phone' : 'desktop';
+const OS = TOUCH_MAC && !/Android/.test(UA) ? 'ios'   // an iPad asking for the desktop site
+  : uaName([[/Android/, 'android'], [/iPhone|iPad|iPod/, 'ios'], [/Windows/, 'windows'], [/CrOS/, 'chromeos'],
+    [/Mac OS X|Macintosh/, 'mac'], [/Linux/, 'linux']]);
 function statPing(body) {
   if (!SCORES_URL || offRecord()) return;
   fetch(SCORES_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
@@ -6999,9 +7056,10 @@ const noteError = (msg, line, col) => {
 };
 addEventListener('error', e => noteError(e.message, e.lineno, e.colno));
 addEventListener('unhandledrejection', e => noteError('promise: ' + ((e.reason && e.reason.message) || e.reason)));
-const BROWSER = /FBAN|FBAV|Instagram|Snapchat|Line\/|MicroMessenger|GSA\//.test(UA) ? 'inapp' : /SamsungBrowser/.test(UA) ? 'samsung'
-  : /Edg\/|EdgA|EdgiOS/.test(UA) ? 'edge' : /OPR\/|OPiOS/.test(UA) ? 'opera' : /Firefox|FxiOS/.test(UA) ? 'firefox'
-  : /Chrome|CriOS|Chromium/.test(UA) ? 'chrome' : /Safari/.test(UA) ? 'safari' : 'other';
+const BROWSER = uaName([
+  [/FBAN|FBAV|Instagram|Snapchat|Line\/|MicroMessenger|GSA\//, 'inapp'], [/SamsungBrowser/, 'samsung'], [/Edg\/|EdgA|EdgiOS/, 'edge'],
+  [/OPR\/|OPiOS/, 'opera'], [/Firefox|FxiOS/, 'firefox'], [/Chrome|CriOS|Chromium/, 'chrome'], [/Safari/, 'safari'],
+]);
 const INSTALLED = () => !!(navigator.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches));
 const runMore = () => ({
   errors: errN, error: errFirst,
@@ -7042,7 +7100,7 @@ function resetRun() {
   caveReset();
   setHP(); setDepth();
 }
-// -- Hard Dive (idea 13): unlocked once the ship has been fixed (a finished mission). The run starts with 4 health, falls
+// -- Hard Dive (idea 13): unlocked once the ship has been fixed (a finished mission). The run starts with HARD_HP health, falls
 // HARD_SPEED faster all the way down, and the Leviathans are enraged from the start. No extra crystals: the owner found
 // they don't "exactly make the game harder". Switched on the Unlocks card (save.hard); fixed for the whole run (hardRun).
 // On screen it's called **Terminal Velocity**; in the code it stays hard / hardRun / HARD_SPEED / save.hard, so saved
@@ -7162,6 +7220,17 @@ function showOver() {
   setTimeout(() => { if (state === 'over') $('againBtn').focus({ preventScroll: true }); }, 50);
   if (overRepaired) { overRepaired = false; askRepaired(); }
 }
+// Ends the dive where he is and flies home: viaPortal (the deep cave) starts the ending at the orange portal by the ship
+// instead of up the shaft. The dive counts like any other (owner: it "should still count in the high scores").
+function endDiveAndFlyHome(viaPortal) {
+  const m = depthM(), kb = kidRun.on, counts = !previewSave;   // a Kid mode run has its own best and board; a preview has none
+  if (counts && m > bestNow()) { if (kb) save.kidBest = m; else save.best = m; persist(); }
+  hsKid = kb; launchPortal = !!viaPortal;
+  setState('over'); hud.classList.add('off'); endRun(viaPortal ? 'cave' : 'launch');
+  if (counts && qualifies(m)) { showScores(m, 'launch'); return; }
+  flyHome();
+}
+function flyHome() { toTitle(); startLaunch(); }
 
 // ---------- menu buttons ----------
 let armTimer = 0;
@@ -7178,7 +7247,7 @@ $('newMissionBtn').addEventListener('click', e => {
 });
 $('endTitleBtn').addEventListener('click', toTitle);
 $('launchBtn').addEventListener('click', startLaunch);
-$('overLaunchBtn').addEventListener('click', () => { toTitle(); startLaunch(); });
+$('overLaunchBtn').addEventListener('click', flyHome);
 $('startBtn').addEventListener('click', jumpIn);
 // Start screen: Choose Moon opens the three moons; Start stays grey until one is picked, then plays the intro
 // on that moon (the moon behind the buttons changes as soon as it's picked). Nothing is picked to begin with.
@@ -7258,7 +7327,8 @@ function hsStep(k, d) {
   hsDraw();
   Sfx.bleep(d > 0 ? 880 : 660);
 }
-// from: where the high scores go back to: 'over' (the game over screen) or 'launch' (the cafe's launch, see flyHome).
+// from: where the high scores go back to: 'over' (the game over screen) or 'launch' (a dive ended to fly home, from a
+// cafe or the deep cave: endDiveAndFlyHome, then flyHome).
 function showScores(m, from) {
   scoreOpen = true; hsFrom = from || 'over'; hsPending = m; hsSlot = 0; hsNew = -1;
   $('hsDepth').textContent = fmtM(m); $('hsRank').textContent = 'RANK ' + hsRankOf(m) + ' OF ' + HS_MAX;
@@ -7617,6 +7687,7 @@ function drawCafe(cam) {
 // Coffee stop: auto-landing on the pad, a cup at the counter, then a run and jump back into the shaft.
 const cafeVisited = new Set();
 let cafeT = 0, cafeK = 0, landFrom = null;
+const SHOP_OPEN_AT = 1.6;   // s after he lands at the cafe that the shop opens; Space or Enter leaves only after it
 // The menu waits behind a card (askComps) and opens once it's closed. A card answered while the game is paused (the
 // phone locked or the app switched with the card up) leaves it held, and resume() lets it go.
 let shopHeld = false;
@@ -7705,7 +7776,7 @@ function updateCafe(dt) {
         pop('+1 COFFEE', player.x, player.y - 10, 'good');
       } else pop('REFRESHED', player.x, player.y - 10, 'good');
     }
-    if (crossed(1.6)) {
+    if (crossed(SHOP_OPEN_AT)) {
       if (confirmDlg.open) shopHeld = true; else openShop();
       // A Leviathan below: its paint canvases are made now, while nothing moves, not as he jumps.
       const B = bossAt(player.y + 300);
@@ -7774,11 +7845,7 @@ function openShop() {
   kbFocus($('shopGo'));
 }
 // Turns the cafe card to the shop, the tips or back to the front, growing or shrinking upward like the title card.
-let cafeSide = null, usingKeys = false;
-// The cafe card only moves focus for keyboard players, so touch players never see a stray focus ring.
-addEventListener('keydown', () => { usingKeys = true; }, true);
-addEventListener('pointerdown', () => { usingKeys = false; }, true);
-function kbFocus(el) { if (usingKeys && el) el.focus({ preventScroll: true }); }
+let cafeSide = null;
 // The cafe's card: the shop, the tips and the ship repair on the back.
 // Where keyboard focus goes on each face, and on the front coming back from each face.
 const CAFE_FACE_FOCUS = {
@@ -7796,7 +7863,7 @@ function cafeCard(side, instant) {
     if (side === 'tips' && !save.cafeTips) { save.cafeTips = true; persist(); renderShop(); }
   });
   const target = () => (side ? CAFE_FACE_FOCUS[side]() : $(CAFE_FRONT_FOCUS[was] || 'shopGo'));
-  if (instant) kbFocus(target()); else setTimeout(() => { if (cafeSide === side && !shopEl.hidden) kbFocus(target()); }, 460);
+  if (instant) kbFocus(target()); else setTimeout(() => { if (cafeSide === side && !shopEl.hidden) kbFocus(target()); }, CARD_FOCUS_MS);
 }
 $('shopBtn').addEventListener('click', () => cafeCard('shop'));
 $('tipsBtn').addEventListener('click', () => cafeCard('tips'));
@@ -7813,24 +7880,20 @@ function launchFromCafe() {
   shopEl.hidden = true; cafeCard(null, true); sayEl.hidden = true;
   endDiveAndFlyHome(false);
 }
-// Ends the dive where he is and flies home: viaPortal (the deep cave) starts the ending at the orange portal by the ship
-// instead of up the shaft. The dive counts like any other (owner: it "should still count in the high scores").
-function endDiveAndFlyHome(viaPortal) {
-  const m = depthM(), kb = kidRun.on, counts = !previewSave;   // a Kid mode run has its own best and board; a preview has none
-  if (counts && m > bestNow()) { if (kb) save.kidBest = m; else save.best = m; persist(); }
-  hsKid = kb; launchPortal = !!viaPortal;
-  setState('over'); hud.classList.add('off'); endRun(viaPortal ? 'cave' : 'launch');
-  if (counts && qualifies(m)) { showScores(m, 'launch'); return; }
-  flyHome();
-}
-function flyHome() { toTitle(); startLaunch(); }
 function renderShop() {
   for (const id of ['shopSpare', 'shopSpare2', 'shopBtnN']) $(id).textContent = player.spare;
   const afford = shopOffer.some(p => player.spare >= p.cost);
   // Every state says how long treats last.
-  $('shopNote').textContent = (shopDone ? 'Enjoy! ' : afford ? 'One treat per cafe. ' : player.spare ? 'Not enough spare crystals yet. ' : 'No spare crystals yet: see TIPS. ')
-    + (shopDone ? 'It lasts' : 'Treats last') + ' until the next cafe.';
-  $('cafeNote').textContent = shopDone ? 'Treat bought. Enjoy the fall!' : !save.cafeTips ? 'New here? Tap TIPS first' : afford ? 'Spend your spare crystals in the shop' : 'Catch crystals at full health to earn spares';
+  let shopNote = 'No spare crystals yet: see TIPS. ';
+  if (shopDone) shopNote = 'Enjoy! ';
+  else if (afford) shopNote = 'One treat per cafe. ';
+  else if (player.spare) shopNote = 'Not enough spare crystals yet. ';
+  $('shopNote').textContent = shopNote + (shopDone ? 'It lasts' : 'Treats last') + ' until the next cafe.';
+  let cafeNote = 'Catch crystals at full health to earn spares';
+  if (shopDone) cafeNote = 'Treat bought. Enjoy the fall!';
+  else if (!save.cafeTips) cafeNote = 'New here? Tap TIPS first';
+  else if (afford) cafeNote = 'Spend your spare crystals in the shop';
+  $('cafeNote').textContent = cafeNote;
   [...$('shopItems').children].forEach((b, i) => {
     const p = shopOffer[i];
     if (!p) return;
@@ -7942,7 +8005,7 @@ function drawCafeSigns(cam) {
 // cave" with "Claim ship repair kit", a blue portal in the wall that he walks through, and the ending, starting at an
 // orange portal by the ship (launchPortal, see the launch). Also owner: an optional exit, so a player can keep falling
 // for score instead. Where the cave is and its shape: caveInfo, caveAt and caveShape (the shaft).
-// Owner, later: finding the chest is a big thing even with the ship already repaired ("Congratulations, you've found the
+// Owner: finding the chest is a big thing even with the ship already repaired ("Congratulations, you've found the
 // ship repair kit"), the parts pop out when the gift is accepted, and the crate holds the helper drone too, which pops
 // out last, flies about chirping, and gets its own card ("You've made a new friend for your next fall").
 // He drops through the roof's hole and lands (phase 'drop') with the opening film's landing line, stands looking about
@@ -8141,53 +8204,89 @@ $('caveFall').addEventListener('click', leaveCave);
 // The art, by moon: things hanging from the roof (CAVE_ROOF_H tall, drawn from the roof down) and things standing on the
 // floor (CAVE_FLOOR_H tall, standing on it), both clear of the holes, the chest and the portal.
 const CAVE_ROOF_H = 110, CAVE_FLOOR_H = 18;
-const CAVE_COLOURS = {
-  dust: { a: '#CFE9F7', b: '#F4FBFF', c: '#8CC3E3', glow: '#9FE3FF' },     // icicles
-  jungle: { a: '#6B4325', b: '#4E8F35', c: '#3A2412', glow: '#B8F070' },   // roots, leaves, glowing moss
-  machine: { a: '#7B8591', b: '#A9B2BC', c: '#B2552A', glow: '#7FD6E8' },  // pipes, cables, rust
+// A row of things hanging from the roof, clear of the hole he drops through: width() for each one's width, then
+// hang(x, y, w, len) for each row y of it and, if given, after(x) once it's done. The random numbers are drawn in this
+// order (gap, width, length), so each moon's roof is the same for a seed.
+function caveHangers(rand, cave, width, hang, after) {
+  for (let x = 4; x < W - 6; x += 4 + Math.floor(rand() * 8)) {
+    const w = width(), len = 14 + Math.floor(rand() * (CAVE_ROOF_H - 18));
+    if (!caveClear(x, w, [cave.entryX, CAVE_NECK_HW + 6])) continue;
+    for (let y = 0; y < len; y++) hang(x, y, w, len);
+    if (after) after(x);
+  }
+}
+// True when x to x + w keeps clear of every [middle, half width] in holes.
+const caveClear = (x, w, ...holes) => holes.every(([hx, hw]) => x + w < hx - hw || x > hx + hw);
+// One entry per moon: its colours (a, b, c and glow), roof(g, col, rand, cave) painting the roof's canvas, and
+// floor(g, col, rand, x, h) painting one bit h tall at x on the floor's. A moon without an entry gets the Dust moon's.
+const CAVE_MOONS = {
+  dust: {   // icicles, and ice spikes on the floor
+    col: { a: '#CFE9F7', b: '#F4FBFF', c: '#8CC3E3', glow: '#9FE3FF' },
+    roof(g, col, rand, cave) {
+      caveHangers(rand, cave, () => 4 + Math.floor(rand() * 6), (x, y, w, len) => {   // narrowing to a point, lit down one side
+        const ww = Math.max(1, Math.round(w * (1 - y / len)));
+        g.fillStyle = col.a; g.fillRect(x, y, ww, 1);
+        g.fillStyle = col.b; g.fillRect(x, y, 1, 1);
+        if (ww > 2) { g.fillStyle = col.c; g.fillRect(x + ww - 1, y, 1, 1); }
+      });
+    },
+    floor(g, col, rand, x, h) {
+      for (let y = 0; y < h; y++) {
+        const ww = Math.max(1, Math.round(4 * (1 - y / h)));
+        g.fillStyle = y === h - 1 ? col.b : col.a; g.fillRect(x + 2 - (ww >> 1), CAVE_FLOOR_H - 1 - y, ww, 1);
+      }
+    },
+  },
+  jungle: {   // roots with leaves and glowing moss, and ferns and mushrooms on the floor
+    col: { a: '#6B4325', b: '#4E8F35', c: '#3A2412', glow: '#B8F070' },
+    roof(g, col, rand, cave) {
+      caveHangers(rand, cave, () => 2, (x, y) => {   // a root that wanders a little, with a leaf now and then
+        const wx = x + Math.round(Math.sin(y * 0.25 + x) * 1.5);
+        g.fillStyle = col.a; g.fillRect(wx, y, 2, 1);
+        if (y % 7 === 3 && rand() < 0.6) { g.fillStyle = col.b; g.fillRect(wx + (rand() < 0.5 ? -3 : 2), y, 3, 2); }
+      }, x => { if (rand() < 0.5) { g.fillStyle = col.glow; g.fillRect(x - 1, 0, 4, 2); } });   // moss on top
+    },
+    floor(g, col, rand, x, h) {
+      for (let y = 0; y < h; y++) {
+        g.fillStyle = y < 3 ? col.glow : col.b;
+        g.fillRect(x + 2 + (y % 2), CAVE_FLOOR_H - 1 - y, 1, 1); g.fillRect(x + (y % 3), CAVE_FLOOR_H - 1 - y, 1, 1);
+      }
+    },
+  },
+  machine: {   // a pipe along the roof, cables hanging in loops, rust streaks; scrap and cogs on the floor
+    col: { a: '#7B8591', b: '#A9B2BC', c: '#B2552A', glow: '#7FD6E8' },
+    roof(g, col, rand) {
+      g.fillStyle = P.ink; g.fillRect(0, 2, W, 10); g.fillStyle = col.a; g.fillRect(0, 3, W, 8); g.fillStyle = col.b; g.fillRect(0, 4, W, 2);
+      for (let x = 6; x < W; x += 28) { g.fillStyle = P.ink; g.fillRect(x, 2, 3, 10); }
+      for (let n = 0; n < 7; n++) {
+        const x0 = 14 + rand() * (W - 60), span = 24 + rand() * 30, sag = 14 + rand() * 30;
+        for (let x = 0; x <= span; x++) {
+          const y = 11 + Math.round(sag * Math.sin(Math.PI * x / span));
+          g.fillStyle = P.ink; g.fillRect(Math.round(x0 + x), y, 1, 2);
+        }
+      }
+      for (let n = 0; n < 10; n++) {
+        const x = Math.round(8 + rand() * (W - 16));
+        g.fillStyle = col.c; g.fillRect(x, 11, 2, 4 + Math.round(rand() * 10));
+      }
+    },
+    floor(g, col, rand, x, h) {
+      g.fillStyle = P.ink; g.fillRect(x, CAVE_FLOOR_H - h, 6, h);
+      g.fillStyle = rand() < 0.5 ? col.a : col.c; g.fillRect(x + 1, CAVE_FLOOR_H - h + 1, 4, h - 1);
+    },
+  },
 };
 function buildCaveArt() {
-  const cave = caveInfo(), col = CAVE_COLOURS[moon] || CAVE_COLOURS.dust, rand = rng32(Math.floor(SEED * 997) + 25);
+  const cave = caveInfo(), art = CAVE_MOONS[moon] || CAVE_MOONS.dust, col = art.col, rand = rng32(Math.floor(SEED * 997) + 25);
   // The same two canvases every run (setting a width clears one), so a new run makes no new images for a cave it may
   // never reach.
   const roof = caveArt ? caveArt.roof : document.createElement('canvas'), floor = caveArt ? caveArt.floor : document.createElement('canvas');
   roof.width = floor.width = W; roof.height = CAVE_ROOF_H; floor.height = CAVE_FLOOR_H;
   const rg = roof.getContext('2d'), fg = floor.getContext('2d');
-  const clear = (x, w, ...holes) => holes.every(([hx, hw]) => x + w < hx - hw || x > hx + hw);
-  if (moon === 'machine') {   // a pipe along the roof, cables hanging in loops, rust streaks
-    rg.fillStyle = P.ink; rg.fillRect(0, 2, W, 10); rg.fillStyle = col.a; rg.fillRect(0, 3, W, 8); rg.fillStyle = col.b; rg.fillRect(0, 4, W, 2);
-    for (let x = 6; x < W; x += 28) { rg.fillStyle = P.ink; rg.fillRect(x, 2, 3, 10); }
-    for (let n = 0; n < 7; n++) {
-      const x0 = 14 + rand() * (W - 60), span = 24 + rand() * 30, sag = 14 + rand() * 30;
-      for (let x = 0; x <= span; x++) { const y = 11 + Math.round(sag * Math.sin(Math.PI * x / span)); rg.fillStyle = P.ink; rg.fillRect(Math.round(x0 + x), y, 1, 2); }
-    }
-    for (let n = 0; n < 10; n++) { const x = Math.round(8 + rand() * (W - 16)); rg.fillStyle = col.c; rg.fillRect(x, 11, 2, 4 + Math.round(rand() * 10)); }
-  } else {
-    for (let x = 4; x < W - 6; x += 4 + Math.floor(rand() * 8)) {
-      const w = moon === 'jungle' ? 2 : 4 + Math.floor(rand() * 6), len = 14 + Math.floor(rand() * (CAVE_ROOF_H - 18));
-      if (!clear(x, w, [cave.entryX, CAVE_NECK_HW + 6])) continue;
-      for (let y = 0; y < len; y++) {
-        if (moon === 'jungle') {   // a root that wanders a little, with a leaf now and then and moss on top
-          const wx = x + Math.round(Math.sin(y * 0.25 + x) * 1.5);
-          rg.fillStyle = col.a; rg.fillRect(wx, y, 2, 1);
-          if (y % 7 === 3 && rand() < 0.6) { rg.fillStyle = col.b; rg.fillRect(wx + (rand() < 0.5 ? -3 : 2), y, 3, 2); }
-        } else {   // an icicle, narrowing to a point, lit down one side
-          const ww = Math.max(1, Math.round(w * (1 - y / len)));
-          rg.fillStyle = col.a; rg.fillRect(x, y, ww, 1);
-          rg.fillStyle = col.b; rg.fillRect(x, y, 1, 1);
-          if (ww > 2) { rg.fillStyle = col.c; rg.fillRect(x + ww - 1, y, 1, 1); }
-        }
-      }
-      if (moon === 'jungle' && rand() < 0.5) { rg.fillStyle = col.glow; rg.fillRect(x - 1, 0, 4, 2); }
-    }
-  }
-  // The floor's bits: ice spikes, ferns and mushrooms, or scrap and cogs.
-  for (let x = 6; x < W - 8; x += 8 + Math.floor(rand() * 12)) {
-    if (!clear(x, 6, [cave.holeX, HOLE_HW + 6], [cave.chestX, 24], [cave.entryX, 14], [cave.portalX, 22])) continue;
-    const h = 4 + Math.floor(rand() * (CAVE_FLOOR_H - 5));
-    if (moon === 'machine') { fg.fillStyle = P.ink; fg.fillRect(x, CAVE_FLOOR_H - h, 6, h); fg.fillStyle = rand() < 0.5 ? col.a : col.c; fg.fillRect(x + 1, CAVE_FLOOR_H - h + 1, 4, h - 1); }
-    else if (moon === 'jungle') { for (let y = 0; y < h; y++) { fg.fillStyle = y < 3 ? col.glow : col.b; fg.fillRect(x + 2 + (y % 2), CAVE_FLOOR_H - 1 - y, 1, 1); fg.fillRect(x + (y % 3), CAVE_FLOOR_H - 1 - y, 1, 1); } }
-    else { for (let y = 0; y < h; y++) { const ww = Math.max(1, Math.round(4 * (1 - y / h))); fg.fillStyle = y === h - 1 ? col.b : col.a; fg.fillRect(x + 2 - (ww >> 1), CAVE_FLOOR_H - 1 - y, ww, 1); } }
+  art.roof(rg, col, rand, cave);
+  for (let x = 6; x < W - 8; x += 8 + Math.floor(rand() * 12)) {   // the floor's bits
+    if (!caveClear(x, 6, [cave.holeX, HOLE_HW + 6], [cave.chestX, 24], [cave.entryX, 14], [cave.portalX, 22])) continue;
+    art.floor(fg, col, rand, x, 4 + Math.floor(rand() * (CAVE_FLOOR_H - 5)));
   }
   caveArt = { roof, floor, seed: SEED }; caveForMoon = moon;
 }
@@ -8248,10 +8347,15 @@ function drawCave(cam) {
     const at = giftItemAt(cave, i, caveT);
     if (at) drawPart(pt, Math.round(at[0]), Math.round(at[1] - cam), clock);
   });
-  const portalOpen = state === 'cave' && cavePhase === 'portal' ? smoothstep(caveT / CAVE_PORTAL_IN) * (player.hidden ? Math.max(0, 1 - (caveT - portalShutAt) / CAVE_PORTAL_SHUT) : 1) : 0;
+  let portalOpen = 0;
+  if (state === 'cave' && cavePhase === 'portal') {
+    const shut = player.hidden ? Math.max(0, 1 - (caveT - portalShutAt) / CAVE_PORTAL_SHUT) : 1;   // closing behind him
+    portalOpen = smoothstep(caveT / CAVE_PORTAL_IN) * shut;
+  }
   if (portalOpen > 0) drawPortal(cave.portalX, Math.round(floorY), portalOpen, PORTAL_BLUE);
 }
 
+// ---------- the escape preview ----------
 // The escape preview (owner: "so that people can watch the third ending if they're unlikely to ever make it that far"):
 // five quick taps on the pilot by the ship, on the main menu, ask (askPreview), then start a dive PREVIEW_ABOVE_M (200 m)
 // above the cave's roof, at the top of the hall (owner: "let's start 200 m up"), at the starting speed (owner: "the default speed at which the game would normally start at 0 m":
@@ -8303,6 +8407,9 @@ const BADGES = [
   ['repair', 'Mechanic', 'Repair the ship'],
   ['drone', 'Co-pilot', 'Earn the helper drone'],
 ];
+// The badge for escaping every Leviathan of a moon (crashBoss), by moon. jungle3's id stays as it is, so whoever has it
+// keeps it.
+const MOON_BADGE = { dust: 'all6', jungle: 'jungle3', machine: 'machine6' };
 if (!save.badges || typeof save.badges !== 'object') save.badges = {};
 // Players who repaired the ship or earned the drone before these badges existed get them quietly.
 if (!save.badges.repair && (missionsDone() > 0 || repairFrac() >= 1)) save.badges.repair = Date.now();
@@ -8872,7 +8979,7 @@ const FW_SHOWS = {
   // Owner: "The background is quite bland. How about fireworks in the distance?" Small, dim and quiet, on the cave's
   // back wall between the roof's art and the floor, while he's there.
   cave: { state: 'cave', secs: Infinity, gap: [0.35, 0.4], rise: false, world: true, sparks: [22, 10], speed: [36, 20], size: 2, alpha: 0.85, sound: false,
-    at: () => { const k = caveInfo(), top = k.T + CAVE_ROOF_H * 0.6 + Math.random() * 60; return { x: 24 + Math.random() * (W - 48), y: top, top }; } },
+    at: () => { const cave = caveInfo(), top = cave.T + CAVE_ROOF_H * 0.6 + Math.random() * 60; return { x: 24 + Math.random() * (W - 48), y: top, top }; } },
 };
 let fireworks = [], fwTime = 0, fwNext = 0, fwShow = FW_SHOWS.title;
 function startFireworks(kind) { fwShow = FW_SHOWS[kind] || FW_SHOWS.title; fwTime = fwShow.secs; fwNext = 0.4; fireworks = []; }
@@ -8928,9 +9035,8 @@ const SHAFT_START_Y = 260;   // how far down the shaft he starts his climb out, 
 let launchPortal = false;
 const PORTAL_HOME_X = 122, PORTAL_OUT = 0.9;
 const LAUNCH_STAND_Y = -28;   // his y standing on the crash site: the sprite is 28 px tall and the ground is at 0
-// The helper drone in the launch (owner: it "follows him into the blue portal but does not come out of the orange
-// portal"): when it's his and switched on, it's beside him from the moment he's seen (out of the portal, or up the
-// shaft) and zips into the hatch just before he climbs aboard.
+// The helper drone in the launch: when it's his and switched on, it's beside him from the moment he's seen (coming out
+// of the orange portal with him, or up the shaft) and zips into the hatch just before he climbs aboard.
 let launchDrone = false;
 const REPAIR_HITS = 4, WELD_AT = { x: 9, y: -34 }, HAMMER_AT = { x: 49, y: -15 };
 const LAUNCH = Object.fromEntries(Object.entries({ wave: 1.0, board: 3.0, aboard: 3.5, rumble: 4.0, lift: 6.5, climb: 8.0, groove: 9.9, space: 15.0, away: 20.0, end: 21.4 })
@@ -9317,7 +9423,7 @@ addEventListener('keydown', e => {
   else if (state === 'cafe' && (k === ' ' || k === 'Enter')) {
     if (cafeSide || (document.activeElement && document.activeElement.closest('.cafe-ui'))) return;
     e.preventDefault();
-    if (cafeT > 1.6) leaveCafe();
+    if (cafeT > SHOP_OPEN_AT) leaveCafe();
   }
   else if (k === 'Escape' && state === 'title' && cardSide) setCard(cardSide === 'kid' ? (kidFromNews ? 'news' : 'settings') : cardSide === 'levi' || cardSide === 'moons' || (cardSide === 'unlocks' && unlocksFromNews) ? 'news' : null);   // one step back
   else if (k === 'Escape' || k === 'p' || k === 'P') { if (state === 'paused') resume(); else pause(); }
@@ -9332,12 +9438,17 @@ addEventListener('keyup', e => {
 });
 // Switching windows while steering loses the key's release: let go of both.
 addEventListener('blur', () => { keys.l = keys.r = false; });
+// Cards move keyboard focus (kbFocus) only for keyboard players, so touch players never see a stray focus ring.
+let usingKeys = false;
+addEventListener('keydown', () => { usingKeys = true; }, true);
+addEventListener('pointerdown', () => { usingKeys = false; }, true);
+function kbFocus(el) { if (usingKeys && el) el.focus({ preventScroll: true }); }
 
 // ---------- hazards: three on each moon, one entry each in HAZARDS ----------
 // Ice: glazed stretches of wall that bounce him back across the shaft (no damage). Sandstone: ledges that shake, then
 // drop a tumbling boulder (an ordinary rock that moves). Each shows or warns before it can hurt, timed by how soon he'll
-// reach it (its distance over his fall speed). The last two layers have none on any moon: ice spikes, lava geysers and
-// crystal gates poking out of the walls were tried, and the owner found them unfair.
+// reach it (its distance over his fall speed). The last two layers have none on any moon: the owner finds hazards there
+// (ice spikes, lava geysers, crystal gates poking out of the walls) unfair.
 // The Jungle moon: Moss has hanging vines that tangle his steering for a moment (no damage), Roots has thorny
 // branches that grow out of the wall as he nears (they hurt), and Spore has pods that swell and burst into a cloud of
 // spores (it hurts). Each reaches less than half way across, and grows or bursts in good time, like the crumbling ledges.
@@ -9388,8 +9499,9 @@ function rollBoulder(k, dt) {
   const { L, R } = edgeAt(k.d);
   k.x0 = Math.max(L + k.rr + 1, Math.min(R - k.rr - 1, k.x0));
 }
-function glazedAt(side, cd) {
-  for (const h of hazards) if (h.kind === 'glaze' && h.side === side && cd > h.d - 10 && cd < h.d + h.len + 10) return true;
+// A hazard he bounces off (its entry's bounces) on that side's wall at depth cd.
+function bouncyAt(side, cd) {
+  for (const h of hazards) if (HAZARDS[h.kind].bounces && h.side === side && cd > h.d - 10 && cd < h.d + h.len + 10) return true;
   return false;
 }
 // Glazed ice: a hard bounce back across the shaft instead of a hit (from collide, where he meets the wall).
@@ -9402,7 +9514,10 @@ function bounceOff(side, edge, cd, fresh) {
 // pulls back slowly and waits. A saw blade's middle on its rail. Both run on the clock from their own phase.
 function crushExt(h) {
   const u = ((clock + h.ph) % CRUSH_P) / CRUSH_P;
-  return u < 0.1 ? smoothstep(u / 0.1) : u < 0.38 ? 1 : u < 0.72 ? 1 - smoothstep((u - 0.38) / 0.34) : 0;
+  if (u < 0.1) return smoothstep(u / 0.1);   // pushing out
+  if (u < 0.38) return 1;   // out
+  if (u < 0.72) return 1 - smoothstep((u - 0.38) / 0.34);   // drawing back
+  return 0;
 }
 function sawAt(h) {
   const { L, R } = edgeAt(h.d), u = 0.5 - 0.5 * Math.cos((clock + h.ph) * Math.PI * 2 / SAW_P), out = 8 + (h.reach - SAW_R - 8) * u;
@@ -9421,10 +9536,13 @@ const AH_PUFF = ['#C9774A', '#B49A86', '#8E857C', '#6E6863'];   // the ash plume
 //                 stream r in a fixed order (len, gx, ph, reach ...); false if there's no room for it here
 //   update(h, dt, soon, seen)   optional: each frame of a run (soon: seconds until he reaches it; seen: on screen)
 //   hit(h, cd)    optional: whether it touches him (cd: his middle's depth), and what that does (called from collide)
+//   hurts         optional, when its hit hurts him: what that counts as, 'rock' or 'lava' (hit calls hurt with it: the
+//                 sound, buzz and stat; the stats know only wall, rock, mine and lava, and the run's moon)
+//   bounces       optional: true when he bounces off the wall along its len rows (collide: bouncyAt, bounceOff)
 //   draw(h, cam, y, L, R, Q)    on screen (y: its row on screen; L, R: the walls there; Q: the rock's palette)
 // checkHazards() checks every entry at load. Budget its drawing like anything else (PERFORMANCE.md, "A new moon").
 const HAZARDS = {
-  glaze: { moon: 'dust', layer: 0, hint: 'GLAZED ICE BOUNCES YOU',   // he bounces off it in collide (glazedAt, bounceOff)
+  glaze: { moon: 'dust', layer: 0, hint: 'GLAZED ICE BOUNCES YOU', bounces: true,
     place(h, r) { h.len = Math.round(70 + r() * 70); return true; },
     draw(h, cam, y, L, R, Q) {
       // A frosty crust over the wall's edge, jagged with little ice spikes, with glints sliding along it.
@@ -9499,7 +9617,9 @@ const HAZARDS = {
       }
       const mx = s < 0 ? base + 10 : base - 10;   // the mouth
       if (h.glow > 0 || h.ext) { c.globalAlpha = 0.15 + 0.25 * Math.min(1, h.glow || 1); disc(mx, y + j, 6, P.lava); c.globalAlpha = 1; }
-      const hot = h.glow >= 1 || h.ext ? P.hot : h.glow > 0 ? (Math.floor(clock * 14) % 2 ? P.hot : P.lava) : AH.dim;
+      let hot = AH.dim;
+      if (h.glow >= 1 || h.ext) hot = P.hot;
+      else if (h.glow > 0) hot = Math.floor(clock * 14) % 2 ? P.hot : P.lava;   // flickering as it warms
       c.fillStyle = hot; c.fillRect(mx - 1, y - 4 + j, 2, 8);
       c.fillStyle = P.ink; c.fillRect(mx - 1, y - 1 + j, 2, 2);
       if (!h.ext) {
@@ -9565,7 +9685,7 @@ const HAZARDS = {
         c.fillStyle = JH.vineL; c.fillRect(px - 1, top + len - 1, 2, 2);
       }
     } },
-  thorns: { moon: 'jungle', layer: 1, hint: 'THORNS GROW OUT OF THE WALL',
+  thorns: { moon: 'jungle', layer: 1, hint: 'THORNS GROW OUT OF THE WALL', hurts: 'rock',
     place(h, r) { return hazReach(h, 0.42); },
     update(h, dt, soon, seen) {
       if (!h.rustled && soon < THORN_WARN) { h.rustled = true; if (seen) Sfx.rustle(); }
@@ -9582,7 +9702,7 @@ const HAZARDS = {
       const { L, R } = edgeAt(h.d), tip = Math.round(h.reach * h.grow);
       if (h.side < 0 ? player.x - HIT_HALF_W + 2 < L + tip : player.x + HIT_HALF_W - 2 > R - tip) {
         if (player.inv <= 0 && player.shield <= 0) { player.vx = -h.side * 150; sparks(player.x, cd, [JH.thorn, JH.bark, JH.leaf], 8); }
-        hurt('thorn');
+        hurt(HAZARDS.thorns.hurts);
       }
     },
     draw(h, cam, y, L, R, Q) {
@@ -9604,7 +9724,7 @@ const HAZARDS = {
       }
       if (tip > 3) { const tx = s < 0 ? base + tip : base - tip - 4; c.fillStyle = P.ink; c.fillRect(tx - 1, y - 2, 6, 4); c.fillStyle = JH.thorn; c.fillRect(tx, y - 1, 4, 2); }
     } },
-  spores: { moon: 'jungle', layer: 2, hint: 'SPORE PODS BURST. STEER CLEAR',
+  spores: { moon: 'jungle', layer: 2, hint: 'SPORE PODS BURST. STEER CLEAR', hurts: 'lava',
     place(h, r) {
       if (!hazReach(h, 0.42)) return false;
       h.r = Math.min(46, Math.round(h.reach * 0.62));
@@ -9622,7 +9742,7 @@ const HAZARDS = {
       const a = clock - h.burstAt;
       if (a > SPORE_HURT) return;
       const [cx, cy] = sporeCentre(h), r = sporeR(h), dx = (player.x - cx) / (r + HIT_HALF_W - 4), dy = (cd - cy) / (r * 0.8 + 8);
-      if (dx * dx + dy * dy < 1) hurt('spore');
+      if (dx * dx + dy * dy < 1) hurt(HAZARDS.spores.hurts);
     },
     draw(h, cam, y, L, R, Q) {
       const s = h.side;
@@ -9648,7 +9768,7 @@ const HAZARDS = {
         disc(base - s * 2, yy, 4, JH.podD);   // the burst pod's husk
       }
     } },
-  crusher: { moon: 'machine', layer: 0, hint: 'CRUSHERS SLAM OUT OF THE WALL',
+  crusher: { moon: 'machine', layer: 0, hint: 'CRUSHERS SLAM OUT OF THE WALL', hurts: 'rock',
     place(h, r) { h.ph = r() * 10; return hazReach(h, 0.4); },
     update(h, dt, soon, seen) {
       const was = h.ext || 0; h.ext = crushExt(h);
@@ -9659,7 +9779,7 @@ const HAZARDS = {
       const { L, R } = edgeAt(h.d), tip = Math.round(h.reach * h.ext);
       if (h.side < 0 ? player.x - HIT_HALF_W + 2 < L + tip : player.x + HIT_HALF_W - 2 > R - tip) {
         if (player.inv <= 0 && player.shield <= 0) { player.vx = -h.side * 170; sparks(player.x, cd, [MH.steelL, MH.stripe, P.dust], 8); }
-        hurt('crush');
+        hurt(HAZARDS.crusher.hurts);
       }
     },
     draw(h, cam, y, L, R, Q) {
@@ -9679,7 +9799,7 @@ const HAZARDS = {
       c.fillStyle = MH.steelL; c.fillRect(fx + (s < 0 ? 5 : 1), y - 11, 2, 22);
       c.fillStyle = MH.steelD; for (let i = 0; i < 4; i++) c.fillRect(s < 0 ? fx + 8 : fx - 2, y - 10 + i * 6, 2, 3);   // its teeth
     } },
-  saw: { moon: 'machine', layer: 1, hint: 'SAWS RUN ALONG THEIR RAILS',
+  saw: { moon: 'machine', layer: 1, hint: 'SAWS RUN ALONG THEIR RAILS', hurts: 'rock',
     place(h, r) { h.ph = r() * 10; return hazReach(h, 0.4); },
     update(h, dt, soon, seen) {
       if (seen && !h.heard) { h.heard = true; Sfx.saw(); }
@@ -9690,7 +9810,7 @@ const HAZARDS = {
       const [sx] = sawAt(h), dx = player.x - sx, dy = (cd - h.d) * 0.8;
       if (dx * dx + dy * dy < (SAW_R + HIT_HALF_W - 3) ** 2) {
         if (player.inv <= 0 && player.shield <= 0) { player.vx = Math.sign(dx || -h.side) * 160; sparks(player.x, cd, [MH.blade, P.hot, MH.stripe], 8); }
-        hurt('saw');
+        hurt(HAZARDS.saw.hurts);
       }
     },
     draw(h, cam, y, L, R, Q) {
@@ -9705,7 +9825,7 @@ const HAZARDS = {
       for (let i = 0; i < 10; i++) { const a = an + i * Math.PI / 5; c.fillRect(Math.round(sx + Math.cos(a) * (SAW_R + 1)) - 1, Math.round(y + Math.sin(a) * (SAW_R + 1)) - 1, 3, 3); }
       c.fillStyle = MH.steelD; for (let i = 0; i < 3; i++) { const a = an * 0.5 + i * 2.09; c.fillRect(Math.round(sx + Math.cos(a) * 6), Math.round(y + Math.sin(a) * 6), 2, 2); }
     } },
-  laser: { moon: 'machine', layer: 2, hint: 'LASER GATES. FIND THE GAP',
+  laser: { moon: 'machine', layer: 2, hint: 'LASER GATES. FIND THE GAP', hurts: 'lava',
     place(h, r) {   // right across the shaft, with one gap at least 30 px off either wall
       const e = edgeAt(h.d), w = e.R - e.L;
       if (w < 120) return false;
@@ -9719,7 +9839,7 @@ const HAZARDS = {
     hit(h, cd) {   // a burning beam hurts, outside the gap
       if (!h.lit) return;
       if (Math.abs(cd - h.d) > 3 + 8) return;
-      if (player.x - HIT_HALF_W + 2 < h.gx - LASER_GAP / 2 || player.x + HIT_HALF_W - 2 > h.gx + LASER_GAP / 2) hurt('laser');
+      if (player.x - HIT_HALF_W + 2 < h.gx - LASER_GAP / 2 || player.x + HIT_HALF_W - 2 > h.gx + LASER_GAP / 2) hurt(HAZARDS.laser.hurts);
     },
     draw(h, cam, y, L, R, Q) {
       // Emitters on both walls and either side of the gap; between them the beam: a blinking dotted line, then a burn.
@@ -9761,6 +9881,8 @@ function checkHazards() {
     if (typeof Z.hint !== 'string' || !Z.hint) bad('no hint');
     if (typeof Z.draw !== 'function') bad('no draw(h, cam, y, L, R, Q)');
     for (const n of ['place', 'update', 'hit']) if (!fn(Z, n)) bad(n + ' should be a function');
+    if (Z.hurts !== undefined && !['rock', 'lava'].includes(Z.hurts)) bad("hurts should be 'rock' or 'lava' (what its hit counts as)");
+    if (Z.bounces !== undefined && Z.bounces !== true) bad('bounces should be true or left out');
   }
 }
 // Maybe give this segment its layer's hazard; true if it did (the segment then gets no rock). It draws from its own
@@ -9973,15 +10095,13 @@ function hurt(kind, x, d, size) {
   // Hit-stop: the world freezes for a beat so the hit lands, with a white flash on the pilot.
   hitStop = kind === 'mine' ? 0.12 : 0.07; player.flash = 0.14;
   player.streak = 0;
-  const as = HURT_AS[kind] || kind;
-  Buzz[as](); Sfx[as]();
+  Buzz[kind](); Sfx[kind]();
   setHP('hit', dmg);
   pop(dmg === 0.5 ? '-½' : '-' + dmg, player.x, player.y - 6, 'bad');
-  // The stats only know wall, rock, mine and lava, so a boss shot counts as lava, and the other moons' hazards as one of
-  // those (HURT_AS; the run's moon is in its stats too).
-  if (player.hp <= 0) { lastHit = kind === 'boss' ? 'lava' : as; die(); } else Sfx.hurtVoice(as);
+  // The stats only know wall, rock, mine and lava, so a boss shot counts as lava (a hazard's hit is already one of
+  // those: its entry's hurts).
+  if (player.hp <= 0) { lastHit = kind === 'boss' ? 'lava' : kind; die(); } else Sfx.hurtVoice(kind);
 }
-const HURT_AS = { thorn: 'rock', spore: 'lava', crush: 'rock', saw: 'rock', laser: 'lava' };
 // A shield lasts SHIELD_S (8 s); a mine takes half of it, any other hit a quarter.
 const SHIELD_S = 8, SHIELD_MINE_CUT = 0.5, SHIELD_HIT_CUT = 0.25, CLOSE_PX = 10;
 let orbChain = 0, lastOrbT = -9;
@@ -10033,8 +10153,23 @@ function nearMiss(k) {
 }
 
 // ---------- the helper drone ----------
+// The helper drone, unlocked by flying the repaired ship home (after the standard ending: tellDroneEnd) or found in the
+// chest at the end of the deep cave (save.droneOpen), offered as a dive starts to a save with a finished mission and no
+// drone (askDrone), and switched on the Unlocks card (save.drone); Terminal Velocity isn't needed for it. It hovers beside the pilot and catches ship parts and crystals that go past him. Its place is kept
+// relative to the pilot's middle (ox, oy) so it falls with him. It picks its target ahead of time, so the player can
+// see what it's going for: as a part or crystal comes up within DRONE_AHEAD px below him it rolls once (1 in 2) and, if
+// it's free, locks on, with a dotted cyan sight to it. If he takes it himself the lock just ends; if it goes past him,
+// the drone dashes along the sight and catches it. One lock at a time; an item that passes while it was busy gets its
+// roll then. It reaches across the whole shaft; the only limit is catching it before it leaves the top of the screen.
+let droneRun = false;
+const drone = { ox: 24, oy: -20, mode: 'follow', it: null, lock: null, caught: 0 };
+const DRONE_CHANCE = 0.5, DRONE_SPEED = 720, DRONE_AHEAD = 220;   // share it goes for; dash px/s; lock range below him
+const droneOpen = () => !!save.droneOpen;
+// A mission finished (the ship flown home): a save that has one but not the drone is offered it (askDrone).
+const droneEarned = () => missionsDone() > 0;
 // The drone: hovering on the shaft's middle side of him, bobbing; dashing to a missed part or crystal and
 // catching it (as if he had); then back. It gives up on one that leaves the top of the screen.
+// Whether it goes for an item: fixed per item, so a replay is the same.
 const droneRoll = it => hash(it.d * 0.37 + it.x * 1.3 + SEED) < DRONE_CHANCE;
 // Once unlocked and switched on, it hovers by the pilot at the crash site on the main menu, drifting a little, and goes
 // with him on the run-up and the leap.
@@ -10044,8 +10179,7 @@ function droneShown() {
   if (state === 'launch') return launchDrone && !player.hidden && launchT < LAUNCH.aboard - 0.15;   // gone into the hatch
   return droneRun;
 }
-// Where it
-// idles beside him: a sway side to side and a bob (two waves each, so it never looks like a loop), plus a wander, a new
+// Where it idles beside him: a sway side to side and a bob (two waves each, so it never looks like a loop), plus a wander, a new
 // little spot nearby every 0.8-2.2 s that it glides to.
 function droneIdle() {
   const D = drone;
@@ -10057,7 +10191,7 @@ function droneIdle() {
 function droneHover(dt) {
   const D = drone, [tx, ty] = droneIdle(), k = Math.min(1, dt * 4), x0 = D.ox;
   D.ox += (tx - D.ox) * k; D.oy += (ty - D.oy) * k; D.vx = (D.ox - x0) / Math.max(dt, 1e-3); D.mode = 'follow'; D.it = null; D.lock = null;
-}   // fixed per item, so a replay is the same
+}
 function updateDrone(dt) {
   const D = drone, cd = player.y + PILOT_CY;
   let tx, ty;
@@ -10153,8 +10287,9 @@ function bossBufs(kind) {
 // charge glow, then BOSS_WARM paints of the creature at different moments of its animation in the cavern's settled rock
 // colours (a cavern can run from one layer into the next), which fills the disc and ring images its art uses, then
 // BOSS_WARM_SIL in its silhouette colour (bossSil), for the fight's first paint (see bossStage). A paint
-// step may make at most two images. Made in the fight, they would be 8 to 30 in the second before its first shot, and
-// more whenever the rock's colour changed. Limited by the clock (90 steps a second), not the frame.
+// step may make at most two images. Made here, none are made in the fight, where a new rock colour or the first moments
+// before its first shot would need several at once (PERFORMANCE.md rule 11). Limited by the clock (90 steps a second),
+// not the frame.
 const BOSS_WARM = 24, BOSS_WARM_SIL = 8;
 // The colour a fight's creature fades in from: its colour in the background, where it waited (leviDepth).
 const bossSil = k2 => mix(palAt(leviDepth(k2)).sO, P.ink, 0.42);
@@ -10568,9 +10703,7 @@ function crashBoss() {
   player.leviRun.push(b.kind); player.bossWon = true;
   award('levi');
   winComponent(b.kind);
-  if (LEVI_KINDS.every(k => save.leviBeaten[k])) award('all6');
-  if (LEVI_SETS.jungle.every(k => save.leviBeaten[k])) award('jungle3');
-  if (LEVI_SETS.machine.every(k => save.leviBeaten[k])) award('machine6');
+  for (const m in LEVI_SETS) if (MOON_BADGE[m] && LEVI_SETS[m].every(k => save.leviBeaten[k])) award(MOON_BADGE[m]);
   const e = edgeAt(hit), Q = palAt(hit);
   for (const x of [e.L + 3, e.R - 3]) sparks(x, hit, [Q.b0, Q.shade, Q.ink, P.dust], 18, 8);
 }
@@ -10860,7 +10993,10 @@ const SHOT_TYPES = {
     } },
   mortar: {   // the crab's shell: harmless while its marker shows, then a burst there
     update(s, dt, live, py) {
-      if (s.t >= s.warn && s.t - dt < s.warn) { Sfx.bossShot(true); Sfx.crush(); shake = Math.max(shake, 0.7); sparks(s.x, camY + s.y, LEVIATHANS.crab.shot.slice(1).concat(P.dust), 8, 10); }
+      if (s.t >= s.warn && s.t - dt < s.warn) {
+        Sfx.bossShot(true); Sfx.crush(); shake = Math.max(shake, 0.7);
+        sparks(s.x, camY + s.y, shotColours().slice(1).concat(P.dust), 8, 10);
+      }
       if (s.t > s.warn + s.dur) { s.dead = true; return; }
       if (live && s.t > s.warn && Math.hypot(player.x - s.x, py - s.y) < s.R + HIT_HALF_W - 5) bossHit(s, false);
     },
@@ -10930,9 +11066,11 @@ function updateBossShots(dt, live) {
   }
   prune(bossShots, s => !s.dead);
 }
+// The colours of the shots in flight: the boss's, or the whale's when there is no boss.
+const shotColours = () => LEVIATHANS[boss ? boss.kind : 'whale'].shot;
 function drawBossShots(sy) {
   if (!bossShots.length) return;
-  const [o, m, h] = LEVIATHANS[boss ? boss.kind : 'whale'].shot;
+  const [o, m, h] = shotColours();
   for (const s of bossShots) SHOT_TYPES[s.type].draw(s, Math.round(s.x), Math.round(s.y - sy), sy, o, m, h);
 }
 // The spider's and the frog's shots. The web's hole, kept off the walls; the tongue's root (the frog's mouth as it sways, or where
@@ -10944,12 +11082,15 @@ function tongueFrom(s) {
 }
 function tongueLen(s) {
   const T = s.t - s.warn;
-  return T < 0 ? 0 : T < s.out ? s.L * T / s.out : T < s.out + s.hold ? s.L : s.L * Math.max(0, 1 - (T - s.out - s.hold) / s.back);
+  if (T < 0) return 0;
+  if (T < s.out) return s.L * T / s.out;   // shooting out
+  if (T < s.out + s.hold) return s.L;   // held out
+  return s.L * Math.max(0, 1 - (T - s.out - s.hold) / s.back);   // pulled back
 }
 // A shot reaching him: it hurts like anything else (the shield blocks it); while he blinks after a hit, shots pass through.
 function bossHit(s, pops) {
   if (player.inv > 0 && player.shield <= 0) return;
-  if (pops) { s.dead = true; sparks(s.x, camY + s.y, LEVIATHANS[boss ? boss.kind : 'whale'].shot.slice(1).concat(P.dust), 6); }
+  if (pops) { s.dead = true; sparks(s.x, camY + s.y, shotColours().slice(1).concat(P.dust), 6); }
   hurt('boss');
 }
 
@@ -10983,9 +11124,9 @@ function checks(col) {
 // The checks in white, made once (bossBufs makes it ahead of a fight).
 function checkWhite() {
   if (!checkW) {
-    const cv = document.createElement('canvas'); cv.width = cv.height = 2;
-    const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 1, 1); g.fillRect(1, 1, 1, 1);
-    checkW = g.createPattern(cv, 'repeat');
+    const tile = document.createElement('canvas'); tile.width = tile.height = 2;
+    const g = tile.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 1, 1); g.fillRect(1, 1, 1, 1);
+    checkW = g.createPattern(tile, 'repeat');
   }
   return checkW;
 }
@@ -10994,7 +11135,7 @@ function checkWhite() {
 function bossBand(buf, off, col, up, checked) {
   // A pattern only for a colour that lasts, and in a fight only one the warm-up made (stampAllow is 0 there).
   const t = bossTmpG, pat = checked && !stampDirect && (stampAllow > 0 || checkArt.has(col)) ? checks(col) : null, white = checked && !pat;
-  if (LEVIATHANS[buf.kind].soft) {   // the jellyfish's threads sit on half pixels (soft edges), so it keeps the older four-step way
+  if (LEVIATHANS[buf.kind].soft) {   // half-covered pixels (the jellyfish's threads): four steps, which keep their soft edges
   t.globalCompositeOperation = 'copy'; t.drawImage(buf.cv, 0, 0);
   t.globalCompositeOperation = 'destination-out'; t.drawImage(buf.cv, 0, up ? off : -off);
   t.globalCompositeOperation = 'source-in'; t.fillStyle = pat || col; t.fillRect(0, 0, buf.w, buf.h);
@@ -11008,16 +11149,17 @@ function bossBand(buf, off, col, up, checked) {
   t.globalCompositeOperation = 'source-over';
   const g = buf.g; g.globalCompositeOperation = 'source-atop'; g.drawImage(bossTmp, 0, 0); g.globalCompositeOperation = 'source-over';
 }
-// -- drawing the boss quickly. Repainted and shaded on a 480 px canvas every frame, it took a 120 Hz phone down to
-// about 10 fps in the fight. So it's painted into a canvas only as big as the creature (its entry's box: its extent
+// -- drawing the boss quickly. Repainted and shaded on a 480 px canvas every frame, it would take a 120 Hz phone down
+// to about 10 fps in the fight. So it's painted into a canvas only as big as the creature (its entry's box: its extent
 // around its middle, facing right), in three steps over three frames, into the back one of two buffers, which then
 // swaps to the front. A paint starts at most every BOSS_PAINT_EVERY s, so the creature animates at up to 20 fps on any
 // screen, and every frame just stamps the front buffer.
 function bossBuf(kind) {
   const [L, T, R, B] = LEVIATHANS[kind].box, w = R - L + 12, h = B - T + 12;
   const mk = () => { const v = document.createElement('canvas'); v.width = w; v.height = h; return v; };
-  const cv = mk(), rim = mk();
-  return { kind, cv, g: cv.getContext('2d'), rim, rg: rim.getContext('2d'), w, h, stage: 0, ox: 0, oy: 0, dir: 1, clock: 0, p: null, fade: 1, look: [1, 0], direct: false };
+  const body = mk(), rim = mk();
+  return { kind, cv: body, g: body.getContext('2d'), rim, rg: rim.getContext('2d'), w, h,
+    stage: 0, ox: 0, oy: 0, dir: 1, clock: 0, p: null, fade: 1, look: [1, 0], direct: false };
 }
 // One of the three painting steps into `buf`: (0) the creature's shape in its base colour with its colour regions,
 // (1) the shading, (2) its features and the light rim. The paint keeps the clock and colours of its first step, so the
@@ -11098,7 +11240,7 @@ function drawBoss(sy) {
   c.globalAlpha = 1; c.drawImage(F.cv, -F.ox, -F.oy);
   c.restore();
   if (b.charge > b.t) {   // gathering a volley: a pulsing glow at its mouth
-    // One shot image, not three discs of the same sizes and colours (twelve images made as it first charged).
+    // One shot image, the same kind its shots use, rather than three discs with images of their own.
     const [dx, dy] = bossMouth(b), cl = LEVIATHANS[b.kind].shot, r = 3 + Math.floor((b.t * 24) % 4);
     shot(cl[0], cl[1], cl[2], r, Math.round(x + dx), Math.round(y + dy));
   }
@@ -11116,14 +11258,14 @@ function collide(prevX) {
     if (e.iR) { if (e.iL < iL) iL = e.iL; if (e.iR > iR) iR = e.iR; }
   }
   if (player.x - HIT_HALF_W < maxL) {
-    if (glazedAt(-1, cd)) bounceOff(-1, maxL, cd, fresh);
+    if (bouncyAt(-1, cd)) bounceOff(-1, maxL, cd, fresh);
     else {
       player.x = maxL + HIT_HALF_W + 2; player.vx = 170; player.aim = Math.max(player.aim, player.x + 12); player.touch = true;
       if (fresh) sparks(maxL, cd, [P.rock, P.shade, P.dust], 7);
       hurt('wall');
     }
   } else if (player.x + HIT_HALF_W > minR) {
-    if (glazedAt(1, cd)) bounceOff(1, minR, cd, fresh);
+    if (bouncyAt(1, cd)) bounceOff(1, minR, cd, fresh);
     else {
       player.x = minR - HIT_HALF_W - 2; player.vx = -170; player.aim = Math.min(player.aim, player.x - 12); player.touch = true;
       if (fresh) sparks(minR, cd, [P.rock, P.shade, P.dust], 7);
@@ -11673,7 +11815,11 @@ function perfSteer(dt) {
     if (p.fought && !boss) p.after += dt;
   }
   if (state === 'cafe') { p.cafeT += dt; if (p.cafeT > 3) leaveCafe(); }
-  p.cur = state === 'intro' ? 255 : boss ? (boss.phase === 'crash' ? 5 : boss.t < 4 ? 3 : 4) : p.fought ? 5 : state !== 'play' ? 1 : bossAt(pl.y + PILOT_CY) ? 2 : 0;
+  if (state === 'intro') p.cur = 255;   // counted in no scene
+  else if (boss) p.cur = boss.phase === 'crash' ? 5 : boss.t < 4 ? 3 : 4;
+  else if (p.fought) p.cur = 5;
+  else if (state !== 'play') p.cur = 1;
+  else p.cur = bossAt(pl.y + PILOT_CY) ? 2 : 0;
   if (p.after > 1.5 || p.t > 150 || p.n >= PERF_MAX) perfFinish();
 }
 // After each frame is drawn: `raw` s since the frame before, `cpu` ms of the game's own code in this one.
@@ -11698,7 +11844,10 @@ function perfReport() {
   // The screen's own frame time: the middle of the frames that came back in one refresh (within 1.5x the quickest tenth).
   const sorted = Array.from(p.gap.subarray(0, N)).sort((a, b) => a - b), quick = sorted.filter(v => v <= 1.5 * sorted[Math.floor(N * 0.1)]);
   const base = quick.length ? quick[quick.length >> 1] : 16.7;
-  const browser = /CriOS|Chrome/.test(ua) ? 'chrome ' + ver(/(?:CriOS|Chrome)\/(\d+)/) : /Firefox/.test(ua) ? 'firefox ' + ver(/Firefox\/(\d+)/) : /Safari/.test(ua) ? 'safari ' + ver(/Version\/(\d+)/) : 'browser ?';
+  let browser = 'browser ?';
+  if (/CriOS|Chrome/.test(ua)) browser = 'chrome ' + ver(/(?:CriOS|Chrome)\/(\d+)/);
+  else if (/Firefox/.test(ua)) browser = 'firefox ' + ver(/Firefox\/(\d+)/);
+  else if (/Safari/.test(ua)) browser = 'safari ' + ver(/Version\/(\d+)/);
   const os = OS === 'android' ? 'android ' + ver(/Android (\d+)/) : OS === 'ios' ? 'ios ' + ver(/OS (\d+)_/) : OS;
   const out = ['MOONFALL v0.' + VERSION + ' SELF-TEST  ' + moon + ' / ' + p.kind,
     os + '  ' + browser + '  ' + screen.width + 'x' + screen.height + '@' + Math.round(devicePixelRatio * 100) / 100 + '  game ' + W + 'x' + H,
@@ -11708,13 +11857,17 @@ function perfReport() {
     'SCENE       FRAMES  FPS SCRIPT   P95 WORST'], split = ['', 'FRAMES THAT TOOK  1    2    3   4+ SCREEN FRAMES'];
   let allGap = 0, allCpu = 0;
   PERF_SCENES.forEach((name, s) => {
-    const g = [], c = [], took = [0, 0, 0, 0];
-    for (let i = 0; i < N; i++) if (p.scene[i] === s) { g.push(p.gap[i]); c.push(p.cpu[i]); took[Math.min(3, Math.max(0, Math.round(p.gap[i] / base) - 1))]++; }
-    if (!g.length) return;
-    const sum = a => a.reduce((x, y) => x + y, 0), sg = sum(g), sc = sum(c), cs = c.slice().sort((a, b) => a - b);
-    allGap += sg; allCpu += sc;
-    out.push(name.padEnd(11) + pad(g.length, 7) + pad(Math.round(1000 * g.length / sg), 5) + pad((sc / g.length).toFixed(1), 7) + pad(cs[Math.floor(cs.length * 0.95)].toFixed(1), 6)
-      + pad(Math.round(Math.max(...g)), 6));
+    const gaps = [], cpus = [], took = [0, 0, 0, 0];   // this scene's frame times and script times, ms
+    for (let i = 0; i < N; i++) {
+      if (p.scene[i] !== s) continue;
+      gaps.push(p.gap[i]); cpus.push(p.cpu[i]);
+      took[Math.min(3, Math.max(0, Math.round(p.gap[i] / base) - 1))]++;
+    }
+    if (!gaps.length) return;
+    const sum = a => a.reduce((x, y) => x + y, 0), gapSum = sum(gaps), cpuSum = sum(cpus), cpuSorted = cpus.slice().sort((a, b) => a - b);
+    allGap += gapSum; allCpu += cpuSum;
+    out.push(name.padEnd(11) + pad(gaps.length, 7) + pad(Math.round(1000 * gaps.length / gapSum), 5) + pad((cpuSum / gaps.length).toFixed(1), 7)
+      + pad(cpuSorted[Math.floor(cpuSorted.length * 0.95)].toFixed(1), 6) + pad(Math.round(Math.max(...gaps)), 6));
     split.push(name.padEnd(11) + pad(took[0], 8) + pad(took[1], 5) + pad(took[2], 5) + pad(took[3], 5));
   });
   const made = PERF_SCENES.map((name, s) => p.made[s] ? name + ' ' + p.made[s] : '').filter(Boolean);
@@ -11752,6 +11905,7 @@ $('verTag').addEventListener('click', () => {
 }
 
 function start(data) {
+  fillFacts();
   if (data && typeof data.best === 'number' && data.best > save.best && data.season === save.season) save.best = data.best;   // not across a fresh board
   if (data && data.parts) for (const pt of PARTS) save.parts[pt.id] = Math.max(save.parts[pt.id], data.parts[pt.id] || 0);
   addEventListener('resize', resize);
