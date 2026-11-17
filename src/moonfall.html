@@ -732,7 +732,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <li>Spend spare crystals in the shop: one treat per cafe, lasting until the next cafe.</li>
         <li>Skim past rocks and mines for a streak: every 8 pays a crystal.</li>
         <li>Tombstones on the shaft walls mark where players died: pass them to beat their high scores.</li>
-        <li>The fall gets 5% faster after every cafe, whether you stop or not, up to 40%.</li>
+        <li>The fall gets <span data-fact="cafeStep"></span> faster after every cafe, whether you stop or not, up to <span data-fact="cafeMax"></span>.</li>
       </ul>
       <button class="btn" id="tipsDone" type="button">Done</button>
      </div>
@@ -852,8 +852,8 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
         <li><span class="ico"><canvas id="icoOrb" width="14" height="14"></canvas></span>Crystal: +1 health</li>
         <li><span class="ico"><canvas id="icoShield" width="28" height="28"></canvas></span>Bubble: 8s shield, hits wear it down</li>
         <li><span class="ico"><canvas id="icoPart" class="wide" width="30" height="30"></canvas></span>Gold ring: ship part, collect&nbsp;these</li>
-        <li><span class="ico"><canvas id="icoComp" width="14" height="14"></canvas></span>Escape a Leviathan: its ship component (six on each moon)</li>
-        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Stop at a cafe for +1 health and to visit the shop. The fall gets 5% faster after each cafe, up to +40%</li>
+        <li><span class="ico"><canvas id="icoComp" width="14" height="14"></canvas></span>Escape a Leviathan: its ship component (<span data-fact="perMoon"></span> on each moon)</li>
+        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Stop at a cafe for +1 health and to visit the shop. The fall gets <span data-fact="cafeStep"></span> faster after each cafe, up to +<span data-fact="cafeMax"></span></li>
       </ul>
       <button class="btn" id="howDone" type="button">Done</button>
      </div>
@@ -867,12 +867,12 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
       <p class="suit-note" id="suitNote"></p>
       <div class="suit-box hard-box">
         <button class="set-tog" id="hardT" type="button" aria-pressed="false" aria-label="Terminal Velocity"><span>Terminal<br>Velocity</span></button>
-        <p class="hard-how">Start with 4 health and fall 15% faster. Leviathans rage from the start.</p>
+        <p class="hard-how">Start with <span data-fact="hardHp"></span> health and fall <span data-fact="hardFaster"></span> faster. Leviathans rage from the start.</p>
       </div>
       <p class="suit-note" id="hardNote"></p>
       <div class="suit-box hard-box">
         <button class="set-tog" id="droneT" type="button" aria-pressed="false" aria-label="Helper drone"><span>Helper drone</span></button>
-        <p class="hard-how">Falls with you and catches half of the ship parts and crystals you miss.</p>
+        <p class="hard-how">Falls with you and catches <span data-fact="droneShare"></span> of the ship parts and crystals you miss.</p>
       </div>
       <p class="suit-note" id="droneNote"></p>
       <button class="btn" id="unlocksDone" type="button">Done</button>
@@ -901,7 +901,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
      </div>
      <div class="card face back" id="moonsBack" hidden inert aria-hidden="true">
       <h2>The moons</h2>
-      <p class="hint">Each has its own hazards and six Leviathans.</p>
+      <p class="hint">Each has its own hazards and <span data-fact="perMoon"></span> Leviathans.</p>
       <ul class="moons-list">
         <li><span class="moons-ico"><svg class="moon-ico dust" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg></span><span class="news-name">Dust moon</span><span class="news-how">The original: rock, lava and mines. Glazed ice bounces you, ledges crumble into boulders and ash vents blow you sideways.</span></li>
         <li><span class="moons-ico"><svg class="moon-ico jungle" viewBox="0 0 7 7" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h3v1h-3zM1 1h5v1h-5zM0 2h7v3h-7zM1 5h5v1h-5zM2 6h3v1h-3z"/><path fill="var(--spot)" d="M2 2h1v1h-1zM4 3h2v1h-2zM2 4h1v1h-1z"/></svg></span><span class="news-name">Jungle moon</span><span class="news-how">Overgrown and alive. Vines tangle your steering, thorns grow from the walls and spore pods burst.</span></li>
@@ -4757,8 +4757,9 @@ let state = 'title', prevState = 'play', clock = 0, introT = 0, dieT = 0, camY =
 const runParts = { plate: 0, wire: 0, chip: 0, fuel: 0, core: 0 };
 // A fresh pilot for every run (resetRun). `touch` (a finger is on the screen) carries over between runs.
 let hardRun = false;   // this run is a Hard Dive (see startRun)
+const PILOT_HP = 5, HARD_HP = 4;   // his health as a run starts, standard and on Terminal Velocity
 const playerStart = () => ({
-  x: 84, y: -30, v: 0, vx: 0, hp: hardRun ? 4 : 5, max: hardRun ? 4 : 5, inv: 0, blockT: 0, shield: 0, shieldMax: 8, orbs: 0, spare: 0, streak: 0,
+  x: 84, y: -30, v: 0, vx: 0, hp: hardRun ? HARD_HP : PILOT_HP, max: hardRun ? HARD_HP : PILOT_HP, inv: 0, blockT: 0, shield: 0, shieldMax: 8, orbs: 0, spare: 0, streak: 0,
   bestStreak: 0, perks: {}, perkCafe: 0, toughN: 0, bought: [], slowUntil: 0, magnetUntil: 0,
   flash: 0, pose: 'stand', thr: 0, puff: 0, aim: 84, zone: 0, hidden: false,
   fallRamp: 1, tangle: 0,
@@ -4868,6 +4869,7 @@ if (!Array.isArray(save.compsGot)) {
 if (!Array.isArray(save.compsNew)) save.compsNew = [];
 const compWon = cp => save.compsGot.includes(cp.id);
 const compsCount = () => COMPONENTS.filter(compWon).length;
+const compsOnMoon = m => COMPONENTS.filter(cp => LEVI_SETS[m].includes(cp.levi) && compWon(cp)).length;   // won from moon m's Leviathans
 const partsDone = () => PARTS.every(pt => save.parts[pt.id] >= pt.need);
 const fillParts = () => { for (const pt of PARTS) save.parts[pt.id] = Math.max(save.parts[pt.id], pt.need); };   // every part to its need
 const compsDone = () => compsCount() >= COMPONENTS.length;
@@ -4877,7 +4879,7 @@ const repairFrac = () => PARTS.reduce((sum, pt) => sum + Math.min(1, save.parts[
   + compsCount() / COMPONENTS.length / 2;
 const canLaunch = () => repairFrac() >= 1;
 // Kid mode: mines and Leviathan shots 0-100%; ship parts and health crystals 100-200% on one slider (drops); Health,
-// 100-200% of the pilot's health (5, or 4 on Terminal Velocity), rounded: 5, 6, 8, 9, 10; fall speed 50-100% (owner:
+// 100-200% of the pilot's health (PILOT_HP 5, or HARD_HP 4 on Terminal Velocity), rounded: 5, 6, 8, 9, 10; fall speed 50-100% (owner:
 // "a slider to slow fall speed"), the whole fall, cafe speed-ups and fights included. All in 25% steps, and the cafe
 // speed-up on or off, and the helper drone on or off (it flies even before it's earned). Saved as save.kid; fixed
 // for the whole run at its start (kidRun), like Terminal Velocity.
@@ -6062,7 +6064,7 @@ function buildRepairView(root) {
   const list = root.querySelector('.parts');
   for (let i = 0; i < 20; i++) view.bar.appendChild(document.createElement('i'));
   // The components, won from Leviathans, sit after the parts with the same look (the first one's picture).
-  const compRow = { id: 'comps', name: 'COMPONENTS', full: 'Ship components: one for each Leviathan you escape, six on each moon', spr: COMPONENTS[0].spr };
+  const compRow = { id: 'comps', name: 'COMPONENTS', full: 'Ship components: one for each Leviathan you escape, ' + numberWord(LEVI_SETS.dust.length) + ' on each moon', spr: COMPONENTS[0].spr };
   for (const pt of [...PARTS, compRow]) {
     const li = document.createElement('li'),
       name = document.createElement('span'),
@@ -6178,6 +6180,31 @@ function pctify(el) {
 }
 // The cards whose text never changes.
 for (const id of ['cafeTips', 'howBack', 'unlocksBack', 'newsBack']) pctify($(id));
+// Numbers in words, for text a player reads: numberWord(6) is 'six'; shareWord(0.5) is 'half' (a share with no word
+// is a percentage, so the text it goes into needs pctify).
+const NUMBER_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+const numberWord = n => NUMBER_WORDS[n] || String(n);
+const SHARE_WORDS = { 0.25: 'a quarter', 0.5: 'half', 0.75: 'three quarters', 1: 'all' };
+const shareWord = f => SHARE_WORDS[f] || Math.round(f * 100) + '%';
+// Card text that states a game number holds a <span data-fact="name"> that is replaced here by the number, from its
+// constant, so the card and the game can't disagree. Called once by start(), when every constant is defined.
+function fillFacts() {
+  const pct = f => Math.round(f * 100) + '%';
+  const facts = {
+    cafeStep: pct(CAFE_SPEEDUP), cafeMax: pct(CAFE_SPEED_MAX),   // the fall's speed-up per cafe, and its most
+    hardHp: HARD_HP, hardFaster: pct(HARD_SPEED - 1),   // Terminal Velocity
+    droneShare: shareWord(DRONE_CHANCE),   // the share of missed parts and crystals the drone goes for
+    perMoon: numberWord(LEVI_SETS.dust.length),   // Leviathans (and so components) on each moon
+  };
+  const filled = new Set();
+  for (const el of [...document.querySelectorAll('[data-fact]')]) {
+    if (!(el.dataset.fact in facts)) { console.error('MoonFall: no fact named', el.dataset.fact); continue; }
+    filled.add(el.parentNode);
+    el.replaceWith(String(facts[el.dataset.fact]));
+  }
+  // Each text is one run again, as if written out in full: kept in a span, it's laid out a fraction of a pixel apart.
+  for (const el of filled) { el.normalize(); pctify(el); }
+}
 let speedRush = 0;
 // The banner as he leaves a cafe ledge: 'up' (another 5%), 'top' (the cafe that reaches the cap) or 'max' (every cafe
 // after it: the speed is already at its cap, so no rush or whoosh, only the banner).
@@ -6405,9 +6432,10 @@ syncKid();
 // Title card flips over to show settings or instructions on its back.
 let cardSide = null, readTimer = 0;
 // Both flip cards (the main menu's and the cafe's) turn the same way: a front face and named back faces share one grid cell
-// pinned to the bottom, so the card grows or shrinks upward as it turns over in 0.45 s. `prepare` runs once the new face
+// pinned to the bottom, so the card grows or shrinks upward as it turns over in 0.45 s (.flip-inner's transition).
+// CARD_FOCUS_MS: how long after a turn starts keyboard focus moves to the new face, once it's nearly round. `prepare` runs once the new face
 // is chosen but before its height is measured.
-const flipTimers = new Map();
+const flipTimers = new Map(), CARD_FOCUS_MS = 460;
 function turnCard(flip, front, backs, was, side, instant, prepare) {
   const faces = [front, ...Object.values(backs)];
   if (side) for (const k in backs) backs[k].hidden = k !== side;
@@ -6434,7 +6462,15 @@ function turnCard(flip, front, backs, was, side, instant, prepare) {
 // The ship repair panel and the New features sticker step aside for a card by flipping up and away, in the menu's stepped
 // flip (as they flip in after START), the panel folding its height at the same time so the card can grow into the room;
 // they flip back down when the card closes. The CSS rules above say when (--aside); this does the moving.
-const ASIDE_MS = 340;
+const ASIDE_MS = 340;   // the CSS flipDown's .34s (the menu flipping in after START), in the same seven steps
+// The stepped flip of one menu section, up and away (away) or back down, from `delay` ms on: el.animate's Animation.
+// The New features sticker keeps its tilt (--tilt) as it turns, as in flipDownTilt.
+function flipSection(el, away, delay) {
+  const tilt = el.id === 'newsTag' ? 'rotate(' + (getComputedStyle(el).getPropertyValue('--tilt').trim() || '0deg') + ') ' : '';
+  const flat = { transform: tilt + 'perspective(520px) rotateX(0)', opacity: 1 };
+  const up = { transform: tilt + 'perspective(520px) rotateX(-92deg)', opacity: 0 };
+  return el.animate(away ? [flat, up] : [up, flat], { duration: ASIDE_MS, delay, easing: 'steps(7)', fill: 'both' });
+}
 function syncAside(instant) {
   const ts = $('titleScreen');
   for (const el of [ts.querySelector('.repair'), $('newsTag')]) {
@@ -6442,11 +6478,10 @@ function syncAside(instant) {
     if (el._aside) { for (const a of el._aside) a.cancel(); el._aside = null; el.style.overflow = ''; }
     if (want === is) continue;
     if (instant || reduceMotion || ts.classList.contains('clean') || state !== 'title') { el.classList.toggle('aside', want); continue; }
-    const news = el.id === 'newsTag', tilt = news ? 'rotate(' + (getComputedStyle(el).getPropertyValue('--tilt').trim() || '0deg') + ') ' : '';
+    const news = el.id === 'newsTag';
     if (!want) el.classList.remove('aside');
     if (!news && getComputedStyle(el).display === 'none') { el.classList.toggle('aside', want); continue; }
-    const flat = { transform: tilt + 'perspective(520px) rotateX(0)', opacity: 1 }, up = { transform: tilt + 'perspective(520px) rotateX(-92deg)', opacity: 0 };
-    const anims = [el.animate(want ? [flat, up] : [up, flat], { duration: ASIDE_MS, easing: 'steps(7)', fill: 'both' })];
+    const anims = [flipSection(el, want, 0)];
     if (!news) {   // fold its height (and the gap after it) so nothing jumps when it's gone
       const cs = getComputedStyle(el), h = el.offsetHeight, gap = parseFloat(getComputedStyle(ts).rowGap) || 0;
       const open = { height: h + 'px', marginBottom: '0px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom };
@@ -6480,9 +6515,7 @@ function flipMenuAway(away) {
     if (reduceMotion || el.classList.contains('aside') || getComputedStyle(el).display === 'none') {
       el.style.visibility = away ? 'hidden' : ''; return;
     }
-    const tilt = el.id === 'newsTag' ? 'rotate(' + (getComputedStyle(el).getPropertyValue('--tilt').trim() || '0deg') + ') ' : '';
-    const flat = { transform: tilt + 'perspective(520px) rotateX(0)', opacity: 1 }, up = { transform: tilt + 'perspective(520px) rotateX(-92deg)', opacity: 0 };
-    const k = away ? i : els.length - 1 - i, a = el.animate(away ? [flat, up] : [up, flat], { duration: ASIDE_MS, delay: k * MENU_AWAY_STEP, easing: 'steps(7)', fill: 'both' });
+    const k = away ? i : els.length - 1 - i, a = flipSection(el, away, k * MENU_AWAY_STEP);
     el._away = [a];
     if (!away) a.onfinish = () => { if (el._away && el._away[0] === a) { a.cancel(); el._away = null; } };
   });
@@ -6530,7 +6563,7 @@ function setCard(side, instant) {
     if (side || instant) { ts.classList.toggle('reading', !!side); syncAside(instant); }
     else readTimer = setTimeout(() => { ts.classList.remove('reading'); syncAside(); }, 480);
   });
-  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $(was === 'kid' ? 'kidBtn' : 'sndT') : side === 'kid' ? $('kidMines') : side === 'how' ? $('howDone') : side === 'news' ? $(was === 'moons' ? 'newsMoons' : was === 'unlocks' ? 'newsHard' : was === 'kid' ? 'newsKid' : 'newsLevi') : side === 'unlocks' ? $('unlocksDone') : side === 'levi' ? $('leviDone') : side === 'moons' ? $('moonsDone') : side === 'badges' ? $('badgeDone') : $(was === 'how' ? 'howBtn' : was === 'badges' ? 'badgesBtn' : was === 'unlocks' ? 'unlocksBtn' : was === 'levi' || was === 'news' || was === 'moons' ? 'startBtn' : 'settingsBtn')), 460);
+  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $(was === 'kid' ? 'kidBtn' : 'sndT') : side === 'kid' ? $('kidMines') : side === 'how' ? $('howDone') : side === 'news' ? $(was === 'moons' ? 'newsMoons' : was === 'unlocks' ? 'newsHard' : was === 'kid' ? 'newsKid' : 'newsLevi') : side === 'unlocks' ? $('unlocksDone') : side === 'levi' ? $('leviDone') : side === 'moons' ? $('moonsDone') : side === 'badges' ? $('badgeDone') : $(was === 'how' ? 'howBtn' : was === 'badges' ? 'badgesBtn' : was === 'unlocks' ? 'unlocksBtn' : was === 'levi' || was === 'news' || was === 'moons' ? 'startBtn' : 'settingsBtn')), CARD_FOCUS_MS);
 }
 // -- the Leviathans card: New features' Leviathan chases row opens it. Each creature's name, its signature attack in a line
 // (its entry's name and line; LEVI_INFO lists them), and a portrait painted with its fight art (bossStage), facing
@@ -6735,7 +6768,7 @@ function askJump() {
   confirmDlg.classList.remove('danger');
   const per = LEVI_SETS.dust.length;
   for (const el of document.querySelectorAll('#confirmMoons [data-count]')) {
-    const m = el.dataset.count, n = COMPONENTS.filter(cp => LEVI_SETS[m].includes(cp.levi) && compWon(cp)).length;
+    const m = el.dataset.count, n = compsOnMoon(m);
     el.textContent = n + '/' + LEVI_SETS[m].length;
     el.parentElement.setAttribute('aria-label', MOON_NAMES[m] + ', ' + n + ' of ' + LEVI_SETS[m].length + ' components');
   }
@@ -6759,7 +6792,8 @@ function askDrone(quick) {
   confirmKind = 'drone'; confirmFrom = quick ? 'againBtn' : 'startBtn'; confirmStep = 0; droneQuick = quick;
   confirmDlg.classList.remove('danger');
   $('confirmTitle').textContent = 'Helper drone unlocked!';
-  $('confirmText').textContent = 'You flew the ship home, so the helper drone is yours. It falls with you and catches half of the ship parts and crystals you miss. Take it along?';
+  $('confirmText').textContent = 'You flew the ship home, so the helper drone is yours. It falls with you and catches ' + shareWord(DRONE_CHANCE)
+    + ' of the ship parts and crystals you miss. Take it along?';
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Yes, bring it';
   $('confirmNo').textContent = 'Not now';
   popConfirm();
@@ -6788,7 +6822,8 @@ function tellDroneEnd() {
   confirmKind = 'droneEnd'; confirmFrom = 'endTitleBtn'; confirmStep = 0;
   confirmDlg.classList.remove('danger');
   $('confirmTitle').textContent = 'Helper drone unlocked!';
-  $('confirmText').textContent = 'You flew the ship home, and the helper drone is yours. It will fly with you the next time you dive, catching half of the ship parts and crystals you miss. (Unlocks)';
+  $('confirmText').textContent = 'You flew the ship home, and the helper drone is yours. It will fly with you the next time you dive, catching '
+    + shareWord(DRONE_CHANCE) + ' of the ship parts and crystals you miss. (Unlocks)';
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Great!';
   popConfirm();
 }
@@ -6834,28 +6869,27 @@ function askComps() {
   got.forEach((cp, i) => sprite(g, cp.spr, i * 16, 0, PMAP));
   const names = got.map(cp => cp.name), list = n > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[n - 1] : names[0];
   const left = COMPONENTS.length - compsCount();
-  const onMoon = m => COMPONENTS.filter(cp => LEVI_SETS[m].includes(cp.levi) && save.compsGot.includes(cp.id)).length;
-  const perMoon = Object.keys(LEVI_SETS).map(m => MOON_NAMES[m] + ': ' + onMoon(m) + '/' + LEVI_SETS[m].length).join('\n');
+  const perMoon = Object.keys(LEVI_SETS).map(m => MOON_NAMES[m] + ': ' + compsOnMoon(m) + '/' + LEVI_SETS[m].length).join('\n');
   $('confirmTitle').textContent = n > 1 ? 'Components unlocked!' : 'Component unlocked!';
   $('confirmText').textContent = list + ' fitted to the ship. Components: ' + compsCount() + ' of ' + COMPONENTS.length + '\n\n'
     + perMoon + '\n\n'
     + (gift ? 'The last Leviathan also gave you every ship part you were missing. ' : '')
-    + (canLaunch() ? 'The ship is repaired! Fly home now? Your dive ends here at ' + depthM().toLocaleString('en-GB')
-      + '\u00a0m and counts on the high scores.'
-      : left ? 'Each moon\'s six Leviathans guard components: travel to all three moons to collect them all.'
+    + (canLaunch() ? 'The ship is repaired! Fly home now? ' + diveEndsHere()
+      : left ? 'Each moon\'s ' + numberWord(LEVI_SETS.dust.length) + ' Leviathans guard components: travel to all three moons to collect them all.'
         : 'Every component fitted! Now finish collecting the ship parts.');
   $('confirmYes').hidden = false; $('confirmYes').textContent = canLaunch() ? 'Fly home!' : 'Great!';
   $('confirmNo').textContent = 'Not yet';   // shown only when the ship can fly (popConfirm)
   popConfirm();
 }
+// What flying home from a cafe means for the dive (askComps and askLaunch).
+const diveEndsHere = () => 'Your dive ends here at ' + depthM().toLocaleString('en-GB') + '\u00a0m and counts on the high scores.';
 // The cafe's launch: the dive ends there, so it asks first.
 function askLaunch() {
   if (state !== 'cafe' || !canLaunch()) return;
   confirmKind = 'launch'; confirmFrom = 'cafeLaunchBtn'; confirmStep = 0;
   confirmDlg.classList.remove('danger');
   $('confirmTitle').textContent = 'Congratulations!';
-  $('confirmText').textContent = 'The ship is repaired and every component fitted. Fly home now? Your dive ends here at '
-    + depthM().toLocaleString('en-GB') + '\u00a0m and counts on the high scores.';
+  $('confirmText').textContent = 'The ship is repaired and every component fitted. Fly home now? ' + diveEndsHere();
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Fly home!';
   $('confirmNo').textContent = 'Not yet';
   popConfirm();
@@ -7006,7 +7040,7 @@ function resetRun() {
   caveReset();
   setHP(); setDepth();
 }
-// -- Hard Dive (idea 13): unlocked once the ship has been fixed (a finished mission). The run starts with 4 health, falls
+// -- Hard Dive (idea 13): unlocked once the ship has been fixed (a finished mission). The run starts with HARD_HP health, falls
 // HARD_SPEED faster all the way down, and the Leviathans are enraged from the start. No extra crystals: the owner found
 // they don't "exactly make the game harder". Switched on the Unlocks card (save.hard); fixed for the whole run (hardRun).
 // On screen it's called **Terminal Velocity**; in the code it stays hard / hardRun / HARD_SPEED / save.hard, so saved
@@ -7593,6 +7627,7 @@ function drawCafe(cam) {
 // Coffee stop: auto-landing on the pad, a cup at the counter, then a run and jump back into the shaft.
 const cafeVisited = new Set();
 let cafeT = 0, cafeK = 0, landFrom = null;
+const SHOP_OPEN_AT = 1.6;   // s after he lands at the cafe that the shop opens; Space or Enter leaves only after it
 // The menu waits behind a card (askComps) and opens once it's closed. A card answered while the game is paused (the
 // phone locked or the app switched with the card up) leaves it held, and resume() lets it go.
 let shopHeld = false;
@@ -7681,7 +7716,7 @@ function updateCafe(dt) {
         pop('+1 COFFEE', player.x, player.y - 10, 'good');
       } else pop('REFRESHED', player.x, player.y - 10, 'good');
     }
-    if (crossed(1.6)) {
+    if (crossed(SHOP_OPEN_AT)) {
       if (confirmDlg.open) shopHeld = true; else openShop();
       // A Leviathan below: its paint canvases are made now, while nothing moves, not as he jumps.
       const B = bossAt(player.y + 300);
@@ -7768,7 +7803,7 @@ function cafeCard(side, instant) {
     if (side === 'tips' && !save.cafeTips) { save.cafeTips = true; persist(); renderShop(); }
   });
   const target = () => (side ? CAFE_FACE_FOCUS[side]() : $(CAFE_FRONT_FOCUS[was] || 'shopGo'));
-  if (instant) kbFocus(target()); else setTimeout(() => { if (cafeSide === side && !shopEl.hidden) kbFocus(target()); }, 460);
+  if (instant) kbFocus(target()); else setTimeout(() => { if (cafeSide === side && !shopEl.hidden) kbFocus(target()); }, CARD_FOCUS_MS);
 }
 $('shopBtn').addEventListener('click', () => cafeCard('shop'));
 $('tipsBtn').addEventListener('click', () => cafeCard('tips'));
@@ -9278,7 +9313,7 @@ addEventListener('keydown', e => {
   else if (state === 'cafe' && (k === ' ' || k === 'Enter')) {
     if (cafeSide || (document.activeElement && document.activeElement.closest('.cafe-ui'))) return;
     e.preventDefault();
-    if (cafeT > 1.6) leaveCafe();
+    if (cafeT > SHOP_OPEN_AT) leaveCafe();
   }
   else if (k === 'Escape' && state === 'title' && cardSide) setCard(cardSide === 'kid' ? (kidFromNews ? 'news' : 'settings') : cardSide === 'levi' || cardSide === 'moons' || (cardSide === 'unlocks' && unlocksFromNews) ? 'news' : null);   // one step back
   else if (k === 'Escape' || k === 'p' || k === 'P') { if (state === 'paused') resume(); else pause(); }
@@ -10911,9 +10946,11 @@ function updateBossShots(dt, live) {
   }
   prune(bossShots, s => !s.dead);
 }
+// The colours of the shots in flight: the boss's, or the whale's when there is no boss.
+const shotColours = () => LEVIATHANS[boss ? boss.kind : 'whale'].shot;
 function drawBossShots(sy) {
   if (!bossShots.length) return;
-  const [o, m, h] = LEVIATHANS[boss ? boss.kind : 'whale'].shot;
+  const [o, m, h] = shotColours();
   for (const s of bossShots) SHOT_TYPES[s.type].draw(s, Math.round(s.x), Math.round(s.y - sy), sy, o, m, h);
 }
 // The spider's and the frog's shots. The web's hole, kept off the walls; the tongue's root (the frog's mouth as it sways, or where
@@ -10930,7 +10967,7 @@ function tongueLen(s) {
 // A shot reaching him: it hurts like anything else (the shield blocks it); while he blinks after a hit, shots pass through.
 function bossHit(s, pops) {
   if (player.inv > 0 && player.shield <= 0) return;
-  if (pops) { s.dead = true; sparks(s.x, camY + s.y, LEVIATHANS[boss ? boss.kind : 'whale'].shot.slice(1).concat(P.dust), 6); }
+  if (pops) { s.dead = true; sparks(s.x, camY + s.y, shotColours().slice(1).concat(P.dust), 6); }
   hurt('boss');
 }
 
@@ -11737,6 +11774,7 @@ $('verTag').addEventListener('click', () => {
 }
 
 function start(data) {
+  fillFacts();
   if (data && typeof data.best === 'number' && data.best > save.best && data.season === save.season) save.best = data.best;   // not across a fresh board
   if (data && data.parts) for (const pt of PARTS) save.parts[pt.id] = Math.max(save.parts[pt.id], data.parts[pt.id] || 0);
   addEventListener('resize', resize);
