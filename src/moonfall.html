@@ -1280,18 +1280,29 @@ function ring(x, y, r, col, th, g) {
 
 // -- drawing helpers, shared by the Leviathans, the moon surface and the shots: polygons and ellipses row by row, a
 // quadratic bezier point, tapering limbs, and the fight art's pixels and lines.
-function fillPoly(g, pts, col) {
+// The polygon through the first n of pts (all of them if n is left out), a row at a time. A row's crossings go into
+// one reused list, sorted in place: the background Leviathans fill thousands of rows a frame, and an array per row
+// was that many arrays for the phone to clear up (PERFORMANCE.md section 5).
+let polyXs = new Float64Array(64);
+function fillPoly(g, pts, col, n) {
+  if (n === undefined) n = pts.length;
+  if (n > polyXs.length) polyXs = new Float64Array(n);
+  const xs = polyXs;
   let minY = Infinity, maxY = -Infinity;
-  for (const p of pts) { minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); }
+  for (let i = 0; i < n; i++) { minY = Math.min(minY, pts[i][1]); maxY = Math.max(maxY, pts[i][1]); }
   g.fillStyle = col;
   for (let y = Math.ceil(minY); y <= Math.floor(maxY); y++) {
-    const xs = [];
-    for (let i = 0; i < pts.length; i++) {
-      const [x1, y1] = pts[i], [x2, y2] = pts[(i + 1) % pts.length];
-      if ((y1 <= y && y2 > y) || (y2 <= y && y1 > y)) xs.push(x1 + (y - y1) * (x2 - x1) / (y2 - y1));
+    let count = 0;
+    for (let i = 0; i < n; i++) {
+      const a = pts[i], b = pts[(i + 1) % n], x1 = a[0], y1 = a[1], x2 = b[0], y2 = b[1];
+      if ((y1 <= y && y2 > y) || (y2 <= y && y1 > y)) {
+        const v = x1 + (y - y1) * (x2 - x1) / (y2 - y1);
+        let j = count++;
+        while (j > 0 && xs[j - 1] > v) { xs[j] = xs[j - 1]; j--; }   // kept in order as it goes (a row has a few)
+        xs[j] = v;
+      }
     }
-    xs.sort((a, b) => a - b);
-    for (let i = 0; i + 1 < xs.length; i += 2) g.fillRect(Math.round(xs[i]), y, Math.round(xs[i + 1]) - Math.round(xs[i]), 1);
+    for (let i = 0; i + 1 < count; i += 2) g.fillRect(Math.round(xs[i]), y, Math.round(xs[i + 1]) - Math.round(xs[i]), 1);
   }
 }
 function fillEllipse(g, cx, cy, rx, ry, col) {
@@ -1313,8 +1324,32 @@ function ellipseIn(cx, cy, rx, ry, col, ox, oy, OR) {
     if (b > a) c.fillRect(a, yy, b - a, 1);
   }
 }
-// A point t (0-1) along the quadratic bezier P0, P1, P2.
-const bez = (P0, P1, P2, t) => { const u = 1 - t; return [u * u * P0[0] + 2 * u * t * P1[0] + t * t * P2[0], u * u * P0[1] + 2 * u * t * P1[1] + t * t * P2[1]]; };
+// Corners for fillPoly written into reused pairs, for the shapes drawn every frame (a literal list is one array per
+// corner and one more, every time): corner(i, x, y) sets the i-th of CORNERS, then fillPoly(g, CORNERS, col, n) fills the
+// first n; tri and quad do both. cornerList(key, n) is a list of n pairs kept for one shape (key), for a helper that
+// hands back a whole outline. Each is filled and used at once, before anything else writes to it.
+const CORNERS = [], cornerLists = new Map();
+function corner(i, x, y) { const pt = CORNERS[i] || (CORNERS[i] = [0, 0]); pt[0] = x; pt[1] = y; }
+function tri(g, x0, y0, x1, y1, x2, y2, col) { corner(0, x0, y0); corner(1, x1, y1); corner(2, x2, y2); fillPoly(g, CORNERS, col, 3); }
+function quad(g, x0, y0, x1, y1, x2, y2, x3, y3, col) {
+  corner(0, x0, y0); corner(1, x1, y1); corner(2, x2, y2); corner(3, x3, y3); fillPoly(g, CORNERS, col, 4);
+}
+function cornerList(key, n) {
+  let list = cornerLists.get(key);
+  if (!list) cornerLists.set(key, list = []);
+  while (list.length < n) list.push([0, 0]);
+  list.length = n;
+  return list;
+}
+// A point t (0-1) along the quadratic bezier P0, P1, P2 (bezXY: the same from six numbers), in one reused pair: take
+// its numbers out before the next call.
+const BEZ_AT = [0, 0];
+function bezXY(x0, y0, x1, y1, x2, y2, t) {
+  const u = 1 - t;
+  BEZ_AT[0] = u * u * x0 + 2 * u * t * x1 + t * t * x2; BEZ_AT[1] = u * u * y0 + 2 * u * t * y1 + t * t * y2;
+  return BEZ_AT;
+}
+function bez(P0, P1, P2, t) { return bezXY(P0[0], P0[1], P1[0], P1[1], P2[0], P2[1], t); }
 // A tapering limb, used by most Leviathans. Built to the performance rules (PERFORMANCE.md): nothing is made per colour
 // or per frame, and as few rectangles and stamps as the picture needs. A leg (limb) is one tapering quad from r0 to r1,
 // filled along its short axis (a row per pixel down a shallow limb, a column per pixel across a steep one) with a disc
@@ -2460,6 +2495,9 @@ function bscar(x0, y0, x1, y1, p, seed, raw) {
 // draw it; the background creatures are unchanged. Each repeats its creature's own shape maths, like the art below.
 const bossCutBox = (x, y) => { c.fillStyle = '#000'; c.fillRect(Math.round(x) - 6, Math.round(y), 12, 10); };
 const bossCut = (f) => { c.globalCompositeOperation = 'destination-out'; f(); c.globalCompositeOperation = 'source-over'; };
+// Six numbers (a leg's hip, knee and foot) written into a reused list `out` and handed back, for the shape helpers asked
+// for many times a frame: their callers take the numbers out before the next call.
+function put6(out, x0, y0, x1, y1, x2, y2) { out[0] = x0; out[1] = y0; out[2] = x1; out[3] = y1; out[4] = x2; out[5] = y2; return out; }
 // -- Grimtide, the whale (Dust moon) --
 // A point t (0 at the head, 1 at the tail) down its body, with its radius there: the fight's extra shape and art follow
 // it (draw works out the same body, with its radii rounded).
@@ -2599,7 +2637,7 @@ LEVIATHANS.elder = {
     }
     if (((clock * 0.25 + k * 0.37) % 1) > 0.04) {
       const look = player.x > x ? 1 : -1;
-      for (const s of [-1, 1]) {
+      for (let s = -1; s <= 1; s += 2) {
         const ex = Math.round(x + s * 13), ey = Math.round(y - 15);
         c.fillStyle = P.crust; c.fillRect(ex - 7, ey - 2, 14, 7);
         c.fillStyle = P.lava; c.fillRect(ex - 6, ey + (s < 0 ? 0 : 1), 6, 3); c.fillRect(ex, ey + (s < 0 ? 1 : 0), 6, 3);
@@ -2745,8 +2783,10 @@ LEVIATHANS.angler = {
     y = anglerY(y, k);
     const Y = v => y + v * sk;
     fillEllipse(c, X(-4), Y(-14), Math.round(40 * sk), Math.round(30 * sk), col);
-    fillPoly(c, [[X(-30), Y(14)], [X(52), Y(10)], [X(46), Y(30)], [X(-6), Y(40)], [X(-28), Y(32)]], col);
-    fillPoly(c, [[X(-38), Y(-8)], [X(-76), Y(-32) + Math.sin(ph) * 6], [X(-66), Y(-4)], [X(-78), Y(20) + Math.sin(ph) * 6], [X(-36), Y(12)]], col);
+    corner(0, X(-30), Y(14)); corner(1, X(52), Y(10)); corner(2, X(46), Y(30)); corner(3, X(-6), Y(40)); corner(4, X(-28), Y(32));
+    fillPoly(c, CORNERS, col, 5);
+    corner(0, X(-38), Y(-8)); corner(1, X(-76), Y(-32) + Math.sin(ph) * 6); corner(2, X(-66), Y(-4)); corner(3, X(-78), Y(20) + Math.sin(ph) * 6);
+    corner(4, X(-36), Y(12)); fillPoly(c, CORNERS, col, 5);
     for (let i = 0; i < 6; i++) { const v = 22 + i * 5, top = Math.round(Y(14 - (v + 30) * 4 / 82)); c.fillRect(Math.round(X(v)) - 1, top - 9 + (i % 2) * 3, 3, 9 - (i % 2) * 3); }
     for (let i = 0; i < 4; i++) { const v = 14 + i * 6, r = (v + 4) / 40; c.fillRect(Math.round(X(v)) - 1, Math.round(Y(-14 + 30 * Math.sqrt(1 - r * r))), 3, 8 - (i % 2) * 3); }
     for (let j = 0; j <= 36; j++) {
@@ -2824,9 +2864,12 @@ LEVIATHANS.manta = {
   draw(x, y, dir, k, col) {
     const sk = 1.4, { ph, span, lag } = mantaWings(k), X = v => x + dir * v * sk;
     y = mantaY(y, k);
-    fillPoly(c, [[X(30), y - 8 * sk], [X(24), y - 22 * sk], [x - dir * lag, y - span], [X(-20), y - 26 * sk], [X(-34), y - 8 * sk], [X(-38), y],
-      [X(-34), y + 8 * sk], [X(-20), y + 26 * sk], [x - dir * lag, y + span], [X(24), y + 22 * sk], [X(30), y + 8 * sk]], col);
-    for (const s of [-1, 1]) for (let j = 0; j < 11; j++) c.fillRect(Math.round(X(30 + j * 0.75)) - 2, Math.round(y + s * (11 - j * 0.45) * sk) - 2, 4, 4);
+    corner(0, X(30), y - 8 * sk); corner(1, X(24), y - 22 * sk); corner(2, x - dir * lag, y - span); corner(3, X(-20), y - 26 * sk);
+    corner(4, X(-34), y - 8 * sk); corner(5, X(-38), y); corner(6, X(-34), y + 8 * sk); corner(7, X(-20), y + 26 * sk);
+    corner(8, x - dir * lag, y + span); corner(9, X(24), y + 22 * sk); corner(10, X(30), y + 8 * sk); fillPoly(c, CORNERS, col, 11);
+    for (let s = -1; s <= 1; s += 2) {
+      for (let j = 0; j < 11; j++) c.fillRect(Math.round(X(30 + j * 0.75)) - 2, Math.round(y + s * (11 - j * 0.45) * sk) - 2, 4, 4);
+    }
     for (let j = 0; j < 56; j++) c.fillRect(Math.round(X(-38 - j * 2)), Math.round(y + Math.sin(ph * 1.3 - j * 0.13) * j * 0.15 * sk), 3, 2);
     c.fillStyle = P.bio;
     for (let i = 0; i < 6; i++) if (Math.floor(clock * 1.2 + i * 0.7) % 3) { const v = 0.3 + i * 0.1; c.fillRect(Math.round(x - dir * v * lag), Math.round(y + (i % 2 ? 1 : -1) * v * span * 0.8), 2, 1); }
@@ -2936,18 +2979,27 @@ LEVIATHANS.nautilus = {
 // paddling in waves under it (and the far row just showing over its back), hooked fangs, long antennae swept back, and
 // two spines at the tail. centiAt(t) is a point down its body, from the head (0) to the tail (1), with its radius there.
 const CENTI_N = 17;
+// It and the helpers below hand back reused lists (asked for dozens of times a frame): take the numbers out before the
+// next call.
+const CENTI_AT = [0, 0, 0], CENTI_LEG = [0, 0, 0, 0, 0, 0, 0, 0, 0], CENTI_FANGS = [[[0, 0], [0, 0], [0, 0]], [[0, 0], [0, 0], [0, 0]]];
 function centiAt(x, y, dir, k, t) {
-  const len = 220, ph = clock * 2.2 + k;
-  return [x + dir * (len / 2 - t * len), y + Math.sin(ph - t * 7) * 6 * (0.3 + t), t < 0.05 ? 15 : Math.max(6, 13 - Math.max(0, t - 0.7) * 22)];
+  const len = 220, ph = clock * 2.2 + k, out = CENTI_AT;
+  out[0] = x + dir * (len / 2 - t * len); out[1] = y + Math.sin(ph - t * 7) * 6 * (0.3 + t);
+  out[2] = t < 0.05 ? 15 : Math.max(6, 13 - Math.max(0, t - 0.7) * 22);
+  return out;
 }
 // Where its parts are (the art repeats this maths): each leg's hip, knee and foot, a fang's three bezier points, the antennae.
 function centiLeg(x, y, dir, k, i) {
-  const [bx, by, r] = centiAt(x, y, dir, k, i / CENTI_N), sw = Math.sin((clock * 2.2 + k) * 2 - i * 0.9) * 5;
-  return [bx, by + r - 2, bx + dir * sw * 0.6, by + r + 7, bx + dir * sw - dir * 3, by + r + 17, bx - dir * sw * 0.5, by - r - 7, by - r + 2];
+  const [bx, by, r] = centiAt(x, y, dir, k, i / CENTI_N), sw = Math.sin((clock * 2.2 + k) * 2 - i * 0.9) * 5, out = CENTI_LEG;
+  out[0] = bx; out[1] = by + r - 2; out[2] = bx + dir * sw * 0.6; out[3] = by + r + 7; out[4] = bx + dir * sw - dir * 3;
+  out[5] = by + r + 17; out[6] = bx - dir * sw * 0.5; out[7] = by - r - 7; out[8] = by - r + 2;
+  return out;
 }
 function centiFangs(x, y, dir, k) {
-  const [hx, hy] = centiAt(x, y, dir, k, 0), o = Math.sin(clock * 5 + k) * 3;
-  return [[[hx + dir * 9, hy + 7], [hx + dir * 30, hy + 18 + o], [hx + dir * 32, hy + 3]], [[hx + dir * 9, hy - 3], [hx + dir * 31, hy - 11 - o], [hx + dir * 34, hy + 4]]];
+  const [hx, hy] = centiAt(x, y, dir, k, 0), o = Math.sin(clock * 5 + k) * 3, [A, B] = CENTI_FANGS;
+  A[0][0] = hx + dir * 9; A[0][1] = hy + 7; A[1][0] = hx + dir * 30; A[1][1] = hy + 18 + o; A[2][0] = hx + dir * 32; A[2][1] = hy + 3;
+  B[0][0] = hx + dir * 9; B[0][1] = hy - 3; B[1][0] = hx + dir * 31; B[1][1] = hy - 11 - o; B[2][0] = hx + dir * 34; B[2][1] = hy + 4;
+  return CENTI_FANGS;
 }
 LEVIATHANS.centipede = {
   moon: 'jungle', name: 'Skitterfang', line: 'Its legs rake in from both walls',
@@ -2965,12 +3017,15 @@ LEVIATHANS.centipede = {
     for (let i = 2 * CENTI_N; i >= 0; i--) { const [bx, by, r] = centiAt(x, y, dir, k, i / (2 * CENTI_N)); disc(bx, by, r, col); }
     for (const F of centiFangs(x, y, dir, k)) for (let j = 0; j <= 14; j++) { const [fx, fy] = bez(F[0], F[1], F[2], j / 14); disc(fx, fy, Math.max(1, Math.round(3.4 - j * 0.2)), col); }
     const [hx, hy] = centiAt(x, y, dir, k, 0);
-    for (const s of [0, 1]) for (let j = 0; j <= 26; j++) {   // antennae, swept back over the body
-      const [ax, ay] = bez([hx + dir * 6, hy - 9], [hx - dir * (6 + s * 10), hy - 52 + s * 8], [hx - dir * (64 + s * 18), hy - 40 + s * 10 + Math.sin(clock * 1.7 + k + s) * 6], j / 26);
-      c.fillStyle = col; c.fillRect(Math.round(ax), Math.round(ay), 2, 2);
+    for (let s = 0; s <= 1; s++) {   // antennae, swept back over the body
+      const x1 = hx - dir * (6 + s * 10), y1 = hy - 52 + s * 8, x2 = hx - dir * (64 + s * 18), y2 = hy - 40 + s * 10 + Math.sin(clock * 1.7 + k + s) * 6;
+      for (let j = 0; j <= 26; j++) {
+        const [ax, ay] = bezXY(hx + dir * 6, hy - 9, x1, y1, x2, y2, j / 26);
+        c.fillStyle = col; c.fillRect(Math.round(ax), Math.round(ay), 2, 2);
+      }
     }
     const [tx, ty] = centiAt(x, y, dir, k, 1);
-    for (const s of [-1, 1]) bline(tx, ty, tx - dir * 30, ty + s * 11 + Math.sin(clock * 2 + k) * 3, col, 2);
+    for (let s = -1; s <= 1; s += 2) bline(tx, ty, tx - dir * 30, ty + s * 11 + Math.sin(clock * 2 + k) * 3, col, 2);
   },
   // Extra shape: spines down its back (two snapped), and a bite out of the body near the tail.
   geo(x, y, dir, k, p) {
@@ -3008,28 +3063,41 @@ LEVIATHANS.centipede = {
 // Gnashbloom, a flytrap the size of a house, hanging head down on a thick stalk out of the dark: two spiked jaws that
 // open and close slowly, two broad leaves on the stalk, and root threads dangling from the hinge. trapLobe(s, ...) gives
 // the points round one jaw (s = -1 left, 1 right), so the art can follow it.
+// trapPose, trapLobe, trapTeeth, trapStalk, trapBuds and drawTrapBuds's points are reused lists and objects (the
+// background flytrap asks for about 150 points a frame): take the numbers out before the next call.
+const TRAP_POSE = { y: 0, a: 0, sw: 0 }, TRAP_STALK = [0, 0], TRAP_TEETH = [];
+for (let i = 0; i < 7; i++) TRAP_TEETH.push([[0, 0], [0, 0]]);
 function trapPose(x, y, k) {
   // The jaws hang wide open (55-68 degrees each side, a clear V with the teeth inside): nearly shut, they read as one
   // rude oval.
-  return { y: y + Math.sin(clock * 0.5 + k) * 4, a: 1.06 + 0.11 * Math.sin(clock * 1.3 + k), sw: Math.sin(clock * 0.6 + k) * 8 };
+  TRAP_POSE.y = y + Math.sin(clock * 0.5 + k) * 4; TRAP_POSE.a = 1.06 + 0.11 * Math.sin(clock * 1.3 + k); TRAP_POSE.sw = Math.sin(clock * 0.6 + k) * 8;
+  return TRAP_POSE;
 }
-function trapPt(x, hy, s, a, u, v) { const th = s * a; return [x + u * Math.cos(th) + v * Math.sin(th), hy - u * Math.sin(th) + v * Math.cos(th)]; }
+// A point on a jaw, written into out (trapPt makes a new pair).
+function trapPtTo(out, x, hy, s, a, u, v) {
+  const th = s * a;
+  out[0] = x + u * Math.cos(th) + v * Math.sin(th); out[1] = hy - u * Math.sin(th) + v * Math.cos(th);
+  return out;
+}
+function trapPt(x, hy, s, a, u, v) { return trapPtTo([0, 0], x, hy, s, a, u, v); }
 function trapLobe(x, hy, s, a, n) {
-  const pts = [];
-  for (let i = 0; i < n; i++) { const t = i / n * Math.PI * 2; pts.push(trapPt(x, hy, s, a, 24 * Math.cos(t), 38 + 40 * Math.sin(t))); }
+  const pts = cornerList(trapLobe, n);
+  for (let i = 0; i < n; i++) { const t = i / n * Math.PI * 2; trapPtTo(pts[i], x, hy, s, a, 24 * Math.cos(t), 38 + 40 * Math.sin(t)); }
   return pts;
 }
 // The jaws' teeth: points along each jaw's inner rim, with the way each tooth points.
 function trapTeeth(x, hy, s, a) {
-  const out = [];
   for (let i = 0; i < 7; i++) {   // 7 along the same stretch of rim (9 cost about 50 more rectangles a frame)
-    const ph = -0.25 + i * 0.293, base = trapPt(x, hy, s, a, -s * 24 * Math.cos(ph), 38 + 40 * Math.sin(ph)), L = i % 2 ? 9 : 13;
-    const tip = trapPt(x, hy, s, a, -s * 24 * Math.cos(ph) - s * L * 0.8, 38 + 40 * Math.sin(ph) + L * 0.6);
-    out.push([base, tip]);
+    const ph = -0.25 + i * 0.293, L = i % 2 ? 9 : 13;
+    trapPtTo(TRAP_TEETH[i][0], x, hy, s, a, -s * 24 * Math.cos(ph), 38 + 40 * Math.sin(ph));
+    trapPtTo(TRAP_TEETH[i][1], x, hy, s, a, -s * 24 * Math.cos(ph) - s * L * 0.8, 38 + 40 * Math.sin(ph) + L * 0.6);
   }
-  return out;
+  return TRAP_TEETH;
 }
-function trapStalk(x, hy, sw, t) { return [lerp(x + sw, x, t) + Math.sin(t * 3 + clock * 0.4) * 6 * (1 - t), lerp(hy - 260, hy - 4, t)]; }
+function trapStalk(x, hy, sw, t) {
+  TRAP_STALK[0] = lerp(x + sw, x, t) + Math.sin(t * 3 + clock * 0.4) * 6 * (1 - t); TRAP_STALK[1] = lerp(hy - 260, hy - 4, t);
+  return TRAP_STALK;
+}
 // The stalk as one strip, a row at a time, with rows that come out the same merged into one rectangle (about 60-90 a
 // frame); as overlapping discs it would be 61 stamps, or about 1,280 rectangles while its colour fades in. Centre and
 // thickness as trapStalk, 8 px wide at the top to 12 at the hinge.
@@ -3048,24 +3116,34 @@ function trapStalkStrip(x, hy, sw, col) {
 // pointing down and outwards, snapping open and shut faster than the big one. Each: where its stem leaves the stalk
 // (sx, sy), its hinge (hx, hy), which way it points (rot, 0 = straight down), how open (a) and its size (sc).
 const TRAP_BUDS = [[0.5, -1], [0.76, 1], [0.87, -1]];   // low on the stalk, so they show below a cafe ledge
+const TRAP_BUD_AT = TRAP_BUDS.map(([, s]) => ({ s, sx: 0, sy: 0, hx: 0, hy: 0, rot: 0, a: 0, sc: 0.4 })), BUD_ROOT = [0, 0], BUD_TIP = [0, 0];
 function trapBuds(x, hy, sw, k) {
-  return TRAP_BUDS.map(([t, s], i) => {
-    const [sx, sy] = trapStalk(x, hy, sw, t), sway = Math.sin(clock * 0.8 + k + i * 2) * 0.12;
-    return { s, sx, sy, hx: sx + s * 18, hy: sy + 6, rot: s * (0.75 + sway), a: 0.62 + 0.38 * Math.max(0, Math.sin(clock * 2.3 + k * 1.7 + i * 2.1)), sc: 0.4 };
-  });
+  for (let i = 0; i < TRAP_BUDS.length; i++) {
+    const [t, s] = TRAP_BUDS[i], [sx, sy] = trapStalk(x, hy, sw, t), sway = Math.sin(clock * 0.8 + k + i * 2) * 0.12, b = TRAP_BUD_AT[i];
+    b.sx = sx; b.sy = sy; b.hx = sx + s * 18; b.hy = sy + 6; b.rot = s * (0.75 + sway);
+    b.a = 0.62 + 0.38 * Math.max(0, Math.sin(clock * 2.3 + k * 1.7 + i * 2.1));
+  }
+  return TRAP_BUD_AT;
 }
-// A point on a bud's jaw (s = -1/1), in the same jaw coordinates as trapPt, scaled and turned to point along rot.
-function budPt(b, s, u, v) { const th = b.rot + s * b.a; u *= b.sc; v *= b.sc; return [b.hx + u * Math.cos(th) + v * Math.sin(th), b.hy - u * Math.sin(th) + v * Math.cos(th)]; }
+// A point on a bud's jaw (s = -1/1), in the same jaw coordinates as trapPt, scaled and turned to point along rot,
+// written into out (budPt makes a new pair).
+function budPtTo(out, b, s, u, v) {
+  const th = b.rot + s * b.a; u *= b.sc; v *= b.sc;
+  out[0] = b.hx + u * Math.cos(th) + v * Math.sin(th); out[1] = b.hy - u * Math.sin(th) + v * Math.cos(th);
+  return out;
+}
+function budPt(b, s, u, v) { return budPtTo([0, 0], b, s, u, v); }
 function drawTrapBuds(x, hy, sw, k, col) {
   for (const b of trapBuds(x, hy, sw, k)) {
     limb(b.sx, b.sy, b.hx, b.hy, 4, 4, col);   // its stem, one quad
-    for (const s of [-1, 1]) {
-      const pts = []; for (let i = 0; i < 16; i++) { const t = i / 16 * Math.PI * 2; pts.push(budPt(b, s, 24 * Math.cos(t), 38 + 40 * Math.sin(t))); }
+    for (let s = -1; s <= 1; s += 2) {
+      const pts = cornerList(drawTrapBuds, 16);
+      for (let i = 0; i < 16; i++) { const t = i / 16 * Math.PI * 2; budPtTo(pts[i], b, s, 24 * Math.cos(t), 38 + 40 * Math.sin(t)); }
       fillPoly(c, pts, col);
       for (let i = 0; i < 2; i++) {   // two teeth along the inner rim (five would be 30 tiny triangles a frame)
         const ph = 0.15 + i * 0.75, bu = -s * 24 * Math.cos(ph), bv = 38 + 40 * Math.sin(ph), L = i ? 14 : 19;
-        const p0 = budPt(b, s, bu, bv), t = budPt(b, s, bu - s * L * 0.8, bv + L * 0.6);
-        fillPoly(c, [[p0[0] - 1, p0[1] - 1], [p0[0] + 1, p0[1] + 1], t], col);
+        const p0 = budPtTo(BUD_ROOT, b, s, bu, bv), t = budPtTo(BUD_TIP, b, s, bu - s * L * 0.8, bv + L * 0.6);
+        tri(c, p0[0] - 1, p0[1] - 1, p0[0] + 1, p0[1] + 1, t[0], t[1], col);
       }
     }
     disc(b.hx, b.hy, 5, col);
@@ -3084,14 +3162,15 @@ LEVIATHANS.flytrap = {
     const { y: yy, a, sw } = trapPose(x, y, k), hy = yy - 30;
     trapStalkStrip(x, hy, sw, col);
     drawTrapBuds(x, hy, sw, k, col);
-    for (const s of [-1, 1]) {   // two leaves off the stalk, drooping outwards
+    for (let s = -1; s <= 1; s += 2) {   // two leaves off the stalk, drooping outwards
       const [bx, by] = trapStalk(x, hy, sw, 0.62 + (s > 0 ? 0.08 : 0)), fl = Math.sin(clock * 0.9 + k + s) * 5;
-      fillPoly(c, [[bx, by - 4], [bx + s * 34, by - 22 + fl * 0.4], [bx + s * 78, by - 8 + fl], [bx + s * 44, by + 10 + fl * 0.5], [bx + s * 6, by + 8]], col);
+      corner(0, bx, by - 4); corner(1, bx + s * 34, by - 22 + fl * 0.4); corner(2, bx + s * 78, by - 8 + fl); corner(3, bx + s * 44, by + 10 + fl * 0.5);
+      corner(4, bx + s * 6, by + 8); fillPoly(c, CORNERS, col, 5);
     }
-    for (const s of [-1, 1]) fillPoly(c, trapLobe(x, hy, s, a, 28), col);
+    for (let s = -1; s <= 1; s += 2) fillPoly(c, trapLobe(x, hy, s, a, 28), col);
     disc(x, hy + 2, 14, col);
-    for (const s of [-1, 1]) for (const [b, t] of trapTeeth(x, hy, s, a)) fillPoly(c, [[b[0] - 2, b[1] - 1], [b[0] + 2, b[1] + 1], t], col);
-    for (const s of [-1, 1]) for (let i = 0; i < 3; i++) {   // root threads from the hinge
+    for (let s = -1; s <= 1; s += 2) for (const [b, t] of trapTeeth(x, hy, s, a)) tri(c, b[0] - 2, b[1] - 1, b[0] + 2, b[1] + 1, t[0], t[1], col);
+    for (let s = -1; s <= 1; s += 2) for (let i = 0; i < 3; i++) {   // root threads from the hinge
       const ox = x + s * (12 + i * 5), oy = hy + 4;
       c.fillStyle = col;   // 11 steps of 4 px: half the rectangles of 22 steps of 2 px, for the same thread
       for (let j = 0; j < 22; j += 2) c.fillRect(Math.round(ox + s * j * 0.5 + Math.sin(clock * 1.4 + i + j * 0.3) * j * 0.15), Math.round(oy + j * 2.2), 1, 5);
@@ -3147,6 +3226,12 @@ const MOTH_FORE = [[4, -8], [30, -40], [84, -58], [122, -50], [127, -34], [98, -
 const MOTH_HIND = [[6, 4], [50, 14], [92, 30], [97, 54], [70, 74], [34, 66], [10, 36]];
 const mothF = k => 0.8 + 0.2 * Math.sin(clock * 2.1 + k);
 const mothPt = (x, y, s, f, u, v) => [x + s * u * f, y - v];
+// A wing's outline (MOTH_FORE or MOTH_HIND) as mothPt places it, in a reused list.
+function mothWing(x, y, s, f, shape) {
+  const pts = cornerList(shape, shape.length);
+  for (let i = 0; i < shape.length; i++) { pts[i][0] = x + s * shape[i][0] * f; pts[i][1] = y - shape[i][1]; }
+  return pts;
+}
 LEVIATHANS.moth = {
   moon: 'jungle', name: 'Gloomwing', line: 'Scales from both wings, one gap',
   patterns: ['wave', 'ring', 'fan', 'curtain'],
@@ -3158,13 +3243,13 @@ LEVIATHANS.moth = {
   draw(x, y, dir, k, col) {
     y += Math.sin(clock * 0.7 + k) * 5;
     const f = mothF(k);
-    for (const s of [-1, 1]) {
-      fillPoly(c, MOTH_HIND.map(([u, v]) => mothPt(x, y, s, f, u, v)), col);
-      fillPoly(c, MOTH_FORE.map(([u, v]) => mothPt(x, y, s, f, u, v)), col);
+    for (let s = -1; s <= 1; s += 2) {
+      fillPoly(c, mothWing(x, y, s, f, MOTH_HIND), col);
+      fillPoly(c, mothWing(x, y, s, f, MOTH_FORE), col);
     }
     fillEllipse(c, x, y, 10, 15, col); fillEllipse(c, x, y - 28, 8, 22, col); disc(x, y + 19, 7, col);
-    for (const s of [-1, 1]) for (let j = 0; j <= 20; j++) {   // feathered antennae, curling down and out
-      const [ax, ay] = bez([x + s * 3, y + 24], [x + s * 10, y + 50], [x + s * 30 + Math.sin(clock * 1.5 + k) * 3, y + 60], j / 20);
+    for (let s = -1; s <= 1; s += 2) for (let j = 0; j <= 20; j++) {   // feathered antennae, curling down and out
+      const [ax, ay] = bezXY(x + s * 3, y + 24, x + s * 10, y + 50, x + s * 30 + Math.sin(clock * 1.5 + k) * 3, y + 60, j / 20);
       c.fillStyle = col; c.fillRect(Math.round(ax), Math.round(ay), 2, 1);
       if (j % 2 === 0 && j > 3) { c.fillRect(Math.round(ax) + s * 2, Math.round(ay) - 2, 1, 2); c.fillRect(Math.round(ax) - s, Math.round(ay) + 1, 1, 2); }
     }
@@ -3212,11 +3297,18 @@ LEVIATHANS.moth = {
 // foot (s = -1 left, 1 right; leg 0 is the back pair, reaching up beside the abdomen, leg 3 the front pair).
 const SPIDER_LEGS = [[14, -8, 54, -70, 100, -56], [17, -3, 70, -42, 118, -6], [17, 4, 66, -10, 110, 40], [13, 10, 48, 22, 74, 84]];
 const spiderY = (y, k) => y + Math.sin(clock * 0.5 + k) * 6;
+// A leg's hip, knee and foot, and a fang's base and tip, in reused lists: take the numbers out before the next call.
+const SPIDER_LEG = [0, 0, 0, 0, 0, 0], SPIDER_FANG = [0, 0, 0, 0];
 function spiderLeg(x, y, s, i, k) {
-  const [hu, hv, ku, kv, fu, fv] = SPIDER_LEGS[i], tw = Math.sin(clock * 1.4 + i * 1.1 + s * 0.7 + k), cy = y + 2;
-  return [x + s * hu, cy + hv, x + s * ku, cy + kv + tw * 2, x + s * (fu + tw * 2), cy + fv + tw * 4];
+  const [hu, hv, ku, kv, fu, fv] = SPIDER_LEGS[i], tw = Math.sin(clock * 1.4 + i * 1.1 + s * 0.7 + k), cy = y + 2, out = SPIDER_LEG;
+  out[0] = x + s * hu; out[1] = cy + hv; out[2] = x + s * ku; out[3] = cy + kv + tw * 2; out[4] = x + s * (fu + tw * 2); out[5] = cy + fv + tw * 4;
+  return out;
 }
-const spiderFang = (x, y, s, k) => { const o = Math.sin(clock * 3 + k) * 2; return [x + s * 8, y + 24, x + s * (4 - o), y + 37]; };
+function spiderFang(x, y, s, k) {
+  const o = Math.sin(clock * 3 + k) * 2, out = SPIDER_FANG;
+  out[0] = x + s * 8; out[1] = y + 24; out[2] = x + s * (4 - o); out[3] = y + 37;
+  return out;
+}
 LEVIATHANS.spider = {
   moon: 'jungle', name: 'Widowloom', line: 'A web falls. Slip through the hole',
   patterns: ['aimed', 'wave', 'ring', 'beam'],
@@ -3229,14 +3321,14 @@ LEVIATHANS.spider = {
   draw(x, y, dir, k, col) {
     y = spiderY(y, k);
     c.fillStyle = col; c.fillRect(Math.round(x) - 1, Math.round(y) - 270, 2, 194);   // its thread
-    for (const s of [-1, 1]) for (let i = 0; i < 4; i++) {
+    for (let s = -1; s <= 1; s += 2) for (let i = 0; i < 4; i++) {
       const [hx, hy, kx, ky, fx, fy] = spiderLeg(x, y, s, i, k);
       limb(hx, hy, kx, ky, 4, 3, col); limb(kx, ky, fx, fy, 3, 1, col);
     }
     fillEllipse(c, x, y - 44, 30, 36, col);   // abdomen
     disc(x, y - 14, 9, col);   // waist
     fillEllipse(c, x, y + 2, 20, 17, col);   // head and thorax
-    for (const s of [-1, 1]) {
+    for (let s = -1; s <= 1; s += 2) {
       disc(x + s * 7, y + 19, 7, col);   // the fangs' bases, and the fangs
       const [ax, ay, bx, by] = spiderFang(x, y, s, k); limb(ax, ay, bx, by, 3, 1, col);
       limb(x + s * 13, y + 13, x + s * 25, y + 25, 3, 2, col); limb(x + s * 25, y + 25, x + s * 21, y + 37, 2, 1, col);   // palps
@@ -3285,7 +3377,12 @@ LEVIATHANS.spider = {
 // Croakmaw, a poison frog wider than the shaft, seen from the front: a broad head, bulging eyes on top, a wide mouth,
 // a throat that swells as it breathes (th, 0 to 1), front legs splayed with sticky toe pads, and its long back legs
 // folded either side.
-const frogPose = (y, k) => [y + Math.sin(clock * 0.6 + k) * 4, Math.max(0, Math.sin(clock * 1.8 + k))];
+// Its bob and its throat's swell, in a reused pair: take the numbers out before the next call.
+const FROG_POSE = [0, 0];
+function frogPose(y, k) {
+  FROG_POSE[0] = y + Math.sin(clock * 0.6 + k) * 4; FROG_POSE[1] = Math.max(0, Math.sin(clock * 1.8 + k));
+  return FROG_POSE;
+}
 // A foot of four toes fanning out from (fx, fy), turned a0 from straight down, each L long with a round pad.
 function frogFoot(fx, fy, s, a0, L, col, pad) {
   for (let i = 0; i < 4; i++) {
@@ -3306,8 +3403,10 @@ LEVIATHANS.frog = {
   box: [-130, -68, 130, 96],
   draw(x, y, dir, k, col) {
     const [yy, th] = frogPose(y, k); y = yy;
-    for (const s of [-1, 1]) {
-      fillPoly(c, FROG_THIGH.map(([u, v]) => [x + s * u, y + v]), col);   // thigh, folded up
+    for (let s = -1; s <= 1; s += 2) {
+      const thigh = cornerList(FROG_THIGH, FROG_THIGH.length);
+      for (let i = 0; i < FROG_THIGH.length; i++) { thigh[i][0] = x + s * FROG_THIGH[i][0]; thigh[i][1] = y + FROG_THIGH[i][1]; }
+      fillPoly(c, thigh, col);   // thigh, folded up
       limb(x + s * 104, y - 22, x + s * 100, y + 40, 8, 5, col); frogFoot(x + s * 100, y + 42, s, -0.2, 22, col);   // shin and foot
       limb(x + s * 44, y + 16, x + s * 80, y + 30, 9, 7, col); limb(x + s * 80, y + 30, x + s * 60, y + 56, 7, 5, col);   // arm, elbow out
       frogFoot(x + s * 60, y + 58, s, -0.6, 15, col);
@@ -3369,20 +3468,29 @@ LEVIATHANS.frog = {
 // lobes on its legs and a leaf-shaped abdomen. mantisArm gives a foreleg's shoulder, elbow, wrist and blade tip.
 const mantisOpen = k => 0.5 + 0.5 * Math.sin(clock * 1.2 + k);
 const mantisY = (y, k) => y + Math.sin(clock * 0.8 + k) * 4;
+// mantisArm, mantisWing (one list per wing shape) and mantisBelly hand back reused lists: take the numbers out before
+// the next call for the same thing.
+const MANTIS_ARM = [0, 0, 0, 0, 0, 0, 0, 0];
 function mantisArm(x, y, s, k) {
-  const o = mantisOpen(k);
-  return [x + s * 5, y - 20, x + s * 20, y - 2, x + s * 44, y - 58, x + s * (26 + o * 26), y - 18 - o * 10];
+  const o = mantisOpen(k), out = MANTIS_ARM;
+  out[0] = x + s * 5; out[1] = y - 20; out[2] = x + s * 20; out[3] = y - 2; out[4] = x + s * 44; out[5] = y - 58;
+  out[6] = x + s * (26 + o * 26); out[7] = y - 18 - o * 10;
+  return out;
 }
 const MANTIS_FORE = [[8, 2], [60, -30], [118, -46], [112, -30], [56, -8], [10, 10]];
 const MANTIS_HIND = [[8, 8], [70, 4], [114, 18], [100, 46], [56, 44], [12, 22]];
-const mantisWing = (x, y, s, k, pts) => { const fl = Math.sin(clock * 2.4 + k) * 4; return pts.map(([u, v]) => [x + s * u, y + v + fl * u / 118]); };
-function mantisBelly(x, y) {   // the abdomen's outline: a long leaf, with lobes
-  const L = [], R = [];
+function mantisWing(x, y, s, k, shape) {
+  const fl = Math.sin(clock * 2.4 + k) * 4, pts = cornerList(shape, shape.length);
+  for (let i = 0; i < shape.length; i++) { const [u, v] = shape[i]; pts[i][0] = x + s * u; pts[i][1] = y + v + fl * u / 118; }
+  return pts;
+}
+function mantisBelly(x, y) {   // the abdomen's outline: a long leaf, with lobes (down its left side, back up its right)
+  const pts = cornerList(mantisBelly, 34);
   for (let i = 0; i <= 16; i++) {
     const t = i / 16, w = 24 * Math.pow(Math.sin(Math.PI * (0.15 + 0.85 * t)), 0.8) + 3 * Math.sin(t * Math.PI * 6), v = y + 16 + t * 80;
-    L.push([x - w, v]); R.unshift([x + w, v]);
+    pts[i][0] = x - w; pts[i][1] = v; pts[33 - i][0] = x + w; pts[33 - i][1] = v;
   }
-  return L.concat(R);
+  return pts;
 }
 LEVIATHANS.mantis = {
   moon: 'jungle', name: 'Sicklethorn', line: 'Blades curve in and cross on you',
@@ -3394,9 +3502,9 @@ LEVIATHANS.mantis = {
   box: [-128, -110, 128, 104],
   draw(x, y, dir, k, col) {
     y = mantisY(y, k);
-    for (const s of [-1, 1]) { fillPoly(c, mantisWing(x, y, s, k, MANTIS_HIND), col); fillPoly(c, mantisWing(x, y, s, k, MANTIS_FORE), col); }
+    for (let s = -1; s <= 1; s += 2) { fillPoly(c, mantisWing(x, y, s, k, MANTIS_HIND), col); fillPoly(c, mantisWing(x, y, s, k, MANTIS_FORE), col); }
     fillPoly(c, mantisBelly(x, y), col);
-    for (const s of [-1, 1]) {
+    for (let s = -1; s <= 1; s += 2) {
       limb(x + s * 10, y + 12, x + s * 54, y + 20, 3, 3, col); limb(x + s * 54, y + 20, x + s * 66, y + 56, 3, 1, col);   // middle leg
       limb(x + s * 10, y + 20, x + s * 46, y + 46, 3, 3, col); limb(x + s * 46, y + 46, x + s * 52, y + 92, 3, 1, col);   // back leg
       fillEllipse(c, x + s * 34, y + 14, 9, 5, col); fillEllipse(c, x + s * 30, y + 34, 8, 5, col);   // petal lobes
@@ -3405,13 +3513,13 @@ LEVIATHANS.mantis = {
       limb(tx, ty, tx - s * 6, ty + 5, 2, 1, col);   // the blade's hook
     }
     fillEllipse(c, x, y + 10, 15, 12, col);   // thorax
-    fillPoly(c, [[x - 5, y - 34], [x + 5, y - 34], [x + 8, y + 2], [x - 8, y + 2]], col);   // neck
-    fillPoly(c, [[x - 25, y - 62], [x + 25, y - 62], [x + 4, y - 28], [x - 4, y - 28]], col);   // head
-    for (const s of [-1, 1]) {
+    quad(c, x - 5, y - 34, x + 5, y - 34, x + 8, y + 2, x - 8, y + 2, col);   // neck
+    quad(c, x - 25, y - 62, x + 25, y - 62, x + 4, y - 28, x - 4, y - 28, col);   // head
+    for (let s = -1; s <= 1; s += 2) {
       disc(x + s * 20, y - 62, 9, col);   // eyes
       c.fillStyle = col;
       for (let j = 0; j <= 12; j++) {   // antennae
-        const [ax, ay] = bez([x + s * 5, y - 68], [x + s * 10, y - 92], [x + s * 36 + Math.sin(clock * 1.3 + k + s) * 4, y - 100], j / 12);
+        const [ax, ay] = bezXY(x + s * 5, y - 68, x + s * 10, y - 92, x + s * 36 + Math.sin(clock * 1.3 + k + s) * 4, y - 100, j / 12);
         c.fillRect(Math.round(ax), Math.round(ay), 2, 2);
       }
     }
@@ -3473,11 +3581,18 @@ LEVIATHANS.mantis = {
 // cone for a head with hooked mandibles behind it, and a spike for a tail. drillAt(t) is a point down its body, from the
 // head (0) to the tail (1), with its radius there.
 const DRILL_N = 11;
+// drillAt and drillHead hand back reused lists (asked for about 30 times a frame): take the numbers out before the next call.
+const DRILL_AT = [0, 0, 0], DRILL_HEAD = [0, 0];
 function drillAt(x, y, dir, k, t) {
   const len = 200, ph = clock * 2.4 + k;
-  return [x + dir * (len / 2 - t * len), y + Math.sin(ph - t * 6) * 6 * (0.25 + t), Math.max(7, 17 - t * 10)];
+  DRILL_AT[0] = x + dir * (len / 2 - t * len); DRILL_AT[1] = y + Math.sin(ph - t * 6) * 6 * (0.25 + t); DRILL_AT[2] = Math.max(7, 17 - t * 10);
+  return DRILL_AT;
 }
-function drillHead(x, y, dir, k) { const [hx, hy] = drillAt(x, y, dir, k, 0); return [hx + dir * 14, hy]; }   // the cone's base
+function drillHead(x, y, dir, k) {   // the cone's base
+  const [hx, hy] = drillAt(x, y, dir, k, 0);
+  DRILL_HEAD[0] = hx + dir * 14; DRILL_HEAD[1] = hy;
+  return DRILL_HEAD;
+}
 LEVIATHANS.drill = {
   moon: 'machine', name: 'Augerwyrm', line: 'Twin bolts corkscrew at you',
   patterns: ['aimed', 'wave', 'fan', 'curtain'],
@@ -3496,8 +3611,8 @@ LEVIATHANS.drill = {
     }
     const [hx, hy] = drillHead(x, y, dir, k);
     limb(px, py, hx, hy, 17, 15, col);   // the collar
-    fillPoly(c, [[hx, hy - 15], [hx + dir * 42, hy], [hx, hy + 15]], col);   // the drill
-    for (const s of [-1, 1]) { const o = Math.sin(clock * 4 + k) * 3; limb(px + dir * 6, py + s * 12, px + dir * 18, py + s * (25 + o), 4, 2, col); limb(px + dir * 18, py + s * (25 + o), px + dir * 30, py + s * (17 + o), 2, 1, col); }
+    tri(c, hx, hy - 15, hx + dir * 42, hy, hx, hy + 15, col);   // the drill
+    for (let s = -1; s <= 1; s += 2) { const o = Math.sin(clock * 4 + k) * 3; limb(px + dir * 6, py + s * 12, px + dir * 18, py + s * (25 + o), 4, 2, col); limb(px + dir * 18, py + s * (25 + o), px + dir * 30, py + s * (17 + o), 2, 1, col); }
   },
   // Extra shape: fins along its back (one sheared off) and a dent bitten out of a segment.
   geo(x, y, dir, k, p) {
@@ -3536,11 +3651,20 @@ LEVIATHANS.drill = {
 // Glarecore, a sentinel: a floating armoured eye under a hood, four steel vanes round it, and three cable arms with
 // claws hanging below, feeling for him.
 const sentY = (y, k) => y + Math.sin(clock * 0.9 + k) * 5;
+// sentArm and sentFin hand back reused lists: take the numbers out before the next call.
+const SENT_ARM = [0, 0, 0, 0, 0, 0], SENT_FINS = [[[0, 0], [0, 0], [0, 0], [0, 0]], [[0, 0], [0, 0], [0, 0], [0, 0]]];
 function sentArm(x, y, i, k) {
   const sw = Math.sin(clock * 1.2 + i * 1.7 + k) * 8, sw2 = Math.sin(clock * 1.2 + i * 1.7 + k - 0.8) * 12;
-  return [x + i * 18, y + 26, x + i * 30 + sw, y + 62, x + i * 26 + sw2, y + 96];
+  return put6(SENT_ARM, x + i * 18, y + 26, x + i * 30 + sw, y + 62, x + i * 26 + sw2, y + 96);
 }
-const sentFin = (x, y, s, k) => { const f = Math.sin(clock * 1.5 + k) * 3; return [[[x + s * 18, y - 26], [x + s * 58, y - 60 + f], [x + s * 70, y - 48 + f], [x + s * 32, y - 12]], [[x + s * 30, y - 4], [x + s * 80, y + 8 - f], [x + s * 72, y + 20 - f], [x + s * 30, y + 14]]]; };
+function sentFin(x, y, s, k) {   // its two vanes on side s, four corners each
+  const f = Math.sin(clock * 1.5 + k) * 3, [A, B] = SENT_FINS;
+  A[0][0] = x + s * 18; A[0][1] = y - 26; A[1][0] = x + s * 58; A[1][1] = y - 60 + f;
+  A[2][0] = x + s * 70; A[2][1] = y - 48 + f; A[3][0] = x + s * 32; A[3][1] = y - 12;
+  B[0][0] = x + s * 30; B[0][1] = y - 4; B[1][0] = x + s * 80; B[1][1] = y + 8 - f;
+  B[2][0] = x + s * 72; B[2][1] = y + 20 - f; B[3][0] = x + s * 30; B[3][1] = y + 14;
+  return SENT_FINS;
+}
 LEVIATHANS.sentinel = {
   moon: 'machine', name: 'Glarecore', line: 'Its scan locks on, then it fires',
   patterns: ['beam', 'ring', 'aimed', 'fan'],
@@ -3551,14 +3675,14 @@ LEVIATHANS.sentinel = {
   box: [-80, -72, 80, 114],
   draw(x, y, dir, k, col) {
     y = sentY(y, k);
-    for (const s of [-1, 1]) for (const F of sentFin(x, y, s, k)) fillPoly(c, F, col);
+    for (let s = -1; s <= 1; s += 2) for (const F of sentFin(x, y, s, k)) fillPoly(c, F, col);
     for (let i = -1; i <= 1; i++) {
       const [hx, hy, ex, ey, fx, fy] = sentArm(x, y, i, k);
       limb(hx, hy, ex, ey, 4, 3, col); limb(ex, ey, fx, fy, 3, 2, col);
       limb(fx, fy, fx - 6, fy + 10, 2, 1, col); limb(fx, fy, fx + 6, fy + 10, 2, 1, col);   // its claw
     }
     fillEllipse(c, x, y, 34, 32, col);   // the body
-    fillPoly(c, [[x - 30, y - 18], [x - 18, y - 44], [x + 18, y - 44], [x + 30, y - 18]], col);   // the hood
+    quad(c, x - 30, y - 18, x - 18, y - 44, x + 18, y - 44, x + 30, y - 18, col);   // the hood
     limb(x, y - 44, x + Math.sin(clock * 0.7 + k) * 4, y - 64, 3, 1, col);   // a mast
   },
   // Extra shape: spikes on the hood and a vane snapped.
@@ -3593,14 +3717,17 @@ LEVIATHANS.sentinel = {
 // reaching forward that open and close, two jointed legs a side tapping, and eyes on stalks.
 const crabY = (y, k) => y + Math.sin(clock * 1.1 + k) * 3;
 const CRAB_LEGS = [[50, -12, 92, -38, 122, -10], [54, 6, 100, 0, 126, 36]];
+// crabLeg and crabClaw hand back reused lists: take the numbers out before the next call.
+const CRAB_LEG = [0, 0, 0, 0, 0, 0], CRAB_CLAW = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 function crabLeg(x, y, s, i, k) {
   const [hu, hv, ku, kv, fu, fv] = CRAB_LEGS[i], tw = Math.sin(clock * 2.2 + i * 1.9 + s + k) * 3;
-  return [x + s * hu, y + hv, x + s * ku, y + kv - tw, x + s * fu, y + fv + tw];
+  return put6(CRAB_LEG, x + s * hu, y + hv, x + s * ku, y + kv - tw, x + s * fu, y + fv + tw);
 }
 const crabOpen = k => 0.5 + 0.5 * Math.sin(clock * 1.6 + k);
 function crabClaw(x, y, s, k) {   // shoulder, elbow, wrist, and the two jaws' tips
-  const o = crabOpen(k), wx = x + s * 46, wy = y + 84;
-  return [x + s * 36, y + 20, x + s * 74, y + 48, wx, wy, wx - s * (6 + 10 * o), wy + 30, wx + s * (10 + 8 * o), wy + 24];
+  const o = crabOpen(k), wx = x + s * 46, wy = y + 84, out = put6(CRAB_CLAW, x + s * 36, y + 20, x + s * 74, y + 48, wx, wy);
+  out[6] = wx - s * (6 + 10 * o); out[7] = wy + 30; out[8] = wx + s * (10 + 8 * o); out[9] = wy + 24;
+  return out;
 }
 LEVIATHANS.crab = {
   moon: 'machine', name: 'Rivetclaw', line: 'Shells land where the markers show',
@@ -3612,11 +3739,11 @@ LEVIATHANS.crab = {
   box: [-128, -52, 128, 118],
   draw(x, y, dir, k, col) {
     y = crabY(y, k);
-    for (const s of [-1, 1]) {
+    for (let s = -1; s <= 1; s += 2) {
       for (let i = 0; i < 2; i++) { const [hx, hy, kx, ky, fx, fy] = crabLeg(x, y, s, i, k); limb(hx, hy, kx, ky, 5, 4, col); limb(kx, ky, fx, fy, 4, 1, col); }
       const [ax, ay, ex, ey, wx, wy, px, py, qx, qy] = crabClaw(x, y, s, k);
       limb(ax, ay, ex, ey, 7, 6, col); limb(ex, ey, wx, wy, 6, 9, col);
-      fillPoly(c, [[wx - 8, wy], [wx + 8, wy], [px, py]], col); fillPoly(c, [[wx - 6, wy - 2], [wx + 6, wy + 4], [qx, qy]], col);   // the jaws
+      tri(c, wx - 8, wy, wx + 8, wy, px, py, col); tri(c, wx - 6, wy - 2, wx + 6, wy + 4, qx, qy, col);   // the jaws
       limb(x + s * 12, y - 26, x + s * 16, y - 40, 2, 3, col);   // an eye stalk
     }
     fillEllipse(c, x, y, 64, 30, col);   // the carapace
@@ -3652,7 +3779,11 @@ LEVIATHANS.crab = {
 // sting on top, compound eyes and mandibles below, and three jointed legs a side ready to grab.
 const waspY = (y, k) => y + Math.sin(clock * 1.3 + k) * 4;
 const WASP_LEGS = [[10, 8, 36, 24, 32, 50], [12, 14, 42, 38, 46, 64], [8, 18, 26, 44, 16, 70]];
-function waspLeg(x, y, s, i, k) { const [hu, hv, ku, kv, fu, fv] = WASP_LEGS[i], tw = Math.sin(clock * 2 + i + s * 0.5 + k) * 3; return [x + s * hu, y + hv, x + s * ku, y + kv + tw, x + s * (fu + tw), y + fv]; }
+const WASP_LEG = [0, 0, 0, 0, 0, 0];   // reused: take the numbers out before the next call
+function waspLeg(x, y, s, i, k) {
+  const [hu, hv, ku, kv, fu, fv] = WASP_LEGS[i], tw = Math.sin(clock * 2 + i + s * 0.5 + k) * 3;
+  return put6(WASP_LEG, x + s * hu, y + hv, x + s * ku, y + kv + tw, x + s * (fu + tw), y + fv);
+}
 LEVIATHANS.wasp = {
   moon: 'machine', name: 'Thrumwing', line: 'Drones hunt you, then dart',
   patterns: ['aimed', 'wave', 'ring', 'fan'],
@@ -3663,7 +3794,7 @@ LEVIATHANS.wasp = {
   box: [-108, -104, 108, 76],
   draw(x, y, dir, k, col) {
     y = waspY(y, k);
-    for (const s of [-1, 1]) {
+    for (let s = -1; s <= 1; s += 2) {
       const rx = x + s * 62, ry = y - 22;
       limb(x + s * 12, y - 8, rx, ry, 3, 3, col);   // the rotor's strut
       fillEllipse(c, rx, ry, 44, 8, col); disc(rx, ry, 5, col);
@@ -3672,7 +3803,7 @@ LEVIATHANS.wasp = {
       limb(x + s * 4, y + 20, x + s * 18, y + 6 + Math.sin(clock * 2 + s + k) * 3, 1, 1, col);   // antennae, swept back
     }
     fillEllipse(c, x, y - 48, 16, 30, col);   // abdomen
-    fillPoly(c, [[x - 5, y - 74], [x + 5, y - 74], [x, y - 100]], col);   // the sting
+    tri(c, x - 5, y - 74, x + 5, y - 74, x, y - 100, col);   // the sting
     fillEllipse(c, x, y, 18, 16, col); fillEllipse(c, x, y + 28, 14, 12, col);   // thorax and head
   },
   // Extra shape: barbs on the abdomen and a hole through a rotor.
@@ -3705,7 +3836,11 @@ LEVIATHANS.wasp = {
 // a horned pronotum, mandibles like tongs, and three legs a side.
 const beetY = (y, k) => y + Math.sin(clock * 0.7 + k) * 4;
 const BEET_LEGS = [[30, -24, 64, -38, 80, -62], [36, 0, 74, 4, 96, -8], [30, 22, 62, 42, 74, 70]];
-function beetLeg(x, y, s, i, k) { const [hu, hv, ku, kv, fu, fv] = BEET_LEGS[i], tw = Math.sin(clock * 1.6 + i * 2 + s + k) * 3; return [x + s * hu, y + hv, x + s * ku, y + kv + tw, x + s * fu, y + fv - tw]; }
+const BEET_LEG = [0, 0, 0, 0, 0, 0];   // reused: take the numbers out before the next call
+function beetLeg(x, y, s, i, k) {
+  const [hu, hv, ku, kv, fu, fv] = BEET_LEGS[i], tw = Math.sin(clock * 1.6 + i * 2 + s + k) * 3;
+  return put6(BEET_LEG, x + s * hu, y + hv, x + s * ku, y + kv + tw, x + s * fu, y + fv - tw);
+}
 const beetJaw = k => Math.sin(clock * 1.4 + k) * 0.15;
 LEVIATHANS.beetle = {
   moon: 'machine', name: 'Slagback', line: 'Molten slag pours. Stay between',
@@ -3717,14 +3852,14 @@ LEVIATHANS.beetle = {
   box: [-98, -74, 98, 96],
   draw(x, y, dir, k, col) {
     y = beetY(y, k);
-    for (const s of [-1, 1]) {
+    for (let s = -1; s <= 1; s += 2) {
       for (let i = 0; i < 3; i++) { const [hx, hy, kx, ky, fx, fy] = beetLeg(x, y, s, i, k); limb(hx, hy, kx, ky, 5, 4, col); limb(kx, ky, fx, fy, 4, 1, col); }
       const a = 0.35 + s * beetJaw(k);
-      fillPoly(c, [[x + s * 10, y + 60], [x + s * 22, y + 62], [x + s * (14 + Math.sin(a) * 30), y + 62 + Math.cos(a) * 30], [x + s * 6, y + 76]], col);   // a mandible
+      quad(c, x + s * 10, y + 60, x + s * 22, y + 62, x + s * (14 + Math.sin(a) * 30), y + 62 + Math.cos(a) * 30, x + s * 6, y + 76, col);   // a mandible
     }
     fillEllipse(c, x, y - 8, 46, 56, col);   // the shell
     fillEllipse(c, x, y + 44, 34, 16, col);  // the pronotum
-    fillPoly(c, [[x - 6, y + 50], [x + 6, y + 50], [x, y + 74]], col);   // its horn
+    tri(c, x - 6, y + 50, x + 6, y + 50, x, y + 74, col);   // its horn
     fillEllipse(c, x, y + 62, 18, 10, col);  // the head
   },
   // Extra shape: spikes round the shell and a notch in it.
@@ -3756,7 +3891,15 @@ LEVIATHANS.beetle = {
 // above it, and chains dangling.
 const gearY = (y, k) => Math.round(y + Math.sin(clock * 0.6 + k) * 5);   // whole pixels, so its shape has no half-covered edges
 const gearRot = k => clock * 0.45 + k;
-function gearTooth(x, y, a, r0, r1) { const ca = Math.cos(a), sa = Math.sin(a), ca2 = Math.cos(a + 0.11), sa2 = Math.sin(a + 0.11), cb = Math.cos(a - 0.11), sb = Math.sin(a - 0.11); return [[x + cb * r0, y + sb * r0], [x + ca2 * r0, y + sa2 * r0], [x + ca * r1 + (ca2 - ca) * r1 * 0.5, y + sa * r1 + (sa2 - sa) * r1 * 0.5], [x + ca * r1 + (cb - ca) * r1 * 0.5, y + sa * r1 + (sb - sa) * r1 * 0.5]]; }
+// A tooth's four corners, in a reused list (twelve teeth a frame).
+function gearTooth(x, y, a, r0, r1) {
+  const ca = Math.cos(a), sa = Math.sin(a), ca2 = Math.cos(a + 0.11), sa2 = Math.sin(a + 0.11), cb = Math.cos(a - 0.11), sb = Math.sin(a - 0.11);
+  const [p0, p1, p2, p3] = cornerList(gearTooth, 4);
+  p0[0] = x + cb * r0; p0[1] = y + sb * r0; p1[0] = x + ca2 * r0; p1[1] = y + sa2 * r0;
+  p2[0] = x + ca * r1 + (ca2 - ca) * r1 * 0.5; p2[1] = y + sa * r1 + (sa2 - sa) * r1 * 0.5;
+  p3[0] = x + ca * r1 + (cb - ca) * r1 * 0.5; p3[1] = y + sa * r1 + (sb - sa) * r1 * 0.5;
+  return cornerList(gearTooth, 4);
+}
 LEVIATHANS.gear = {
   moon: 'machine', name: 'Gearmaw', line: 'Cogs bounce off the walls',
   patterns: ['ring', 'curtain', 'aimed', 'bomb'],
@@ -3768,7 +3911,7 @@ LEVIATHANS.gear = {
   draw(x, y, dir, k, col) {
     y = gearY(y, k);
     const rot = gearRot(k);
-    for (const s of [-1, 1]) {   // the small cogs, turning the other way
+    for (let s = -1; s <= 1; s += 2) {   // the small cogs, turning the other way
       const gx = x + s * 60, gy = y - 36;
       disc(gx, gy, 18, col); c.fillStyle = col;
       for (let i = 0; i < 8; i++) { const a = -rot * 2.4 + i * Math.PI / 4 + s; c.fillRect(Math.round(gx + Math.cos(a) * 21) - 3, Math.round(gy + Math.sin(a) * 21) - 3, 6, 6); }
@@ -3777,7 +3920,7 @@ LEVIATHANS.gear = {
     disc(x, y, 44, col);
     for (let i = 0; i < 12; i++) fillPoly(c, gearTooth(x, y, rot + i * Math.PI / 6, 40, 56), col);
     const jw = 4 + Math.sin(clock * 1.3 + k) * 4;
-    fillPoly(c, [[x - 28, y + 16], [x + 28, y + 16], [x + 20, y + 56 + jw], [x - 20, y + 56 + jw]], col);   // the jaw
+    quad(c, x - 28, y + 16, x + 28, y + 16, x + 20, y + 56 + jw, x - 20, y + 56 + jw, col);   // the jaw
   },
   // Extra shape: a broken tooth on the cog.
   geo(x, y, dir, k, p) {
@@ -6417,13 +6560,17 @@ function setCard(side, instant) {
 // (its entry's name and line; LEVI_INFO lists them), and a portrait painted with its fight art (bossStage), facing
 // right and looking down at the viewer.
 function leviPortrait(kind) {
-  const buf = bossBuf(kind), keep = [bossTmp, bossTmpG, pilotNow];
-  bossTmp = document.createElement('canvas'); bossTmp.width = buf.w; bossTmp.height = buf.h; bossTmpG = bossTmp.getContext('2d');
+  const buf = bossBuf(kind), keepTmp = bossTmp, keepTmpG = bossTmpG, keepPilot = pilotNow;
   // Coloured as if 1,500 m down; placed so the pilot is below and a little to the right of it (its eyes look there).
   const y = 1500 * PX_PER_M - camY, b = { kind, k2: 3, dir: 1, rot: 0, turnT: -1, turnFrom: 1, t: 0, phase: 'fight', pt: 1, x: player.x - 40, y, wob: 0 };
-  pilotNow = y + 90 - PILOT_CY;
-  while (!bossStage(b, buf));
-  [bossTmp, bossTmpG, pilotNow] = keep;
+  // The boss's scratch canvas and the pilot's place are borrowed for the paint and put back even if it fails (CODING.md rule 7).
+  try {
+    bossTmp = document.createElement('canvas'); bossTmp.width = buf.w; bossTmp.height = buf.h; bossTmpG = bossTmp.getContext('2d');
+    pilotNow = y + 90 - PILOT_CY;
+    while (!bossStage(b, buf));
+  } finally {
+    bossTmp = keepTmp; bossTmpG = keepTmpG; pilotNow = keepPilot;
+  }
   // Trimmed to the creature's own pixels (its paint box leaves room for it to move), with a 2 px margin.
   const d = buf.rg.getImageData(0, 0, buf.w, buf.h).data;
   let x0 = buf.w, y0 = buf.h, x1 = 0, y1 = 0;
@@ -6451,9 +6598,13 @@ function prepLeviPics() {
   const later = () => window.requestIdleCallback ? requestIdleCallback(step, { timeout: 1500 }) : setTimeout(step, 120);
   function step() {
     if (state !== 'title') { leviPrepOn = false; return; }   // carries on the next time the menu shows
-    while (leviPrepQ.length && leviPics[leviPrepQ[0]]) leviPrepQ.shift();
-    if (leviPrepQ.length) leviPic(leviPrepQ.shift());
-    if (leviPrepQ.length) later(); else leviPrepOn = false;
+    // One portrait that fails is left for the card to try again; the rest still get painted.
+    try {
+      while (leviPrepQ.length && leviPics[leviPrepQ[0]]) leviPrepQ.shift();
+      if (leviPrepQ.length) leviPic(leviPrepQ.shift());
+    } finally {
+      if (leviPrepQ.length) later(); else leviPrepOn = false;
+    }
   }
   later();
 }
@@ -9970,19 +10121,23 @@ let bossTune = -1, bossTrack = 0, bossTuneOn = false;
 const bossShots = [], bossGone = new Set();
 let bossFront = null, bossBack = null, bossTmp = null, bossTmpG = null;   // the boss's paint buffers (see drawBoss)
 const BOSS_PAINT_EVERY = 0.05; let bossPaintAt = 0, bossFresh = false;
-// Its five canvases are made at the cafe counter above it as the shop opens, while nothing moves, or failing that as he
-// enters the thin shaft (bossMusic); never on the fight's first frame.
+// Its five canvases (and, the first time, bossBand's white checks) are made at the cafe counter above it as the shop
+// opens, while nothing moves, or failing that as he enters the thin shaft (bossMusic); never on the fight's first frame.
 function bossBufs(kind) {
   if (bossFront && bossFront.kind === kind) return;
   bossFront = bossBuf(kind); bossBack = bossBuf(kind);
   bossTmp = document.createElement('canvas'); bossTmp.width = bossFront.w; bossTmp.height = bossFront.h; bossTmpG = bossTmp.getContext('2d');
+  checkWhite();
 }
 // Everything else a fight stamps is made in the thin shaft, a little each frame: its shots and
 // charge glow, then BOSS_WARM paints of the creature at different moments of its animation in the cavern's settled rock
-// colours (a cavern can run from one layer into the next), which fills the disc and ring images its art uses. A paint
+// colours (a cavern can run from one layer into the next), which fills the disc and ring images its art uses, then
+// BOSS_WARM_SIL in its silhouette colour (bossSil), for the fight's first paint (see bossStage). A paint
 // step may make at most two images. Made in the fight, they would be 8 to 30 in the second before its first shot, and
 // more whenever the rock's colour changed. Limited by the clock (90 steps a second), not the frame.
-const BOSS_WARM = 24;
+const BOSS_WARM = 24, BOSS_WARM_SIL = 8;
+// The colour a fight's creature fades in from: its colour in the background, where it waited (leviDepth).
+const bossSil = k2 => mix(palAt(leviDepth(k2)).sO, P.ink, 0.42);
 let bossWarm = null;
 function bossWarmStep(B) {
   const kind = leviKind(2 * B.k);
@@ -9993,7 +10148,7 @@ function bossWarmStep(B) {
     const pals = [];   // the settled rock colours the fight will pass through (a blended one makes no images)
     for (let i = 0; i <= 4; i++) { const d = lerp(B.A0 + 300, B.F0, i / 4); if (palAt(d, true).pure && !pals.some(e => palAt(e, true) === palAt(d, true))) pals.push(d); }
     scratch(1, 1);   // the shared scratch canvas, if nothing has needed it yet
-    bossWarm = { B, at: clock, n: 0, shots, lure: leviUses(kind, 'lure'), paints: pals.length ? 0 : BOSS_WARM, pals,
+    bossWarm = { B, at: clock, n: 0, shots, lure: leviUses(kind, 'lure'), paints: pals.length ? 0 : BOSS_WARM, pals, sil: bossSil(2 * B.k),
       b: { kind, k2: 2 * B.k, B, dir: 1, rot: 0, t: 0, phase: 'fight', pt: 9, x: W / 2, y: 0, sil: P.ink } };
   }
   const w = bossWarm;
@@ -10002,9 +10157,13 @@ function bossWarmStep(B) {
     const keep = stampAllow;
     stampAllow = 2;   // a step's own allowance, whatever the frame has left
     if (w.shots.length) { for (let i = 0; i < 2 && w.shots.length; i++) shotImg(...w.shots.pop()); if (w.lure) ringImg(); }
-    else if (w.paints < BOSS_WARM && bossBack && bossBack.kind === kind) {
+    else if (w.paints < BOSS_WARM + BOSS_WARM_SIL && bossBack && bossBack.kind === kind) {
       // The clock runs 0.6 of b.t ahead in a paint, so these are 0.41 s apart.
-      if (!bossBack.stage) { w.b.t = w.paints * 0.683; w.b.y = w.pals[w.paints % w.pals.length] - camY; }
+      if (!bossBack.stage) {
+        w.b.t = w.paints * 0.683;
+        if (w.paints < BOSS_WARM) w.b.y = w.pals[w.paints % w.pals.length] - camY;
+        else { w.b.phase = 'enter'; w.b.pt = 0; w.b.sil = w.sil; }   // just starting to fade in: all silhouette
+      }
       if (bossStage(w.b, bossBack)) w.paints++;
     }
     stampAllow = keep;
@@ -10022,7 +10181,7 @@ function startBoss(B) {
   leviMeet(k2);   // out of the bag until all six have been fought
   const x0 = W / 2 + dir * (mid - A) * 0.14, y0 = Math.max(-170, H / 2 + (A - mid) * LEVI_PARALLAX);
   boss = { B, kind, k2, n: (B.k + 1) / 2, dir, rot: 0, turnT: -1, turnFrom: dir, sideT: 0, lastTurn: 0, kick: 0, rage: false,
-    phase: 'enter', t: 0, pt: 0, x0, y0, x: x0, y: y0, next: 0.6, queue: [], charge: 0, last: '', orbs: 0, d: 0, sil: mix(palAt(A).sO, P.ink, 0.42) };
+    phase: 'enter', t: 0, pt: 0, x0, y0, x: x0, y: y0, next: 0.6, queue: [], charge: 0, last: '', orbs: 0, d: 0, sil: bossSil(k2) };
   bossShots.length = 0; kidShotAcc = 0.5; bossFresh = true; stampAllow = 0;
   hud.classList.add('boss'); coach.classList.add('gone');
   Sfx.groan(kind); Sfx.bossRoar(); Sfx.leviHello(); Buzz.mine(); shake = Math.max(shake, 1.6);
@@ -10409,14 +10568,21 @@ function ringImg() {
   }
   return lureHalo;
 }
+// Looked up colour by colour, then by size (shotCache: outline -> body -> core -> images by radius), so drawing a shot
+// builds no key string.
 function shotImg(o, m, h, r) {
-  const key = o + m + h + r;
-  let img = shotCache.get(key);
+  let byM = shotCache.get(o);
+  if (!byM) shotCache.set(o, byM = new Map());
+  let byH = byM.get(m);
+  if (!byH) byM.set(m, byH = new Map());
+  let byR = byH.get(h);
+  if (!byR) byH.set(h, byR = []);
+  let img = byR[r];
   if (!img && mayStamp()) {
     img = document.createElement('canvas'); img.width = img.height = 2 * r + 3;
     const g = img.getContext('2d');
     discRows(g, r + 1, r + 1, r + 1, o); discRows(g, r + 1, r + 1, r, m); discRows(g, r + 1, r + 1, Math.max(1, r - 2), h);
-    shotCache.set(key, img);
+    byR[r] = img;
   }
   return img;
 }
@@ -10778,30 +10944,46 @@ function bossPal(kind, Q) {
   for (const n in src) p[n] = n === 'eye' || n === 'mark' || n === 'hi' ? src[n] : mix(src[n], Q.sO, 0.12);
   return (m[kind] = p);
 }
-// Two-pixel checks of one colour, for dithering one shade into another. One 2 x 2 canvas is repainted for every new
-// colour (a canvas per colour would be a new one every paint while it fades in, as its colours change).
-const checkArt = new Map();
-let checkCv = null, checkG = null;
+// Two-pixel checks of one colour, for dithering one shade into another: a pattern per settled colour, the last
+// CHECK_KEEP of them (dropping the oldest, so the colours in use are never all thrown away at once). One 2 x 2 canvas
+// is repainted for every new colour. A paint whose colours last only that paint (stampDirect: fading in, or a rock
+// blend) makes none: bossBand lays white checks (checkWhite) and colours them instead, the same pixels for one more
+// pass. So a fight makes no pattern; its settled colours' are made by the warm-up paints (bossWarmStep).
+const checkArt = new Map(), CHECK_KEEP = 16;
+let checkCv = null, checkG = null, checkW = null;
 function checks(col) {
   let pat = checkArt.get(col);
   if (pat) return pat;
-  if (checkArt.size > 40) checkArt.clear();
+  if (checkArt.size >= CHECK_KEEP) checkArt.delete(checkArt.keys().next().value);
   if (!checkCv) { checkCv = document.createElement('canvas'); checkCv.width = checkCv.height = 2; checkG = checkCv.getContext('2d'); }
   checkG.clearRect(0, 0, 2, 2); checkG.fillStyle = col; checkG.fillRect(0, 0, 1, 1); checkG.fillRect(1, 1, 1, 1);
-  pat = bossTmpG.createPattern(checkCv, 'repeat'); checkArt.set(col, pat);
+  pat = checkG.createPattern(checkCv, 'repeat'); checkArt.set(col, pat);
   return pat;
 }
-// The strip of the boss's body within `off` px of its lower edge (or its upper edge, with `up`), painted with `fill`.
-function bossBand(buf, off, fill, up) {
-  const t = bossTmpG;
+// The checks in white, made once (bossBufs makes it ahead of a fight).
+function checkWhite() {
+  if (!checkW) {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 2;
+    const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 1, 1); g.fillRect(1, 1, 1, 1);
+    checkW = g.createPattern(cv, 'repeat');
+  }
+  return checkW;
+}
+// The strip of the boss's body within `off` px of its lower edge (or its upper edge, with `up`), painted in `col`, in
+// two-pixel checks of it with `checked`.
+function bossBand(buf, off, col, up, checked) {
+  // A pattern only for a colour that lasts, and in a fight only one the warm-up made (stampAllow is 0 there).
+  const t = bossTmpG, pat = checked && !stampDirect && (stampAllow > 0 || checkArt.has(col)) ? checks(col) : null, white = checked && !pat;
   if (LEVIATHANS[buf.kind].soft) {   // the jellyfish's threads sit on half pixels (soft edges), so it keeps the older four-step way
   t.globalCompositeOperation = 'copy'; t.drawImage(buf.cv, 0, 0);
   t.globalCompositeOperation = 'destination-out'; t.drawImage(buf.cv, 0, up ? off : -off);
-  t.globalCompositeOperation = 'source-in'; t.fillStyle = fill; t.fillRect(0, 0, buf.w, buf.h);
+  t.globalCompositeOperation = 'source-in'; t.fillStyle = pat || col; t.fillRect(0, 0, buf.w, buf.h);
+  if (white) { t.globalCompositeOperation = 'destination-in'; t.fillStyle = checkWhite(); t.fillRect(0, 0, buf.w, buf.h); }
   t.globalCompositeOperation = 'source-over';
   buf.g.drawImage(bossTmp, 0, 0); return;
   }
-  t.globalCompositeOperation = 'copy'; t.fillStyle = fill; t.fillRect(0, 0, buf.w, buf.h);
+  t.globalCompositeOperation = 'copy'; t.fillStyle = white ? checkWhite() : pat || col; t.fillRect(0, 0, buf.w, buf.h);
+  if (white) { t.globalCompositeOperation = 'source-in'; t.fillStyle = col; t.fillRect(0, 0, buf.w, buf.h); }
   t.globalCompositeOperation = 'destination-out'; t.drawImage(buf.cv, 0, up ? off : -off);
   t.globalCompositeOperation = 'source-over';
   const g = buf.g; g.globalCompositeOperation = 'source-atop'; g.drawImage(bossTmp, 0, 0); g.globalCompositeOperation = 'source-over';
@@ -10833,31 +11015,44 @@ function bossStage(b, buf) {
     const lx = dive ? vx * co - vy * si : vx, ly = dive ? vx * si + vy * co : vy, n = Math.hypot(lx, ly) || 1;
     buf.look = [lx / n, ly / n];
     buf.fade = b.phase === 'enter' ? smoothstep(b.pt / (BOSS_ENTER * 0.7)) : 1;
-    if (buf.fade < 1) { const q = {}; for (const n in p) q[n] = mix(b.sil, p[n], buf.fade); buf.p = q; } else buf.p = p;   // fading in from its silhouette
-    buf.direct = buf.fade < 1 || !Q.pure;   // colours that last one paint: no images are made for them (see stampDirect)
+    // Colours that last one paint get no images (see stampDirect): fading in from its silhouette, or in a rock blend.
+    // Except while every fading colour still rounds to the silhouette (the fight's first paint, done whole on its first
+    // frame): that one colour lasts the fight, and the warm-up has made its images, so that paint can stamp them.
+    if (buf.fade < 1) {
+      const q = {};
+      let flat = true;
+      for (const n in p) { q[n] = mix(b.sil, p[n], buf.fade); if (q[n] !== b.sil) flat = false; }
+      buf.p = q; buf.direct = !flat;
+    } else { buf.p = p; buf.direct = !Q.pure; }
   }
-  clock = buf.clock; bossLook = buf.look; stampDirect = buf.direct;
-  if (!dive) player.x += buf.ox - b.x;   // the elder's eyes follow him: place him as he is relative to it on screen
+  // Borrowed for the paint and put back in `finally`, so an error in a creature's art can't leave the game drawing into
+  // the buffer, on the wrong clock or with the pilot moved (CODING.md rule 7).
   const was = c, p = buf.p, x = buf.ox, y = buf.oy, dir = buf.dir;
-  c = buf.g;
-  if (buf.stage === 0) {
-    c.clearRect(0, 0, buf.w, buf.h);
-    E.draw(x, y, dir, b.k2, p.base); E.geo(x, y, dir, b.k2, p);
-    c.globalCompositeOperation = 'source-atop'; E.art(x, y, dir, b.k2, p, 0); c.globalCompositeOperation = 'source-over';
-  } else if (buf.stage === 1) {
-    // A diver lies on its side in its drawing, so its back (the drawing's top) is shaded dark and its belly lit.
-    const flip = !!dive;
-    bossBand(buf, 12, checks(p.dark), flip); bossBand(buf, 5, p.dark, flip); bossBand(buf, 2, p.deep, flip);
-    bossBand(buf, 5, checks(p.light), !flip); bossBand(buf, 2, p.light, !flip); bossBand(buf, 1, p.hi, !flip);
-  } else {
-    E.art(x, y, dir, b.k2, p, 1);
-    const g = buf.rg;
-    g.globalCompositeOperation = 'copy'; g.drawImage(buf.cv, -1, 0);
-    g.globalCompositeOperation = 'source-over'; g.drawImage(buf.cv, 1, 0); g.drawImage(buf.cv, 0, -1); g.drawImage(buf.cv, 0, 1);
-    g.globalCompositeOperation = 'source-in'; g.fillStyle = p.hi; g.fillRect(0, 0, buf.w, buf.h);
-    g.globalCompositeOperation = 'source-over';
+  try {
+    clock = buf.clock; bossLook = buf.look; stampDirect = buf.direct;
+    if (!dive) player.x += buf.ox - b.x;   // the elder's eyes follow him: place him as he is relative to it on screen
+    c = buf.g;
+    if (buf.stage === 0) {
+      c.clearRect(0, 0, buf.w, buf.h);
+      E.draw(x, y, dir, b.k2, p.base); E.geo(x, y, dir, b.k2, p);
+      c.globalCompositeOperation = 'source-atop'; E.art(x, y, dir, b.k2, p, 0); c.globalCompositeOperation = 'source-over';
+    } else if (buf.stage === 1) {
+      // A diver lies on its side in its drawing, so its back (the drawing's top) is shaded dark and its belly lit.
+      const flip = !!dive;
+      bossBand(buf, 12, p.dark, flip, true); bossBand(buf, 5, p.dark, flip); bossBand(buf, 2, p.deep, flip);
+      bossBand(buf, 5, p.light, !flip, true); bossBand(buf, 2, p.light, !flip); bossBand(buf, 1, p.hi, !flip);
+    } else {
+      E.art(x, y, dir, b.k2, p, 1);
+      const g = buf.rg;
+      g.globalCompositeOperation = 'copy'; g.drawImage(buf.cv, -1, 0);
+      g.globalCompositeOperation = 'source-over'; g.drawImage(buf.cv, 1, 0); g.drawImage(buf.cv, 0, -1); g.drawImage(buf.cv, 0, 1);
+      g.globalCompositeOperation = 'source-in'; g.fillStyle = p.hi; g.fillRect(0, 0, buf.w, buf.h);
+      g.globalCompositeOperation = 'source-over';
+    }
+  } finally {
+    c = was; clock = keepClock; player.x = keepX; stampDirect = false;
+    buf.g.globalCompositeOperation = 'source-over'; buf.g.globalAlpha = 1;
   }
-  c = was; clock = keepClock; player.x = keepX; stampDirect = false;
   buf.stage = (buf.stage + 1) % 3;
   return buf.stage === 0;
 }
