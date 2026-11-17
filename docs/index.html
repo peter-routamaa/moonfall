@@ -403,6 +403,8 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .tog { white-space: nowrap; font: 400 11px/1 var(--display); color: var(--dust); background: transparent; border: 2px solid var(--dust-dim); padding: 7px 8px 6px; cursor: pointer; letter-spacing: .04em; }
 .tog[aria-pressed="false"] { color: var(--dust-dim); border-color: var(--ink-soft); text-decoration: line-through; }
 .card h2 { margin: 0; font: 700 24px/1.1 var(--display); letter-spacing: .03em; }
+/* A pop-up's title is one line on the narrowest phone: "Congratulations!" is 16 letters wide. */
+.confirm h2 { font-size: min(24px, 5.6vw); }
 .card h2.bad { color: var(--lava); }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; }
 .stats div { background: color-mix(in srgb, var(--dust) 7%, var(--ink)); padding: 9px 8px 8px; }
@@ -503,6 +505,9 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 /* Low on the screen, clear of the pilot on the menu: the escape preview's pop-up, opened by tapping him (askPreview). */
 .confirm.low { margin: auto auto max(16px, env(safe-area-inset-bottom, 0px)); }
 .confirm::backdrop { background: color-mix(in srgb, var(--ink) 72%, transparent); }
+/* The congratulations' party (PARTY_KINDS): nothing dims the fireworks around the card. */
+.confirm.party::backdrop { background: transparent; }
+body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 .confirm.danger { box-shadow: 6px 6px 0 var(--lava); }
 .confirm.danger h2 { color: var(--lava); }
 .confirm .btn { font-size: 16px; }
@@ -527,14 +532,15 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 .splash-moon .moon-ico { width: 42px; height: 42px; }
 .btn:disabled { background: var(--ink-soft); color: var(--dust-dim); box-shadow: 4px 4px 0 var(--ink); cursor: default; }
 .btn:disabled:active { transform: none; box-shadow: 4px 4px 0 var(--ink); }
-/* Skip intro stays in the top right corner all through the intro film; the moon's name shows as it swells. */
+/* Skip cinematic stays in the top right corner all through the intro film and the ending (the launch); in the intro the
+   moon's name shows as it swells. Taps elsewhere don't skip either film. */
 .intro-skip { position: absolute; top: 10px; right: max(12px, env(safe-area-inset-right, 0px)); z-index: 6;
   font: 700 12px/1 var(--display); letter-spacing: .04em; background: var(--ink); color: var(--dust); border: 0; padding: 9px 11px 8px;
   box-shadow: inset 0 0 0 2px var(--dust-dim), 4px 4px 0 var(--blue); cursor: pointer; }
 .intro-skip:active { transform: translate(2px, 2px); box-shadow: inset 0 0 0 2px var(--dust-dim), 2px 2px 0 var(--blue); }
 .intro-skip:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
-#game:not([data-state="opening"]) .intro-skip { display: none; }
-/* Skip intro bobs too: a small, slow bob, half the height of the Choose Moon / START bob. */
+#game:not([data-state="opening"]):not([data-state="launch"]) .intro-skip { display: none; }
+/* Skip cinematic bobs too: a small, slow bob, half the height of the Choose Moon / START bob. */
 .intro-skip { animation: bobSmall 1.4s ease-in-out infinite; }
 @keyframes bobSmall { 0%, 100% { translate: 0 0; } 50% { translate: 0 -3px; } }
 /* The cinematics' captions are typed into the bottom letterbox bar (--bar is its height, set in resize). */
@@ -779,7 +785,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
    </div>
   </div>
   <div class="coach gone" id="coach">TAP A SIDE, OR DRAG</div>
-  <button class="intro-skip" id="introSkip" type="button">Skip intro</button>
+  <button class="intro-skip" id="introSkip" type="button">Skip cinematic</button>
   <div class="intro-cap" id="introCap" aria-hidden="true"></div>
   <div class="streak-flash" id="streakFlash" aria-hidden="true"></div>
   <div class="speed-flash" id="speedFlash" role="status"><b></b><small></small></div>
@@ -1113,7 +1119,7 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 
 // Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
 // published version.
-const VERSION = 260;
+const VERSION = 269;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -1673,7 +1679,7 @@ function winComponent(kind) {
 }
 // The moment the ship is ready to fly (the last part caught, or the last component won). During a Leviathan's crash the
 // screen shows only health, so the words wait until the crash is over (repairedLater, read where the boss is let go).
-const REPAIRED_LINE = 'SHIP REPAIRED! LAUNCH IT FROM THE MAIN MENU';
+const REPAIRED_LINE = 'ALL SHIP COMPONENTS ACQUIRED! FLY HOME FROM THE MENU';
 let repairedLater = false;
 function shipRepaired() {
   if (boss) repairedLater = true; else showCoach(REPAIRED_LINE, 3500);
@@ -2244,7 +2250,7 @@ function leviathans(cam) {
   // The cafe above's, the one passing between the two cafes, and the cafe below's: no other is ever near the screen.
   for (let k = Math.max(1, 2 * j); k <= 2 * j + 2; k++) {
     const D = leviMark(k), A = leviDepth(k), sy = H / 2 + (A - mid) * LEVI_PARALLAX, dir = hash(k * 4.3 + SEED) < 0.5 ? 1 : -1, sx = W / 2 + dir * (mid - A) * 0.14;
-    if (bossHides(k) || k === 2 * CAVE_J + 1) continue;   // that passer would swim through the deep cave
+    if (bossHides(k) || k === CAVE_LEVI_K) continue;   // that passer would swim through the deep cave (it waits there: caveLeviathan)
     const kind = leviKind(k);
     if (state === 'play' && !leviSeen.has(k) && sy > -40 && sy < H + 40) { leviSeen.add(k); Sfx.groan(kind); }
     if (state === 'play' && sy > -40 && sy < H + 40) near = true;
@@ -5074,8 +5080,10 @@ const Sfx = (() => {
   const VOICE_LEVEL = 0.55;
   // The helper drone's beeps (see droneLock ...), on top of their own volumes: as loud as a pickup (owner: "make it as
   // loud as a pickup throughout the whole game"): a square at 0.035 x 5 is about as loud as a pickup's triangle at 0.3.
-  const DRONE_LEVEL = 5;
-  const droneTone = (type, f0, f1, dur, vol, delay) => tone(type, f0, f1, dur, vol * DRONE_LEVEL, delay);
+  // In the deep cave, a quarter louder again (DRONE_CAVE; owner: "increase the drone noises by 25%"), over its song and
+  // the fireworks.
+  const DRONE_LEVEL = 5, DRONE_CAVE = 1.25;
+  const droneTone = (type, f0, f1, dur, vol, delay) => tone(type, f0, f1, dur, vol * DRONE_LEVEL * (state === 'cave' ? DRONE_CAVE : 1), delay);
   let radioCurve = null;
   const bq = (type, f, q, gain) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; if (gain !== undefined) b.gain.value = gain; return b; };
   // A burst of radio static into `out`; returns its source, so clip() knows when the last one has ended.
@@ -5367,7 +5375,7 @@ const Sfx = (() => {
     laserOn() { tone('sawtooth', 220, 210, 0.45, 0.07); noise(0.4, 'highpass', 3000, 0.08); tone('sine', 1760, 1700, 0.3, 0.03); },
     weld() { noise(0.1, 'highpass', 3800, 0.22); noise(0.07, 'bandpass', 1700, 0.16, 0.04); tone('square', 118, 108, 0.1, 0.04); },
     clang() { tone('triangle', 1180, 1150, 0.4, 0.28); tone('sine', 2650, 2580, 0.28, 0.12); tone('square', 560, 530, 0.07, 0.07); noise(0.04, 'highpass', 5000, 0.35); },
-    firework() { noise(0.25, 'lowpass', 900, 0.3); noise(0.6, 'highpass', 5000, 0.06, 0.12); },
+    firework(level) { noise(0.25, 'lowpass', 900, 0.3 * level); noise(0.6, 'highpass', 5000, 0.06 * level, 0.12); },
     repaired() { [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, f, 0.32, 0.2, i * 0.09)); tone('sine', 2093, 2093, 0.5, 0.06, 0.36); },
     hatch() { tone('square', 220, 110, 0.08, 0.2); noise(0.06, 'bandpass', 900, 0.4); },
     engine() {
@@ -6539,17 +6547,27 @@ function syncAside(instant) {
 addEventListener('resize', () => { syncAside(true); if (cardSide) placeNews(cardSide, true); });
 // Owner: while Jump in's card is open, the menu behind it (the ship repair panel, the New features sticker and the menu
 // card) flips up and away, one after another in the same stepped flip, and back down when the card closes on the menu.
+// The same for the game over card behind the congratulations (askRepaired) and the end card behind the drone's card
+// (tellDroneEnd): owner, "The background cards are always distracting".
 // Nothing folds, so the layout stays put. A dive started from the card just drops the flips.
 const MENU_AWAY_STEP = 80;   // ms between one section and the next
-let menuAway = false;
+let menuAway = false, awayEls = [], awayState = '';
+// What flips away in this state: the game over or end screen's card, or the menu's three sections.
+function awayFrom() {
+  if (state === 'over') return [$('overScreen').querySelector('.card')];
+  if (state === 'ended') return [$('endScreen').querySelector('.card')];
+  const ts = $('titleScreen');
+  return [ts.querySelector('.repair'), $('newsTag'), $('titleFlip')];
+}
 function flipMenuAway(away) {
   if (away === menuAway) return;
   menuAway = away;
-  const ts = $('titleScreen'), els = [ts.querySelector('.repair'), $('newsTag'), $('titleFlip')];
+  if (away) { awayEls = awayFrom(); awayState = state; }
+  const els = awayEls;
   els.forEach((el, i) => {
     if (el._away) { for (const a of el._away) a.cancel(); el._away = null; }
     if (!away) el.style.visibility = '';
-    if (!away && state !== 'title') return;
+    if (!away && state !== awayState) return;
     if (reduceMotion || el.classList.contains('aside') || getComputedStyle(el).display === 'none') {
       el.style.visibility = away ? 'hidden' : ''; return;
     }
@@ -6558,6 +6576,17 @@ function flipMenuAway(away) {
     if (!away) a.onfinish = () => { if (el._away && el._away[0] === a) { a.cancel(); el._away = null; } };
   });
 }
+// The congratulations when the ship can fly home (askRepaired after a dive, askLaunch and askComps on landing at a cafe):
+// a fanfare and fireworks all over the screen (owner: "make a fanfare out of it"), with no dimming on the screen or
+// behind the card while it's up. confirmParty is set by the pop-up that wants it, for the next popConfirm only.
+// The music then fades out and the deep cave's song fades in (owner: "fade the regular music out and then fade in the
+// music that would play in the deep cave"), and plays on into the ending if he flies home (partySong, launchSong).
+let confirmParty = false, partySong = false;
+function celebrate(show) {
+  confirmParty = true; startFireworks(show); Music.fanfare(); Sfx.cheer();
+  Music.victory(CELEBRATE_OUT, CELEBRATE_IN); partySong = true;
+}
+const CELEBRATE_OUT = 1.2, CELEBRATE_IN = 2.5;   // s for the music to fade out, then for the cave's song to fade in
 // The main menu's card: Settings and Instructions on the back.
 let kidFromNews = false;   // the Kid mode card was opened from New features: its Done goes back there
 let unlocksFromNews = false;   // the Unlocks card was opened from New features: its Done goes back there
@@ -6773,6 +6802,7 @@ function popConfirm() {
   $('confirmPic').hidden = confirmKind !== 'comps';
   $('confirmMoons').hidden = confirmKind !== 'jump';
   confirmDlg.classList.toggle('low', confirmKind === 'preview');
+  confirmDlg.classList.toggle('party', confirmParty); confirmParty = false;
   confirmDlg.classList.remove('pop-in'); void confirmDlg.offsetWidth; confirmDlg.classList.add('pop-in');
   if (!confirmDlg.open) confirmDlg.showModal();
   const yesFirst = ['droneEnd', 'jump'].includes(confirmKind) || (confirmKind === 'comps' && !canLaunch());   // a launch waits for a choice
@@ -6815,9 +6845,10 @@ function askReset(step) {
 $('resetBtn').addEventListener('click', () => askReset(1));
 // Owner: Jump in shows a card first, explaining that the ship needs the six Leviathans' components from each of the
 // three moons, with the moons (each one's components won) to change the moon before the dive. Dive! goes on (the
-// drone's question, if due, then the dive); Back or closing it stays on the menu. Not shown once every component is won.
+// drone's question, if due, then the dive); Back or closing it stays on the menu. Shown on every Jump in, however far
+// the repair has come (owner: "should always show after the jump-in button, regardless of the status of repair").
 function askJump() {
-  if (offRecord() || compsCount() >= COMPONENTS.length) return false;
+  if (offRecord()) return false;
   confirmKind = 'jump'; confirmFrom = 'startBtn'; confirmStep = 0;
   confirmDlg.classList.remove('danger');
   const per = LEVI_SETS.dust.length;
@@ -6866,10 +6897,10 @@ function askRepaired() {
   confirmKind = 'repaired'; confirmFrom = 'againBtn'; confirmStep = 0;
   confirmDlg.classList.remove('danger');
   $('confirmTitle').textContent = 'Congratulations!';
-  $('confirmText').textContent = 'You repaired the ship and fitted every component. It\'s ready to fly you home!';
+  $('confirmText').textContent = 'All ship components acquired! Fly home to repair the ship and escape the moon.';
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Fly home!';
   $('confirmNo').textContent = 'Later';
-  popConfirm();
+  celebrate('repaired'); popConfirm(); flipMenuAway(true);
 }
 // Owner: after the standard ending (the ship flown home from the menu, game over or a cafe), the helper drone is unlocked
 // for the next dive, with a pop-up saying so. (The deep cave's chest gives it there and then: caveGift.)
@@ -6880,7 +6911,7 @@ function tellDroneEnd() {
   $('confirmText').textContent = 'You flew the ship home, and the helper drone is yours. It will fly with you the next time you dive, catching '
     + shareWord(DRONE_CHANCE) + ' of the ship parts and crystals you miss. (Unlocks)';
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Great!';
-  popConfirm();
+  popConfirm(); flipMenuAway(true);
 }
 // The escape preview (five taps on the pilot) says what it is before the dive starts (see the escape preview).
 let previewAsks = 0;
@@ -6929,30 +6960,35 @@ function askComps() {
   $('confirmText').textContent = list + ' fitted to the ship. Components: ' + compsCount() + ' of ' + COMPONENTS.length + '\n\n'
     + perMoon + '\n\n'
     + (gift ? 'The last Leviathan also gave you every ship part you were missing. ' : '')
-    + (canLaunch() ? 'The ship is repaired! Fly home now? ' + diveEndsHere()
+    + (canLaunch() ? 'You\'ve acquired all the parts to repair the ship! Fly home now? ' + diveEndsHere()
       : left ? 'Each moon\'s ' + numberWord(LEVI_SETS.dust.length) + ' Leviathans guard components: travel to all three moons to collect them all.'
         : 'Every component fitted! Now finish collecting the ship parts.');
   $('confirmYes').hidden = false; $('confirmYes').textContent = canLaunch() ? 'Fly home!' : 'Great!';
   $('confirmNo').textContent = 'Not yet';   // shown only when the ship can fly (popConfirm)
+  if (canLaunch()) { launchOffered = true; celebrate('cafe'); }
   popConfirm();
 }
 // What flying home from a cafe means for the dive (askComps and askLaunch).
 const diveEndsHere = () => 'Your dive ends here at ' + depthM().toLocaleString('en-GB') + '\u00a0m and counts on the high scores.';
-// The cafe's launch: the dive ends there, so it asks first.
-function askLaunch() {
+// The cafe's launch: the dive ends there, so it asks first. From the cafe's launch button, or by itself (landed) on the
+// first cafe of a dive where the ship can fly (owner: "as soon as they land at the cafe, give them the pop-up ... and do
+// the fireworks"), unless the components card already offered it (launchOffered, once a dive).
+let launchOffered = false;
+function askLaunch(landed) {
   if (state !== 'cafe' || !canLaunch()) return;
-  confirmKind = 'launch'; confirmFrom = 'cafeLaunchBtn'; confirmStep = 0;
+  confirmKind = 'launch'; confirmFrom = landed ? 'shopBtn' : 'cafeLaunchBtn'; confirmStep = 0;
   confirmDlg.classList.remove('danger');
   $('confirmTitle').textContent = 'Congratulations!';
-  $('confirmText').textContent = 'The ship is repaired and every component fitted. Fly home now? ' + diveEndsHere();
+  $('confirmText').textContent = 'You\'ve acquired all the parts to repair the ship. Fly home now? ' + diveEndsHere();
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Fly home!';
   $('confirmNo').textContent = 'Not yet';
+  if (landed) { launchOffered = true; celebrate('cafe'); }
   popConfirm();
 }
 $('confirmNo').addEventListener('click', () => {
   const kind = confirmKind;
   if (kind === 'drone') answerDrone(false); else confirmDlg.close();
-  if (kind === 'comps') releaseShop();   // Not yet: on to the cafe menu
+  if (kind === 'comps' || kind === 'launch') releaseShop();   // Not yet: on to the cafe menu
 });
 $('confirmYes').addEventListener('click', () => {
   if (confirmKind === 'launch') { confirmDlg.close(); cafeFromPause(); launchFromCafe(); return; }
@@ -6980,8 +7016,9 @@ confirmDlg.addEventListener('close', () => {
   if (confirmDlg.open) return;   // the close event is async: a card asked for since then is up and stays as it is
   const kind = confirmKind;
   $('confirmYes').disabled = $('confirmNo').disabled = false;   // the escape preview's wait, if it was closed during it
+  if (confirmDlg.classList.contains('party')) stopFireworks();   // the party lasts until its card is answered (celebrate)
   $(confirmFrom).focus({ preventScroll: true }); confirmKind = 'reset'; flipMenuAway(false);
-  if (kind === 'comps') releaseShop();
+  if (kind === 'comps' || kind === 'launch') releaseShop();
 });
 
 // ---------- run stats (sent to the private play stats) ----------
@@ -7082,7 +7119,8 @@ function endRun(how) {
 
 // ---------- flow ----------
 function resetRun() {
-  crashNote = null; repairedLater = false;   // words still waiting from the last dive are dropped (what they announce is saved)
+  // Words still waiting from the last dive are dropped (what they announce is saved), and its congratulations are over.
+  crashNote = null; repairedLater = false; launchOffered = false; partySong = false;
   newSeed(); sayEl.style.visibility = ''; sq.q = sq.v = 0;
   rocks = []; items = []; particles = []; hazards = []; nextSeg = 0; lastRockD = -999; lastShieldD = -9999; lastHazD = -9999; steerAcc = 0;
   for (const k in runParts) runParts[k] = 0;
@@ -7150,7 +7188,7 @@ function resume() {
   if (state !== 'paused') return;
   setState(prevState); showScreen(null); sayEl.style.visibility = ''; last = performance.now(); armBack();
   releaseShop();   // a cafe card answered while paused
-  if (caveSong) Music.victory();
+  if (caveSong || (partySong && state === 'cafe')) Music.victory();   // the cave's song, or a cafe's congratulations
   else if (state === 'landing' || state === 'cafe' || state === 'cafeJump' || state === 'cave') Music.title();
   else if (bossTuneOn) Music.boss(bossTrack);
   else if (state === 'play' || introT >= 1.3) Music.start();
@@ -7174,7 +7212,7 @@ function toTitle() {
   placeHorizon();
   Sfx.wind(0);
   Sfx.thrust(0);
-  if (launchPortal) Music.victory(); else Music.title();   // on the way home through the cave's portal its song plays on
+  if (launchSong) Music.victory(); else Music.title();   // on the way home the cave's song plays on (flyHome)
   if (repairedThisRun) startFireworks('title');
 }
 function die() {
@@ -7230,7 +7268,10 @@ function endDiveAndFlyHome(viaPortal) {
   if (counts && qualifies(m)) { showScores(m, 'launch'); return; }
   flyHome();
 }
-function flyHome() { toTitle(); startLaunch(); }
+// The cave's song plays on through the ending when he comes home through its portal, or after the congratulations
+// (celebrate); otherwise the launch has its own music.
+let launchSong = false;
+function flyHome() { launchSong = launchPortal || partySong; toTitle(); startLaunch(); }
 
 // ---------- menu buttons ----------
 let armTimer = 0;
@@ -7270,7 +7311,8 @@ $('splashBtn').addEventListener('click', () => { if (splashPicked) startOpening(
 const splashMusic = () => { if (state === 'splash') { Sfx.init(); Music.splash(splashPicked ? moon : ''); } };
 document.addEventListener('click', splashMusic, true);
 document.addEventListener('keydown', splashMusic, true);
-$('introSkip').addEventListener('click', () => { if (state === 'opening') endOpening('skipped'); });
+// Skip cinematic: the intro film, or the ending (owner: no tap anywhere skips the ending, only this button, as in the intro).
+$('introSkip').addEventListener('click', () => { if (state === 'opening') endOpening('skipped'); else if (state === 'launch') skipLaunch(); });
 $('againBtn').addEventListener('click', () => { if (!askDrone(true)) startRun(true); });
 $('menuBtn').addEventListener('click', toTitle);
 $('pauseBtn').addEventListener('click', pause);
@@ -7767,7 +7809,7 @@ function updateCafe(dt) {
       player.pose = C.side < 0 ? 'runL' : 'run';
     }
     else { player.x = C.counterX; player.y = standY; player.pose = C.side < 0 ? 'standL' : 'stand'; }
-    if (crossed(COMPS_SHOW_AFTER)) askComps();
+    if (crossed(COMPS_SHOW_AFTER)) { askComps(); if (!confirmDlg.open && !launchOffered) askLaunch(true); }
     if (crossed(1.55)) Sfx.mug();
     if (crossed(1.4)) {
       if (player.hp < player.max) {
@@ -7871,7 +7913,7 @@ $('shopDone').addEventListener('click', () => cafeCard(null));
 $('tipsDone').addEventListener('click', () => cafeCard(null));
 $('cafeRepairBtn').addEventListener('click', () => cafeCard('repair'));
 $('cafeRepairDone').addEventListener('click', () => cafeCard(null));
-$('cafeLaunchBtn').addEventListener('click', askLaunch);
+$('cafeLaunchBtn').addEventListener('click', () => askLaunch(false));
 // Launching from the cafe ends the dive where it is and flies the ship home. Only offered once the ship is repaired and
 // every component fitted. The dive counts like any other (owner: "that should still count in the high scores"): a
 // new best is kept, and a top 10 depth asks for initials first; the launch starts when the high scores close.
@@ -8329,13 +8371,53 @@ function drawPortal(x, y, open, cols) {
     if (w > 6) { c.fillStyle = (Math.floor((dy + clock * 18) / 4) % 2) ? cols[2] : cols[3]; c.fillRect(Math.round(x - w + 4), yy, Math.round(2 * w - 8), 1); }
   }
 }
+// Owner: "in the cave at 20k, can we have one of the Leviathans in the background, same as you do at the cafes?" The
+// creature that would have passed there (CAVE_LEVI_K, left out of the shaft's own, see leviathans) hangs on the cave's
+// back wall, dim like the cafes' and drifting slowly side to side, behind the fireworks, the roof and the floor; it groans
+// once as it comes into view, as theirs do. It's clipped to the open cave above the floor: the rock under the floor is
+// drawn before the cave, so legs reaching lower would show in front of it.
+const CAVE_LEVI_K = 2 * CAVE_J + 1;
+// The fireworks launcher (FW_SHOWS.cave): a little mortar on the floor in the corner furthest from the chest, between
+// the wall and the floor's hole, tilted toward the middle; muzzle (x, y) is where its rockets leave, in world pixels.
+const CAVE_LAUNCHER = { x: 0, y: 0, dir: 1 };
+function caveLauncher(cave) {
+  CAVE_LAUNCHER.dir = cave.side;   // it leans the way the chest is, toward the middle
+  CAVE_LAUNCHER.x = cave.side > 0 ? 22 : W - 22; CAVE_LAUNCHER.y = cave.F - 13;
+  return CAVE_LAUNCHER;
+}
+// About 10 rectangles: a dark base, a red tube leaning toward the middle, a flash at its mouth just after a rocket goes.
+function drawCaveLauncher(cave, cam) {
+  const m = caveLauncher(cave), x = m.x, y = Math.round(cave.F - cam), d = m.dir;
+  c.fillStyle = P.ink; c.fillRect(x - 5, y - 4, 11, 4);
+  c.fillStyle = '#7D8794'; c.fillRect(x - 4, y - 3, 9, 2);
+  for (let i = 0; i < 4; i++) {   // the tube, stepping toward the middle as it rises
+    c.fillStyle = P.ink; c.fillRect(x - 2 + d * i, y - 7 - i * 2, 5, 3);
+    c.fillStyle = i === 3 ? '#F2C14E' : P.lava; c.fillRect(x - 1 + d * i, y - 7 - i * 2, 3, 2);
+  }
+  if (state === 'cave' && clock - fwFiredAt < 0.12) { c.fillStyle = '#FFFFFF'; c.fillRect(x + d * 3 - 1, y - 16, 3, 3); }
+}
+function caveLeviathan(cave, cam) {
+  const kind = leviKind(CAVE_LEVI_K), dir = hash(CAVE_LEVI_K * 4.3 + SEED) < 0.5 ? 1 : -1;
+  const sx = W / 2 + Math.sin(clock * 0.25) * 28, sy = cave.T + CAVE_ROOF_H + (CAVE_H - CAVE_ROOF_H - CAVE_FLOOR_H) / 2 - cam;
+  if (sy < -220 || sy > H + 220) return;
+  const inView = sy > -40 && sy < H + 40;
+  if ((state === 'play' || state === 'cave') && inView && !leviSeen.has(CAVE_LEVI_K)) { leviSeen.add(CAVE_LEVI_K); Sfx.groan(kind); }
+  const Q = palAt(cave.T);
+  c.save();
+  try {
+    c.beginPath(); c.rect(0, Math.round(cave.T - cam), W, cave.F - cave.T); c.clip();
+    LEVIATHANS[kind].draw(sx, sy, dir, CAVE_LEVI_K, Q.lev0 || (Q.lev0 = mix(Q.sO, P.ink, 0.42)));
+  } finally { c.restore(); }
+}
 function drawCave(cam) {
   if (!caveArt) return;
   const cave = caveInfo(), top = cave.T - cam, floorY = cave.F - cam;
   if (floorY < -40 || top > H + CAVE_ROOF_H) return;
+  caveLeviathan(cave, cam);
   if (fireworks.length && fwShow.world) drawFireworks(cam);   // far off, behind the roof's art and everything on the floor
   c.drawImage(caveArt.roof, 0, Math.round(top));
   c.drawImage(caveArt.floor, 0, Math.round(floorY - CAVE_FLOOR_H));
+  drawCaveLauncher(cave, cam);
   // Two little creatures from the surface, hopping on the floor.
   for (const [i, bx] of [[0, Math.round(W / 2 - cave.side * 58)], [1, Math.round(W / 2 + cave.side * 98)]]) {
     const ph = (clock * 0.7 + i * 0.45) % 1;
@@ -8962,42 +9044,69 @@ function drawIntroSpace(t, sx, sy) {
   }
   c.setTransform(1, 0, 0, 1, 0, 0);
 }
-// ---------- fireworks: over the main menu after the run that finishes the ship's repair, and far off in the deep cave ----------
+// ---------- fireworks: around the congratulations and over the main menu when a run finishes the ship, and far off in the deep cave ----------
 // Bursts of sparks that fall and fade. Each show is one entry in FW_SHOWS:
 //   state     the show stops (and its sparks go) when the game leaves this state
 //   secs      how long new bursts keep coming (Infinity: for as long as the state lasts)
 //   gap       s between bursts: [least, plus up to]
-//   at()      where the next one goes: x, the ground it rises from (y), and the height it bursts at (top)
+//   at()      where the next one goes: x, the ground it rises from (y), and the height it bursts at (top); with tx, a
+//             rocket flies across to burst at x = tx (from a launcher)
 //   rise      a rocket climbs from the ground first (false: the burst just appears, as if too far off to see the rocket)
 //   world     at() and the drawing are in world pixels (drawn with the camera), not screen pixels
-//   sparks, speed   per burst: [least, plus up to]; size: a spark's pixels when new; alpha: how bright; sound: a bang each
+//   sparks, speed   per burst: [least, plus up to]; size: a spark's pixels when new; alpha: how bright; sound: how loud
+//             each one's bang is (1 the usual)
+//   cols      the colours to pick from (FW_COLS if not given); first: s before the first burst (0.4 if not given)
 const FW_COLS = ['#E0483A', '#2F6FD6', '#9B6BE8', '#2E9E57', '#E8922E'];   // strong colours: the menu's sky is pale
+// A party: bursts all over the screen around a card until it's answered (stopFireworks from the card's close), rising from
+// the bottom edge to anywhere from near the top to near the bottom, about 14 a second.
+// Bright colours (FW_PARTY_COLS), big sparks and wide bursts, as these go off over the dark shaft as well as the sky.
+const FW_PARTY_COLS = ['#F2C14E', '#FFFFFF', '#FF6FB5', '#5EE6F0', '#9CF06A', '#FF8A3D'];
+const fwParty = st => ({ state: st, secs: Infinity, gap: [0.04, 0.06], rise: true, world: false, sparks: [40, 16], speed: [80, 60], size: 4,
+  alpha: 1, sound: 0.75, cols: FW_PARTY_COLS, first: 0,   // bangs a quarter quieter (owner)
+  at: () => ({ x: 20 + Math.random() * (W - 40), y: H, top: H * (0.08 + Math.random() * 0.72) }) });
 const FW_SHOWS = {
   // In the sky between the ship repair panel and the title card, for 9 s (the title camera doesn't move).
-  title: { state: 'title', secs: 9, gap: [0.25, 0.3], rise: true, world: false, sparks: [26, 10], speed: [60, 40], size: 3, alpha: 1, sound: true,
+  title: { state: 'title', secs: 9, gap: [0.25, 0.3], rise: true, world: false, sparks: [26, 10], speed: [60, 40], size: 3, alpha: 1, sound: 1,
     at: () => ({ x: 40 + Math.random() * (W - 80), y: H * 0.56, top: H * (0.36 + Math.random() * 0.1) }) },
-  // Owner: "The background is quite bland. How about fireworks in the distance?" Small, dim and quiet, on the cave's
-  // back wall between the roof's art and the floor, while he's there.
-  cave: { state: 'cave', secs: Infinity, gap: [0.35, 0.4], rise: false, world: true, sparks: [22, 10], speed: [36, 20], size: 2, alpha: 0.85, sound: false,
-    at: () => { const cave = caveInfo(), top = cave.T + CAVE_ROOF_H * 0.6 + Math.random() * 60; return { x: 24 + Math.random() * (W - 48), y: top, top }; } },
+  // The congratulations (celebrate): after the dive that finished the ship, and on landing at a cafe ready to fly home.
+  repaired: fwParty('over'),
+  cafe: fwParty('cafe'),
+  // In the deep cave while he's there (owner: "fireworks ... a little bit more prominent, similar to how they are in the
+  // other endings ... all being launched from a fireworks launcher ... furthest away from the chest"): bright, with a
+  // bang each, every rocket fired from the launcher on the floor (caveLauncher) across to burst over the cave.
+  cave: { state: 'cave', secs: Infinity, gap: [0.16, 0.14], rise: true, world: true, sparks: [34, 14], speed: [55, 40], size: 3, alpha: 1,
+    sound: 0.75, cols: FW_PARTY_COLS,   // a quarter quieter than the other shows (owner: "reduce the fireworks noise by 25%")
+    at: () => {
+      const cave = caveInfo(), m = caveLauncher(cave);
+      const top = cave.T + CAVE_ROOF_H * 0.55 + Math.random() * (CAVE_H - CAVE_ROOF_H * 0.55 - 90);
+      return { x: m.x + m.dir * 3, y: m.y - 2, tx: 40 + Math.random() * (W - 80), top };
+    } },
 };
-let fireworks = [], fwTime = 0, fwNext = 0, fwShow = FW_SHOWS.title;
-function startFireworks(kind) { fwShow = FW_SHOWS[kind] || FW_SHOWS.title; fwTime = fwShow.secs; fwNext = 0.4; fireworks = []; }
+let fireworks = [], fwTime = 0, fwNext = 0, fwShow = FW_SHOWS.title, fwFiredAt = -9;   // fwFiredAt: clock at the last rocket
+function startFireworks(kind) {
+  fwShow = FW_SHOWS[kind] || FW_SHOWS.title; fwTime = fwShow.secs; fwNext = fwShow.first ?? 0.4; fireworks = [];
+}
+// No more bursts; the sparks in the air fall and fade.
+function stopFireworks() { fwTime = 0; }
 function updateFireworks(dt) {
   if (state !== fwShow.state) { fireworks.length = 0; fwTime = 0; return; }
   if (fwTime > 0) {
     fwTime -= dt; fwNext -= dt;
     if (fwNext <= 0) {
       fwNext = fwShow.gap[0] + Math.random() * fwShow.gap[1];
-      const at = fwShow.at(), col = FW_COLS[Math.floor(Math.random() * FW_COLS.length)];
-      if (fwShow.rise) fireworks.push({ rocket: 1, x: at.x, y: at.y, vy: -(190 + Math.random() * 60), top: at.top, col, t: 0 });
+      const at = fwShow.at(), cols = fwShow.cols || FW_COLS, col = cols[Math.floor(Math.random() * cols.length)];
+      if (fwShow.rise) {
+        const vy = -(190 + Math.random() * 60), vx = at.tx === undefined ? 0 : (at.tx - at.x) / ((at.y - at.top) / -vy);
+        fireworks.push({ rocket: 1, x: at.x, y: at.y, vx, vy, top: at.top, col, t: 0 });
+        fwFiredAt = clock;
+      }
       else burstFirework(at.x, at.top, col);
     }
   }
   for (const f of fireworks) {
     f.t += dt;
     if (f.rocket) {
-      f.y += f.vy * dt;
+      f.x += f.vx * dt; f.y += f.vy * dt;
       if (f.y <= f.top) { f.dead = true; burstFirework(f.x, f.y, f.col); }
     } else {
       f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 70 * dt; f.vx *= 1 - dt;
@@ -9007,7 +9116,7 @@ function updateFireworks(dt) {
   prune(fireworks, f => !f.dead);
 }
 function burstFirework(x, y, col) {
-  if (fwShow.sound) Sfx.firework();
+  if (fwShow.sound) Sfx.firework(fwShow.sound);
   for (let i = 0, n = fwShow.sparks[0] + Math.floor(Math.random() * fwShow.sparks[1]); i < n; i++) {
     const a = i / n * Math.PI * 2 + Math.random() * 0.2, sp = fwShow.speed[0] + Math.random() * fwShow.speed[1];
     fireworks.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: 1 + Math.random() * 0.5, col: Math.random() < 0.85 ? col : '#F2C14E' });
@@ -9029,15 +9138,81 @@ function drawFireworks(cam) {
 // it, lands and hammers the hull, steps back as the smoke clears and a shine runs over the ship. Then the launch runs on
 // its original timings, shifted to start once the repair is done: wave, climb aboard, rumble, tip upright, blast off.
 const REPAIR = { up: 1.6, arc: 2.7, arrive: 3.2, toShip: 4.2, hop: 4.8, weld: 7.6, drop: 8.2, hammer: 10.4, back: 10.9, shine: 11.6, done: 12.0 };
-const SHAFT_START_Y = 260;   // how far down the shaft he starts his climb out, in pixels
+const SHAFT_START_Y = 800;   // how far down the shaft he starts his climb out, in pixels
+// Owner: "make the very beginning of the final cinematic a little bit longer by showing the player flying up through a
+// little bit more of the ... shaft". Up the shaft, the ending starts CLIMB_EXTRA s before 0 (launchT from -CLIMB_EXTRA),
+// so the climb is longer and every later time stays where it is; out of the cave's portal it starts at 0.
+const CLIMB_EXTRA = 2.6;
+let launchStart = 0;
 // After the deep cave's portal (launchPortal) he steps out of an orange portal by the ship instead: it opens, he comes
 // out at PORTAL_OUT s and walks to his spot, and it closes behind him; the rest is the same.
 let launchPortal = false;
 const PORTAL_HOME_X = 122, PORTAL_OUT = 0.9;
 const LAUNCH_STAND_Y = -28;   // his y standing on the crash site: the sprite is 28 px tall and the ground is at 0
-// The helper drone in the launch: when it's his and switched on, it's beside him from the moment he's seen (coming out
-// of the orange portal with him, or up the shaft) and zips into the hatch just before he climbs aboard.
+// The helper drone in the launch: always there (it becomes his at the end if it isn't already, showEnd), beside him
+// from the moment he's seen (coming out of the orange portal with him, or up the shaft); it fits the components while
+// he repairs (DRONE_FIT) and zips into the hatch just before he climbs aboard.
 let launchDrone = false;
+// Owner: "when the man is repairing the ship, let's show the helper drone ... placing the items that are collected off
+// the Leviathan ... six of them", then "just have them hovering around the ship ... use the dotted line for where he's
+// going to place the components, and they can just come out of his inventory ... some laser blasts as well that can act
+// as a repair gun". One visit per component of this moon's six Leviathans (fitComps), `visit` s apart from `from` on:
+// it flies to a place above the next spot on the hull (`over`), locks its dotted sight on the spot (`aim`), the
+// component comes out of it and flies down the line into the hull (`fit` s, in by `fit`), then two repair-gun blasts
+// (`blasts`, s into the visit). All six are in before he steps back (REPAIR.back).
+const DRONE_FIT = { from: REPAIR.toShip + 0.1, visit: 1.05, aim: 0.3, send: 0.5, fit: 0.72, blasts: [0.8, 0.93], blastLen: 0.07,
+  // Spots along the crashed ship's upper hull, from its raised nose down to the ground; it hovers above each, a little
+  // to one side.
+  spots: [{ x: 48, y: -40 }, { x: 58, y: -34 }, { x: 68, y: -28 }, { x: 78, y: -22 }, { x: 88, y: -16 }, { x: 98, y: -10 }],
+  over: { dx: [-10, 12], dy: -26 } };
+let fitComps = [];
+// The visit on at t (k, -1 for none) and how far through it (s): one reused answer, read at once.
+const FIT_NOW = { k: -1, s: 0 };
+// Its sight while it aims and sends: a stand-in target for drawDrone's dotted line and brackets (world x, d).
+const FIT_SIGHT = { x: 0, d: 0, dead: false };
+function fitVisit(t) {
+  const F = DRONE_FIT, k = Math.floor((t - F.from) / F.visit), on = t >= F.from && k < fitComps.length;
+  FIT_NOW.k = on ? k : -1; FIT_NOW.s = on ? t - F.from - k * F.visit : 0;
+  return FIT_NOW;
+}
+// Where it hovers for visit k, written into `into` (reused, so a frame makes nothing).
+const FIT_FROM = { x: 0, y: 0 }, FIT_TO = { x: 0, y: 0 };
+function fitOver(k, into) {
+  into.x = DRONE_FIT.spots[k].x + DRONE_FIT.over.dx[k % 2]; into.y = DRONE_FIT.spots[k].y + DRONE_FIT.over.dy;
+  return into;
+}
+// Puts the drone on its visit (its offset from him, as the hover and the hatch do), with its sounds and sparks.
+function droneFit(t, dt, crossed) {
+  const F = DRONE_FIT, v = fitVisit(t), spot = F.spots[v.k], o = fitOver(v.k, FIT_TO), at = s => crossed(F.from + v.k * F.visit + s);
+  // From the last hover place, or (the first visit) from wherever it is beside him.
+  const prev = v.k > 0 ? fitOver(v.k - 1, FIT_FROM) : FIT_FROM;
+  if (v.k === 0) { FIT_FROM.x = player.x + drone.ox; FIT_FROM.y = player.y + PILOT_CY + drone.oy; }
+  const u = easeInOut(Math.min(1, v.s / F.aim)), bob = Math.sin(t * 6) * 1.5;
+  const x = lerp(prev.x, o.x, u), y = lerp(prev.y, o.y, u) + bob, ox = x - player.x;
+  drone.vx = (ox - drone.ox) / Math.max(dt, 1e-3); drone.ox = ox; drone.oy = y - player.y - PILOT_CY;
+  const sighting = v.s >= F.aim && v.s < F.fit;
+  FIT_SIGHT.x = spot.x; FIT_SIGHT.d = spot.y; drone.lock = sighting ? FIT_SIGHT : null;
+  if (at(F.aim)) Sfx.droneLock();
+  if (at(F.send)) Sfx.droneGo();
+  if (at(F.fit)) { Sfx.part(); sparks(spot.x, spot.y, ['#F2C14E', '#FFFFFF', '#A9781B'], 10, 6); }
+  for (const b of F.blasts) if (at(b)) { Sfx.bossShot(false); sparks(spot.x, spot.y, ['#8EEBF5', '#FFFFFF'], 6, 5); }
+}
+// The component on its way out of the drone into the hull, and the repair gun's beam (drawn with the repair tools).
+function drawFitComp(my) {
+  const F = DRONE_FIT, v = fitVisit(launchT);
+  if (v.k < 0) return;
+  const spot = F.spots[v.k], dx = Math.round(player.x + drone.ox), dy = Math.round(my + PILOT_CY + drone.oy);
+  const sx = spot.x, sy = Math.round(my + spot.y - player.y);
+  if (v.s >= F.send && v.s < F.fit) {
+    const cp = fitComps[v.k], w = cp.spr[0].length, h = cp.spr.length, u = easeInOut((v.s - F.send) / (F.fit - F.send));
+    sprite(c, cp.spr, Math.round(lerp(dx, sx, u) - w / 2), Math.round(lerp(dy + 6, sy, u) - h / 2), PMAP);
+  }
+  for (const b of F.blasts) {
+    if (v.s < b || v.s >= b + F.blastLen) continue;
+    bline(dx, dy + 4, sx, sy, '#8EEBF5', 2); bline(dx, dy + 4, sx, sy, '#FFFFFF', 1);
+    disc(sx, sy, 3, '#FFFFFF');
+  }
+}
 const REPAIR_HITS = 4, WELD_AT = { x: 9, y: -34 }, HAMMER_AT = { x: 49, y: -15 };
 const LAUNCH = Object.fromEntries(Object.entries({ wave: 1.0, board: 3.0, aboard: 3.5, rumble: 4.0, lift: 6.5, climb: 8.0, groove: 9.9, space: 15.0, away: 20.0, end: 21.4 })
   .map(([k, v]) => [k, v + REPAIR.done]));
@@ -9070,7 +9245,7 @@ function repairScene(t, dt, crossed) {
     player.x = lerp(PORTAL_HOME_X, 84, u); player.y = LAUNCH_STAND_Y - (u > 0 ? 2 * (Math.floor(t * 6) % 2) : 0); player.pose = 'runL';
   } else if (t < R.up) {
     // Up the shaft on full thrust, keeping to its middle, slowing as he clears the top.
-    const u = t / R.up;
+    const u = (t - launchStart) / (R.up - launchStart);
     player.y = lerp(SHAFT_START_Y, -64, 1 - (1 - u) * (1 - u));
     player.x = Math.round(shaftCentreX(Math.max(0, player.y + PILOT_CY))); player.pose = 'stand';
   } else if (t < R.arc) {
@@ -9103,7 +9278,7 @@ function repairScene(t, dt, crossed) {
     player.x = lerp(70, 84, k); player.y = LAUNCH_STAND_Y - 2 * (Math.floor(t * 6) % 2); player.pose = 'run';
   } else { player.x = 84; player.y = LAUNCH_STAND_Y; player.pose = 'standL'; }
   // The jetpack hisses while he's off the ground.
-  if (t - dt <= 0) { if (launchPortal) Sfx.whoosh(); else Sfx.thrust(0.9); }
+  if (t - dt <= launchStart) { if (launchPortal) Sfx.whoosh(); else Sfx.thrust(0.9); }
   if (launchPortal && crossed(PORTAL_OUT)) { Sfx.jump(); squash(-0.2); sparks(PORTAL_HOME_X, -26, PORTAL_ORANGE.slice(1), 16, 8); }
   if (!launchPortal && crossed(R.arc)) { Sfx.thrust(0); Sfx.land(); Buzz.orb(); squash(0.3); sparks(84, -2, [P.strata, P.shade, P.dust], 12); }
   if (crossed(R.toShip)) Sfx.thrust(0.5);
@@ -9163,11 +9338,12 @@ function drawRepairTools(my) {
 const LAUNCH_ORIGINAL_START_X = 84;
 function startLaunch() {
   Sfx.init(); resetRun(); cineReset();
-  setState('launch'); launchT = 0; launchShip = null;
-  launchDrone = !!save.drone && droneOpen(); drone.ox = 0; drone.oy = 0;   // it comes out with him
+  launchStart = launchPortal ? 0 : -CLIMB_EXTRA;
+  setState('launch'); launchT = launchStart; launchShip = null;
+  launchDrone = true; drone.ox = 0; drone.oy = 0;   // it comes out with him
+  fitComps = COMPONENTS.filter(cp => (LEVI_SETS[moon] || []).includes(cp.levi)).slice(0, DRONE_FIT.spots.length);
   showScreen(null); hud.classList.add('off'); Sfx.wind(0);
-  if (launchPortal) Music.victory(); else Music.stop(0.2);   // home through the cave's portal: its song plays on
-  showCoach('TAP TO SKIP', 1800);
+  if (launchSong) Music.victory(); else Music.stop(0.2);   // the cave's song plays on (flyHome)
 }
 function skipLaunch() {
   Sfx.stopEngine(); Sfx.thrust(0); Music.stop(0.3); shake = 0; launchT = LAUNCH.end; showEnd();
@@ -9190,7 +9366,9 @@ function updateLaunch(dt) {
   }
   else player.hidden = true;
   if (launchDrone && !player.hidden) {
-    if (t < L.board) droneHover(dt);
+    if (fitVisit(t).k >= 0) droneFit(t, dt, crossed);
+    else if (drone.lock === FIT_SIGHT) drone.lock = null;
+    else if (t < L.board) droneHover(dt);
     else {   // over to the hatch, ahead of him
       const k = Math.min(1, dt * 5);
       drone.ox += (52 - player.x - drone.ox) * k; drone.oy += (-14 - player.y - PILOT_CY - drone.oy) * k;
@@ -9201,8 +9379,8 @@ function updateLaunch(dt) {
   if (crossed(L.aboard)) { sparks(52, -14, [P.dust, P.strata, P.shade], 10); Sfx.hatch(); }
   if (crossed(L.rumble)) { Sfx.engine(); Buzz.launch(); }
   if (crossed(L.lift)) { Music.fanfare(); Sfx.cheer(); Sfx.boom(0.6); }
-  if (crossed(L.groove) && !launchPortal) { Music.setZone(0, true); Music.setDepth(900); Music.start(); }
-  if (crossed(L.space) && !launchPortal) { Music.stop(0.1); Music.space(); }
+  if (crossed(L.groove) && !launchSong) { Music.setZone(0, true); Music.setDepth(900); Music.start(); }
+  if (crossed(L.space) && !launchSong) { Music.stop(0.1); Music.space(); }
   // The ship rumbles, tips upright, then climbs.
   if (t < L.rumble) launchShip = null;
   else if (t < L.lift) {
@@ -9238,7 +9416,7 @@ function updateLaunch(dt) {
   if (t >= L.end) showEnd();
 }
 function showEnd() {
-  setState('ended'); launchPortal = false;
+  setState('ended'); launchPortal = false; launchSong = false;
   // A finished mission counts once (relaunching the same repaired ship doesn't): it unlocks a suit, and Hard Dive.
   const before = suitsOpen();
   if (!save.missionDone) { save.missionsDone = missionsDone() + 1; save.missionDone = true; }
@@ -9368,7 +9546,7 @@ document.addEventListener('visibilitychange', () => {
   else if (state === 'title') Music.title();
   else if ((state === 'over' || state === 'ended') && songHidden) { Music.begin(songHidden); songHidden = ''; }
   // The launch stands still while hidden, so its music stops too; back during the groove (or the cave's song), it starts again.
-  else if (state === 'launch' && launchPortal) Music.victory();
+  else if (state === 'launch' && launchSong) Music.victory();
   else if (state === 'launch' && launchT >= LAUNCH.groove && launchT < LAUNCH.space) { Music.setZone(0, true); Music.setDepth(900); Music.start(); }
   else if (state === 'splash' && Sfx.audio()) Music.splash(splashPicked ? moon : '');
 });
@@ -9378,8 +9556,7 @@ document.addEventListener('visibilitychange', () => {
 const presses = new Map(), tapBurst = { l: 0, r: 0 };
 const SENS = 1.15, DRAG_START = 12;
 game.addEventListener('pointerdown', e => {
-  if (state === 'launch') { if (launchT > 0.6) skipLaunch(); return; }
-  if (state === 'opening') return;   // only the Skip intro button (or Esc) skips the film
+  if (state === 'launch' || state === 'opening') return;   // only Skip cinematic (or Esc) skips a film
   if (e.target.closest('button, .screen, .cafe-ui')) return;
   if (state === 'cafe') return;
   const r = game.getBoundingClientRect();
@@ -11556,7 +11733,7 @@ function render() {
     }
     drawManSquashed(player.x + (state === 'dying' ? Math.round(Math.sin(clock * 40) * 2) : 0), my, player.pose, clock, player.thr);
     if (droneShown() && DRONE_STATES.includes(state)) { const ga = c.globalAlpha; c.globalAlpha = 1; drawDrone(my); c.globalAlpha = ga; }
-    if (state === 'launch' && launchT < REPAIR.done) drawRepairTools(my);
+    if (state === 'launch' && launchT < REPAIR.done) { drawRepairTools(my); drawFitComp(my); }
     if (state === 'cave' && cavePhase === 'open') drawCrowbar(my);
     c.globalAlpha = 1;
     if (state === 'landing') {
@@ -11630,7 +11807,7 @@ function introTimeScale() {
 // How far the bars are in, 0 to 1. They leave as the pilot lands (intro) and as the ship flies off (ending).
 function cineBars() {
   if (state === 'opening') return smoothstep(openT / 0.7) * (1 - smoothstep((openT - OPEN.pre - OPEN.land - 0.15) / 0.6));
-  if (state === 'launch') return smoothstep(launchT / 0.7) * (1 - smoothstep((launchT - LAUNCH.away) / 1.2));
+  if (state === 'launch') return smoothstep((launchT - launchStart) / 0.7) * (1 - smoothstep((launchT - LAUNCH.away) / 1.2));
   return 0;
 }
 // A lens streak: a thin horizontal line of light through a bright point, brightest and whitest in the middle.
@@ -11656,7 +11833,7 @@ function drawCinema() {
   if (cineFlash > 0 && !reduceMotion) {
     g.globalAlpha = Math.ceil(cineFlash / cineFlashLen * 4) / 4 * 0.9; g.fillStyle = cineFlashCol; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
   }
-  const fade = state === 'opening' ? 1 - openT / 0.6 : 1 - launchT / 0.5;
+  const fade = state === 'opening' ? 1 - openT / 0.6 : 1 - (launchT - launchStart) / 0.5;   // from the ending's real start
   if (fade > 0) { g.globalAlpha = Math.ceil(fade * 4) / 4; g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.globalAlpha = 1; }
   const b = Math.round(Math.round(H * CINE_BAR) * cineBars());
   if (b > 0) { g.fillStyle = '#000'; g.fillRect(0, 0, W, b); g.fillRect(0, H - 1 - b, W, b + 1); }
