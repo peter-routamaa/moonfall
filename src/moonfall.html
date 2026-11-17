@@ -1099,7 +1099,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 
 // Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
 // published version.
-const VERSION = 260;
+const VERSION = 261;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -6987,6 +6987,7 @@ confirmDlg.addEventListener('close', () => {
   if (confirmDlg.open) return;   // the close event is async: a card asked for since then is up and stays as it is
   const kind = confirmKind;
   $('confirmYes').disabled = $('confirmNo').disabled = false;   // the escape preview's wait, if it was closed during it
+  if (confirmDlg.classList.contains('party')) stopFireworks();   // the party lasts until its card is answered (celebrate)
   $(confirmFrom).focus({ preventScroll: true }); confirmKind = 'reset'; flipMenuAway(false);
   if (kind === 'comps' || kind === 'launch') releaseShop();
 });
@@ -8981,11 +8982,11 @@ function drawIntroSpace(t, sx, sy) {
 //   sparks, speed   per burst: [least, plus up to]; size: a spark's pixels when new; alpha: how bright; sound: a bang each
 //   cols      the colours to pick from (FW_COLS if not given); first: s before the first burst (0.4 if not given)
 const FW_COLS = ['#E0483A', '#2F6FD6', '#9B6BE8', '#2E9E57', '#E8922E'];   // strong colours: the menu's sky is pale
-// A party: bursts all over the screen around a card for 8 s, rising from the bottom edge to anywhere from near the top to
-// near the bottom.
+// A party: bursts all over the screen around a card until it's answered (stopFireworks from the card's close), rising from
+// the bottom edge to anywhere from near the top to near the bottom, about 14 a second.
 // Bright colours (FW_PARTY_COLS), big sparks and wide bursts, as these go off over the dark shaft as well as the sky.
 const FW_PARTY_COLS = ['#F2C14E', '#FFFFFF', '#FF6FB5', '#5EE6F0', '#9CF06A', '#FF8A3D'];
-const fwParty = st => ({ state: st, secs: 8, gap: [0.07, 0.1], rise: true, world: false, sparks: [40, 16], speed: [80, 60], size: 4,
+const fwParty = st => ({ state: st, secs: Infinity, gap: [0.04, 0.06], rise: true, world: false, sparks: [40, 16], speed: [80, 60], size: 4,
   alpha: 1, sound: true, cols: FW_PARTY_COLS, first: 0,
   at: () => ({ x: 20 + Math.random() * (W - 40), y: H, top: H * (0.08 + Math.random() * 0.72) }) });
 const FW_SHOWS = {
@@ -8997,13 +8998,15 @@ const FW_SHOWS = {
   cafe: fwParty('cafe'),
   // Owner: "The background is quite bland. How about fireworks in the distance?" Small, dim and quiet, on the cave's
   // back wall between the roof's art and the floor, while he's there.
-  cave: { state: 'cave', secs: Infinity, gap: [0.35, 0.4], rise: false, world: true, sparks: [22, 10], speed: [36, 20], size: 2, alpha: 0.85, sound: false,
+  cave: { state: 'cave', secs: Infinity, gap: [0.12, 0.16], rise: false, world: true, sparks: [28, 12], speed: [40, 24], size: 2, alpha: 0.85, sound: false,
     at: () => { const cave = caveInfo(), top = cave.T + CAVE_ROOF_H * 0.6 + Math.random() * 60; return { x: 24 + Math.random() * (W - 48), y: top, top }; } },
 };
 let fireworks = [], fwTime = 0, fwNext = 0, fwShow = FW_SHOWS.title;
 function startFireworks(kind) {
   fwShow = FW_SHOWS[kind] || FW_SHOWS.title; fwTime = fwShow.secs; fwNext = fwShow.first ?? 0.4; fireworks = [];
 }
+// No more bursts; the sparks in the air fall and fade.
+function stopFireworks() { fwTime = 0; }
 function updateFireworks(dt) {
   if (state !== fwShow.state) { fireworks.length = 0; fwTime = 0; return; }
   if (fwTime > 0) {
@@ -9056,9 +9059,50 @@ const SHAFT_START_Y = 260;   // how far down the shaft he starts his climb out, 
 let launchPortal = false;
 const PORTAL_HOME_X = 122, PORTAL_OUT = 0.9;
 const LAUNCH_STAND_Y = -28;   // his y standing on the crash site: the sprite is 28 px tall and the ground is at 0
-// The helper drone in the launch: when it's his and switched on, it's beside him from the moment he's seen (coming out
-// of the orange portal with him, or up the shaft) and zips into the hatch just before he climbs aboard.
+// The helper drone in the launch: always there (it becomes his at the end if it isn't already, showEnd), beside him
+// from the moment he's seen (coming out of the orange portal with him, or up the shaft); it fits the components while
+// he repairs (DRONE_FIT) and zips into the hatch just before he climbs aboard.
 let launchDrone = false;
+// Owner: "when the man is repairing the ship, let's show the helper drone ... placing the items that are collected off
+// the Leviathan ... six of them going into the ship". One trip per component of this moon's six Leviathans (fitComps),
+// `trip` s apart from `from` on: it carries one from beside him (pile) to its spot on the hull in `carry` s, where it goes
+// in with a spark and the part sound, then flies back for the next. All six are in before he steps back (REPAIR.back).
+// The spots run along the crashed ship's upper hull, from its raised nose down to the ground; the pile is clear of it, to
+// the right.
+const DRONE_FIT = { from: REPAIR.toShip + 0.1, trip: 1.05, carry: 0.75, pile: { x: 122, y: -12 },
+  spots: [{ x: 48, y: -40 }, { x: 58, y: -34 }, { x: 68, y: -28 }, { x: 78, y: -22 }, { x: 88, y: -16 }, { x: 98, y: -10 }] };
+let fitComps = [];
+// Which trip is on at t (k, -1 for none), how far through it (s) and whether it's carrying: one reused answer, read at once.
+const FIT_NOW = { k: -1, s: 0, carrying: false };
+function fitTrip(t) {
+  const F = DRONE_FIT, k = Math.floor((t - F.from) / F.trip), on = t >= F.from && k < fitComps.length;
+  FIT_NOW.k = on ? k : -1; FIT_NOW.s = on ? t - F.from - k * F.trip : 0; FIT_NOW.carrying = on && FIT_NOW.s < F.carry;
+  return FIT_NOW;
+}
+// Puts the drone on its trip (its offset from him, as the hover and the hatch do).
+function droneFit(t, dt, crossed) {
+  const F = DRONE_FIT, trip = fitTrip(t), spot = F.spots[trip.k];
+  let x, y;
+  if (trip.carrying) {
+    const u = easeInOut(trip.s / F.carry);
+    x = lerp(F.pile.x, spot.x, u); y = lerp(F.pile.y, spot.y, u) - 14 * Math.sin(Math.PI * u);
+  } else {
+    const u = easeInOut((trip.s - F.carry) / (F.trip - F.carry));
+    x = lerp(spot.x, F.pile.x, u); y = lerp(spot.y, F.pile.y, u);
+  }
+  const ox = x - player.x;
+  drone.vx = (ox - drone.ox) / Math.max(dt, 1e-3); drone.ox = ox; drone.oy = y - player.y - PILOT_CY;
+  if (crossed(F.from + trip.k * F.trip + F.carry)) {
+    Sfx.part(); sparks(spot.x, spot.y, ['#F2C14E', '#FFFFFF', '#A9781B'], 10, 6);
+  }
+}
+// The component it carries, under it (drawn with the repair tools).
+function drawFitComp(my) {
+  const trip = fitTrip(launchT);
+  if (trip.k < 0 || !trip.carrying) return;
+  const cp = fitComps[trip.k], w = cp.spr[0].length, h = cp.spr.length;
+  sprite(c, cp.spr, Math.round(player.x + drone.ox - w / 2), Math.round(my + PILOT_CY + drone.oy + 6), PMAP);
+}
 const REPAIR_HITS = 4, WELD_AT = { x: 9, y: -34 }, HAMMER_AT = { x: 49, y: -15 };
 const LAUNCH = Object.fromEntries(Object.entries({ wave: 1.0, board: 3.0, aboard: 3.5, rumble: 4.0, lift: 6.5, climb: 8.0, groove: 9.9, space: 15.0, away: 20.0, end: 21.4 })
   .map(([k, v]) => [k, v + REPAIR.done]));
@@ -9185,7 +9229,8 @@ const LAUNCH_ORIGINAL_START_X = 84;
 function startLaunch() {
   Sfx.init(); resetRun(); cineReset();
   setState('launch'); launchT = 0; launchShip = null;
-  launchDrone = !!save.drone && droneOpen(); drone.ox = 0; drone.oy = 0;   // it comes out with him
+  launchDrone = true; drone.ox = 0; drone.oy = 0;   // it comes out with him
+  fitComps = COMPONENTS.filter(cp => (LEVI_SETS[moon] || []).includes(cp.levi)).slice(0, DRONE_FIT.spots.length);
   showScreen(null); hud.classList.add('off'); Sfx.wind(0);
   if (launchPortal) Music.victory(); else Music.stop(0.2);   // home through the cave's portal: its song plays on
 }
@@ -9210,7 +9255,8 @@ function updateLaunch(dt) {
   }
   else player.hidden = true;
   if (launchDrone && !player.hidden) {
-    if (t < L.board) droneHover(dt);
+    if (fitTrip(t).k >= 0) droneFit(t, dt, crossed);
+    else if (t < L.board) droneHover(dt);
     else {   // over to the hatch, ahead of him
       const k = Math.min(1, dt * 5);
       drone.ox += (52 - player.x - drone.ox) * k; drone.oy += (-14 - player.y - PILOT_CY - drone.oy) * k;
@@ -11575,7 +11621,7 @@ function render() {
     }
     drawManSquashed(player.x + (state === 'dying' ? Math.round(Math.sin(clock * 40) * 2) : 0), my, player.pose, clock, player.thr);
     if (droneShown() && DRONE_STATES.includes(state)) { const ga = c.globalAlpha; c.globalAlpha = 1; drawDrone(my); c.globalAlpha = ga; }
-    if (state === 'launch' && launchT < REPAIR.done) drawRepairTools(my);
+    if (state === 'launch' && launchT < REPAIR.done) { drawRepairTools(my); drawFitComp(my); }
     if (state === 'cave' && cavePhase === 'open') drawCrowbar(my);
     c.globalAlpha = 1;
     if (state === 'landing') {
