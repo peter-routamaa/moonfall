@@ -49,14 +49,16 @@ From the profiler's seeded 15 km run at 320 x 694 game pixels. Counts are exact 
 | Page measurements (forced layouts) | 0 in the fall | 3.4 at a cafe counter (`placeSay`), tolerated |
 | Wall maths while falling | `hash` 430-620, `bossAt` 120-210, `voidAt` 77-110 calls | |
 
-A Leviathan, measured on its own by `tools/levi_budget.py` (all eighteen, averaged over 30 moments; version 141, Machine six added in 145). The
-script holds these limits too: change both together.
+A Leviathan, measured on its own by `tools/levi_budget.py` (all eighteen, averaged over 30 moments, plus the worst single
+frame in them; version 141, Machine six added in 145, worst frame added 2026-11-17). The script holds these limits
+too (`BUDGET` and `WORST`): change both together.
 
 | | Range across the eighteen |
 |---|---|
 | Background shape (its entry's `draw`, `LEVIATHANS[kind].draw`), drawing calls per frame | 117-749 (limit 750) |
 | One fight paint (three `bossStage` steps) | 1,018-2,094 rectangles (limit 2,172), 30-194 stamps (limit 195) |
 | One paint while fading in | 1,206-3,084 rectangles (limit 3,334) |
+| Worst single frame: the most drawing calls (rectangles + stamps) one frame needs in any of the 30 moments (the background shape, one step of a settled fight paint, or the fight's first frame, which paints all three steps while fading in); the averages above can hide it | 946-3,103 (limit 3,500; the heaviest is always the fade-in) |
 
 If a new thing pushes a number well outside its range, fix that before publishing. If it has to, say so in the notes
 with the before and after.

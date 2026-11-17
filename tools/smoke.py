@@ -14,12 +14,11 @@ and on every problem the game's own load-time checks found in its tables (window
 checkHazards and checkLeviathans: a hazard or Leviathan entry missing a field, or naming an attack that doesn't exist).
 Exits 1 listing what failed, 2 if Chrome is missing. The website build runs it (tools/build_site.py).
 """
-import json, os, re, subprocess, sys, tempfile
+import os, re, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import same_pixels, test_pages
+import chrome, same_pixels, test_pages
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CHROME = os.environ.get('CHROME', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
+ROOT = chrome.ROOT
 
 HOOK = ("window.__smoke = { setCard, openMenu, pause, resume, toTitle, leaveCafe, openShop, showEnd, perfStart, cafeCard, startPreview, askPreview, "
         "get previewOn() { return previewSave !== null; }, get perfOn() { return perfOn; }, get cardSide() { return cardSide; }, get wakeWant() { return typeof wakeWant === 'undefined' ? false : wakeWant; } };")
@@ -37,14 +36,14 @@ DRIVER = r"""<script>
   // A component's card (a Leviathan escaped) gets Continue, as a player would; compCards counts them. A step that answers
   // the card itself turns autoCard off.
   let autoCard = true;
-  const run = (n, keep) => { for (let i = 0; i < n; i++) { t += 1000 / 60; if (keep) keep(); if (autoCard && $('confirmDlg').open && !$('confirmPic').hidden) { out.compCards = (out.compCards || 0) + 1; $('confirmYes').click(); } try { M.frame(t); } catch (e) { out.errors.push('frame: ' + (e && e.message || e)); } seen.add(M.state); } };
+  const run = (n, keep) => { for (let i = 0; i < n; i++) { t += 1000 / 60; if (keep) keep(); if (autoCard && __tools.continueCard()) out.compCards = (out.compCards || 0) + 1; try { M.frame(t); } catch (e) { out.errors.push('frame: ' + (e && e.message || e)); } seen.add(M.state); } };
   const safe = () => { P.inv = 1; P.hp = P.max; };
   // A step does something, plays some frames, and says which state it should end in ('' for any).
   const step = async (name, want, fn, frames, keep) => {
     await wait(20);   // lets the last step's history.back() land, as a person's pace would (see phones in the game)
     try { await fn(); } catch (e) { out.errors.push(name + ': ' + (e && e.message || e)); }
     run(frames || 0, keep);
-    if ($('confirmDlg').open && !$('confirmPic').hidden) run(1, keep);   // a component's card on the step's last frame
+    if (__tools.cardUp()) run(1, keep);   // a component's card on the step's last frame
     const ok = !want || want.split('|').includes(M.state);
     out.steps.push({ name, state: M.state, ok });
   };
@@ -135,32 +134,24 @@ DRIVER = r"""<script>
 
 
 def page(game):
-    anchor = 'requestAnimationFrame(t => { last = t; frame(t); });'
-    if game.count(anchor) != 1:
-        sys.exit('smoke: could not find the start line')
-    return test_pages.HEAD + same_pixels.SEEDED + game.replace(anchor, test_pages.HOOK + '\n' + HOOK + '\n' + anchor) + DRIVER + '</body></html>'
+    game = chrome.inject(game, test_pages.HOOK + '\n' + HOOK, 'smoke')
+    return test_pages.HEAD + same_pixels.SEEDED + chrome.HELPERS + game + DRIVER + '</body></html>'
 
 
 def run(src, moon):
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, 'smoke.html')
         open(path, 'w', encoding='utf-8').write(page(open(src, encoding='utf-8').read()))
-        dom = subprocess.run([CHROME, '--headless=new', '--disable-gpu', '--no-first-run', '--user-data-dir=' + os.path.join(tmp, 'chrome'),
-                              '--allow-file-access-from-files', '--window-size=390,844', '--virtual-time-budget=300000', '--dump-dom',
-                              'file://' + path + '?moon=' + moon], capture_output=True, text=True, timeout=600).stdout
-    m = re.search(r'<pre id="out">(.*?)</pre>', dom, re.S)
-    if not m:
-        return None
-    return json.loads(m.group(1).replace('&quot;', '"').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>'))
+        dom = chrome.dump_dom('file://' + path + '?moon=' + moon, os.path.join(tmp, 'chrome'), 300000, 600, size='390,844')
+    return chrome.result(dom)
 
 
 def main():
     args = sys.argv[1:]
     src = args.pop(0) if args and args[0].endswith('.html') else os.path.join(ROOT, 'src', 'moonfall.html')
-    if not os.path.exists(CHROME):
-        print('smoke: Chrome not found at ' + CHROME + '; set CHROME to its path'); sys.exit(2)
+    chrome.need_chrome('smoke')
     game = open(src, encoding='utf-8').read()
-    moons = args or re.findall(r"(\w+): ", re.search(r'const LEVI_SETS = \{(.*?)\};', game, re.S).group(1))
+    moons = args or chrome.moons(game)
     fails = 0
     for moon in moons:
         res = run(src, moon)

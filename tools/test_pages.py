@@ -8,9 +8,11 @@
 Serve the folder and open a page:   python3 -m http.server 8766 -d tools/out   then http://localhost:8766/test.html
 The pages are silent (no sound or music) unless the address has ?sound=1, e.g. test.html?sound=1.
 """
-import os, shutil
+import os, shutil, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import chrome
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = chrome.ROOT
 OUT = os.path.join(ROOT, 'tools', 'out')
 
 # The debug handle: the game's internals that the tests and screenshots reach for.
@@ -48,7 +50,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
   if (document.fonts) await document.fonts.ready;
   await wait(300);
   if (q.get('scene') === 'splash') { M.clock = +(q.get('ft') || 0); M.render(); M.state = 'paused'; document.title = 'ready'; return; }
-  (document.getElementById('splashSkip') || { click() { const g = id => document.getElementById(id); g('chooseBtn').click(); document.querySelector('.splash-moon[data-moon="' + (window.__mf.moon || 'dust') + '"]').click(); g('splashBtn').click(); g('introSkip').click(); if (g('menuStart') && !new URLSearchParams(location.search).get('clean')) g('menuStart').click(); } }).click(); await wait(300);
+  __tools.skipSplash(); await wait(300);
   if (q.get('scene') === 'launch') {   // the ending at ?t= seconds
     if (q.get('portal')) M.launchPortal = true;   // &portal=1: home through the deep cave's orange portal
     M.startLaunch(); for (let i = 0; i < Math.round(+(q.get('t') || 0) * 60); i++) M.update(1 / 60);
@@ -69,7 +71,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     for (let i = 0; i < 60; i++) M.update(1 / 60);
     if (q.get('fw')) {   // &fw=1: a run that finishes the ship, quit back to the menu, 2.5 s of fireworks
       for (const k in M.save.parts) M.save.parts[k] = 0;   // the saved profile may already have a repaired ship
-      document.getElementById('startBtn').click(); if (document.getElementById('confirmDlg').open) document.getElementById('confirmYes').click(); await wait(300);
+      __tools.jumpIn(); await wait(300);
       for (const k in M.save.parts) M.save.parts[k] = 999;
       document.getElementById('pauseBtn').click(); await wait(100); document.getElementById('quitBtn').click(); await wait(100);
       for (let i = 0; i < 150; i++) M.update(1 / 60);
@@ -91,7 +93,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
   }
   if (q.get('drone')) { M.save.droneOpen = true; M.save.drone = true; }   // &drone=1: the helper drone along (version 160)
   { const had = M.save.droneOpen; M.save.droneOpen = true;   // Jump In without the drone offer (askDrone), then the save as it was
-    document.getElementById('startBtn').click(); if (document.getElementById('confirmDlg').open) document.getElementById('confirmYes').click(); await wait(300); M.save.droneOpen = had; }
+    __tools.jumpIn(); await wait(300); M.save.droneOpen = had; }
   if (q.get('scene') === 'haz') {   // a contact sheet of the signature hazards; see tools/shoot_hazards.sh
     M.save.hints = { glaze: 1, crumble: 1, ash: 1, void: 1 };
     const cv = document.getElementById('cv'), ov = document.getElementById('ov');
@@ -175,7 +177,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
   }
   if (q.get('scene') === 'speedup') {   // version 142: just past cafe &n='s ledge, the SPEED +5% banner frozen at &at= ms (default 450); &comp=3: a component's banner instead
     for (const st of document.querySelectorAll('style')) if (st.textContent.includes('animation-duration:1ms')) st.remove();
-    document.getElementById('startBtn').click(); if (document.getElementById('confirmDlg').open) document.getElementById('confirmYes').click(); await wait(300);
+    __tools.jumpIn(); await wait(300);
     for (let i = 0; i < 900 && M.state === 'intro'; i++) M.update(1 / 60);
     const n = +(q.get('n') || 1);
     for (let k = 1; k <= n; k++) { pl.y = M.cafeInfo(k).Dl + 40; for (let i = 0; i < 20; i++) { pl.inv = 2; M.update(1 / 60); } }
@@ -242,9 +244,7 @@ HEAD = ('<!doctype html><html><head><meta charset=utf8><meta name=viewport conte
 
 if __name__ == '__main__':
     game = open(os.path.join(ROOT, 'src', 'moonfall.html')).read()
-    anchor = 'requestAnimationFrame(t => { last = t; frame(t); });'
-    assert game.count(anchor) == 1, 'start-up line not found'
-    game = game.replace(anchor, HOOK + '\n' + anchor)
+    game = chrome.inject(game, HOOK, 'test_pages')
     board = game.replace("const SCORES_URL = '';", "const SCORES_URL = 'https://fake-scores.test/functions/v1/scores';", 1)
     os.makedirs(OUT, exist_ok=True)
     pages = {
@@ -253,9 +253,9 @@ if __name__ == '__main__':
         'frame.html': FRAME,
     }
     local = pages['test.html']
-    pages['shot.html'] = local[:local.rindex('</body>')] + SHOT + '</body></html>'
+    pages['shot.html'] = local[:local.rindex('</body>')] + chrome.HELPERS + SHOT + '</body></html>'
     # The same scenes with the pretend online board (version 201): frame.html?page=shot-board.html&scene=board[&kid=1]
-    pages['shot-board.html'] = pages['test-board.html'][:pages['test-board.html'].rindex('</body>')] + SHOT + '</body></html>'
+    pages['shot-board.html'] = pages['test-board.html'][:pages['test-board.html'].rindex('</body>')] + chrome.HELPERS + SHOT + '</body></html>'
     shutil.copytree(os.path.join(ROOT, 'src', 'voices'), os.path.join(OUT, 'voices'), dirs_exist_ok=True)
     for name, html in pages.items():
         open(os.path.join(OUT, name), 'w').write(html)
