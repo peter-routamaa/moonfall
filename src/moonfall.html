@@ -1495,8 +1495,13 @@ function missionsDone() {
 const suitsOpen = () => missionsDone() > 0 ? SUITS.length : 1;
 const suitMap = () => suitMaps[Math.min(save.suit || 0, suitsOpen() - 1)] || MAP;
 function drawMan(x, y, pose, t, thr) {
-  const f = Math.floor(t * 6) % 2,
-    rows = pose === 'stand' ? RUN[1] : pose === 'standL' ? RUNL[1] : pose === 'run' ? RUN[f] : pose === 'runL' ? RUNL[f] : pose === 'wave' ? WAVE[Math.floor(t * 4) % 2] : FALL[f];
+  const f = Math.floor(t * 6) % 2;
+  let rows = FALL[f];   // falling, and any pose not named below
+  if (pose === 'stand') rows = RUN[1];
+  else if (pose === 'standL') rows = RUNL[1];
+  else if (pose === 'run') rows = RUN[f];
+  else if (pose === 'runL') rows = RUNL[f];
+  else if (pose === 'wave') rows = WAVE[Math.floor(t * 4) % 2];
   const x0 = Math.round(x - rows[0].length / 2), y0 = Math.round(y);
   drawPack(pose === 'wave' ? x0 + 2 : x0, y0, pose === 'wave' ? 'fall' : pose);
   sprite(c, rows, x0, y0, suitMap());
@@ -2002,7 +2007,11 @@ function machineRow(g, d, y, Q) {
   if (pv === 0) { g.fillStyle = Q.ink; g.fillRect(0, y, W, 1); return; }
   if (pv === 1) { g.fillStyle = Q.shade; g.fillRect(0, y, W, 1); return; }
   if (z === 2 && hash(pr * 5.3 + 2) < 0.45 && pv >= 12 && pv <= 19) {   // a pipe across the panel
-    g.fillStyle = pv === 12 || pv === 19 ? Q.ink : pv === 13 ? Q.cryL : pv === 18 ? Q.shade : Q.cryD; g.fillRect(0, y, W, 1);
+    if (pv === 12 || pv === 19) g.fillStyle = Q.ink;   // dark edges, a lit line under the top one, a shaded one over the bottom
+    else if (pv === 13) g.fillStyle = Q.cryL;
+    else if (pv === 18) g.fillStyle = Q.shade;
+    else g.fillStyle = Q.cryD;
+    g.fillRect(0, y, W, 1);
     if (pv > 12 && pv < 19) { g.fillStyle = Q.ink; for (let x = off + 22; x < W; x += 60) g.fillRect(x, y, 3, 1); }   // its collars
     return;
   }
@@ -6291,7 +6300,11 @@ const faceCv = $('face');
 let faceShown = '', faceHit = -9, faceJoy = -9;
 function updateFace() {
   const hp = player.hp, red = hp <= 1 && Math.floor(clock * 2) % 2 === 1;
-  let key = clock - faceHit < 0.5 ? 'hurt' : clock - faceJoy < 0.6 && hp > 1 ? 'happy' : hp <= 1 ? 'scared' : hp <= 3 ? 'worried' : 'calm';
+  let key = 'calm';
+  if (clock - faceHit < 0.5) key = 'hurt';
+  else if (clock - faceJoy < 0.6 && hp > 1) key = 'happy';
+  else if (hp <= 1) key = 'scared';
+  else if (hp <= 3) key = 'worried';
   if (key === 'calm' && clock % 3.7 < 0.12) key = 'blink';
   if (key + red === faceShown) return;
   faceShown = key + red;
@@ -6530,6 +6543,17 @@ let unlocksFromNews = false;   // the Unlocks card was opened from New features:
 // not from boxes caught mid-turn.
 const DONE_FROM_BOTTOM = 50;
 const CARD_FACE = { settings: 'titleBack', how: 'howBack', levi: 'leviBack', badges: 'badgeBack', news: 'newsBack', unlocks: 'unlocksBack', moons: 'moonsBack', kid: 'kidBack' };
+// Where keyboard focus goes once the card has turned: on each face, by the face it came from (was) where that matters;
+// back on the front, the button that opened the face it left (Start for the cards opened from New features).
+const CARD_FACE_FOCUS = {
+  settings: was => (was === 'kid' ? 'kidBtn' : 'sndT'),
+  news: was => ({ moons: 'newsMoons', unlocks: 'newsHard', kid: 'newsKid' })[was] || 'newsLevi',
+  kid: () => 'kidMines', how: () => 'howDone', unlocks: () => 'unlocksDone', levi: () => 'leviDone', moons: () => 'moonsDone',
+  badges: () => 'badgeDone',
+};
+const CARD_FRONT_FOCUS = { how: 'howBtn', badges: 'badgesBtn', unlocks: 'unlocksBtn', levi: 'startBtn', news: 'startBtn', moons: 'startBtn' };
+// The title card's classes for the face that's open (the New features card's is newsopen: .news is the sticker's own).
+const CARD_CLASS = { levi: 'levi', how: 'how', settings: 'settings', badges: 'badges', moons: 'moons', unlocks: 'unlocks', kid: 'kid', news: 'newsopen' };
 function placeNews(side, instant) {
   const fl = $('titleFlip'), ts = $('titleScreen');
   let lift = 0;
@@ -6555,15 +6579,20 @@ function setCard(side, instant) {
   if (side === 'badges') fillBadges();
   if (side === 'unlocks') syncToggles();   // Hard Dive's lock is shown from the save as it is now
   if (side === 'kid') syncKid();
-  turnCard($('titleFlip'), $('titleFront'), { settings: $('titleBack'), how: $('howBack'), levi: $('leviBack'), badges: $('badgeBack'), news: $('newsBack'), unlocks: $('unlocksBack'), moons: $('moonsBack'), kid: $('kidBack') }, was, side, instant, () => {
+  const backs = {};
+  for (const k in CARD_FACE) backs[k] = $(CARD_FACE[k]);
+  turnCard($('titleFlip'), $('titleFront'), backs, was, side, instant, () => {
     const ts = $('titleScreen');
     clearTimeout(readTimer);
-    if (side) { ts.classList.toggle('levi', side === 'levi'); ts.classList.toggle('how', side === 'how'); ts.classList.toggle('settings', side === 'settings'); ts.classList.toggle('badges', side === 'badges'); ts.classList.toggle('moons', side === 'moons'); ts.classList.toggle('unlocks', side === 'unlocks'); ts.classList.toggle('kid', side === 'kid'); ts.classList.toggle('newsopen', side === 'news'); }   // not 'news': that's the sticker's own class
+    if (side) for (const k in CARD_CLASS) ts.classList.toggle(CARD_CLASS[k], side === k);
     placeNews(side, instant);
     if (side || instant) { ts.classList.toggle('reading', !!side); syncAside(instant); }
     else readTimer = setTimeout(() => { ts.classList.remove('reading'); syncAside(); }, 480);
   });
-  if (!instant) setTimeout(() => kbFocus(side === 'settings' ? $(was === 'kid' ? 'kidBtn' : 'sndT') : side === 'kid' ? $('kidMines') : side === 'how' ? $('howDone') : side === 'news' ? $(was === 'moons' ? 'newsMoons' : was === 'unlocks' ? 'newsHard' : was === 'kid' ? 'newsKid' : 'newsLevi') : side === 'unlocks' ? $('unlocksDone') : side === 'levi' ? $('leviDone') : side === 'moons' ? $('moonsDone') : side === 'badges' ? $('badgeDone') : $(was === 'how' ? 'howBtn' : was === 'badges' ? 'badgesBtn' : was === 'unlocks' ? 'unlocksBtn' : was === 'levi' || was === 'news' || was === 'moons' ? 'startBtn' : 'settingsBtn')), CARD_FOCUS_MS);
+  if (!instant) {
+    const focus = side ? CARD_FACE_FOCUS[side](was) : CARD_FRONT_FOCUS[was] || 'settingsBtn';
+    setTimeout(() => kbFocus($(focus)), CARD_FOCUS_MS);
+  }
 }
 // -- the Leviathans card: New features' Leviathan chases row opens it. Each creature's name, its signature attack in a line
 // (its entry's name and line; LEVI_INFO lists them), and a portrait painted with its fight art (bossStage), facing
@@ -6964,9 +6993,13 @@ function runSmooth() {
 // The opening on this page load: watched to the end or skipped. Sent with the first run only, so each launch counts once.
 let introHow = '', introRun = '', introDone = false;
 const UA = navigator.userAgent, TOUCH_MAC = /Macintosh/.test(UA) && navigator.maxTouchPoints > 1;
-const DEVICE = /iPad|Tablet/.test(UA) || TOUCH_MAC || (/Android/.test(UA) && !/Mobile/.test(UA)) ? 'tablet' : /Mobi|iPhone|Android/.test(UA) ? 'phone' : 'desktop';
-const OS = /Android/.test(UA) ? 'android' : /iPhone|iPad|iPod/.test(UA) || TOUCH_MAC ? 'ios' : /Windows/.test(UA) ? 'windows' : /CrOS/.test(UA) ? 'chromeos'
-  : /Mac OS X|Macintosh/.test(UA) ? 'mac' : /Linux/.test(UA) ? 'linux' : 'other';
+// The first name in a list of [pattern, name] whose pattern the user agent matches, or 'other'.
+const uaName = list => (list.find(([re]) => re.test(UA)) || [null, 'other'])[1];
+const DEVICE = /iPad|Tablet/.test(UA) || TOUCH_MAC || (/Android/.test(UA) && !/Mobile/.test(UA)) ? 'tablet'
+  : /Mobi|iPhone|Android/.test(UA) ? 'phone' : 'desktop';
+const OS = TOUCH_MAC && !/Android/.test(UA) ? 'ios'   // an iPad asking for the desktop site
+  : uaName([[/Android/, 'android'], [/iPhone|iPad|iPod/, 'ios'], [/Windows/, 'windows'], [/CrOS/, 'chromeos'],
+    [/Mac OS X|Macintosh/, 'mac'], [/Linux/, 'linux']]);
 function statPing(body) {
   if (!SCORES_URL || offRecord()) return;
   fetch(SCORES_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
@@ -6997,9 +7030,10 @@ const noteError = (msg, line, col) => {
 };
 addEventListener('error', e => noteError(e.message, e.lineno, e.colno));
 addEventListener('unhandledrejection', e => noteError('promise: ' + ((e.reason && e.reason.message) || e.reason)));
-const BROWSER = /FBAN|FBAV|Instagram|Snapchat|Line\/|MicroMessenger|GSA\//.test(UA) ? 'inapp' : /SamsungBrowser/.test(UA) ? 'samsung'
-  : /Edg\/|EdgA|EdgiOS/.test(UA) ? 'edge' : /OPR\/|OPiOS/.test(UA) ? 'opera' : /Firefox|FxiOS/.test(UA) ? 'firefox'
-  : /Chrome|CriOS|Chromium/.test(UA) ? 'chrome' : /Safari/.test(UA) ? 'safari' : 'other';
+const BROWSER = uaName([
+  [/FBAN|FBAV|Instagram|Snapchat|Line\/|MicroMessenger|GSA\//, 'inapp'], [/SamsungBrowser/, 'samsung'], [/Edg\/|EdgA|EdgiOS/, 'edge'],
+  [/OPR\/|OPiOS/, 'opera'], [/Firefox|FxiOS/, 'firefox'], [/Chrome|CriOS|Chromium/, 'chrome'], [/Safari/, 'safari'],
+]);
 const INSTALLED = () => !!(navigator.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches));
 const runMore = () => ({
   errors: errN, error: errFirst,
@@ -7824,9 +7858,16 @@ function renderShop() {
   for (const id of ['shopSpare', 'shopSpare2', 'shopBtnN']) $(id).textContent = player.spare;
   const afford = shopOffer.some(p => player.spare >= p.cost);
   // Every state says how long treats last.
-  $('shopNote').textContent = (shopDone ? 'Enjoy! ' : afford ? 'One treat per cafe. ' : player.spare ? 'Not enough spare crystals yet. ' : 'No spare crystals yet: see TIPS. ')
-    + (shopDone ? 'It lasts' : 'Treats last') + ' until the next cafe.';
-  $('cafeNote').textContent = shopDone ? 'Treat bought. Enjoy the fall!' : !save.cafeTips ? 'New here? Tap TIPS first' : afford ? 'Spend your spare crystals in the shop' : 'Catch crystals at full health to earn spares';
+  let shopNote = 'No spare crystals yet: see TIPS. ';
+  if (shopDone) shopNote = 'Enjoy! ';
+  else if (afford) shopNote = 'One treat per cafe. ';
+  else if (player.spare) shopNote = 'Not enough spare crystals yet. ';
+  $('shopNote').textContent = shopNote + (shopDone ? 'It lasts' : 'Treats last') + ' until the next cafe.';
+  let cafeNote = 'Catch crystals at full health to earn spares';
+  if (shopDone) cafeNote = 'Treat bought. Enjoy the fall!';
+  else if (!save.cafeTips) cafeNote = 'New here? Tap TIPS first';
+  else if (afford) cafeNote = 'Spend your spare crystals in the shop';
+  $('cafeNote').textContent = cafeNote;
   [...$('shopItems').children].forEach((b, i) => {
     const p = shopOffer[i];
     if (!p) return;
@@ -8244,7 +8285,11 @@ function drawCave(cam) {
     const at = giftItemAt(cave, i, caveT);
     if (at) drawPart(pt, Math.round(at[0]), Math.round(at[1] - cam), clock);
   });
-  const portalOpen = state === 'cave' && cavePhase === 'portal' ? smoothstep(caveT / CAVE_PORTAL_IN) * (player.hidden ? Math.max(0, 1 - (caveT - portalShutAt) / CAVE_PORTAL_SHUT) : 1) : 0;
+  let portalOpen = 0;
+  if (state === 'cave' && cavePhase === 'portal') {
+    const shut = player.hidden ? Math.max(0, 1 - (caveT - portalShutAt) / CAVE_PORTAL_SHUT) : 1;   // closing behind him
+    portalOpen = smoothstep(caveT / CAVE_PORTAL_IN) * shut;
+  }
   if (portalOpen > 0) drawPortal(cave.portalX, Math.round(floorY), portalOpen, PORTAL_BLUE);
 }
 
@@ -9403,7 +9448,10 @@ function bounceOff(side, edge, cd, fresh) {
 // pulls back slowly and waits. A saw blade's middle on its rail. Both run on the clock from their own phase.
 function crushExt(h) {
   const u = ((clock + h.ph) % CRUSH_P) / CRUSH_P;
-  return u < 0.1 ? smoothstep(u / 0.1) : u < 0.38 ? 1 : u < 0.72 ? 1 - smoothstep((u - 0.38) / 0.34) : 0;
+  if (u < 0.1) return smoothstep(u / 0.1);   // pushing out
+  if (u < 0.38) return 1;   // out
+  if (u < 0.72) return 1 - smoothstep((u - 0.38) / 0.34);   // drawing back
+  return 0;
 }
 function sawAt(h) {
   const { L, R } = edgeAt(h.d), u = 0.5 - 0.5 * Math.cos((clock + h.ph) * Math.PI * 2 / SAW_P), out = 8 + (h.reach - SAW_R - 8) * u;
@@ -9500,7 +9548,9 @@ const HAZARDS = {
       }
       const mx = s < 0 ? base + 10 : base - 10;   // the mouth
       if (h.glow > 0 || h.ext) { c.globalAlpha = 0.15 + 0.25 * Math.min(1, h.glow || 1); disc(mx, y + j, 6, P.lava); c.globalAlpha = 1; }
-      const hot = h.glow >= 1 || h.ext ? P.hot : h.glow > 0 ? (Math.floor(clock * 14) % 2 ? P.hot : P.lava) : AH.dim;
+      let hot = AH.dim;
+      if (h.glow >= 1 || h.ext) hot = P.hot;
+      else if (h.glow > 0) hot = Math.floor(clock * 14) % 2 ? P.hot : P.lava;   // flickering as it warms
       c.fillStyle = hot; c.fillRect(mx - 1, y - 4 + j, 2, 8);
       c.fillStyle = P.ink; c.fillRect(mx - 1, y - 1 + j, 2, 2);
       if (!h.ext) {
@@ -10962,7 +11012,10 @@ function tongueFrom(s) {
 }
 function tongueLen(s) {
   const T = s.t - s.warn;
-  return T < 0 ? 0 : T < s.out ? s.L * T / s.out : T < s.out + s.hold ? s.L : s.L * Math.max(0, 1 - (T - s.out - s.hold) / s.back);
+  if (T < 0) return 0;
+  if (T < s.out) return s.L * T / s.out;   // shooting out
+  if (T < s.out + s.hold) return s.L;   // held out
+  return s.L * Math.max(0, 1 - (T - s.out - s.hold) / s.back);   // pulled back
 }
 // A shot reaching him: it hurts like anything else (the shield blocks it); while he blinks after a hit, shots pass through.
 function bossHit(s, pops) {
@@ -11691,7 +11744,11 @@ function perfSteer(dt) {
     if (p.fought && !boss) p.after += dt;
   }
   if (state === 'cafe') { p.cafeT += dt; if (p.cafeT > 3) leaveCafe(); }
-  p.cur = state === 'intro' ? 255 : boss ? (boss.phase === 'crash' ? 5 : boss.t < 4 ? 3 : 4) : p.fought ? 5 : state !== 'play' ? 1 : bossAt(pl.y + PILOT_CY) ? 2 : 0;
+  if (state === 'intro') p.cur = 255;   // counted in no scene
+  else if (boss) p.cur = boss.phase === 'crash' ? 5 : boss.t < 4 ? 3 : 4;
+  else if (p.fought) p.cur = 5;
+  else if (state !== 'play') p.cur = 1;
+  else p.cur = bossAt(pl.y + PILOT_CY) ? 2 : 0;
   if (p.after > 1.5 || p.t > 150 || p.n >= PERF_MAX) perfFinish();
 }
 // After each frame is drawn: `raw` s since the frame before, `cpu` ms of the game's own code in this one.
@@ -11716,7 +11773,10 @@ function perfReport() {
   // The screen's own frame time: the middle of the frames that came back in one refresh (within 1.5x the quickest tenth).
   const sorted = Array.from(p.gap.subarray(0, N)).sort((a, b) => a - b), quick = sorted.filter(v => v <= 1.5 * sorted[Math.floor(N * 0.1)]);
   const base = quick.length ? quick[quick.length >> 1] : 16.7;
-  const browser = /CriOS|Chrome/.test(ua) ? 'chrome ' + ver(/(?:CriOS|Chrome)\/(\d+)/) : /Firefox/.test(ua) ? 'firefox ' + ver(/Firefox\/(\d+)/) : /Safari/.test(ua) ? 'safari ' + ver(/Version\/(\d+)/) : 'browser ?';
+  let browser = 'browser ?';
+  if (/CriOS|Chrome/.test(ua)) browser = 'chrome ' + ver(/(?:CriOS|Chrome)\/(\d+)/);
+  else if (/Firefox/.test(ua)) browser = 'firefox ' + ver(/Firefox\/(\d+)/);
+  else if (/Safari/.test(ua)) browser = 'safari ' + ver(/Version\/(\d+)/);
   const os = OS === 'android' ? 'android ' + ver(/Android (\d+)/) : OS === 'ios' ? 'ios ' + ver(/OS (\d+)_/) : OS;
   const out = ['MOONFALL v0.' + VERSION + ' SELF-TEST  ' + moon + ' / ' + p.kind,
     os + '  ' + browser + '  ' + screen.width + 'x' + screen.height + '@' + Math.round(devicePixelRatio * 100) / 100 + '  game ' + W + 'x' + H,
