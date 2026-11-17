@@ -9,7 +9,10 @@ Runs in a moment, from the commit hook (tools/hooks/pre-commit) and the website 
     at the top of the script, so a new section can't be added without the map knowing;
   - no history in comments (CODING.md rule 4): no "version N" in a comment (history goes in the notes and commits);
   - no hidden globals (CODING.md rule 5): no local variable or parameter named like a global everyone relies on
-    (S, P, W, H, c, clock, moon, state, save, player, boss, camY).
+    (S, P, W, H, c, clock, moon, state, save, player, boss, camY);
+  - sounds are freed (CODING.md rule 11): every oscillator or buffer source the game makes is passed to freeAfter within
+    the next 12 lines, or its line says why not with a comment naming freeAfter (one that plays for good, or is freed
+    elsewhere).
 Add a check here whenever a rule can be checked by reading the files (CLAUDE.md: "When a new rule can be checked by a
 script, add it to those gates rather than only writing it down"). Exits 1 naming what is out of step.
 """
@@ -83,8 +86,22 @@ def main():
         for n in names:
             problems.append(f'hidden global, line {base + i}: a local "{n}" hides the global {n} (CODING.md rule 5)')
 
+    # Every oscillator and buffer source is freed when it ends (freeAfter), so the audio graph can't grow with play time.
+    made = re.compile(r'\b(\w+) = ctx\.create(?:Oscillator|BufferSource)\(\)')
+    sources = 0
+    for i, l in enumerate(lines):
+        for name in made.findall(l):
+            sources += 1
+            if re.search(r'//.*freeAfter', l):
+                continue
+            freed = re.compile(r'freeAfter\(\[[^\]]*\b' + name + r'\b')
+            if not any(freed.search(x) for x in lines[i:i + 13]):
+                problems.append(f'sound not freed, line {base + i}: "{name}" is never passed to freeAfter (CODING.md rule 11)')
+    if sources < 25:
+        problems.append(f'sound not freed: found only {sources} oscillators and buffer sources; the check no longer matches the code')
+
     for p in problems: print('FAIL', p)
-    print('FAIL: the source checks found problems' if problems else f'OK: source checks passed (rude initials: {len(g)} in both lists; code map, comments, names)')
+    print('FAIL: the source checks found problems' if problems else f'OK: source checks passed (rude initials: {len(g)} in both lists; code map, comments, names, {sources} sounds freed)')
     sys.exit(1 if problems else 0)
 
 
