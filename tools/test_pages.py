@@ -162,6 +162,11 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     M.save.scores = [{ i: 'PJR', m: 3120, e: true, o: 'jungle' }, { i: 'ABC', m: 2405, e: false, o: 'dust' }, { i: 'OLD', m: 1810 }, { i: 'MIA', m: 960, e: true, o: 'dust' }];
     document.getElementById('hsEntry').hidden = true; M.openTable(); M.showScreen('score'); await wait(400); if (window.__board) { M.openTable(); await wait(400); } document.title = 'ready'; return;   // a second openTable draws the loaded online board (this scene doesn't set scoreOpen)
   }
+  if (q.get('scene') === 'over') {   // the game over card, after a dive that escaped Leviathans and bought treats more than once (each counted: Croakmaw x3)
+    for (let i = 0; i < 150; i++) M.update(1 / 60);
+    M.save.scores = Array.from({ length: 10 }, () => ({ i: 'ABC', m: 99999 })); M.applyMoon('jungle'); pl.leviRun = ['frog', 'moth', 'spider', 'frog', 'moth', 'frog']; pl.bought = ['Magnet', 'Lucky charm', 'Magnet', 'Tough suit', 'Magnet'];
+    M.gameOver(); await wait(600); document.title = 'ready'; return;
+  }
   if (q.get('scene') === 'pause') { for (let i = 0; i < 150; i++) M.update(1 / 60); M.render(); document.getElementById('pauseBtn').click(); await wait(300); document.title = 'ready'; return; }
   for (let i = 0; i < 150; i++) M.update(1 / 60);
   if (q.get('hp')) { pl.hp = +q.get('hp'); M.setHP(); }   // e.g. &hp=1 for the scared face

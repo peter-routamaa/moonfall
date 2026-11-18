@@ -1102,7 +1102,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 
 // Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
 // published version.
-const VERSION = 270;
+const VERSION = 271;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -1171,6 +1171,13 @@ function hash(n) { n = Math.sin(n * 127.1 + 311.7) * 43758.5453; return n - Math
 // A problem found by a load-time check of the game's own tables (checkHazards, checkLeviathans): loud in
 // the console, and listed in window.__mfProblems, which tools/smoke.py reads and fails on.
 function mfProblem(msg) { console.error('MoonFall: ' + msg); (window.__mfProblems = window.__mfProblems || []).push(msg); }
+// A list of names with repeats counted, in the order each first appears: ['Croakmaw', 'Gloomwing', 'Croakmaw'] reads
+// "Croakmaw x2, Gloomwing".
+function tally(names) {
+  const counts = new Map();
+  for (const name of names) counts.set(name, (counts.get(name) || 0) + 1);
+  return [...counts].map(([name, n]) => (n > 1 ? name + ' x' + n : name)).join(', ');
+}
 function rng32(a) {
   return () => {
     a |= 0;
@@ -6478,7 +6485,14 @@ function turnCard(flip, front, backs, was, side, instant, prepare) {
   clearTimeout(flipTimers.get(flip));
   // Once it's back on its front, the back faces are hidden again: left showing, the tallest one would keep the card
   // that tall and push the main menu's buttons off short screens.
-  const settle = () => { faces.forEach(f => (f.style.height = '')); if (!side) for (const k in backs) backs[k].hidden = true; };
+  // On a back face the front is hidden too: it is often taller, and a browser that doesn't honour backface-visibility
+  // would show its top, mirrored, above the back face.
+  const settle = () => {
+    faces.forEach(f => (f.style.height = ''));
+    if (!side) for (const k in backs) backs[k].hidden = true;
+    front.style.visibility = side ? 'hidden' : '';
+  };
+  front.style.visibility = '';
   if (instant) settle();
   else {
     const from = (was ? backs[was] : front).offsetHeight;
@@ -7231,7 +7245,7 @@ function gameOver() {
     preview ? '<b>Escape preview</b>: not saved' : '',
     hardRun ? '<b>Terminal Velocity</b>' : '',
     nb.length ? 'New badge' + (nb.length > 1 ? 's' : '') + ': <b>' + nb.join(', ') + '</b>' : '',
-    player.leviRun.length ? 'Escaped <b>' + player.leviRun.map(leviName).join(', ') + '</b>' : '',
+    player.leviRun.length ? 'Escaped <b>' + tally(player.leviRun.map(leviName)) + '</b>' : '',
     cafesRun ? 'Cafes visited <b>' + cafesRun + '</b>' + (cafesRun && !player.hits ? ', no hits' : '') : '',
     player.closest < Infinity ? 'Closest call <b>' + player.closest + ' px</b> from a ' + (player.closestMine ? 'mine' : 'rock') : '',
     player.bestStreak ? 'Best streak <b>' + player.bestStreak + '</b>' : '',
@@ -8054,7 +8068,7 @@ $('diveSaveBtn').addEventListener('click', saveDive);
 $('continueBtn').addEventListener('click', continueDive);
 if (save.dive && !keptDive()) { delete save.dive; persist(); }
 syncContinue();
-function perkSummary() { return player.bought.length ? 'Treats: ' + player.bought.join(', ') : ''; }
+function perkSummary() { return player.bought.length ? 'Treats: ' + tally(player.bought) : ''; }
 // -- the signs: 100 m above each cafe, on the rock beside the shaft at the cafe's edge of the screen
 // A tall, narrow board in block letters like the cafe's own sign, one letter per row (CAFE, then 100M) with an arrow
 // under them, so it can use big letters without reaching into the shaft: 5x where the rock is wide enough, else 4x or 3x.
