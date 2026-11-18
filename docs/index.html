@@ -875,14 +875,14 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
      </div>
      <div class="card face back" id="howBack" hidden inert aria-hidden="true">
       <h2>Instructions</h2>
-      <p class="hint">Tap or hold either side of the screen to steer, OR drag with one finger</p>
+      <p class="hint">Tap or hold a side to steer, or drag (keyboard: &larr; &rarr; or A D)</p>
       <ul class="legend">
-        <li><span class="ico"><i></i></span>Impacts cost health</li>
-        <li><span class="ico"><canvas id="icoOrb" width="14" height="14"></canvas></span>Crystal: +1 health</li>
-        <li><span class="ico"><canvas id="icoShield" width="28" height="28"></canvas></span>Bubble: 8s shield, hits wear it down</li>
-        <li><span class="ico"><canvas id="icoPart" class="wide" width="30" height="30"></canvas></span>Gold ring: ship part, collect&nbsp;these</li>
-        <li><span class="ico"><canvas id="icoComp" width="14" height="14"></canvas></span>Escape a Leviathan: its ship component (<span data-fact="perMoon"></span> on each moon)</li>
-        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Stop at a cafe for +1 health and to visit the shop. The fall gets <span data-fact="cafeStep"></span> faster after each cafe, up to +<span data-fact="cafeMax"></span></li>
+        <li><span class="ico"><i></i></span>Rocks, mines and walls cost health</li>
+        <li><span class="ico"><canvas id="icoOrb" width="14" height="14"></canvas></span>Crystal: +1 health, or a shop spare at full health</li>
+        <li><span class="ico"><canvas id="icoShield" width="28" height="28"></canvas></span>Bubble: shield for <span data-fact="shieldS"></span> seconds, hits wear it down</li>
+        <li><span class="ico"><canvas id="icoPart" class="wide" width="30" height="30"></canvas></span>Gold ring: a ship part. Collect them to repair the ship</li>
+        <li><span class="ico"><canvas id="icoComp" width="14" height="14"></canvas></span>Leviathan: escape one to win a ship component (<span data-fact="perMoon"></span> on each moon, <span data-fact="compsAll"></span> in all)</li>
+        <li><span class="ico"><canvas id="icoCafe" width="14" height="14"></canvas></span>Cafe: land for +1 health and the shop. Each one makes the fall <span data-fact="cafeStep"></span> faster, up to <span data-fact="cafeMax"></span></li>
       </ul>
       <button class="btn" id="howDone" type="button">Done</button>
      </div>
@@ -1122,7 +1122,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 
 // Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
 // published version.
-const VERSION = 271;
+const VERSION = 274;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -6252,6 +6252,8 @@ function fillFacts() {
     hardHp: HARD_HP, hardFaster: pct(HARD_SPEED - 1),   // Terminal Velocity
     droneShare: shareWord(DRONE_CHANCE),   // the share of missed parts and crystals the drone goes for
     perMoon: numberWord(LEVI_SETS.dust.length),   // Leviathans (and so components) on each moon
+    compsAll: COMPONENTS.length,   // ship components in all
+    shieldS: SHIELD_S,   // a bubble's shield, in seconds
   };
   const filled = new Set();
   for (const el of [...document.querySelectorAll('[data-fact]')]) {
@@ -6961,7 +6963,7 @@ function askPreview() {
   popConfirm();
 }
 // Landing at a cafe after escaping Leviathans: a card with the components unlocked since the last one (save.compsNew),
-// their pictures in a row, the Leviathans defeated for them, each moon's count, and (owner) that "the player will need to travel across all three moons to
+// their pictures in a row, the Leviathans escaped for them, each moon's count, and (owner) that "the player will need to travel across all three moons to
 // collect six ship components from each one". Shown once; the list then empties. When the ship is ready to fly it offers
 // the launch (Fly home! / Not yet), as the cafe's own launch button does. Components go into the inventory: the ship is
 // only fitted with them in the ending (owner: "we do all the fitting to the ship at the end during the final cinematic").
@@ -6978,11 +6980,11 @@ function askComps() {
   const g = pic.getContext('2d'); g.clearRect(0, 0, w, 14);
   got.forEach((cp, i) => sprite(g, cp.spr, i * 16, 0, PMAP));
   const andList = names => names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
-  const list = andList(got.map(cp => cp.name)), beaten = andList(got.map(cp => LEVIATHANS[cp.levi].name));
+  const list = andList(got.map(cp => cp.name)), escaped = andList(got.map(cp => LEVIATHANS[cp.levi].name));
   const left = COMPONENTS.length - compsCount();
   const perMoon = Object.keys(LEVI_SETS).map(m => MOON_NAMES[m] + ': ' + compsOnMoon(m) + '/' + LEVI_SETS[m].length).join('\n');
   $('confirmTitle').textContent = n > 1 ? 'Components unlocked!' : 'Component unlocked!';
-  $('confirmText').textContent = beaten + ' defeated!\n\n' + list + ' added to inventory. Components: ' + compsCount() + ' of ' + COMPONENTS.length + '\n\n'
+  $('confirmText').textContent = escaped + ' escaped!\n\n' + list + ' added to inventory. Components: ' + compsCount() + ' of ' + COMPONENTS.length + '\n\n'
     + perMoon + '\n\n'
     + (gift ? 'The last Leviathan also gave you every ship part you were missing. ' : '')
     + (canLaunch() ? 'You\'ve acquired all the parts to repair the ship! Fly home now? ' + diveEndsHere()
