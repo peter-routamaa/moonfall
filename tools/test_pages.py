@@ -181,7 +181,8 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     for (let i = 0; i < 900 && M.state === 'intro'; i++) M.update(1 / 60);
     const n = +(q.get('n') || 1);
     for (let k = 1; k <= n; k++) { pl.y = M.cafeInfo(k).Dl + 40; for (let i = 0; i < 20; i++) { pl.inv = 2; M.update(1 / 60); } }
-    if (q.get('comp') && M.flashBanner) { const cp = M.COMPONENTS[+q.get('comp') - 1]; M.flashBanner(cp.name.toUpperCase(), 'Component ' + q.get('comp') + ' of ' + M.COMPONENTS.length + ' unlocked', true); 
+    if (q.get('comp') && M.flashBanner) { const cp = M.COMPONENTS[+q.get('comp') - 1]; M.flashBanner(q.get('head') || cp.name.toUpperCase(), q.get('sub') || 'Component ' + q.get('comp') + ' of ' + M.COMPONENTS.length + ' unlocked', true);   // &head= &sub=: other lines (an escaped one's +1 HEALTH) 
+
       if (q.get('fly') && M.fly) { M.fly('part', pl.x, pl.y + 14, document.getElementById('partsHud'), null, cp, 1.1); for (let i = 0; i < +q.get('fly'); i++) M.update(1 / 60); } }   // &fly=frames: its flight to PARTS
     for (const an of document.getAnimations()) if (an.animationName === 'speedflash') { an.pause(); an.currentTime = +(q.get('at') || 450); } else try { an.finish(); } catch (e) { an.cancel(); }
     M.render(); M.state = 'paused'; document.title = 'ready'; return;
@@ -221,6 +222,7 @@ SHOT = """"<style>*{transition:none!important;animation-duration:1ms!important;a
     if (face === 'tips') document.getElementById('tipsBtn').click();
     if (face === 'repair') document.getElementById('cafeRepairBtn').click();
     if (q.get('buy')) { await wait(600); document.querySelector('.perk:not(:disabled)').click(); }
+    if (q.get('save')) { document.getElementById('diveSaveBtn').click(); await wait(600); }   // &save=1: Save and quit, to the menu with Continue dive
   }
   await wait(700); document.title = 'ready:' + M.state + ':' + document.getElementById('shop').hidden + ':' + document.getElementById('hud').className;
 })();

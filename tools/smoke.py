@@ -26,7 +26,8 @@ ROOT = chrome.ROOT
 
 HOOK = ("window.__smoke = { setCard, openMenu, pause, resume, toTitle, leaveCafe, openShop, showEnd, perfStart, cafeCard, startPreview, askPreview, "
         "startRun, fillParts, get confirmKind() { return confirmKind; }, get hsFrom() { return hsFrom; }, "
-        "get previewOn() { return previewSave !== null; }, get perfOn() { return perfOn; }, get cardSide() { return cardSide; }, get wakeWant() { return typeof wakeWant === 'undefined' ? false : wakeWant; } };")
+        "get previewOn() { return previewSave !== null; }, get perfOn() { return perfOn; }, get cardSide() { return cardSide; }, get wakeWant() { return typeof wakeWant === 'undefined' ? false : wakeWant; }, "
+        "get cafeK() { return cafeK; }, get seed() { return SEED; } };")
 
 # Every answer on every card that a step must press (as 'card kind: button label', see press() in the driver). The smoke
 # test fails on any that was never pressed, so a step that stops short, or a card that never came up, can't pass unseen.
@@ -115,6 +116,17 @@ DRIVER = r"""<script>
   await step('shop', 'cafe', () => S.openShop(), 20);
   for (const face of ['shop', 'tips', 'repair']) await step('cafe card ' + face, 'cafe', () => S.cafeCard(face, true), 20);
   await step('cafe card closed', 'cafe', () => S.cafeCard(null, true), 10);
+  // Save and quit keeps the dive and goes to the menu; Continue dive puts him back at that cafe's counter, with its menu
+  // open and what he carried, and takes the kept dive out of the save.
+  const diveNow = () => JSON.stringify({ y: P.y, hp: P.hp, max: P.max, spare: P.spare, orbs: P.orbs, cafe: S.cafeK, seed: S.seed,
+    offer: M.shopOffer.map(p => p.id) });
+  const diveKept = diveNow();
+  await step('save and quit', 'title', () => $('diveSaveBtn').click(), 20);
+  if (!M.save.dive || $('continueBtn').hidden) out.errors.push('save and quit: no kept dive, or no Continue dive on the menu');
+  await step('continue dive', 'cafe', () => $('continueBtn').click(), 20);
+  if (diveNow() !== diveKept) out.errors.push('continue dive: not as it was saved: ' + diveKept + ' then ' + diveNow());
+  if ($('shop').hidden) out.errors.push('continue dive: no cafe menu');
+  if (M.save.dive || !$('continueBtn').hidden) out.errors.push('continue dive: the dive is still kept');
   await step('leave cafe', 'cafeJump|play', () => S.leaveCafe(), 60 * 3, safe);
   await step('deep fall', 'play|landing|cafe|cafeJump', () => {}, 60 * 90, safe);
   await step('back to falling', 'play', () => { if (M.state === 'cafe') S.leaveCafe(); }, 60 * 4, safe);   // the deep fall may end at a cafe

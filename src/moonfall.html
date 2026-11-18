@@ -653,7 +653,8 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 /* The longest cafe label: smaller so it stays on one line, left-aligned with its icon like TIPS. */
 #cafeRepairBtn { justify-content: flex-start; padding-left: 18px; font-size: 14px; letter-spacing: .02em; text-align: left; }
 @media (max-width: 360px) { #cafeRepairBtn { font-size: 12px; letter-spacing: 0; } }
-#shopGo { text-align: left; }
+#shopGo, #diveSaveBtn { text-align: left; }
+.cafe-ui #diveSaveBtn { font-size: 14px; padding: 12px 18px 10px; }
 .shop-items { display: grid; gap: 8px; }
 .perk { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 10px; row-gap: 5px; padding: 10px 12px 9px; border: 0; text-align: left; color: var(--dust); background: color-mix(in srgb, var(--dust) 7%, var(--ink)); box-shadow: inset 0 0 0 2px var(--ink-soft); cursor: pointer; touch-action: manipulation; }
 .perk-name { font: 700 13px/1.1 var(--display); letter-spacing: .04em; }
@@ -713,7 +714,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
   <div class="fps" id="fps" hidden>-- FPS</div>
   <!-- The small tag while the self-test or an escape preview runs: before the shop and the cave card, so they cover it. -->
   <div class="run-tag" id="runTag" hidden aria-hidden="true"></div>
-  <!-- Cafe menu: a flip card like the title card. Front: SHOP, TIPS, SHIP REPAIR PROGRESS and Continue; the first three turn over to the back. -->
+  <!-- Cafe menu: a flip card like the title card. Front: SHOP, TIPS, SHIP REPAIR PROGRESS, Continue and Save and quit; the first three turn over to the back. -->
   <div class="cafe-ui" id="shop" hidden>
    <div class="flip" id="cafeFlip">
     <div class="flip-inner">
@@ -724,6 +725,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
       <button class="btn settings" id="tipsBtn" type="button"><svg viewBox="0 0 9 9" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM6 2h1v1h-1zM7 2h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1z"/></svg>Tips</button>
       <button class="btn settings" id="cafeRepairBtn" type="button"><svg viewBox="0 0 9 9" width="14" height="14" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M5 0h3v1h-3zM4 1h2v1h-2zM8 1h1v2h-1zM4 2h1v2h-1zM6 2h3v1h-3zM5 3h3v1h-3zM3 4h3v1h-3zM2 5h2v1h-2zM1 6h2v1h-2zM0 7h2v2h-2zM2 7h1v1h-1z"/></svg>Ship repair progress</button>
       <button class="btn" id="shopGo" type="button">Continue the fall</button>
+      <button class="btn quiet" id="diveSaveBtn" type="button">Save and quit to main menu</button>
      </div>
      <div class="card face back" id="cafeShop" hidden inert aria-hidden="true">
       <div class="cafe-head"><h2>Shop</h2><span class="wallet"><canvas class="ico-orb" width="14" height="14"></canvas>SPARE <b id="shopSpare2">0</b></span></div>
@@ -806,6 +808,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
       <span class="ver" id="verTag"></span>
       <button class="best best-big best-btn" id="bestBtn" type="button"><span class="best-lbl" id="bestLbl">BEST</span> <b id="bestTitle">0000 m</b><span class="best-more">TOP 10</span></button>
       <button class="btn launch" id="launchBtn" type="button" hidden>Launch the ship</button>
+      <button class="btn" id="continueBtn" type="button" hidden>Continue dive</button>
       <button class="btn" id="startBtn" type="button">Jump in</button>
       <div class="card-nav">
         <button class="btn settings" id="howBtn" type="button">Instructions</button>
@@ -1099,7 +1102,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 
 // Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
 // published version.
-const VERSION = 269;
+const VERSION = 270;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -1646,7 +1649,7 @@ function winComponent(kind) {
   if (compWon(cp)) {
     const spare = player.hp >= player.max;   // at full health the crystal is kept as a spare (gainCrystal)
     gainCrystal(player.x, player.y + PILOT_CY);
-    crashNote = [spare ? '+1 SPARE CRYSTAL' : '+1 HEALTH', cp.name + ' already fitted'];
+    crashNote = [spare ? '+1 SPARE CRYSTAL' : '+1 HEALTH', cp.name + ' already collected'];
     return;
   }
   save.compsGot.push(cp.id);
@@ -1677,7 +1680,11 @@ function partIcon(pt) {
 let SEED = 1, P1 = 0, P2 = 0, P3 = 0;
 const tiles = new Map();
 function newSeed() {
-  SEED = perfOn ? 477.25 : Math.floor(Math.random() * 900) + 50 + Math.random();   // the self-test falls the same shaft every time
+  setSeed(perfOn ? 477.25 : Math.floor(Math.random() * 900) + 50 + Math.random());   // the self-test falls the same shaft every time
+}
+// The shaft for seed s (a new dive's, or a kept dive's: continueDive).
+function setSeed(s) {
+  SEED = s;
   P1 = hash(SEED + 1) * 6.283; P2 = hash(SEED + 2) * 6.283; P3 = hash(SEED + 3) * 6.283;
   for (const t of tiles.values()) retireTile(t);
   tiles.clear();
@@ -4840,6 +4847,7 @@ function speedAt(d) {
 //                     repaired just below
 //   leviBeaten        Leviathan kind: times escaped (boss fights); made when first used
 //   cafeVisits, cafeTips   cafes visited ever, and the TIPS card seen (coffee stop)
+//   dive              a dive kept at a cafe by Save and quit; checked by keptDive and dropped at load if unusable (coffee stop)
 const SAVE_DEFAULTS = { best: 0, snd: true, mus: true, vib: true, parts: {}, fps: false, cap: true, hints: {} };   // cap: the 60 FPS cap
 const save = { ...SAVE_DEFAULTS, parts: {}, hints: {} };
 // A save that can't be read (not JSON, or not an object) is copied aside to 'moonfall.v1.unreadable', once, before the
@@ -6128,10 +6136,10 @@ function renderRepair() {
   // The cafe's copy says what is left to do, and offers the launch once there is nothing left.
   $('cafeLaunchBtn').hidden = !canLaunch();
   let note = 'Collect ship parts as you fall, and escape Leviathans to win the ship\'s components.';
-  if (canLaunch()) note = 'The ship is repaired, every component fitted. You can fly home!';
+  if (canLaunch()) note = 'Every part and component collected. You can fly home!';
   else if (partsDone()) note = 'Every part found! Escape Leviathans on all three moons for the last '
     + (all - won) + ' component' + (all - won === 1 ? '' : 's') + '.';
-  else if (compsDone()) note = 'Every component fitted. Keep collecting ship parts as you fall.';
+  else if (compsDone()) note = 'Every component collected. Keep collecting ship parts as you fall.';
   $('cafeRepairNote').textContent = note;
 }
 function renderRunParts() {
@@ -6840,7 +6848,8 @@ function askJump() {
   syncMoon();
   $('confirmTitle').textContent = 'Repair the ship';
   $('confirmText').textContent = 'To fly home, the ship needs its parts, found as you fall, and ' + COMPONENTS.length + ' components. '
-    + 'Each Leviathan you escape gives you one: ' + per + ' on each moon, so you\'ll need to dive on all three. Pick your moon:';
+    + 'Each Leviathan you escape gives you one: ' + per + ' on each moon, so you\'ll need to dive on all three. '
+    + (keptDive() ? 'A new dive replaces your saved one. ' : '') + 'Pick your moon:';
   $('confirmYes').hidden = false; $('confirmYes').textContent = 'Dive!';
   $('confirmNo').textContent = 'Back';
   popConfirm(); flipMenuAway(true);
@@ -6918,9 +6927,10 @@ function askPreview() {
   popConfirm();
 }
 // Landing at a cafe after escaping Leviathans: a card with the components unlocked since the last one (save.compsNew),
-// their pictures in a row, each moon's count, and (owner) that "the player will need to travel across all three moons to
+// their pictures in a row, the Leviathans defeated for them, each moon's count, and (owner) that "the player will need to travel across all three moons to
 // collect six ship components from each one". Shown once; the list then empties. When the ship is ready to fly it offers
-// the launch (Fly home! / Not yet), as the cafe's own launch button does.
+// the launch (Fly home! / Not yet), as the cafe's own launch button does. Components go into the inventory: the ship is
+// only fitted with them in the ending (owner: "we do all the fitting to the ship at the end during the final cinematic").
 const COMPS_SHOW_AFTER = 1.2;   // s after landing, once the barista has spoken
 function askComps() {
   const ids = save.compsNew || [], got = COMPONENTS.filter(cp => ids.includes(cp.id));
@@ -6933,16 +6943,17 @@ function askComps() {
   pic.width = w; pic.style.width = Math.min(4, Math.floor(260 / w)) * w + 'px'; pic.style.height = 'auto';
   const g = pic.getContext('2d'); g.clearRect(0, 0, w, 14);
   got.forEach((cp, i) => sprite(g, cp.spr, i * 16, 0, PMAP));
-  const names = got.map(cp => cp.name), list = n > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[n - 1] : names[0];
+  const andList = names => names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
+  const list = andList(got.map(cp => cp.name)), beaten = andList(got.map(cp => LEVIATHANS[cp.levi].name));
   const left = COMPONENTS.length - compsCount();
   const perMoon = Object.keys(LEVI_SETS).map(m => MOON_NAMES[m] + ': ' + compsOnMoon(m) + '/' + LEVI_SETS[m].length).join('\n');
   $('confirmTitle').textContent = n > 1 ? 'Components unlocked!' : 'Component unlocked!';
-  $('confirmText').textContent = list + ' fitted to the ship. Components: ' + compsCount() + ' of ' + COMPONENTS.length + '\n\n'
+  $('confirmText').textContent = beaten + ' defeated!\n\n' + list + ' added to inventory. Components: ' + compsCount() + ' of ' + COMPONENTS.length + '\n\n'
     + perMoon + '\n\n'
     + (gift ? 'The last Leviathan also gave you every ship part you were missing. ' : '')
     + (canLaunch() ? 'You\'ve acquired all the parts to repair the ship! Fly home now? ' + diveEndsHere()
       : left ? 'Each moon\'s ' + numberWord(LEVI_SETS.dust.length) + ' Leviathans guard components: travel to all three moons to collect them all.'
-        : 'Every component fitted! Now finish collecting the ship parts.');
+        : 'Every component collected! Now finish collecting the ship parts.');
   $('confirmYes').hidden = false; $('confirmYes').textContent = canLaunch() ? 'Fly home!' : 'Great!';
   $('confirmNo').textContent = 'Not yet';   // shown only when the ship can fly (popConfirm)
   if (canLaunch()) { launchOffered = true; celebrate('cafe'); }
@@ -7133,6 +7144,7 @@ function startRun(quick) {
       speed: k.speed, drone: k.drone, on: kidOn(k) };
   }
   droneRun = (!!save.drone && droneOpen()) || kidRun.drone;   // Kid mode can bring it along before it's earned
+  if (save.dive && !offRecord()) { delete save.dive; persist(); }   // a new dive replaces a kept one (save and quit)
   Sfx.init(); Music.stop(0.4); setCard(null, true);
   armBack();   // back now pauses the run (see phones)
   resetRun(); countPlay();
@@ -7188,6 +7200,7 @@ function toTitle() {
   hud.classList.add('off');
   syncToggles();
   renderRepair();
+  syncContinue();
   showScreen('title');
   placeHorizon();
   Sfx.wind(0);
@@ -7845,10 +7858,12 @@ const PERKS = [
   { id: 'slow', name: 'Slow fall', desc: '20% slower, ' + SLOW_M + ' m', cost: 2, ok: () => player.slowUntil <= player.y },
 ];
 let shopOffer = [], shopDone = false;
-function openShop() {
+// keep: the perk ids a kept dive's cafe offered (continueDive), so saving and coming back can't change the offer.
+function openShop(keep) {
   const pool = PERKS.filter(p => (!p.once || !player.perks[p.id]) && (!p.ok || p.ok()));
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   shopOffer = pool.slice(0, 3); shopDone = false;
+  if (keep) shopOffer = keep.map(id => PERKS.find(p => p.id === id)).filter(Boolean);
   $('shopItems').innerHTML = '';
   shopOffer.forEach((p, i) => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'perk'; b.dataset.i = i;
@@ -7894,8 +7909,8 @@ $('tipsDone').addEventListener('click', () => cafeCard(null));
 $('cafeRepairBtn').addEventListener('click', () => cafeCard('repair'));
 $('cafeRepairDone').addEventListener('click', () => cafeCard(null));
 $('cafeLaunchBtn').addEventListener('click', () => askLaunch(false));
-// Launching from the cafe ends the dive where it is and flies the ship home. Only offered once the ship is repaired and
-// every component fitted. The dive counts like any other (owner: "that should still count in the high scores"): a
+// Launching from the cafe ends the dive where it is and flies the ship home. Only offered once every part and component
+// is collected. The dive counts like any other (owner: "that should still count in the high scores"): a
 // new best is kept, and a top 10 depth asks for initials first; the launch starts when the high scores close.
 function launchFromCafe() {
   if (state !== 'cafe' || !canLaunch()) return;
@@ -7956,6 +7971,89 @@ function expireTreats(k) {
   if (had) pop('TREAT USED UP', player.x, player.y - 22);
 }
 $('shopGo').addEventListener('click', () => { if (state === 'cafe') leaveCafe(); });
+// -- save and quit: a dive kept at a cafe, carried on from the main menu
+// The cafe menu's "Save and quit to main menu" keeps the dive in the save (save.dive) and goes to the menu, where
+// Continue dive lands him back at that cafe with its menu open, as he left it. The shaft is made from its seed, so the
+// seed and the cafe's number put it back; the rest is what the pilot carried, the run's Leviathan order and the
+// cafe's shop. A kept dive is carried on once (Continue takes it out of the save), and a new dive replaces it (Jump in
+// says so first). An escape preview and the self-test can't be kept. For the stats the dive ends at the cafe (quit) and
+// Continue starts a new one; its depth is the whole dive's, so a high score counts as usual.
+const DIVE_FORMAT = 1;   // a kept dive in another format is dropped
+const DIVE_PLAYER = ['hp', 'max', 'orbs', 'spare', 'streak', 'bestStreak', 'perks', 'perkCafe', 'toughN', 'bought', 'slowUntil', 'magnetUntil',
+  'shield', 'hits', 'closest', 'closestMine', 'leviRun', 'newBadges', 'leviFought', 'zone'];
+function saveDive() {
+  if (state !== 'cafe' || offRecord() || confirmDlg.open) return;
+  const pilot = {};
+  for (const k of DIVE_PLAYER) pilot[k] = player[k];
+  pilot.closest = Number.isFinite(player.closest) ? player.closest : null;   // JSON has no Infinity
+  save.dive = {
+    format: DIVE_FORMAT, seed: SEED, cafe: cafeK, moon, m: depthM(), hard: hardRun, kid: kidRun, drone: droneRun,
+    droneHp: drone.hp === undefined ? null : drone.hp, droneCaught: drone.caught, pilot, parts: { ...runParts }, cafes: cafesRun,
+    fights: leviFor === SEED ? leviFights : [], order: leviFor === SEED ? leviOrder : [], shop: shopOffer.map(p => p.id), bought: shopDone,
+  };
+  persist();
+  toTitle();
+}
+// A kept dive from the save, checked before use; null if it can't be used.
+function keptDive() {
+  const d = save.dive, num = v => Number.isFinite(v), list = v => Array.isArray(v), obj = v => !!v && typeof v === 'object' && !list(v);
+  if (!obj(d) || d.format !== DIVE_FORMAT || !num(d.seed) || !Number.isInteger(d.cafe) || d.cafe < 1 || !MOON_SURF[d.moon]) return null;
+  if (!obj(d.pilot) || !obj(d.kid) || !obj(d.parts) || !num(d.m) || !Number.isInteger(d.cafes)) return null;
+  const pl = d.pilot;
+  if (!num(pl.hp) || !num(pl.max) || pl.hp < 1 || pl.max < 1 || !num(pl.spare) || !num(pl.orbs) || !obj(pl.perks)) return null;
+  if (![pl.bought, pl.leviRun, pl.newBadges, pl.leviFought, d.fights, d.order, d.shop].every(list)) return null;
+  return d;
+}
+function syncContinue() {
+  const d = keptDive();
+  $('continueBtn').hidden = !d;
+  if (d) $('continueBtn').textContent = 'Continue dive: ' + d.m.toLocaleString('en-GB') + '\u00a0m';
+}
+function continueDive() {
+  const d = keptDive();
+  if (!d || state !== 'title') return;
+  delete save.dive; persist(); syncContinue();
+  if (moon !== d.moon) { applyMoon(d.moon); save.moon = moon; persist(); }
+  hardRun = d.hard === true; droneRun = d.drone === true;
+  kidRun = { ...kidRun, ...d.kid };
+  Sfx.init(); Music.stop(0.4); setCard(null, true);
+  armBack();
+  resetRun(); countPlay();
+  setSeed(d.seed);
+  if (d.fights.length) { leviFor = SEED; leviFights = d.fights.slice(); leviOrder = d.order.slice(); }
+  const fresh = playerStart();
+  for (const k of DIVE_PLAYER) if (k in d.pilot && typeof d.pilot[k] === typeof fresh[k]) player[k] = d.pilot[k];
+  if (!Number.isFinite(player.closest)) player.closest = Infinity;
+  player.hp = Math.min(player.hp, player.max);
+  buildHP(); setHP();
+  for (const k in runParts) runParts[k] = Number.isFinite(d.parts[k]) ? d.parts[k] : 0;
+  $('partsRun').textContent = PARTS.reduce((n, q) => n + runParts[q.id], 0);
+  $('spareRun').textContent = player.spare; spareHud.hidden = !player.spare;
+  if (Number.isFinite(d.droneHp)) drone.hp = d.droneHp;
+  if (Number.isFinite(d.droneCaught)) drone.caught = d.droneCaught;
+  // Back at the counter, past the landing's coffee, card and greeting, with the menu as he left it.
+  cafesRun = d.cafes; cafeK = d.cafe;
+  for (let k = 1; k <= cafeK; k++) cafeVisited.add(k);
+  const C = cafeInfo(cafeK);
+  player.x = C.counterX; player.y = C.Dl - 28; player.pose = C.side < 0 ? 'standL' : 'stand';
+  camY = player.y - pilotScreenY - cafeLift; nextSeg = Math.floor(camY / SEG_LEN); lastRockD = player.y;
+  Music.setZone(matI(player.zone), true); fasterN = ledgesPassed(player.y + PILOT_CY);
+  buildFlags();
+  const B = bossAt(player.y + 300);   // a Leviathan below: its paint canvases now, as at the shop's opening (updateCafe)
+  if (B && !bossGone.has(B.k)) bossBufs(leviKind(2 * B.k));
+  setState('cafe'); cafeT = SHOP_OPEN_AT + 0.01;
+  showScreen(null); hud.classList.remove('off'); setDepth();
+  Music.title();
+  openShop(d.shop);
+  if (d.bought) { shopDone = true; renderShop(); }
+  sayEl.textContent = 'Welcome back! Fresh pot\'s on.'; sayEl.hidden = false;
+  if (!sayEl.isConnected) game.appendChild(sayEl);
+  placeSay(C);
+}
+$('diveSaveBtn').addEventListener('click', saveDive);
+$('continueBtn').addEventListener('click', continueDive);
+if (save.dive && !keptDive()) { delete save.dive; persist(); }
+syncContinue();
 function perkSummary() { return player.bought.length ? 'Treats: ' + player.bought.join(', ') : ''; }
 // -- the signs: 100 m above each cafe, on the rock beside the shaft at the cafe's edge of the screen
 // A tall, narrow board in block letters like the cafe's own sign, one letter per row (CAFE, then 100M) with an arrow
