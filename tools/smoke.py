@@ -24,7 +24,7 @@ import chrome, same_pixels, test_pages
 
 ROOT = chrome.ROOT
 
-HOOK = ("window.__smoke = { setCard, openMenu, pause, resume, toTitle, leaveCafe, openShop, showEnd, perfStart, cafeCard, startPreview, askPreview, "
+HOOK = ("window.__smoke = { setCard, openMenu, pause, resume, toTitle, leaveCafe, openShop, showEnd, perfStart, cafeCard, startPreview, askPreview, persist, "
         "startRun, fillParts, get confirmKind() { return confirmKind; }, get hsFrom() { return hsFrom; }, "
         "get previewOn() { return previewSave !== null; }, get perfOn() { return perfOn; }, get cardSide() { return cardSide; }, get wakeWant() { return typeof wakeWant === 'undefined' ? false : wakeWant; }, "
         "get cafeK() { return cafeK; }, get seed() { return SEED; } };")
@@ -127,6 +127,17 @@ DRIVER = r"""<script>
   if (diveNow() !== diveKept) out.errors.push('continue dive: not as it was saved: ' + diveKept + ' then ' + diveNow());
   if ($('shop').hidden) out.errors.push('continue dive: no cafe menu');
   if (M.save.dive || !$('continueBtn').hidden) out.errors.push('continue dive: the dive is still kept');
+  // The browser refuses to store anything (storage full or blocked): Save and quit keeps him at the counter with the
+  // barista saying why, keeps no dive, and the warning strip is up; once a write works again the strip goes.
+  const setItem = Storage.prototype.setItem;
+  Storage.prototype.setItem = () => { throw new DOMException('full', 'QuotaExceededError'); };
+  await step('save refused', 'cafe', () => $('diveSaveBtn').click(), 20);
+  Storage.prototype.setItem = setItem;
+  if (M.save.dive) out.errors.push('save refused: a dive is kept although the browser stored nothing');
+  if ($('saveWarn').hidden) out.errors.push('save refused: no warning that progress is not saving');
+  if (!/save your dive/.test(document.querySelector('.say') ? document.querySelector('.say').textContent : '')) out.errors.push('save refused: the barista does not say why');
+  S.persist();
+  if (!$('saveWarn').hidden) out.errors.push('save refused: the warning stays after a write worked');
   await step('leave cafe', 'cafeJump|play', () => S.leaveCafe(), 60 * 3, safe);
   await step('deep fall', 'play|landing|cafe|cafeJump', () => {}, 60 * 90, safe);
   await step('back to falling', 'play', () => { if (M.state === 'cafe') S.leaveCafe(); }, 60 * 4, safe);   // the deep fall may end at a cafe

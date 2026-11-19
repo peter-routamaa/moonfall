@@ -197,6 +197,30 @@ check('continue: a made-up chain\'s score waits its full time', fake[0] === 200 
 await call('POST', { event: 'play', player: 'aaaaaaaaaaaaaaaa', run: 'deadbeef00000003', prev: C1 }, '3.3.4.4');
 check('continue: another device\'s run gives no credit', db.plays.find(x => x.run === 'deadbeef00000003')?.start_m === 0, null);
 
+// One row per run, and end reports that can't rewrite a run without end (audit of 2026-11-19).
+const DP = 'dddddddddddd0001', D1 = 'dd00000000000001', D2 = 'dd00000000000002';
+const twice = await Promise.all([1, 2].map(() => call('POST', { event: 'play', player: DP, run: D1 }, '2.2.2.1')));
+check('the same start report twice at once: both ok, one row', twice.every(r => r[0] === 200) && db.plays.filter(x => x.run === D1).length === 1, twice);
+const startAndEnd = await Promise.all([call('POST', { event: 'play', player: DP, run: D2 }, '2.2.2.1'), call('POST', { ...end, player: DP, run: D2, depth: 321, how: 'rock' }, '2.2.2.1')]);
+const d2 = db.plays.filter(x => x.run === D2);
+check('a start and an end report at once: both ok, one row with the ending', startAndEnd.every(r => r[0] === 200) && d2.length === 1 && d2[0].depth === 321 && d2[0].how === 'rock', [startAndEnd, d2]);
+const D3 = 'dd00000000000003';
+await call('POST', { event: 'play', player: DP, run: D3 }, '2.2.2.2');
+for (let k = 1; k <= 55; k++) await call('POST', { ...end, player: DP, run: D3, depth: k, how: 'left' }, '2.2.2.2');
+const d3 = db.plays.find(x => x.run === D3);
+check('a run takes at most 50 end reports', d3.ends === 50 && d3.depth === 50, d3);
+const late = await call('POST', { ...end, player: DP, run: D3, depth: 60, how: 'rock' }, '2.2.2.2');
+check('reports past the limit are answered ok and left out', late[0] === 200 && late[1].ignored && db.plays.find(x => x.run === D3).how === 'left', late);
+const D4 = 'dd00000000000004';
+await call('POST', { event: 'play', player: DP, run: D4 }, '2.2.2.3');
+await call('POST', { ...end, player: DP, run: D4, depth: 100, how: 'left' }, '2.2.2.3');
+await call('POST', { ...end, player: DP, run: D4, depth: 400, how: 'mine' }, '2.2.2.3');
+check('hidden, then the real ending: the ending kept', (r => r.how === 'mine' && r.depth === 400)(db.plays.find(x => x.run === D4)), db.plays.find(x => x.run === D4));
+await call('POST', { ...end, player: DP, run: D4, depth: 900, how: 'left' }, '2.2.2.3');
+check('a hidden report after the real ending is left out', (r => r.how === 'mine' && r.depth === 400)(db.plays.find(x => x.run === D4)), db.plays.find(x => x.run === D4));
+await call('POST', { ...end, player: DP, run: D4, depth: 400, how: 'mine', initials: 'DDD' }, '2.2.2.3');
+check('the ending sent again with initials is kept', db.plays.find(x => x.run === D4).initials === 'DDD', db.plays.find(x => x.run === D4));
+
 // The function as written: with REQUIRE_RUN on, a score without its run is refused; one with a real run is saved.
 await import(root + 'tools/out/function_as_written.mjs');
 const strict = /const REQUIRE_RUN = true;/.test(src);

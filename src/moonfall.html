@@ -302,6 +302,11 @@ button.news-item:focus-visible { outline: 3px solid var(--blue); outline-offset:
 #runExtra span { display: block; }
 /* The barista's greeting at a cafe: a speech bubble on the ledge below the pilot, its tail pointing up at the
    barista. */
+/* The save can't be written (browser storage full or blocked; see persist): a strip along the top of the menu and the
+   game over screen, so a player knows progress isn't being kept before relying on it. */
+.save-warn { position: absolute; left: 0; right: 0; top: 0; z-index: 7; margin: 0; padding: 4px 10px 3px; background: var(--lava); color: var(--dust);
+  font: 400 16px/1 var(--body); text-align: center; pointer-events: none; display: none; }
+#game:is([data-state="title"], [data-state="over"]) .save-warn:not([hidden]) { display: block; }
 .say { position: absolute; z-index: 3; transform: translate(-50%, 0); max-width: 172px; width: max-content; padding: 6px 8px 5px; background: var(--dust); color: var(--ink); font: 400 17px/.95 var(--body); text-align: center; box-shadow: 3px 3px 0 var(--ink); pointer-events: none; animation: sayIn .25s steps(4) both; }
 .say::after { content: ''; position: absolute; bottom: 100%; left: calc(50% + var(--tail, 0px) - 5px); border: 5px solid transparent; border-bottom-color: var(--dust); border-top: 0; }
 .say.covered { visibility: hidden; }
@@ -691,6 +696,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 </style>
 
 <div id="game">
+  <p class="save-warn" id="saveWarn" role="status" hidden>Not saving: browser storage is full or blocked</p>
   <canvas id="cv" width="320" height="600" role="img" aria-label="MoonFall play area"></canvas>
   <canvas id="ov" width="320" height="600" aria-hidden="true"></canvas>
 
@@ -1102,7 +1108,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 
 // Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
 // published version.
-const VERSION = 275;
+const VERSION = 276;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -4936,7 +4942,16 @@ let kidRun = { mines: 1, parts: 1, health: 1, hp: 1, fall: 1, shots: 1, speed: t
 const kidRoll = n => { const x = Math.sin(n * 12.9898 + SEED * 78.233) * 43758.5453; return x - Math.floor(x); };
 // Leviathan shots are thinned evenly (at 50% every other one is fired, at 25% one in four), not at random.
 function bossShot(s) { kidShotAcc += kidRun.shots; if (kidShotAcc >= 0.999) { kidShotAcc -= 1; bossShots.push(s); } }
-function persist() { if (offRecord()) return; try { localStorage.setItem('moonfall.v1', JSON.stringify(save)); } catch (e) {} }
+// Writes the save. Returns false when the browser refuses (storage full, blocked, or a private window that allows
+// none): then the warning strip shows on the menu and game over screens (#saveWarn) until a write works again.
+// Off the record (the self-test, an escape preview) nothing is written, and that counts as written.
+function persist() {
+  if (offRecord()) return true;
+  let ok = true;
+  try { localStorage.setItem('moonfall.v1', JSON.stringify(save)); } catch (e) { ok = false; }
+  document.getElementById('saveWarn').hidden = ok;
+  return ok;
+}
 // Puts the save back exactly as it was (json: JSON.stringify(save) from before), after the self-test or an escape preview.
 // The sound and music switches may have been changed on the pause screen meanwhile, so the audio and the toggles follow
 // the save that comes back.
@@ -8039,9 +8054,10 @@ $('shopGo').addEventListener('click', () => { if (state === 'cafe') leaveCafe();
 // Continue dive lands him back at that cafe with its menu open, as he left it. The shaft is made from its seed, so the
 // seed and the cafe's number put it back; the rest is what the pilot carried, the run's Leviathan order and the
 // cafe's shop. A kept dive is carried on once (Continue takes it out of the save), and a new dive replaces it (Jump in
-// says so first). An escape preview and the self-test can't be kept. For the stats the dive ends at the cafe (quit) and
-// Continue starts a new one that names the kept run (run, sent as prev); its depth is the whole dive's, so a high score
-// counts as usual, and the server credits the depth already reached when it times the score.
+// says so first). An escape preview and the self-test can't be kept, nor a dive the browser won't store (saveDive).
+// For the stats the dive ends at the cafe (quit) and Continue starts a new one that names the kept run (run, sent as
+// prev); its depth is the whole dive's, so a high score counts as usual, and the server credits the depth already
+// reached when it times the score.
 const DIVE_FORMAT = 1;   // a kept dive in another format is dropped
 const DIVE_PLAYER = ['hp', 'max', 'orbs', 'spare', 'streak', 'bestStreak', 'perks', 'perkCafe', 'toughN', 'bought', 'slowUntil', 'magnetUntil',
   'shield', 'hits', 'closest', 'closestMine', 'leviRun', 'newBadges', 'leviFought', 'zone'];
@@ -8055,7 +8071,14 @@ function saveDive() {
     droneHp: drone.hp === undefined ? null : drone.hp, droneCaught: drone.caught, pilot, parts: { ...runParts }, cafes: cafesRun,
     fights: leviFor === SEED ? leviFights : [], order: leviFor === SEED ? leviOrder : [], shop: shopOffer.map(p => p.id), bought: shopDone,
   };
-  persist();
+  // The browser wouldn't store it: he stays at the counter, the dive isn't kept, and the barista says why.
+  if (!persist()) {
+    delete save.dive;
+    sayEl.textContent = 'Can\'t save your dive: this browser\'s storage is full or blocked.'; sayEl.hidden = false;
+    if (!sayEl.isConnected) game.appendChild(sayEl);
+    placeSay(cafeInfo(cafeK));
+    return;
+  }
   toTitle();
 }
 // A kept dive from the save, checked before use; null if it can't be used.

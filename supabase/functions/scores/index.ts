@@ -37,6 +37,9 @@ const REST = `${BASE}/rest/v1`;
 const BOARD_FROM = '2026-11-14T11:23:00Z';
 const SEASON = `created_at=gt.${encodeURIComponent(BOARD_FROM)}`;
 const TOP = 10, MAX_DEPTH = 100000, PER_MINUTE = 6, PLAY_GAP_MS = 5000, PINGS_PER_MINUTE = 30;
+// End reports one run may write: one each time the game is hidden mid-run, the real ending, and its initials. Far more
+// than a real run sends; it stops a run's stats being rewritten without end.
+const ENDS_MAX = 50;
 const HEX16 = /^[0-9a-f]{16}$/, HOW = new Set(['wall', 'rock', 'mine', 'lava', 'quit', 'left', 'launch', 'cave']);
 // The fastest a run can go down, in metres a second: the game's fastest fall is about 50 (250 px/s at 8 px a metre,
 // +40% from cafes, +15% in Terminal Velocity). A score waits off the boards until its run has been going this long for
@@ -174,6 +177,18 @@ async function tooMany(table: string, who: string | null, limit: number) {
   return await count(table, `who=eq.${who}&created_at=gt.${encodeURIComponent(since)}`) >= limit;
 }
 
+// Writes an end report over a run's row (had: its id, how many end reports it has had, and how it ended so far). A run
+// gets at most ENDS_MAX of them; after that, and for an app-hidden report ('left') once the run has really ended, the
+// report is answered ok and left out (sending it again can't change that, so the phone stops sending it). Two reports
+// for one run at the same moment: the one that arrives second is left out (the row's count no longer matches).
+async function rewrite(had: { id: number, ends: number | null, how: string | null }, row: Record<string, unknown>) {
+  const ends = had.ends ?? 0;
+  if (ends >= ENDS_MAX) return { ok: true, ignored: 'too many reports for this run' };
+  if (row.how === 'left' && had.how && had.how !== 'left') return { ok: true, ignored: 'the run has already ended' };
+  await update('plays', `id=eq.${had.id}&ends=eq.${ends}`, { ...row, ends: ends + 1 });
+  return { ok: true };
+}
+
 // A run's credit at its start: for a dive carried on from a cafe (prev, the run it continues), that run's depth, but no
 // more than its start credit plus its own time on the server (start ping to last report) at the fastest fall allows.
 // Chained continues can't add up to more than their real time. Anything else starts at 0.
@@ -234,12 +249,16 @@ Deno.serve(async req => {
       const who = await connection(req);
       if (await tooMany('plays', who, PINGS_PER_MINUTE)) return reply({ error: 'too many runs, try again in a minute' }, 429);
       const start = run ? await credit(player, run, body.prev) : {};
-      await insert('plays', { player, run, who, ver: version(body.ver), moon: moonOf(body.moon), ...flags(body), ...start, created_at: nowIso() }, false);
+      try {
+        await insert('plays', { player, run, who, ver: version(body.ver), moon: moonOf(body.moon), ...flags(body), ...start, created_at: nowIso() }, false);
+      } catch (e) {
+        if (!(e instanceof Taken)) throw e;   // the same run's row made a moment ago (the same report sent twice at once)
+      }
       return reply({ ok: true });
     }
 
-    // A run ended (or the game was hidden mid-run, sent again with the real ending later): fill in that run's row.
-    // If its start ping never arrived, the row is made now, with the start credit its start ping would have had.
+    // A run ended (or the game was hidden mid-run, sent again with the real ending later): fill in that run's row
+    // (rewrite). If its start ping never arrived, the row is made now, with the start credit its start ping would have had.
     if (body?.event === 'end') {
       const { player, run, depth, secs, how, orbs, parts, cafes } = body;
       if (typeof player !== 'string' || !HEX16.test(player) || typeof run !== 'string' || !HEX16.test(run)) return reply({ error: 'bad player or run id' }, 400);
@@ -248,10 +267,17 @@ Deno.serve(async req => {
       }
       const initials = typeof body.initials === 'string' && /^[A-Z]{3}$/.test(body.initials) && !BAD.has(body.initials) ? body.initials : null;
       const row = { depth, secs, how, orbs, parts, cafes, initials, ...extras(body), ended_at: nowIso() };
-      if (await update('plays', `player=eq.${player}&run=eq.${run}`, row) > 0) return reply({ ok: true });
+      const theRun = async () => (await rows('plays', `player=eq.${player}&run=eq.${run}&select=id,ends,how&limit=1`))[0];
+      const had = await theRun();
+      if (had) return reply(await rewrite(had, row));
       const who = await connection(req);
       if (await tooMany('plays', who, PINGS_PER_MINUTE)) return reply({ error: 'too many runs, try again in a minute' }, 429);
-      await insert('plays', { player, run, who, ...row, ...await credit(player, run, body.prev), created_at: row.ended_at }, false);
+      try {
+        await insert('plays', { player, run, who, ...row, ...await credit(player, run, body.prev), created_at: row.ended_at, ends: 1 }, false);
+      } catch (e) {
+        if (!(e instanceof Taken)) throw e;
+        return reply(await rewrite(await theRun(), row));   // its start ping arrived at the same moment
+      }
       return reply({ ok: true });
     }
 

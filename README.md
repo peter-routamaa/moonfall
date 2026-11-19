@@ -66,6 +66,25 @@ The tools that run the game in Chrome share `tools/chrome.py`: where they hook i
 
 The claude.ai artifact is published from `src/moonfall.html` by the owner, with Claude.
 
+### On a real phone
+
+The scripts above run the game in desktop Chrome. Before a release that touches input, sound, saving, the online board
+or the screen layout, try these on an iPhone (Safari) and an Android phone (Chrome), on the test link or the live site:
+
+- **Fit:** the start screen, main menu, every card and the high score table fit, held upright, with nothing under the
+  notch or the home bar. A small phone (320 or 375 wide) if there is one to hand.
+- **Touch:** steering by tapping and holding each side, and by dragging; every button answers on the first tap.
+- **Leaving and coming back:** lock the phone mid-run and unlock it: the game is paused and the music picks up again
+  on Resume. The same after switching to another app, and after a phone call or an alarm.
+- **Back gesture:** Android's back (and iPhone's edge swipe) mid-run pauses instead of leaving the game.
+- **Home Screen:** added to the Home Screen, it opens full screen and keeps its save.
+- **Offline:** airplane mode on, play a dive to a high score and enter the initials; airplane mode off, open TOP 10:
+  the score arrives (it may take a minute to show to everyone).
+- **Save and quit:** save at a café, close the tab, open the game again: Continue dive puts him back at that café.
+- **Private browsing:** in a private window the game still plays; if the browser won't store anything, the red strip
+  along the top of the menu says progress isn't saving, and Save and quit at a café says so instead of leaving.
+- **Frame rate:** `?perf=1` on each phone, numbers into `MOONFALL-NOTES.md` as in `PERFORMANCE.md`.
+
 ## Working on it together
 
 Anyone can read this repository, but only people you add can change it. To let a friend help: **Settings → Collaborators → Add people**, enter their GitHub username, and they accept the invite. They can then push changes, or open pull requests for you to review.

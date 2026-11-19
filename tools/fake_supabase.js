@@ -4,7 +4,8 @@
 // A plain script with no exports, so it runs both under Node (tools/test_function.mjs imports it) and inside a test
 // page (tools/test_reports.py puts it in the page, before the function and the game).
 //   const S = fakeSupabase();   installs Deno and the database's fetch; requests to other addresses go to the real fetch
-//   S.db                        the tables' rows ({ scores: [], plays: [] }); a test may add or change rows directly
+//   S.db                        the tables' rows ({ scores: [], plays: [] }); a test may add or change rows directly.
+//                               As the real database: one score per run, one plays row per (player, run) (409 otherwise)
 //   S.handler(request)          the function, once it has called Deno.serve (loading it again replaces it)
 //   S.later(seconds)            moves the clock (Date.now) on, for everything after
 //   S.fail = 'count'            the first count after the next score insert fails, as a database error then would
@@ -29,18 +30,21 @@ globalThis.fakeSupabase = () => {
     if (method === 'POST') {
       const body = JSON.parse(init.body);
       if (table === 'scores' && body.run && db.scores.some(x => x.run === body.run)) return new Response('duplicate key', { status: 409 });
+      if (table === 'plays' && body.run && db.plays.some(x => x.player === body.player && x.run === body.run)) return new Response('duplicate key', { status: 409 });
       const row = { id: S.nextId++, created_at: new Date(Date.now()).toISOString(), ...body };
       db[table].push(row);
       return new Response(h.Prefer === 'return=minimal' ? '' : JSON.stringify([row]), { status: 201 });
     }
     if (method === 'PATCH') {
       const body = JSON.parse(init.body);
-      const hit = db[table].filter(x => x.player === q.get('player').slice(3) && x.run === q.get('run').slice(3));
+      // Every filter is col=eq.value; `ends` is 0 on a row that has none, as the database's default.
+      const hit = db[table].filter(x => [...q].every(([col, v]) => String(x[col] ?? (col === 'ends' ? 0 : '')) === v.slice(3)));
       hit.forEach(x => Object.assign(x, body));
       return new Response(JSON.stringify(hit), { status: 200 });
     }
     let r = db[table].slice();
     for (const col of ['who', 'player', 'run']) if (q.get(col)) r = r.filter(x => x[col] === q.get(col).slice(3));
+    if (q.get('id')) r = r.filter(x => String(x.id) === q.get('id').slice(3));
     if (table === 'scores' && q.get('kid')) r = r.filter(x => !!x.kid === (q.get('kid') === 'eq.true'));
     for (const c of q.getAll('created_at')) r = r.filter(x => x.created_at > c.slice(3));   // gt. only: the board's season and the spam check
     // lte. only: scores shown on the boards. A row without shown_at is shown, as the database's default (now) would be.
