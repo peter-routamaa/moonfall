@@ -1122,7 +1122,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 
 // Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
 // published version.
-const VERSION = 274;
+const VERSION = 275;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -4866,6 +4866,7 @@ function speedAt(d) {
 //   hints             which one-time hints were shown (the void and each hazard kind); default here
 //   badges            badge id: when earned; repaired in badges
 //   scores, kidScores, outbox   this device's top 10s and the scores waiting to be sent; repaired in high scores
+//   pings             run stats pings waiting to be sent (statPing); repaired in high scores
 //   initials          the last initials entered; checked (three capitals) wherever they're read
 //   season, oldBoards the board season, and earlier seasons' boards kept when a fresh one starts (high scores)
 //   boardCache, kidBoardCache   the online top 10s for the gravestones, kept 2 minutes (board flags)
@@ -7054,7 +7055,9 @@ confirmDlg.addEventListener('close', () => {
 // Both pings carry the game's VERSION, so the stats can be split by version.
 // Only sent when the online board is on (SCORES_URL), so the claude.ai copy never counts.
 const hex16 = () => { const b = new Uint8Array(8); crypto.getRandomValues(b); return [...b].map(x => x.toString(16).padStart(2, '0')).join(''); };
-let runId = '', runSecs = 0, cafesRun = 0, lastHit = '', fasterN = 0;
+// runPrev: the run a dive carried on from a cafe continues (Continue dive), sent with both pings so the server credits
+// the depth already reached when it times the score (empty for a dive from the surface).
+let runId = '', runPrev = '', runSecs = 0, cafesRun = 0, lastHit = '', fasterN = 0;
 // Frame rate over the run (frames and real time while it's on and not paused) and the slowest frame, to spot phones that struggle.
 let runFrames = 0, runRaw = 0, runWorst = 0;
 // Three more figures, since a run's average hides a phone that holds 120 falling and 93 in a fight: the screen's
@@ -7090,16 +7093,50 @@ const DEVICE = /iPad|Tablet/.test(UA) || TOUCH_MAC || (/Android/.test(UA) && !/M
 const OS = TOUCH_MAC && !/Android/.test(UA) ? 'ios'   // an iPad asking for the desktop site
   : uaName([[/Android/, 'android'], [/iPhone|iPad|iPod/, 'ios'], [/Windows/, 'windows'], [/CrOS/, 'chromeos'],
     [/Mac OS X|Macintosh/, 'mac'], [/Linux/, 'linux']]);
+// The pings wait in the save (save.pings) until the server has them, and go one at a time, oldest first: a score is
+// only accepted for a run the server has heard of, so a run played offline must reach it before its score does
+// (syncOnline sends these first), and a continued dive's start must come after the end of the run it carries on.
+// A newer report of a run's ending replaces one still waiting. The server takes each ping safely more than once.
+const PINGS_MAX = 40;   // the oldest are dropped beyond this (a long time offline)
+const PING_WAIT_MS = 8000;   // a ping with no answer by then is tried again later
+let pingsGoing = null;   // the sending in progress (a promise of true when none are left), or null
 function statPing(body) {
   if (!SCORES_URL || offRecord()) return;
-  fetch(SCORES_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
+  if (body.event === 'end') save.pings = save.pings.filter(p => !(p.event === 'end' && p.run === body.run));
+  save.pings.push(body);
+  if (save.pings.length > PINGS_MAX) save.pings.splice(0, save.pings.length - PINGS_MAX);
+  persist();
+  sendPings();
 }
-function countPlay() {
+// Sends the waiting pings in order. Resolves true once none are left, false if one couldn't be sent now (no network,
+// the server busy or failing); those stay for the next try. One the server refuses as malformed is dropped.
+function sendPings() {
+  // .finally clears it a tick later, after it was set here, even when there was nothing to send.
+  if (!pingsGoing) pingsGoing = sendPingsNow().finally(() => { pingsGoing = null; });
+  return pingsGoing;
+}
+async function sendPingsNow() {
+  while (save.pings.length) {
+    const p = save.pings[0], ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), PING_WAIT_MS);
+    let status = 0;
+    try {
+      const init = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p), keepalive: true, signal: ctl.signal };
+      status = (await fetch(SCORES_URL, init)).status;
+    } catch (e) { return false; } finally { clearTimeout(timer); }
+    if (status === 429 || status >= 500) return false;
+    const at = save.pings.indexOf(p);   // not there if the save was put back meanwhile: the next pass sends its copy
+    if (at >= 0) { save.pings.splice(at, 1); persist(); }
+  }
+  return true;
+}
+// prev: the run this dive carries on (Continue dive), or nothing for a new dive.
+function countPlay(prev) {
   if (!/^[0-9a-f]{16}$/.test(save.playerId || '')) { save.playerId = hex16(); persist(); }
-  runId = hex16(); runSecs = 0; cafesRun = 0; lastHit = ''; fasterN = 0; runFrames = 0; runRaw = 0; runWorst = 0; runPauses = 0;
+  runId = hex16(); runPrev = HEX16.test(prev || '') ? prev : '';
+  runSecs = 0; cafesRun = 0; lastHit = ''; fasterN = 0; runFrames = 0; runRaw = 0; runWorst = 0; runPauses = 0;
   runGapN.fill(0); runGapMs.fill(0); refGapN.fill(0); refGapMs.fill(0); fightFrames = 0; fightRaw = 0; runStutter = 0; gapA = gapB = gapC = 0;
   if (!introDone) { introDone = true; introRun = runId; }
-  statPing({ event: 'play', player: save.playerId, run: runId, ver: VERSION, moon, ...runFlags() });
+  statPing({ event: 'play', player: save.playerId, run: runId, ver: VERSION, moon, ...runFlags(), ...(runPrev ? { prev: runPrev } : {}) });
 }
 // how: wall, rock, mine or lava (what took the last health), quit (Main menu from pause), launch or cave (flown home
 // from a cafe, or through the deep cave's portal) or left (the game was hidden mid-run; sent again with the real ending
@@ -7140,7 +7177,8 @@ function endRun(how) {
     fps: runRaw > 0 ? Math.round(runFrames / runRaw * 10) / 10 : null, worst: Math.round(runWorst * 1000),
     device: DEVICE, os: OS, screen: screen.width + 'x' + screen.height + '@' + Math.round(devicePixelRatio * 100) / 100,
     treats: player.bought.slice(0, 20), streak: player.bestStreak || 0, sound: !!save.snd, music: !!save.mus, repair: Math.round(repairFrac() * 100),
-    intro: runId === introRun && introHow ? introHow : null, ...runFlags(), ...runMore(), ...runSmooth() });
+    intro: runId === introRun && introHow ? introHow : null, ...runFlags(), ...runMore(), ...runSmooth(),
+    ...(runPrev ? { prev: runPrev } : {}) });
   if (how !== 'left') { runId = ''; errN = 0; errFirst = null; }
 }
 
@@ -7360,6 +7398,12 @@ const showName = i => BAD_INITIALS.has(i) ? '???' : i;
 if (!Array.isArray(save.scores)) save.scores = save.best > 0 ? [{ i: '???', m: save.best, t: 0 }] : [];
 if (!Array.isArray(save.outbox)) save.outbox = [];
 save.outbox = save.outbox.filter(o => o && typeof o === 'object');   // a damaged entry would hold up every score after it
+if (!Array.isArray(save.pings)) save.pings = [];
+save.pings = save.pings.filter(p => p && typeof p === 'object' && (p.event === 'play' || p.event === 'end'));
+// Run reports left from an earlier visit (played offline, or the page closed before they went) go now, and again
+// whenever the network comes back.
+if (SCORES_URL && save.pings.length) sendPings();
+addEventListener('online', () => { if (SCORES_URL && save.pings.length) sendPings(); });
 // Kid mode's own board: its own top 10 on this device, its own
 // best and its own online board (the function's ?kid=1). A run counts as Kid mode when any kid setting was off normal.
 if (!Array.isArray(save.kidScores)) save.kidScores = [];
@@ -7509,12 +7553,15 @@ async function scoresFetch(init, kid) {
     return await r.json();
   } finally { clearTimeout(timer); }
 }
-// Sends any runs waiting in the outbox (oldest first), then shows the board. Runs stay queued if the network fails.
+// Sends any runs waiting in the outbox (oldest first), then shows the board. Runs stay queued if the network fails. A
+// score the server refuses (400: not a real run) is dropped, since sending it again can't change the answer.
 async function syncOnline() {
   if (hsBusy) { hsAgain = true; return; }
   hsBusy = true;
   try {
     let got = null;
+    // A score is checked against its run's reports, so those go first; while any are stuck, the scores wait too.
+    if (save.outbox.length && !(await sendPings())) throw new Error('scores: run reports not sent yet');
     while (save.outbox.length) {
       const s = save.outbox[0];
       try {
@@ -8013,7 +8060,8 @@ $('shopGo').addEventListener('click', () => { if (state === 'cafe') leaveCafe();
 // seed and the cafe's number put it back; the rest is what the pilot carried, the run's Leviathan order and the
 // cafe's shop. A kept dive is carried on once (Continue takes it out of the save), and a new dive replaces it (Jump in
 // says so first). An escape preview and the self-test can't be kept. For the stats the dive ends at the cafe (quit) and
-// Continue starts a new one; its depth is the whole dive's, so a high score counts as usual.
+// Continue starts a new one that names the kept run (run, sent as prev); its depth is the whole dive's, so a high score
+// counts as usual, and the server credits the depth already reached when it times the score.
 const DIVE_FORMAT = 1;   // a kept dive in another format is dropped
 const DIVE_PLAYER = ['hp', 'max', 'orbs', 'spare', 'streak', 'bestStreak', 'perks', 'perkCafe', 'toughN', 'bought', 'slowUntil', 'magnetUntil',
   'shield', 'hits', 'closest', 'closestMine', 'leviRun', 'newBadges', 'leviFought', 'zone'];
@@ -8023,7 +8071,7 @@ function saveDive() {
   for (const k of DIVE_PLAYER) pilot[k] = player[k];
   pilot.closest = Number.isFinite(player.closest) ? player.closest : null;   // JSON has no Infinity
   save.dive = {
-    format: DIVE_FORMAT, seed: SEED, cafe: cafeK, moon, m: depthM(), hard: hardRun, kid: kidRun, drone: droneRun,
+    format: DIVE_FORMAT, seed: SEED, cafe: cafeK, moon, m: depthM(), hard: hardRun, kid: kidRun, drone: droneRun, run: runId,
     droneHp: drone.hp === undefined ? null : drone.hp, droneCaught: drone.caught, pilot, parts: { ...runParts }, cafes: cafesRun,
     fights: leviFor === SEED ? leviFights : [], order: leviFor === SEED ? leviOrder : [], shop: shopOffer.map(p => p.id), bought: shopDone,
   };
@@ -8054,7 +8102,7 @@ function continueDive() {
   kidRun = { ...kidRun, ...d.kid };
   Sfx.init(); Music.stop(0.4); setCard(null, true);
   armBack();
-  resetRun(); countPlay();
+  resetRun(); countPlay(d.run);
   setSeed(d.seed);
   if (d.fights.length) { leviFor = SEED; leviFights = d.fights.slice(); leviOrder = d.order.slice(); }
   const fresh = playerStart();
