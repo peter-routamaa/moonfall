@@ -22,7 +22,9 @@ It refuses to build a game that should not go live, so a release cannot skip the
   - tools/checks.py must say OK (quick source checks from CODING.md: rude initials in step, code map, no history in
     comments, no hidden names, long lines and deep ternaries within their ratchets, every sound freed);
   - tools/smoke.py must say OK (every screen and state played on every moon with no error; about 20 seconds);
-  - node tools/test_function.mjs must pass (the scores function against a pretend database; needs Node 22.13+).
+  - node tools/test_function.mjs must pass (the scores function against a pretend database; needs Node 22.13+);
+  - tools/test_reports.py must say OK (the game and the scores function together: an offline dive and a continued
+    dive must both reach the online board; a few seconds).
 Each stops the build (exit 1) before anything in docs/ is touched.
 """
 import json, os, re, shutil, subprocess, sys
@@ -121,6 +123,7 @@ GATES = (
     ('tools/checks.py', 'the game and the scores function are out of step, or a code rule is broken (CODING.md)'),
     ('tools/smoke.py', 'something throws an error, or a screen no longer goes where it should'),
     ('tools/test_function.mjs', 'the scores function gives a wrong answer to the pretend database'),
+    ('tools/test_reports.py', 'a genuine score (an offline dive, or a dive continued from a cafe) no longer reaches the online board'),
 )
 for tool, why in GATES:
     cmd = ['node' if tool.endswith('.mjs') else sys.executable, os.path.join(ROOT, tool)]

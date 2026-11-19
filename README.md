@@ -61,8 +61,8 @@ The tools that run the game in Chrome share `tools/chrome.py`: where they hook i
    To see what a drawing change costs: `python3 tools/bench.py /tmp/before.html` writes `tools/out/bench-before.html` and `bench-after.html`; open each (with that server running) in a normal browser a few times and compare the frame times shown at the top.
 6. For anything heavy (a Leviathan, a moon, a hazard, a layer), follow `PERFORMANCE.md` and check its budgets. To measure: `python3 tools/prof.py` writes `tools/out/prof.html`, which plays a seeded run of the whole game (start screen, menu, intro, a fall landing at every café and fighting every Leviathan of the moon, a death, the ending) and reports per scene what a frame costs: time, rectangles, images, pixels covered, canvases created and by which function, page changes and forced layouts. Open `frame.html?w=390&h=844&page=prof.html` (`&moon=jungle`, `&real=1` for one frame per screen refresh); the result is in `window.__prof` inside the frame. With `&fp=3` it fingerprints the picture every third frame instead, to check two builds draw the same thing over the whole run (see the file's first lines).
    To measure a real phone: open the game there with `?perf=1` added to the address (or tap the menu's version number five times). It plays itself for about a minute and shows what each frame cost, scene by scene; nothing is saved or sent. See `PERFORMANCE.md`, "How to measure".
-7. If you changed the scoreboard function: `node tools/test_function.mjs` (runs it against a pretend database; it should say all checks passed). Deploy it in Supabase as described below.
-8. Build the website copy: `python3 tools/build_site.py`, then commit and push. GitHub Pages updates a minute or two later. The build stops, before touching `docs/`, if `src/`, `tools/` or `supabase/` have uncommitted changes (`--dirty` allows them for a local try, never a release), if `TEST_START_M` is not 0, if `VERSION` is not greater than the one in `docs/version.json` (open pages only reload when it goes up; the same number passes only when the page built is exactly the one already in `docs/`), or if `tools/levi_budget.py`, `tools/fight_makes.py`, `tools/checks.py`, `tools/smoke.py` or `node tools/test_function.mjs` does not pass.
+7. If you changed the scoreboard function or how the game sends scores and run reports: `node tools/test_function.mjs` (runs it against a pretend database, `tools/fake_supabase.js`; it should say all checks passed) and `python3 tools/test_reports.py` (the real game against the function and that database: an offline dive and a continued dive must reach the online board). Deploy it in Supabase as described below.
+8. Build the website copy: `python3 tools/build_site.py`, then commit and push. GitHub Pages updates a minute or two later. The build stops, before touching `docs/`, if `src/`, `tools/` or `supabase/` have uncommitted changes (`--dirty` allows them for a local try, never a release), if `TEST_START_M` is not 0, if `VERSION` is not greater than the one in `docs/version.json` (open pages only reload when it goes up; the same number passes only when the page built is exactly the one already in `docs/`), or if `tools/levi_budget.py`, `tools/fight_makes.py`, `tools/checks.py`, `tools/smoke.py`, `node tools/test_function.mjs` or `tools/test_reports.py` does not pass.
 
 The claude.ai artifact is published from `src/moonfall.html` by the owner, with Claude.
 
@@ -110,7 +110,9 @@ Only the owner can see the numbers, in Supabase (**Table Editor**, or `select * 
 | `play_by_moon` | Per moon (Dust, Jungle, Machine, or unknown for runs before version 113): players, plays, average and deepest depth, hours. |
 
 - Players are devices: one person on a phone and a laptop counts twice, and clearing the browser's data counts again.
-- Repeat start pings from the same device within 5 seconds are ignored. Runs from before version 54 have no length or depth.
+- The same run's start ping sent again is ignored (start pings without a run ID, from copies before version 54, are ignored within 5 seconds of the device's last). Runs from before version 54 have no length or depth.
+- Pings wait on the device until the server has them (played offline, or the page closed first) and go in order the next time there's a network, so a run's row may appear long after it was played (its `created_at` is when its first ping arrived).
+- A dive carried on with **Continue dive** is a new run: `prev` names the run it continues and `start_m` is the depth the server credited it with at its start (that run's depth, but no more than its own time on the server allows at the fastest fall).
 - The ID `ffffffffffffffff` is reserved for testing and isn't counted.
 
 ## Name filter
@@ -122,7 +124,8 @@ Kids may play, so rude or offensive initials are refused: the game won't accept 
 - A run is sent when it makes the top 10 on that device and the player taps **Enter** on their initials.
 - The **BEST** button on the main menu (it says TOP 10) opens the board at any time.
 - Standard and Kid mode runs have separate boards, online and on the device; a switch on the high score screen picks one.
-- With no signal, the run is saved on the device and sent the next time the board opens.
+- With no signal, the run is saved on the device and sent the next time the board opens, after that run's start and end reports (the server only accepts a score for a run it has heard of).
+- A score is never refused for coming too soon: one deeper than its run has had time for at the fastest fall (75 m a second; say the reports only just arrived, from a dive played offline) is saved and shows to everyone once that time has passed (`shown_at`). Its player sees it in its place straight away. A dive continued from a café counts the depth it was credited with at its start.
 - The function only accepts three letters and a whole number of metres up to 100,000, and refuses more than 6 runs a minute from one connection.
 - Scores come from each player's phone, so a determined friend could fake one. That's fine for a game among friends.
 

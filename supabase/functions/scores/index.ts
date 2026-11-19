@@ -5,7 +5,10 @@
 //                                   moon: dust, jungle or machine; both optional, null if missing; kid: a Kid mode run, on its own
 //                                   board; optional, false if missing). top and rank are that run's board. player and run name the
 //                                   run the score came from (see checkRun); the same run sent again gets its first answer back.
+//                                   A score whose run is too new for its depth is saved but shows on the boards later (shown_at);
+//                                   the answer's top has it in its place for the player who sent it.
 //   POST -> { ok }                  body { event: "play", player: "<16 hex>", run: "<16 hex>", ver }; a run started (owner's stats)
+//                                   Both run pings may carry prev: the run a dive carried on from a cafe continues (credit).
 //   POST -> { ok }                  body { event: "end", player, run, depth, secs, how, orbs, parts, cafes, initials,
 //                                         fps, worst, device, os, screen, treats, streak, sound, music, repair, intro, ver }; how it went
 //                                   (ver: the game's version number, e.g. 258; moon: dust, jungle or machine; both optional)
@@ -36,8 +39,8 @@ const SEASON = `created_at=gt.${encodeURIComponent(BOARD_FROM)}`;
 const TOP = 10, MAX_DEPTH = 100000, PER_MINUTE = 6, PLAY_GAP_MS = 5000, PINGS_PER_MINUTE = 30;
 const HEX16 = /^[0-9a-f]{16}$/, HOW = new Set(['wall', 'rock', 'mine', 'lava', 'quit', 'left', 'launch', 'cave']);
 // The fastest a run can go down, in metres a second: the game's fastest fall is about 50 (250 px/s at 8 px a metre,
-// +40% from cafes, +15% in Terminal Velocity), so a score deeper than this allows for the time since its run started
-// can't be real.
+// +40% from cafes, +15% in Terminal Velocity). A score waits off the boards until its run has been going this long for
+// its depth (checkRun), so a made-up score can't show sooner than a real dive that deep could have.
 const MAX_MPS = 75;
 // Scores must name their run (player and run), so every score is checked against a run (checkRun). The game sends
 // them with every score; false only lets through scores from copies of the game too old to send them.
@@ -60,8 +63,13 @@ const reply = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 
 // kid: the Kid mode board; every score without it is on the normal one. Only this season's scores (BOARD_FROM).
-async function top(kid: boolean) {
-  const r = await fetch(`${REST}/scores?select=id,initials,depth,escaped,moon&kid=eq.${kid}&${SEASON}&order=depth.desc,id.asc&limit=${TOP}`, { headers: auth });
+// The time now, as the database stores it. Every clock reading goes through Date.now (the tests move it).
+const nowIso = () => new Date(Date.now()).toISOString();
+// Scores already allowed on the boards (see checkRun).
+const shown = (now: string) => `shown_at=lte.${encodeURIComponent(now)}`;
+
+async function top(kid: boolean, now = nowIso()) {
+  const r = await fetch(`${REST}/scores?select=id,initials,depth,escaped,moon&kid=eq.${kid}&${SEASON}&${shown(now)}&order=depth.desc,id.asc&limit=${TOP}`, { headers: auth });
   if (!r.ok) throw new Error(`top: ${r.status} ${await r.text()}`);
   const rows = await r.json();
   return rows.map((s: { initials: string }) => (BAD.has(s.initials) ? { ...s, initials: '???' } : s));
@@ -166,21 +174,43 @@ async function tooMany(table: string, who: string | null, limit: number) {
   return await count(table, `who=eq.${who}&created_at=gt.${encodeURIComponent(since)}`) >= limit;
 }
 
-// A score's run must be one the game reported starting (its play ping), long enough ago for the depth at the fastest
-// fall, and not deeper than the run's own ending said (unless that ending was only 'left', the app hidden mid-run).
-// Returns the reason it can't be real, or ''.
-async function checkRun(player: string, run: string, depth: number) {
-  const [play] = await rows('plays', `player=eq.${player}&run=eq.${run}&select=created_at,depth,how&limit=1`);
-  if (!play) return 'no such run';
-  if ((Date.now() - Date.parse(play.created_at)) / 1000 < depth / MAX_MPS) return 'too deep for the time';
-  if (typeof play.depth === 'number' && play.how !== 'left' && play.depth < depth) return 'deeper than the run went';
-  return '';
+// A run's credit at its start: for a dive carried on from a cafe (prev, the run it continues), that run's depth, but no
+// more than its start credit plus its own time on the server (start ping to last report) at the fastest fall allows.
+// Chained continues can't add up to more than their real time. Anything else starts at 0.
+async function credit(player: string, run: string, prev: unknown) {
+  if (typeof prev !== 'string' || !HEX16.test(prev) || prev === run) return { prev: null, start_m: 0 };
+  const [before] = await rows('plays', `player=eq.${player}&run=eq.${prev}&select=created_at,ended_at,depth,start_m&limit=1`);
+  if (!before || typeof before.depth !== 'number') return { prev, start_m: 0 };
+  const began = Date.parse(before.created_at), last = Date.parse(before.ended_at ?? before.created_at);
+  const earned = (before.start_m ?? 0) + Math.max(0, (last - began) / 1000) * MAX_MPS;
+  return { prev, start_m: Math.floor(Math.min(before.depth, earned, MAX_DEPTH)) };
 }
 
-// The answer for a saved score: its board and its rank there (deeper first, earlier run first on a tie, as the table).
-async function placed(row: { id: number, depth: number, kid: boolean }) {
-  const above = await count('scores', `kid=eq.${row.kid}&${SEASON}&or=(depth.gt.${row.depth},and(depth.eq.${row.depth},id.lt.${row.id}))`);
-  return reply({ top: await top(row.kid), rank: above + 1, id: row.id });
+// A score's run must be one the game reported (its play or end ping) and not deeper than the run's own ending said
+// (unless that ending was only 'left', the app hidden mid-run). Its depth past the run's start credit must take, at the
+// fastest fall, no longer than the run has had since its start ping reached us; a score that comes sooner is real if the
+// run's reports came late (played offline), so it's saved and shows once that time has passed (shownAt).
+async function checkRun(player: string, run: string, depth: number) {
+  const [play] = await rows('plays', `player=eq.${player}&run=eq.${run}&select=created_at,depth,how,start_m&limit=1`);
+  if (!play) return { why: 'no such run', shownAt: '' };
+  if (typeof play.depth === 'number' && play.how !== 'left' && play.depth < depth) return { why: 'deeper than the run went', shownAt: '' };
+  const due = Date.parse(play.created_at) + Math.max(0, depth - (play.start_m ?? 0)) / MAX_MPS * 1000;
+  return { why: '', shownAt: new Date(Math.max(Date.now(), Math.ceil(due))).toISOString() };
+}
+
+// The answer for a saved score: its board and its rank there (deeper first, earlier run first on a tie, as the table),
+// among the scores already shown. One still waiting (shown_at to come) is put in its place in the answer's top, so the
+// player who sent it sees it; nobody else does until then.
+type Saved = { id: number, initials: string, depth: number, escaped: boolean | null, moon: string | null, kid: boolean, shown_at: string };
+async function placed(row: Saved) {
+  const now = nowIso();
+  const above = await count('scores', `kid=eq.${row.kid}&${SEASON}&${shown(now)}&or=(depth.gt.${row.depth},and(depth.eq.${row.depth},id.lt.${row.id}))`);
+  let board = await top(row.kid, now);
+  if (Date.parse(row.shown_at) > Date.parse(now)) {
+    const mine = { id: row.id, initials: row.initials, depth: row.depth, escaped: row.escaped, moon: row.moon };
+    board = [...board.slice(0, above), mine, ...board.slice(above)].slice(0, TOP);
+  }
+  return reply({ top: board, rank: above + 1, id: row.id });
 }
 
 Deno.serve(async req => {
@@ -191,21 +221,25 @@ Deno.serve(async req => {
     const body = await req.json().catch(() => null);
 
     // A run started: one row per run, keyed by the anonymous ID the game made for that device.
-    // Repeats from the same ID within 5 s are ignored, which keeps double taps and spam out of the counts.
+    // The same run sent again (the phone's queue of reports) is ignored. A ping without a run (copies too old to send
+    // one) is ignored within 5 s of the device's last, which keeps double taps out of the counts. Several runs played
+    // offline arrive together, so runs aren't spaced; the per-connection limit keeps spam out.
     if (body?.event === 'play') {
       const player = typeof body.player === 'string' ? body.player : '';
       if (!HEX16.test(player)) return reply({ error: 'bad player id' }, 400);
       const run = typeof body.run === 'string' && HEX16.test(body.run) ? body.run : null;
       const since = new Date(Date.now() - PLAY_GAP_MS).toISOString();
-      if (await count('plays', `player=eq.${player}&created_at=gt.${encodeURIComponent(since)}`) > 0) return reply({ ok: true });
+      const same = run ? `player=eq.${player}&run=eq.${run}` : `player=eq.${player}&created_at=gt.${encodeURIComponent(since)}`;
+      if (await count('plays', same) > 0) return reply({ ok: true });
       const who = await connection(req);
       if (await tooMany('plays', who, PINGS_PER_MINUTE)) return reply({ error: 'too many runs, try again in a minute' }, 429);
-      await insert('plays', { player, run, who, ver: version(body.ver), moon: moonOf(body.moon), ...flags(body) }, false);
+      const start = run ? await credit(player, run, body.prev) : {};
+      await insert('plays', { player, run, who, ver: version(body.ver), moon: moonOf(body.moon), ...flags(body), ...start, created_at: nowIso() }, false);
       return reply({ ok: true });
     }
 
     // A run ended (or the game was hidden mid-run, sent again with the real ending later): fill in that run's row.
-    // If its start ping never arrived, the row is made now.
+    // If its start ping never arrived, the row is made now, with the start credit its start ping would have had.
     if (body?.event === 'end') {
       const { player, run, depth, secs, how, orbs, parts, cafes } = body;
       if (typeof player !== 'string' || !HEX16.test(player) || typeof run !== 'string' || !HEX16.test(run)) return reply({ error: 'bad player or run id' }, 400);
@@ -213,11 +247,11 @@ Deno.serve(async req => {
         return reply({ error: 'bad run stats' }, 400);
       }
       const initials = typeof body.initials === 'string' && /^[A-Z]{3}$/.test(body.initials) && !BAD.has(body.initials) ? body.initials : null;
-      const row = { depth, secs, how, orbs, parts, cafes, initials, ...extras(body), ended_at: new Date().toISOString() };
+      const row = { depth, secs, how, orbs, parts, cafes, initials, ...extras(body), ended_at: nowIso() };
       if (await update('plays', `player=eq.${player}&run=eq.${run}`, row) > 0) return reply({ ok: true });
       const who = await connection(req);
       if (await tooMany('plays', who, PINGS_PER_MINUTE)) return reply({ error: 'too many runs, try again in a minute' }, 429);
-      await insert('plays', { player, run, who, ...row }, false);
+      await insert('plays', { player, run, who, ...row, ...await credit(player, run, body.prev), created_at: row.ended_at }, false);
       return reply({ ok: true });
     }
 
@@ -231,12 +265,14 @@ Deno.serve(async req => {
     // The run it came from: sent again (a lost reply, the phone's outbox), it gets the same answer, not a second row.
     const player = typeof body?.player === 'string' && HEX16.test(body.player) ? body.player : null;
     const run = typeof body?.run === 'string' && HEX16.test(body.run) ? body.run : null;
-    const sameRun = async () => (await rows('scores', `run=eq.${run}&select=id,depth,kid&limit=1`))[0];
+    const sameRun = async () => (await rows('scores', `run=eq.${run}&select=id,initials,depth,escaped,moon,kid,shown_at&limit=1`))[0];
+    let shownAt = nowIso();
     if (player && run) {
       const first = await sameRun();
       if (first) return await placed(first);
-      const why = await checkRun(player, run, depth);
-      if (why) return reply({ error: `score refused: ${why}` }, 400);
+      const checked = await checkRun(player, run, depth);
+      if (checked.why) return reply({ error: `score refused: ${checked.why}` }, 400);
+      shownAt = checked.shownAt;
     } else if (REQUIRE_RUN) return reply({ error: 'a score needs its player and run' }, 400);
 
     // A few runs a minute per connection is plenty; more than that is someone spamming the board.
@@ -246,7 +282,7 @@ Deno.serve(async req => {
     const escaped = typeof body?.escaped === 'boolean' ? body.escaped : null;
     const kid = body?.kid === true;
     try {
-      return await placed(await insert('scores', { initials, depth, who, escaped, moon: moonOf(body?.moon), kid, player, run }, true));
+      return await placed(await insert('scores', { initials, depth, who, escaped, moon: moonOf(body?.moon), kid, player, run, shown_at: shownAt }, true));
     } catch (e) {
       if (e instanceof Taken && run) return await placed(await sameRun());   // the same run, saved a moment ago
       throw e;

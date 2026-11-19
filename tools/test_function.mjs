@@ -1,5 +1,5 @@
 // Tests the scoreboard and stats function (supabase/functions/scores/index.ts) without Supabase: it runs under Node
-// with a stand-in for Deno and a small in-memory copy of the database API, then checks the answers.
+// with a stand-in for Deno and a small in-memory copy of the database API (tools/fake_supabase.js), then checks the answers.
 //   node tools/test_function.mjs            (needs Node 22.13 or newer, for stripTypeScriptTypes)
 import { stripTypeScriptTypes } from 'node:module';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -16,34 +16,13 @@ if (!/const REQUIRE_RUN = (true|false);/.test(fixedSeason)) { console.log('FAIL 
 writeFileSync(root + 'tools/out/function.mjs', fixedSeason.replace(/const REQUIRE_RUN = (true|false);/, 'const REQUIRE_RUN = false;'));
 writeFileSync(root + 'tools/out/function_as_written.mjs', fixedSeason);
 
-// Fake Deno (env and serve) and a fake PostgREST for the `scores` and `plays` tables: just enough of GET with filters,
-// POST, PATCH and count=exact for what the function uses.
-let handler; const db = { scores: [], plays: [] }; let nextId = 1;
-let failNext = '';   // 'count': the first count after the next score insert fails, as a database error then would
-globalThis.Deno = { env: { get: k => ({ SUPABASE_URL: 'https://x.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'eyJfake' })[k] }, serve: f => { handler = f; } };
-globalThis.fetch = async (url, init = {}) => {
-  const u = new URL(url), q = u.searchParams, h = init.headers || {}, table = u.pathname.split('/').pop();
-  if (h.apikey !== 'eyJfake') return new Response('no auth', { status: 401 });
-  if (!db[table]) return new Response('no table ' + table, { status: 404 });
-  if (failNext === 'armed' && h.Prefer === 'count=exact') { failNext = ''; return new Response('database down', { status: 503 }); }
-  if (failNext === 'count' && init.method === 'POST' && table === 'scores') failNext = 'armed';
-  if ((init.method || 'GET') === 'POST' && table === 'scores' && JSON.parse(init.body).run && db.scores.some(x => x.run === JSON.parse(init.body).run)) return new Response('duplicate key', { status: 409 });
-  if ((init.method || 'GET') === 'POST') { const b = JSON.parse(init.body); const row = { id: nextId++, ...b, created_at: new Date().toISOString() }; db[table].push(row); return new Response(h.Prefer === 'return=minimal' ? '' : JSON.stringify([row]), { status: 201 }); }
-  if (init.method === 'PATCH') { const b = JSON.parse(init.body); const hit = db[table].filter(x => x.player === q.get('player').slice(3) && x.run === q.get('run').slice(3)); hit.forEach(x => Object.assign(x, b)); return new Response(JSON.stringify(hit), { status: 200 }); }
-  let r = db[table].slice();
-  for (const col of ['who', 'player', 'run']) if (q.get(col)) r = r.filter(x => x[col] === q.get(col).slice(3));
-  if (table === 'scores' && q.get('kid')) r = r.filter(x => !!x.kid === (q.get('kid') === 'eq.true'));   // version 197
-  for (const c of q.getAll('created_at')) r = r.filter(x => x.created_at > c.slice(3));   // gt. only; the board's season and the spam check
-  if (q.get('or')) { const m = q.get('or').match(/depth\.gt\.(\d+),and\(depth\.eq\.(\d+),id\.lt\.(\d+)\)/); r = r.filter(x => x.depth > +m[1] || (x.depth === +m[2] && x.id < +m[3])); }
-  if (h.Prefer === 'count=exact') return new Response('[]', { headers: { 'content-range': r.length ? `0-0/${r.length}` : `*/0` } });
-  r.sort((a, b) => b.depth - a.depth || a.id - b.id);
-  const cols = (q.get('select') || 'id,initials,depth,escaped,moon').split(',');
-  return new Response(JSON.stringify(r.slice(0, +q.get('limit')).map(x => Object.fromEntries(cols.map(c => [c, x[c] ?? null])))));
-};
+// The pretend Supabase (tools/fake_supabase.js): Deno's stand-in, the database and the clock.
+await import(root + 'tools/fake_supabase.js');
+const S = globalThis.fakeSupabase(), db = S.db, later = S.later;
 await import(root + 'tools/out/function.mjs');
 
 const call = async (method, body, ip = '1.2.3.4') => {
-  const res = await handler(new Request('https://fn/scores', { method, headers: { 'x-forwarded-for': ip, 'content-type': 'application/json' }, body: body && JSON.stringify(body) }));
+  const res = await S.handler(new Request('https://fn/scores', { method, headers: { 'x-forwarded-for': ip, 'content-type': 'application/json' }, body: body && JSON.stringify(body) }));
   return [res.status, await res.json().catch(() => null)];
 };
 let failed = 0, passed = 0;
@@ -78,7 +57,9 @@ check('hard and drone flags stored on the start ping', (r => r.hard === true && 
 check('moon stored on the start ping', db.plays.find(x => x.run === RUN).moon === 'jungle', db.plays);
 check('version stored on the start ping', db.plays.find(x => x.run === RUN).ver === 106, db.plays);
 await call('POST', { event: 'play', player: P, run: RUN });
-check('repeat ping within 5 s ignored', db.plays.filter(x => x.player === P).length === 1, db.plays);
+check('the same run sent again ignored', db.plays.filter(x => x.player === P).length === 1, db.plays);
+await call('POST', { event: 'play', player: P });
+check('a ping without a run within 5 s ignored', db.plays.filter(x => x.player === P).length === 1, db.plays);
 check('bad player id refused', (await call('POST', { event: 'play', player: 'nope' }))[0] === 400, null);
 const end = { event: 'end', player: P, run: RUN, depth: 812, secs: 95, how: 'mine', orbs: 7, parts: 2, cafes: 0, initials: 'PJR',
   fps: 89.67, worst: 41, device: 'phone', os: 'android', screen: '412x915@2.63', treats: ['Magnet', 'Bubble to go'], streak: 17, sound: true, music: false, repair: 53, intro: 'skipped', ver: 107, moon: 'dust', hard: false, droneOpen: true, drone: true,
@@ -110,7 +91,7 @@ const normalTop = (await call('GET'))[1].top.map(t => t.id).join();
 const k1 = await call('POST', { initials: 'KID', depth: 99999, kid: true }, '9.9.9.1');
 check('kid score at rank 1 of its own board', k1[0] === 200 && k1[1].rank === 1 && k1[1].top.length === 1 && k1[1].top[0].initials === 'KID' && db.scores.find(x => x.initials === 'KID').kid === true, k1);
 check('normal board unchanged by a kid score', (await call('GET'))[1].top.map(t => t.id).join() === normalTop, null);
-const kidGet = async () => { const res = await handler(new Request('https://fn/scores?kid=1')); return res.json(); };
+const kidGet = async () => { const res = await S.handler(new Request('https://fn/scores?kid=1')); return res.json(); };
 check('GET ?kid=1 gives the kid board', (await kidGet()).top.map(t => t.initials).join() === 'KID', await kidGet());
 const k2 = await call('POST', { initials: 'TOT', depth: 5, kid: true }, '9.9.9.2');
 check('kid rank counts only kid scores', k2[1].rank === 2 && k2[1].top.length === 2, k2);
@@ -131,24 +112,27 @@ check('old rows kept', db.scores.some(x => x.initials === 'OLD') && db.scores.so
 // Each score tied to its run: one row per run, checked against the run's play ping (checkRun).
 const RP = 'abcabcabcabcabc0', R1 = '1234123412341234';
 await call('POST', { event: 'play', player: RP, run: R1 }, '7.7.7.1');
-const fast = await call('POST', { initials: 'RUN', depth: 5000, player: RP, run: R1 }, '7.7.7.1');
-check('score deeper than the time since its run started refused', fast[0] === 400 && /too deep/.test(fast[1].error), fast);
-db.plays.find(x => x.run === R1).created_at = new Date(Date.now() - 10 * 60_000).toISOString();
 const ok1 = await call('POST', { initials: 'RUN', depth: 5000, player: RP, run: R1 }, '7.7.7.1');
 check('score with its run saved', ok1[0] === 200 && db.scores.filter(x => x.run === R1).length === 1 && db.scores.find(x => x.run === R1).player === RP, ok1);
+const onBoard = async (id, kid = false) => (kid ? (await kidGet()) : (await call('GET'))[1]).top.some(t => t.id === id);
+check('score deeper than its run\'s time so far: in the sender\'s answer, not yet on the board', ok1[1].top.some(t => t.id === ok1[1].id) && !(await onBoard(ok1[1].id)), ok1);
+later(5000 / 75 - 5);
+check('still waiting just before its time', !(await onBoard(ok1[1].id)), null);
+later(6);
+check('on the board once its depth\'s time has passed', await onBoard(ok1[1].id), (await call('GET'))[1]);
 const again = await call('POST', { initials: 'RUN', depth: 5000, player: RP, run: R1 }, '7.7.7.2');
 check('the same run sent again: same answer, no second row', again[0] === 200 && again[1].id === ok1[1].id && again[1].rank === ok1[1].rank && db.scores.filter(x => x.run === R1).length === 1, again);
 check('a run nobody started refused', (await call('POST', { initials: 'RUN', depth: 50, player: RP, run: 'ffff0000ffff0000' }, '7.7.7.3'))[0] === 400, null);
 const R2 = '2222000022220000';
-db.plays.push({ id: nextId++, player: RP, run: R2, created_at: new Date(Date.now() - 3600_000).toISOString(), depth: 800, how: 'mine' });
+db.plays.push({ id: S.nextId++, player: RP, run: R2, created_at: new Date(Date.now() - 3600_000).toISOString(), depth: 800, how: 'mine' });
 check('score deeper than its run ended refused', (await call('POST', { initials: 'RUN', depth: 900, player: RP, run: R2 }, '7.7.7.4'))[0] === 400, null);
 db.plays.find(x => x.run === R2).how = 'left';
 check('a run last seen hidden mid-run may have gone deeper', (await call('POST', { initials: 'RUN', depth: 900, player: RP, run: R2 }, '7.7.7.4'))[0] === 200, null);
 // The case behind duplicate scores: the row is saved, then the database fails before the answer, so the phone keeps the
 // score in its outbox and sends it again.
 const R3 = '3333000033330000';
-db.plays.push({ id: nextId++, player: RP, run: R3, created_at: new Date(Date.now() - 3600_000).toISOString(), depth: null, how: null });
-failNext = 'count';
+db.plays.push({ id: S.nextId++, player: RP, run: R3, created_at: new Date(Date.now() - 3600_000).toISOString(), depth: null, how: null });
+S.fail = 'count';
 const lost = await call('POST', { initials: 'LST', depth: 700, player: RP, run: R3 }, '7.7.7.5');
 check('database failure after the insert answers 500', lost[0] === 500 && db.scores.filter(x => x.run === R3).length === 1, lost);
 const retry = await call('POST', { initials: 'LST', depth: 700, player: RP, run: R3 }, '7.7.7.5');
@@ -163,13 +147,63 @@ const endOnly = []; for (let k = 0; k < 2; k++) endOnly.push((await call('POST',
 check('an end ping that makes a new row counts too', endOnly.join() === '429,429', endOnly);
 check('a launch and the cave are endings', (await call('POST', { ...end, how: 'launch' }, '5.5.5.5'))[0] === 200 && (await call('POST', { ...end, how: 'cave' }, '5.5.5.5'))[0] === 200, null);
 
+// Offline runs (code review 2026-11-19): the game queues its run reports and sends them, in order, before the scores, so
+// several runs' pings arrive in a burst, long after the runs. None may be lost, and the score must be saved (not refused
+// for its timing) and show once its depth's time has passed since the reports arrived.
+const OP = 'abcdef0123456789', offline = ['0f0f0f0f00000001', '0f0f0f0f00000002', '0f0f0f0f00000003'];
+for (const [k, r] of offline.entries()) {
+  await call('POST', { event: 'play', player: OP, run: r }, '3.3.3.1');
+  await call('POST', { ...end, player: OP, run: r, depth: 1000 * (k + 1), how: 'rock' }, '3.3.3.1');
+}
+check('offline: every run of a burst stored, none dropped as a repeat', offline.every(r => db.plays.filter(x => x.run === r).length === 1), db.plays.filter(x => x.player === OP));
+const off = await call('POST', { initials: 'OFF', depth: 3000, player: OP, run: offline[2] }, '3.3.3.1');
+check('offline: the score is saved, not refused', off[0] === 200 && off[1].rank >= 1 && off[1].top.some(t => t.id === off[1].id), off);
+check('offline: not on the board straight away', !(await onBoard(off[1].id)), null);
+const offAgain = await call('POST', { initials: 'OFF', depth: 3000, player: OP, run: offline[2] }, '3.3.3.2');
+check('offline: sent again, the same answer', offAgain[0] === 200 && offAgain[1].id === off[1].id && offAgain[1].top.some(t => t.id === off[1].id), offAgain);
+later(3000 / 75 + 1);
+check('offline: on the board once its time has passed', await onBoard(off[1].id), null);
+
+// Save and quit at a cafe, then Continue dive (code review 2026-11-19): the continued dive is a new run naming the one it
+// carries on (prev), and is credited with that run's depth, so its score isn't held back for the whole dive's depth.
+const CP = '0123456789fedcba', C1 = 'c0c0c0c000000001', C2 = 'c0c0c0c000000002';
+await call('POST', { event: 'play', player: CP, run: C1 }, '3.3.4.1');
+later(120);
+await call('POST', { ...end, player: CP, run: C1, depth: 3000, how: 'quit' }, '3.3.4.1');
+later(5);
+await call('POST', { event: 'play', player: CP, run: C2, prev: C1 }, '3.3.4.1');
+check('continue: credited with the dive so far', (r => r && r.prev === C1 && r.start_m === 3000)(db.plays.find(x => x.run === C2)), db.plays.find(x => x.run === C2));
+later(10);
+await call('POST', { ...end, player: CP, run: C2, depth: 3400, how: 'mine' }, '3.3.4.1');
+const cont = await call('POST', { initials: 'CON', depth: 3400, player: CP, run: C2 }, '3.3.4.1');
+check('continue: the whole dive\'s score is on the board straight away', cont[0] === 200 && await onBoard(cont[1].id), cont);
+// Its end ping alone (the start ping lost) gives the same credit.
+const C3 = 'c0c0c0c000000003', C4 = 'c0c0c0c000000004';
+await call('POST', { event: 'play', player: CP, run: C3 }, '3.3.4.2');
+later(60);
+await call('POST', { ...end, player: CP, run: C3, depth: 2000, how: 'quit' }, '3.3.4.2');
+await call('POST', { ...end, player: CP, run: C4, prev: C3, depth: 2100, how: 'rock' }, '3.3.4.2');
+check('continue: an end ping without its start gets the credit too', db.plays.find(x => x.run === C4)?.start_m === 2000, db.plays.find(x => x.run === C4));
+// The credit is only what the earlier run's own time allows: a run started, claimed deep at once and named a day later
+// earns nothing, so a made-up chain still waits the full time.
+const X1 = 'deadbeef00000001', X2 = 'deadbeef00000002';
+await call('POST', { event: 'play', player: CP, run: X1 }, '3.3.4.3');
+await call('POST', { ...end, player: CP, run: X1, depth: 50000, how: 'quit' }, '3.3.4.3');
+later(86400);
+await call('POST', { event: 'play', player: CP, run: X2, prev: X1 }, '3.3.4.3');
+check('continue: no credit beyond the earlier run\'s time', db.plays.find(x => x.run === X2)?.start_m === 0, db.plays.find(x => x.run === X2));
+const fake = await call('POST', { initials: 'FKE', depth: 60000, player: CP, run: X2 }, '3.3.4.3');
+check('continue: a made-up chain\'s score waits its full time', fake[0] === 200 && !(await onBoard(fake[1].id)), fake);
+await call('POST', { event: 'play', player: 'aaaaaaaaaaaaaaaa', run: 'deadbeef00000003', prev: C1 }, '3.3.4.4');
+check('continue: another device\'s run gives no credit', db.plays.find(x => x.run === 'deadbeef00000003')?.start_m === 0, null);
+
 // The function as written: with REQUIRE_RUN on, a score without its run is refused; one with a real run is saved.
 await import(root + 'tools/out/function_as_written.mjs');
 const strict = /const REQUIRE_RUN = true;/.test(src);
 const bare = await call('POST', { initials: 'OLD', depth: 10 }, '4.4.4.1');
 check('as written: a score without its run ' + (strict ? 'refused' : 'saved (REQUIRE_RUN is off)'), strict ? bare[0] === 400 : bare[0] === 200, bare);
 const R4 = '4444000044440000';
-db.plays.push({ id: nextId++, player: RP, run: R4, created_at: new Date(Date.now() - 3600_000).toISOString(), depth: null, how: null });
+db.plays.push({ id: S.nextId++, player: RP, run: R4, created_at: new Date(Date.now() - 3600_000).toISOString(), depth: null, how: null });
 const withRun = await call('POST', { initials: 'NEW', depth: 10, player: RP, run: R4 }, '4.4.4.2');
 check('as written: a score with its run saved', withRun[0] === 200 && db.scores.some(x => x.run === R4), withRun);
 
