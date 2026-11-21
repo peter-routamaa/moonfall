@@ -1128,7 +1128,7 @@ body:has(.confirm.party[open]) .screen.dim { background: transparent; }
 
 // Shown on the title card as v0. and the number, as in v0.215 (the shown format, history-ok); add one with every
 // published version.
-const VERSION = 276;
+const VERSION = 277;
 // Test start depth: a test copy can start every run this many metres down (960 puts him just above cafe 1, so the first
 // boss fight comes within seconds). 0 for normal runs and the website; tools/build_site.py refuses to build otherwise.
 const TEST_START_M = 0;
@@ -4874,6 +4874,7 @@ function speedAt(d) {
 //   scores, kidScores, outbox   this device's top 10s and the scores waiting to be sent; repaired in high scores
 //   pings             run stats pings waiting to be sent (statPing); repaired in high scores
 //   initials          the last initials entered; checked (three capitals) wherever they're read
+//   escapedAs         initials that escaped on this phone, for the rocket on the high score board; repaired in high scores
 //   season, oldBoards the board season, and earlier seasons' boards kept when a fresh one starts (high scores)
 //   boardCache, kidBoardCache   the online top 10s for the gravestones, kept 2 minutes (board flags)
 //   playerId          random ID for the private play stats; made or remade in countPlay (run stats)
@@ -7481,7 +7482,7 @@ function saveScore() {
     box.classList.remove('no'); void box.offsetWidth; box.classList.add('no'); Sfx.block();
     return;
   }
-  const entry = { i: hsInit.join(''), m: hsPending, t: Date.now(), e: escapedNow(), o: moon };
+  const entry = { i: hsInit.join(''), m: hsPending, t: Date.now(), e: escapedFor(hsInit.join('')), o: moon };
   save.initials = entry.i;
   const list = hsScores();
   list.splice(hsRankOf(entry.m) - 1, 0, entry); list.length = Math.min(list.length, HS_MAX);
@@ -7502,9 +7503,40 @@ function openTable() {
   renderTable();
   if (SCORES_URL) syncOnline();
 }
-// The rocket goes on every score set by a player who has ever escaped (owner: "if they have ever escaped, update the
-// badge"): the ship flown home at least once (a new mission doesn't take that away), or ready to fly now.
-const escapedNow = () => missionsDone() > 0 || canLaunch();
+// The rocket goes on scores by players who have escaped (owner: "if they have ever escaped, update the badge"): this
+// phone has flown the ship home at least once (a new mission doesn't take that away), or has it ready to fly now. A phone
+// can be shared, so the escape belongs to initials, kept in save.escapedAs: the initials last entered when the ship was
+// flown home (noteEscape), or when there were none, the ones last entered before this phone's next score, else that
+// score's own (escapedFor). Other initials typed on the same phone get no rocket.
+const deviceEscaped = () => missionsDone() > 0 || canLaunch();
+const isInitials = ini => typeof ini === 'string' && /^[A-Z]{3}$/.test(ini);
+function noteEscape() {
+  if (isInitials(save.initials) && !save.escapedAs.includes(save.initials)) save.escapedAs.push(save.initials);
+}
+function escapedFor(initials) {
+  if (!deviceEscaped()) return false;
+  if (!save.escapedAs.length) save.escapedAs.push(isInitials(save.initials) ? save.initials : initials);
+  return save.escapedAs.includes(initials);
+}
+// A save without a usable escapedAs: a phone that has escaped gives it to the initials of its deepest score with a
+// rocket (this season's boards and earlier ones), else to the last initials entered; rockets on its own boards under
+// other initials come off.
+if (!Array.isArray(save.escapedAs) || !save.escapedAs.every(isInitials)) {
+  save.escapedAs = [];
+  if (deviceEscaped()) {
+    const old = save.oldBoards && typeof save.oldBoards === 'object' ? Object.values(save.oldBoards) : [];
+    const lists = [save.scores, save.kidScores, ...old.flatMap(b => b && typeof b === 'object' ? [b.scores, b.kidScores] : [])];
+    let deepest = null;
+    for (const list of lists) {
+      if (!Array.isArray(list)) continue;
+      for (const row of list) if (row && row.e === true && isInitials(row.i) && Number.isFinite(row.m) && !(deepest && deepest.m >= row.m)) deepest = row;
+    }
+    if (deepest) save.escapedAs.push(deepest.i);
+    else noteEscape();
+  }
+  for (const row of [...save.scores, ...save.kidScores]) if (row && row.e === true && !save.escapedAs.includes(row.i)) row.e = false;
+  persist();
+}
 const ROCKET_SVG = '<svg viewBox="0 0 7 9" width="14" height="18" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1h-1zM2 1h3v6h-3zM1 4h1v3h-1zM5 4h1v3h-1zM0 6h1v2h-1zM6 6h1v2h-1zM3 7h1v2h-1z"/></svg>';
 // Owner: "If a player has escaped, only present the badge on their highest score." Players are told apart by their
 // initials (all the board knows): the rocket goes on the highest of their rows shown when any of them has it, and their
@@ -9605,6 +9637,7 @@ function showEnd() {
   // A finished mission counts once (relaunching the same repaired ship doesn't): it unlocks a suit, and Hard Dive.
   const before = suitsOpen();
   if (!save.missionDone) { save.missionsDone = missionsDone() + 1; save.missionDone = true; }
+  noteEscape();   // the rocket on the high score board goes to the initials that flew it home
   save.launches = (save.launches || 0) + 1; persist();
   const lines = [];
   if (suitsOpen() > before) lines.push('Every suit colour unlocked' + (save.missionsDone === 1 ? ', and Terminal Velocity too!' : '!'));
