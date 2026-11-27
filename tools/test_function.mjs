@@ -3,9 +3,11 @@
 //   node tools/test_function.mjs            (needs Node 22.13 or newer, for stripTypeScriptTypes)
 import { stripTypeScriptTypes } from 'node:module';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
+// import() takes a URL: on Windows a plain path (C:\...) is refused.
+const load = path => import(pathToFileURL(path).href);
 const src = stripTypeScriptTypes(readFileSync(process.argv[2] || root + 'supabase/functions/scores/index.ts', 'utf8'));
 mkdirSync(root + 'tools/out', { recursive: true });
 // The board's start time (BOARD_FROM) is set to a fixed past moment here, so scores saved during the test are on the board.
@@ -17,9 +19,9 @@ writeFileSync(root + 'tools/out/function.mjs', fixedSeason.replace(/const REQUIR
 writeFileSync(root + 'tools/out/function_as_written.mjs', fixedSeason);
 
 // The pretend Supabase (tools/fake_supabase.js): Deno's stand-in, the database and the clock.
-await import(root + 'tools/fake_supabase.js');
+await load(root + 'tools/fake_supabase.js');
 const S = globalThis.fakeSupabase(), db = S.db, later = S.later;
-await import(root + 'tools/out/function.mjs');
+await load(root + 'tools/out/function.mjs');
 
 const call = async (method, body, ip = '1.2.3.4') => {
   const res = await S.handler(new Request('https://fn/scores', { method, headers: { 'x-forwarded-for': ip, 'content-type': 'application/json' }, body: body && JSON.stringify(body) }));
@@ -222,7 +224,7 @@ await call('POST', { ...end, player: DP, run: D4, depth: 400, how: 'mine', initi
 check('the ending sent again with initials is kept', db.plays.find(x => x.run === D4).initials === 'DDD', db.plays.find(x => x.run === D4));
 
 // The function as written: with REQUIRE_RUN on, a score without its run is refused; one with a real run is saved.
-await import(root + 'tools/out/function_as_written.mjs');
+await load(root + 'tools/out/function_as_written.mjs');
 const strict = /const REQUIRE_RUN = true;/.test(src);
 const bare = await call('POST', { initials: 'OLD', depth: 10 }, '4.4.4.1');
 check('as written: a score without its run ' + (strict ? 'refused' : 'saved (REQUIRE_RUN is off)'), strict ? bare[0] === 400 : bare[0] === 200, bare);

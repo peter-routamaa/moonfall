@@ -105,7 +105,7 @@ def run(src, moon, fp=0):
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, 'fight-makes.html')
         open(path, 'w', encoding='utf-8').write(page(open(src, encoding='utf-8').read()))
-        dom = chrome.dump_dom('file://' + path + '?moon=' + moon + ('&fp=' + str(fp) if fp else ''), os.path.join(tmp, 'chrome'),
+        dom = chrome.dump_dom(chrome.file_url(path, '?moon=' + moon + ('&fp=' + str(fp) if fp else '')), os.path.join(tmp, 'chrome'),
                               900000, 900, size='390,844')
     res = chrome.result(dom)
     if res is None:

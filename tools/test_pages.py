@@ -250,7 +250,7 @@ HEAD = ('<!doctype html><html><head><meta charset=utf8><meta name=viewport conte
         'body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style></head><body>')
 
 if __name__ == '__main__':
-    game = open(os.path.join(ROOT, 'src', 'moonfall.html')).read()
+    game = open(os.path.join(ROOT, 'src', 'moonfall.html'), encoding='utf-8').read()
     game = chrome.inject(game, HOOK, 'test_pages')
     board = game.replace("const SCORES_URL = '';", "const SCORES_URL = 'https://fake-scores.test/functions/v1/scores';", 1)
     os.makedirs(OUT, exist_ok=True)
@@ -265,5 +265,5 @@ if __name__ == '__main__':
     pages['shot-board.html'] = pages['test-board.html'][:pages['test-board.html'].rindex('</body>')] + chrome.HELPERS + SHOT + '</body></html>'
     shutil.copytree(os.path.join(ROOT, 'src', 'voices'), os.path.join(OUT, 'voices'), dirs_exist_ok=True)
     for name, html in pages.items():
-        open(os.path.join(OUT, name), 'w').write(html)
+        open(os.path.join(OUT, name), 'w', encoding='utf-8').write(html)
     print('tools/out:', ', '.join(pages))

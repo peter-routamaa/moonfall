@@ -28,6 +28,8 @@ It refuses to build a game that should not go live, so a release cannot skip the
 Each stops the build (exit 1) before anything in docs/ is touched.
 """
 import json, os, re, shutil, subprocess, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import chrome
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCORES_URL = 'https://ukjajizsnowmdjziqkof.supabase.co/functions/v1/scores'   # public; it's in the built page anyway
@@ -128,20 +130,23 @@ GATES = (
 for tool, why in GATES:
     cmd = ['node' if tool.endswith('.mjs') else sys.executable, os.path.join(ROOT, tool)]
     try:
-        res = subprocess.run(cmd, capture_output=True, text=True)
+        # The gates print as UTF-8 whatever the system's code page (Windows' would fail on characters like →).
+        code, out, err = chrome.run_text(cmd, env={**os.environ, 'PYTHONIOENCODING': 'utf-8'})
     except OSError as e:
         stop(f'{tool} could not run ({e}); a gate that cannot run fails.')
-    if res.returncode != 0:
-        print(res.stdout + res.stderr)
+    if code != 0:
+        print(out + err)
         stop(f'{tool} did not pass (above): {why}. Fix it, then build again.')
-    last = res.stdout.strip().splitlines()
+    last = out.strip().splitlines()
     if not last:
         stop(f'{tool} printed nothing, so it is unknown whether it checked anything.')
     print(last[-1])
 
 os.makedirs(os.path.join(ROOT, 'docs'), exist_ok=True)
-open(os.path.join(ROOT, 'docs', 'index.html'), 'w').write(page)
+open(os.path.join(ROOT, 'docs', 'index.html'), 'w', encoding='utf-8', newline='
+').write(page)
 shutil.copytree(os.path.join(ROOT, 'src', 'voices'), os.path.join(ROOT, 'docs', 'voices'), dirs_exist_ok=True)
 shutil.copy(os.path.join(ROOT, 'src', 'share.png'), os.path.join(ROOT, 'docs', 'share.png'))   # the link preview picture
-open(os.path.join(ROOT, 'docs', 'version.json'), 'w').write('{"v": %d}\n' % version)   # what open pages ask
+open(os.path.join(ROOT, 'docs', 'version.json'), 'w', encoding='utf-8', newline='
+').write('{"v": %d}\n' % version)   # what open pages ask
 print(f'docs/index.html {len(page) // 1024} KB, scores URL: {url or "(none: offline)"}')

@@ -96,7 +96,7 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, 'levi-budget.html')
         open(path, 'w', encoding='utf-8').write(page)
-        dom = chrome.dump_dom('file://' + path, os.path.join(tmp, 'chrome'), 60000, 300)
+        dom = chrome.dump_dom(chrome.file_url(path), os.path.join(tmp, 'chrome'), 60000, 300)
     res = chrome.result(dom)
     if res is None:
         sys.exit('levi_budget: the page did not finish (no result); open the game in a browser and check the console')

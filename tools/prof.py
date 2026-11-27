@@ -228,14 +228,14 @@ DRIVER = r"""<script>
 </script>"""
 
 def page(src_path):
-    game = open(src_path).read()
+    game = open(src_path, encoding='utf-8').read()
     body = chrome.inject(game, inside(game) + '\n' + test_pages.HOOK, 'prof')
-    return (test_pages.HEAD + '<script>window.__raf0 = window.requestAnimationFrame.bind(window);</script>' + same_pixels.SEEDED + PROBE +
+    return (test_pages.HEAD + test_pages.MUTE + '<script>window.__raf0 = window.requestAnimationFrame.bind(window);</script>' + same_pixels.SEEDED + PROBE +
             chrome.HELPERS + body + DRIVER + '</body></html>')
 
 if __name__ == '__main__':
     src = sys.argv[1] if len(sys.argv) > 1 else os.path.join(chrome.ROOT, 'src', 'moonfall.html')
     name = sys.argv[2] if len(sys.argv) > 2 else 'prof'
     out = os.path.join(chrome.ROOT, 'tools', 'out', name + '.html')
-    open(out, 'w').write(page(src))
+    open(out, 'w', encoding='utf-8').write(page(src))
     print('wrote', out)

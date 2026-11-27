@@ -45,6 +45,10 @@ Nothing in this repository is secret: the game file holds no keys or passwords, 
 ## Working on the game
 
 You need Python 3, Node 22.13 or newer (for the function test and `tools/checks.py`, which reads the script with the JavaScript parser inside Node), and Google Chrome for screenshots and the Leviathan budget check (the screenshot script is written for a Mac).
+The Python tools run on a Mac, Windows or Linux and find Chrome where each installs it (set `CHROME` to its path if
+it's elsewhere). On Windows, type `python` where these steps say `python3` (Windows' `python3` is often only a shortcut
+to the Microsoft Store); the commit hook picks whichever works. Expect the browser checks to take several times longer
+on Windows than the times given here.
 
 Once per clone, turn on the commit check: `git config core.hooksPath tools/hooks`. From then on a commit that changes `src/moonfall.html` or `supabase/functions/scores/index.ts` runs `tools/checks.py` on the staged copies of both (the rude initials lists must match, and the code rules it checks hold; see `CODING.md`), and a commit that changes the game also runs `tools/levi_budget.py` on the version being committed and stops if a Leviathan is over the budgets in `PERFORMANCE.md`.
 

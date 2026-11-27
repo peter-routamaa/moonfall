@@ -14,6 +14,10 @@ printf '%s\n' "$staged" | grep -qx 'src/moonfall.html' && game=1
 printf '%s\n' "$staged" | grep -qx 'supabase/functions/scores/index.ts' && server=1
 [ "$game" -eq 1 ] || [ "$server" -eq 1 ] || exit 0
 root=$(git rev-parse --show-toplevel) || exit 1
+# python3 where it works; on Windows "python3" is often only a Store shortcut that runs nothing, so then python.
+py=python3
+"$py" -c "" 2>/dev/null || py=python
+"$py" -c "" 2>/dev/null || { echo "pre-commit: commit stopped. No working python3 or python found."; exit 1; }
 tmp=$(mktemp -d) || { echo "pre-commit: could not make a temporary folder"; exit 1; }
 trap 'rm -rf "$tmp"' EXIT
 if ! git show :src/moonfall.html > "$tmp/staged.html" || ! git show :supabase/functions/scores/index.ts > "$tmp/index.ts"; then
@@ -21,14 +25,14 @@ if ! git show :src/moonfall.html > "$tmp/staged.html" || ! git show :supabase/fu
   exit 1
 fi
 # The quick source checks (no browser), on the staged game and scores function.
-if ! checks=$(python3 "$root/tools/checks.py" "$tmp/staged.html" "--server=$tmp/index.ts" 2>&1); then
+if ! checks=$("$py" "$root/tools/checks.py" "$tmp/staged.html" "--server=$tmp/index.ts" 2>&1); then
   printf '%s\n' "$checks"
   echo "pre-commit: commit stopped by tools/checks.py (above). Fix it, then commit again. Do not skip this with --no-verify."
   exit 1
 fi
 echo "pre-commit: $(printf '%s\n' "$checks" | tail -1)"
 [ "$game" -eq 1 ] || exit 0
-out=$(python3 "$root/tools/levi_budget.py" "$tmp/staged.html" 2>&1)
+out=$("$py" "$root/tools/levi_budget.py" "$tmp/staged.html" 2>&1)
 code=$?
 if [ "$code" -eq 0 ]; then
   echo "pre-commit: $(printf '%s\n' "$out" | tail -1)"

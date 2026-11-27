@@ -2,12 +2,43 @@
 component's card, and running it in headless Chrome. Imported by same_pixels.py, bench.py, fight_makes.py, smoke.py,
 test_pages.py, prof.py and levi_budget.py; nothing to run on its own.
 
-Chrome is the Mac one unless CHROME is set to its path.
+Chrome is found in its usual place on a Mac, Windows or Linux unless CHROME is set to its path.
+Everything here works on Windows too: pages are opened by file URL (not 'file://' + a path), and text to and from
+Chrome and Node goes as UTF-8 bytes, because Python's text mode on Windows uses the local code page and writes '\n' as
+'\r\n' (which made checks.py count every line one character longer).
 """
-import html, json, os, re, subprocess, sys
+import html, json, os, pathlib, re, shutil, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CHROME = os.environ.get('CHROME', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
+
+
+def find_chrome():
+    """CHROME if set, else the first Chrome (or Chromium) found where each system installs it; the Mac path if none."""
+    if os.environ.get('CHROME'):
+        return os.environ['CHROME']
+    places = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
+    for base in ('PROGRAMFILES', 'PROGRAMFILES(X86)', 'LOCALAPPDATA'):
+        if os.environ.get(base):
+            places.append(os.path.join(os.environ[base], 'Google', 'Chrome', 'Application', 'chrome.exe'))
+    places += [shutil.which(name) or '' for name in ('google-chrome', 'chromium', 'chromium-browser')]
+    return next((p for p in places if p and os.path.exists(p)), places[0])
+
+
+CHROME = find_chrome()
+
+
+def file_url(path, query=''):
+    """The file:// address of a local page (with `query`, e.g. '?moon=dust'), right on every system: a Windows path
+    has a drive letter and backslashes, and this folder's name has spaces."""
+    return pathlib.Path(path).resolve().as_uri() + query
+
+
+def run_text(args, input_text=None, timeout=None, check=False, env=None):
+    """Runs a program and returns (exit code, stdout, stderr), sending and reading text as UTF-8 bytes with the line
+    endings untouched, the same on every system."""
+    r = subprocess.run(args, input=None if input_text is None else input_text.encode('utf-8'), capture_output=True,
+                       timeout=timeout, check=check, env=env)
+    return r.returncode, r.stdout.decode('utf-8', 'replace'), r.stderr.decode('utf-8', 'replace')
 
 # The game's last line inside start(): the first frame is asked for here, after everything is defined. A tool's hook
 # goes just before it, so the hook sees the game's internals before any frame runs.
@@ -67,7 +98,7 @@ def dump_dom(url, profile, budget_ms, timeout, size=None, files=True):
     if size:
         args.append('--window-size=' + size)
     args += ['--virtual-time-budget=' + str(budget_ms), '--dump-dom', url]
-    return subprocess.run(args, capture_output=True, text=True, timeout=timeout).stdout
+    return run_text(args, timeout=timeout)[1]
 
 
 def result(dom):

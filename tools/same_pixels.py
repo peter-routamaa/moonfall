@@ -53,11 +53,11 @@ DRIVER = r"""<script>
 
 def page(src_path, hook):
     import test_pages
-    game = chrome.inject(open(src_path).read(), hook, 'same_pixels')
+    game = chrome.inject(open(src_path, encoding='utf-8').read(), hook, 'same_pixels')
     return test_pages.HEAD + SEEDED + chrome.HELPERS + game + DRIVER + '</body></html>'
 
 def run(html_text, tmp, name, port):
-    open(os.path.join(tmp, name), 'w').write(html_text)
+    open(os.path.join(tmp, name), 'w', encoding='utf-8').write(html_text)
     # Each page gets its own profile: a shared one carried the first run's save (scores, best) into the second.
     dom = chrome.dump_dom(f'http://localhost:{port}/{name}', os.path.join(tmp, 'prof-' + name), 60000, 240, size='412,915', files=False)
     return chrome.result(dom) or ['NO RESULT']

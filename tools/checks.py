@@ -28,6 +28,8 @@ Add a check here whenever a rule can be checked by reading the files (CLAUDE.md:
 script, add it to those gates rather than only writing it down"). Exits 1 naming what is out of step.
 """
 import json, os, re, subprocess, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import chrome
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -168,15 +170,17 @@ def initials(text, name):
 def scan(js):
     """What SCAN_JS finds in the script `js`, or (None, why) when Node or its parser can't read it."""
     try:
-        r = subprocess.run(['node', '--expose-internals', '-e', SCAN_JS, json.dumps({'protectedNames': PROTECTED, 'maxLen': MAX_LINE})],
-                           input=js, capture_output=True, text=True, timeout=120)
+        # Bytes, not text mode: on Windows text mode would turn every '\n' into '\r\n' and lengthen each line by one.
+        code, out, err_text = chrome.run_text(['node', '--expose-internals', '-e', SCAN_JS,
+                                               json.dumps({'protectedNames': PROTECTED, 'maxLen': MAX_LINE})],
+                                              input_text=js, timeout=120)
     except (OSError, subprocess.TimeoutExpired) as e:
         return None, f'could not run Node ({e}); the build needs it too (README)'
-    if r.returncode != 0:
-        err = r.stderr.strip().split('\n')
+    if code != 0:
+        err = err_text.strip().split('\n')
         return None, 'Node could not read the script: ' + next((l for l in err if 'rror' in l or 'acorn' in l), err[-1])[:300]
     try:
-        return json.loads(r.stdout), None
+        return json.loads(out), None
     except ValueError:
         return None, 'Node printed no result'
 

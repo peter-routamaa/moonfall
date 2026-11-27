@@ -344,7 +344,7 @@ def run(src, moon):
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, 'smoke.html')
         open(path, 'w', encoding='utf-8').write(page(open(src, encoding='utf-8').read()))
-        dom = chrome.dump_dom('file://' + path + '?moon=' + moon, os.path.join(tmp, 'chrome'), 300000, 600, size='390,844')
+        dom = chrome.dump_dom(chrome.file_url(path, '?moon=' + moon), os.path.join(tmp, 'chrome'), 300000, 600, size='390,844')
     return chrome.result(dom)
 
 

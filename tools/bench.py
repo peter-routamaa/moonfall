@@ -42,12 +42,12 @@ DRIVER = r"""<script>
 </script>"""
 
 def page(src_path):
-    game = chrome.inject(open(src_path).read(), test_pages.HOOK, 'bench')
+    game = chrome.inject(open(src_path, encoding='utf-8').read(), test_pages.HOOK, 'bench')
     return test_pages.HEAD + same_pixels.SEEDED + chrome.HELPERS + game + DRIVER + '</body></html>'
 
 if __name__ == '__main__':
     before = sys.argv[1]; after = sys.argv[2] if len(sys.argv) > 2 else os.path.join(chrome.ROOT, 'src', 'moonfall.html')
     out = os.path.join(chrome.ROOT, 'tools', 'out')
     for name, path in (('before', before), ('after', after)):
-        open(os.path.join(out, 'bench-' + name + '.html'), 'w').write(page(path))
+        open(os.path.join(out, 'bench-' + name + '.html'), 'w', encoding='utf-8').write(page(path))
     print('wrote tools/out/bench-before.html and tools/out/bench-after.html')

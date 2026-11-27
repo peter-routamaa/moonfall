@@ -161,11 +161,11 @@ def main():
     src = args[0] if args else os.path.join(ROOT, 'src', 'moonfall.html')
     chrome.need_chrome('test_reports')
     fn = os.path.join(ROOT, 'supabase', 'functions', 'scores', 'index.ts')
-    function_js = subprocess.run(['node', '--no-warnings', '--input-type=module', '-e', STRIP, fn], capture_output=True, text=True, check=True).stdout
+    function_js = chrome.run_text(['node', '--no-warnings', '--input-type=module', '-e', STRIP, fn], check=True)[1]
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, 'reports.html')
         open(path, 'w', encoding='utf-8').write(page(open(src, encoding='utf-8').read(), function_js))
-        dom = chrome.dump_dom('file://' + path, os.path.join(tmp, 'chrome'), 120000, 300, size='390,844')
+        dom = chrome.dump_dom(chrome.file_url(path), os.path.join(tmp, 'chrome'), 120000, 300, size='390,844')
     res = chrome.result(dom)
     if res is None:
         print('FAIL: the page did not finish (it stopped before the last step)')
