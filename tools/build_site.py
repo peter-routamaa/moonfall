@@ -143,10 +143,8 @@ for tool, why in GATES:
     print(last[-1])
 
 os.makedirs(os.path.join(ROOT, 'docs'), exist_ok=True)
-open(os.path.join(ROOT, 'docs', 'index.html'), 'w', encoding='utf-8', newline='
-').write(page)
+open(os.path.join(ROOT, 'docs', 'index.html'), 'w', encoding='utf-8', newline='\n').write(page)
 shutil.copytree(os.path.join(ROOT, 'src', 'voices'), os.path.join(ROOT, 'docs', 'voices'), dirs_exist_ok=True)
 shutil.copy(os.path.join(ROOT, 'src', 'share.png'), os.path.join(ROOT, 'docs', 'share.png'))   # the link preview picture
-open(os.path.join(ROOT, 'docs', 'version.json'), 'w', encoding='utf-8', newline='
-').write('{"v": %d}\n' % version)   # what open pages ask
+open(os.path.join(ROOT, 'docs', 'version.json'), 'w', encoding='utf-8', newline='\n').write('{"v": %d}\n' % version)   # what open pages ask
 print(f'docs/index.html {len(page) // 1024} KB, scores URL: {url or "(none: offline)"}')
