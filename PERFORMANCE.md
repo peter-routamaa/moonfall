@@ -42,7 +42,7 @@ From the profiler's seeded 15 km run at 320 x 694 game pixels. Counts are exact 
 |---|---|---|
 | Rectangles on screen, falling | 540-850 (Dust; 500-730 before version 155's geodes and ash vents), 540-1,000 (Jungle), 530-880 (Machine), about 1,200 with Jungle vines on screen | |
 | Images stamped on screen | 120-185 | |
-| Pixels covered by images | 0.74-0.90 million since version 154 (was 0.8-1.1 million) | the cost a phone's graphics chip feels most |
+| Pixels covered by images | 0.74-0.90 million since version 154 (was 0.8-1.1 million) falling; 0.89-0.97 million in Jungle fights (version 277) | the cost a phone's graphics chip feels most. In a fight about 600 thousand of them are the shaft's tiles (the cavern is nearly screen wide), about 110 thousand the Leviathan |
 | Rectangles into off-screen canvases, in a fight | 315-710 | the Leviathan's paints |
 | Canvases created | **0 in steady play, 0 in a fight, at most 5 in one moving frame** | 510-600 over a 15 km run since version 180 (640-730 before), nearly all first-time use and now one a frame: 13-22 frames make 3 or more (80-101 before, the worst 21 at once); 20-62 in the approach to a fight (before version 179: 22-59 in the fight itself); 8 at a cafe counter with a Leviathan below (its paint canvases and the shop's icons, while nothing moves) |
 | Page changes | about 1 | the depth read-out and the smooth-scroll nudge |
@@ -97,7 +97,9 @@ brought it back inside; `levi_budget.py` would have failed version 137 on all th
   steady after). While a fight is on, `stampAllow` is 0: a `disc`, `ring`, shot or elder body that has no image yet is
   drawn the direct way instead of having one made (`mayStamp()`). Their images are made in the approach, a few a frame
   (`bossWarmStep`: the shots and charge glow, then 24 paints of the creature at different moments in the cavern's
-  settled rock colours, each step allowed two new images). Before that a fight made 22-59 small canvases: 8-30 in the
+  settled rock colours, each step allowed two new images; one step a frame, at most 90 a second: two in one frame were
+  the thin shaft's heaviest frames, and at 60 fps one a frame still finishes all 32 paints before every fight, version
+  278). Before that a fight made 22-59 small canvases: 8-30 in the
   second before its first shot (the charge glow alone was twelve, across four frames), the rest whenever the rock's
   colour changed or the art reached a new size. Anything new that a fight stamps must go through `mayStamp()` and be
   made in `bossWarmStep`.
@@ -237,6 +239,7 @@ different ones on screen at once**. A Leviathan fading in has a new palette for 
    When the frame's title says `done`, read `window.__prof` inside it: per scene, rectangles, images, pixels,
    canvases made, page changes and forced layouts; `makers` says which function made each canvas and who called it.
 2. Do the same for the build before the change (`python3 tools/prof.py /tmp/before.html prof-old`) and compare.
+   On Windows the profiler is slower (about 15 minutes a moon in the in-app browser) but its counts are the same.
 3. **Trust the counts, not the times.** Times on a desktop are tiny and swing more from run to run than any change
    does, more so when the browser pane is hidden. The counts are exact.
 4. For the Leviathans on their own: `python3 tools/levi_budget.py` (counts `fillRect` and `drawImage` while calling
